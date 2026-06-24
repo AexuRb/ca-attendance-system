@@ -1,0 +1,98 @@
+# 计算机协会值班签到签退系统后端
+
+## 环境
+
+- Java 21
+- Maven 3.9+
+- MySQL 9.7+
+
+## 本地运行
+
+先确认数据库已初始化，并设置数据库密码环境变量：
+
+```powershell
+$env:DB_PASSWORD = "你的 MySQL 密码"
+mvn spring-boot:run
+```
+
+服务启动后访问：
+
+```text
+http://localhost:8080/api/health
+```
+
+也可以直接在 IntelliJ IDEA 中打开 `backend` 目录，等待 Maven 同步完成后运行：
+
+```text
+com.ca.attendance.AttendanceApplication
+```
+
+运行前需要在 IDEA 的 Run Configuration 里添加环境变量：
+
+```text
+DB_PASSWORD=你的 MySQL 密码
+```
+
+## 认证
+
+登录接口：
+
+```http
+POST /api/auth/login
+```
+
+登录成功后，后续接口使用：
+
+```http
+Authorization: Bearer <token>
+```
+
+## 已实现接口
+
+公开接口：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/health` | 健康检查 |
+| `GET` | `/api/public/attendance/lookup/{studentNo}` | 公开页按学号查询姓名和当前操作 |
+| `POST` | `/api/public/attendance/submit` | 公开页提交签到或签退 |
+
+登录与个人：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `POST` | `/api/auth/login` | 学号密码登录 |
+| `GET` | `/api/auth/me` | 当前登录用户 |
+| `POST` | `/api/auth/change-password` | 修改密码 |
+| `POST` | `/api/auth/logout` | 退出登录 |
+| `PUT` | `/api/me/profile` | 修改本人手机号、专业、QQ |
+| `GET` | `/api/attendance/me` | 查看本人值班记录 |
+
+后台管理：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET` | `/api/attendance` | 查询全部签到签退记录 |
+| `GET` | `/api/attendance/reviews/pending` | 查看待审核记录 |
+| `POST` | `/api/attendance/{id}/review` | 审核签到或签退 |
+| `PUT` | `/api/attendance/{id}/manual` | 管理员手动修改记录 |
+| `GET` | `/api/users` | 成员查询 |
+| `POST` | `/api/users` | 新增成员 |
+| `PUT` | `/api/users/{id}` | 修改成员、状态、角色 |
+| `POST` | `/api/users/{id}/reset-password` | 重置密码 |
+| `GET` | `/api/settings/weekdays` | 查看值班星期 |
+| `PUT` | `/api/settings/weekdays` | 修改值班星期 |
+| `GET` | `/api/stats/summary` | 统计汇总 |
+| `GET` | `/api/stats/export` | 导出 Excel |
+
+## 验证情况
+
+已完成本地验证：
+
+- Maven 编译通过。
+- Maven 打包通过。
+- 后端可连接本机 MySQL。
+- `/api/health` 返回正常。
+- 管理员账号 `1004231224` 可登录。
+- 公开学号查询可识别姓名。
+- 临时成员签到、签退、审核闭环通过，测试数据已清理。

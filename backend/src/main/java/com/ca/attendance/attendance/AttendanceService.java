@@ -1,0 +1,277 @@
+package com.ca.attendance.attendance;
+
+import com.ca.attendance.auth.AuthContext;
+import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.Role;
+import com.ca.attendance.common.ReviewStatus;
+import com.ca.attendance.log.OperationLogService;
+import com.ca.attendance.settings.DutyWeekdayService;
+import com.ca.attendance.user.UserRepository;
+import com.ca.attendance.user.UserSummary;
+import org.springframework.stereotype.Service;
+
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Service
+public class AttendanceService {
+    private final UserRepository users;
+    private final AttendanceRepository records;
+    private final DutyWeekdayService weekdays;
+    private final OperationLogService logs;
+
+    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays, OperationLogService logs) {
+        this.users = users;
+        this.records = records;
+        this.weekdays = weekdays;
+        this.logs = logs;
+    }
+
+    public PublicLookupResponse lookup(String studentNo) {
+        LocalDate today = LocalDate.now();
+        int weekday = today.getDayOfWeek().getValue();
+        boolean dutyDay = weekdays.isDutyWeekday(weekday);
+        UserSummary user = users.findActiveByStudentNo(studentNo).orElse(null);
+        if (user == null) {
+            return new PublicLookupResponse(false, dutyDay, null, null, null, "学号不存在或账号已停用", List.of());
+        }
+        return lookupResponse(user, today, dutyDay);
+    }
+
+    public PublicLookupResponse lookupByInput(String input) {
+        LocalDate today = LocalDate.now();
+        int weekday = today.getDayOfWeek().getValue();
+        boolean dutyDay = weekdays.isDutyWeekday(weekday);
+        String keyword = input == null ? "" : input.trim();
+        if (keyword.isBlank()) {
+            return new PublicLookupResponse(false, dutyDay, null, null, null, "请输入学号或姓名", List.of());
+        }
+
+        var byStudentNo = users.findActiveByStudentNo(keyword);
+        if (byStudentNo.isPresent()) {
+            return lookupResponse(byStudentNo.get(), today, dutyDay);
+        }
+
+        List<UserSummary> sameNameUsers = users.findActiveByName(keyword);
+        if (sameNameUsers.isEmpty()) {
+            return new PublicLookupResponse(false, dutyDay, null, null, null, "未找到该学号或姓名，或账号已停用", List.of());
+        }
+        if (sameNameUsers.size() == 1) {
+            return lookupResponse(sameNameUsers.get(0), today, dutyDay);
+        }
+
+        List<PublicMemberOption> matches = sameNameUsers.stream()
+                .map(user -> new PublicMemberOption(user.studentNo(), user.name(), user.grade(), user.major()))
+                .toList();
+        String message = dutyDay ? "找到多位同名成员，请选择自己的学号" : "今日不是值班日；找到多位同名成员";
+        return new PublicLookupResponse(false, dutyDay, null, null, null, message, matches);
+    }
+
+    private PublicLookupResponse lookupResponse(UserSummary user, LocalDate today, boolean dutyDay) {
+        String action = records.findOpenToday(user.id(), today).isPresent() ? "CHECK_OUT" : "CHECK_IN";
+        String message = dutyDay ? "请确认姓名后提交" : "今日不是值班日";
+        return new PublicLookupResponse(true, dutyDay, user.studentNo(), user.name(), action, message, List.of());
+    }
+
+    public SubmitResponse submitPublic(String studentNo) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDate today = now.toLocalDate();
+        int weekday = today.getDayOfWeek().getValue();
+        boolean dutyDay = weekdays.isDutyWeekday(weekday);
+        if (!dutyDay) {
+            throw ApiException.badRequest("今日不是值班日，不能普通签到签退");
+        }
+        UserSummary user = users.findActiveByStudentNo(studentNo)
+                .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
+        boolean autoApproved = user.role() == Role.PRESIDENT || user.role() == Role.ADMIN;
+        String pendingOrAuto = autoApproved ? ReviewStatus.AUTO_APPROVED.name() : ReviewStatus.PENDING.name();
+
+        var open = records.findOpenToday(user.id(), today);
+        if (open.isEmpty()) {
+            long id = records.insertCheckIn(
+                    user.id(),
+                    user.studentNo(),
+                    user.name(),
+                    today,
+                    weekday,
+                    true,
+                    Timestamp.valueOf(now),
+                    pendingOrAuto,
+                    "INCOMPLETE"
+            );
+            recompute(id);
+            return new SubmitResponse(id, "CHECK_IN", user.studentNo(), user.name(), now, pendingOrAuto, "签到提交成功");
+        }
+
+        AttendanceRecord record = open.get();
+        records.updateCheckOut(record.id(), Timestamp.valueOf(now), pendingOrAuto);
+        recompute(record.id());
+        return new SubmitResponse(record.id(), "CHECK_OUT", user.studentNo(), user.name(), now, pendingOrAuto, "签退提交成功");
+    }
+
+    public List<AttendanceRecord> pending() {
+        AuthUser current = AuthContext.current();
+        if (!current.role().atLeastManager()) {
+            throw ApiException.forbidden("无权查看待审核记录");
+        }
+        return records.pendingForReviewer(current.id(), current.role() == Role.MINISTER);
+    }
+
+    public void review(long id, String part, String action, String reason) {
+        AuthUser current = AuthContext.current();
+        if (!current.role().atLeastManager()) {
+            throw ApiException.forbidden("无权审核");
+        }
+        AttendanceRecord record = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        if (current.role() == Role.MINISTER && current.id() == record.userId()) {
+            throw ApiException.forbidden("部长不能审核自己的记录");
+        }
+        String normalizedPart = normalizePart(part);
+        String status = switch (action.toUpperCase()) {
+            case "APPROVE" -> ReviewStatus.APPROVED.name();
+            case "REJECT" -> ReviewStatus.REJECTED.name();
+            default -> throw ApiException.badRequest("审核动作只能是 APPROVE 或 REJECT");
+        };
+        if ("CHECK_IN".equals(normalizedPart) && !ReviewStatus.PENDING.name().equals(record.checkInStatus())) {
+            throw ApiException.badRequest("签到记录不是待审核状态");
+        }
+        if ("CHECK_OUT".equals(normalizedPart) && !ReviewStatus.PENDING.name().equals(record.checkOutStatus())) {
+            throw ApiException.badRequest("签退记录不是待审核状态");
+        }
+        if (ReviewStatus.REJECTED.name().equals(status) && (reason == null || reason.isBlank())) {
+            throw ApiException.badRequest("驳回时必须填写原因");
+        }
+        records.updateReview(id, normalizedPart, status, current.id(), reason);
+        recompute(id);
+        AttendanceRecord after = records.findById(id).orElseThrow();
+        logs.log("REVIEW_ATTENDANCE", "attendance_records", id, record, after, reviewReason(normalizedPart, status, reason));
+    }
+
+    public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
+        if (!AuthContext.current().role().atLeastManager()) {
+            throw ApiException.forbidden("无权查看全部记录");
+        }
+        return records.search(from, to, studentNo, status);
+    }
+
+    public List<AttendanceRecord> myRecords(LocalDate from, LocalDate to) {
+        long userId = AuthContext.current().id();
+        return records.search(from, to, "", "").stream().filter(r -> r.userId() == userId).toList();
+    }
+
+    public AttendanceRecord manualUpdate(long id, ManualUpdateRequest request) {
+        AuthUser current = AuthContext.current();
+        if (current.role() != Role.ADMIN) {
+            throw ApiException.forbidden("只有管理员可以手动修改签到记录");
+        }
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw ApiException.badRequest("手动修改必须填写原因");
+        }
+        AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        records.manualUpdate(
+                id,
+                Timestamp.valueOf(request.checkInTime()),
+                request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
+                request.checkInStatus(),
+                request.checkOutStatus(),
+                request.reason(),
+                current.id()
+        );
+        recompute(id);
+        AttendanceRecord after = records.findById(id).orElseThrow();
+        logs.log("MANUAL_UPDATE_ATTENDANCE", "attendance_records", id, before, after, request.reason());
+        return after;
+    }
+
+    public void recompute(long id) {
+        AttendanceRecord record = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        if (ReviewStatus.REJECTED.name().equals(record.checkInStatus())
+                || ReviewStatus.REJECTED.name().equals(record.checkOutStatus())
+                || !record.dutyDay()) {
+            records.updateEffective(id, 0, 0, "INVALID");
+            return;
+        }
+        if (record.checkOutTime() == null || ReviewStatus.NOT_SUBMITTED.name().equals(record.checkOutStatus())) {
+            records.updateEffective(id, 0, 0, "INCOMPLETE");
+            return;
+        }
+        boolean checkInOk = approved(record.checkInStatus());
+        boolean checkOutOk = approved(record.checkOutStatus());
+        if (!checkInOk || !checkOutOk) {
+            records.updateEffective(id, 0, 0, "PENDING");
+            return;
+        }
+        Duration duration = Duration.between(record.checkInTime(), record.checkOutTime());
+        if (duration.toSeconds() <= 0) {
+            records.updateEffective(id, 0, 0, "INVALID");
+            return;
+        }
+        long minutes = duration.toMinutes();
+        int validHours = (int) ((minutes + 30) / 60);
+        records.updateEffective(id, (int) minutes, validHours, "VALID");
+    }
+
+    private boolean approved(String status) {
+        return ReviewStatus.APPROVED.name().equals(status) || ReviewStatus.AUTO_APPROVED.name().equals(status);
+    }
+
+    private String reviewReason(String part, String status, String reason) {
+        if (reason != null && !reason.isBlank()) {
+            return reason.trim();
+        }
+        String partText = "CHECK_IN".equals(part) ? "签到" : "签退";
+        String statusText = ReviewStatus.APPROVED.name().equals(status) ? "通过" : "驳回";
+        return partText + "审核" + statusText;
+    }
+
+    private String normalizePart(String part) {
+        String normalized = part == null ? "" : part.trim().toUpperCase();
+        if (!normalized.equals("CHECK_IN") && !normalized.equals("CHECK_OUT")) {
+            throw ApiException.badRequest("审核部分只能是 CHECK_IN 或 CHECK_OUT");
+        }
+        return normalized;
+    }
+
+    public record PublicLookupResponse(
+            boolean exists,
+            boolean dutyDay,
+            String studentNo,
+            String name,
+            String action,
+            String message,
+            List<PublicMemberOption> matches
+    ) {
+    }
+
+    public record PublicMemberOption(
+            String studentNo,
+            String name,
+            String grade,
+            String major
+    ) {
+    }
+
+    public record SubmitResponse(
+            long recordId,
+            String action,
+            String studentNo,
+            String name,
+            LocalDateTime submittedAt,
+            String status,
+            String message
+    ) {
+    }
+
+    public record ManualUpdateRequest(
+            LocalDateTime checkInTime,
+            LocalDateTime checkOutTime,
+            String checkInStatus,
+            String checkOutStatus,
+            String reason
+    ) {
+    }
+}

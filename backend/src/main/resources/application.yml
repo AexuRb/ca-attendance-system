@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: attendance-backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:ca_attendance}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+app:
+  auth:
+    token-hours: 12
+  initial-admin:
+    student-no: ${INITIAL_ADMIN_STUDENT_NO:1004231224}
+    password: ${INITIAL_ADMIN_PASSWORD:}
+
+logging:
+  level:
+    com.ca.attendance: INFO

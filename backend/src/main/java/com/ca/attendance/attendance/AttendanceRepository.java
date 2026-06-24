@@ -1,0 +1,162 @@
+package com.ca.attendance.attendance;
+
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public class AttendanceRepository {
+    private final JdbcTemplate jdbc;
+
+    private final RowMapper<AttendanceRecord> mapper = (rs, rowNum) -> new AttendanceRecord(
+            rs.getLong("id"),
+            rs.getLong("user_id"),
+            rs.getString("student_no_snapshot"),
+            rs.getString("name_snapshot"),
+            rs.getDate("duty_date").toLocalDate(),
+            rs.getInt("duty_weekday"),
+            rs.getBoolean("is_duty_day"),
+            rs.getTimestamp("check_in_time").toLocalDateTime(),
+            rs.getTimestamp("check_out_time") == null ? null : rs.getTimestamp("check_out_time").toLocalDateTime(),
+            rs.getString("check_in_status"),
+            rs.getString("check_out_status"),
+            rs.getObject("check_in_reviewed_by", Long.class),
+            rs.getObject("check_out_reviewed_by", Long.class),
+            rs.getTimestamp("check_in_reviewed_at") == null ? null : rs.getTimestamp("check_in_reviewed_at").toLocalDateTime(),
+            rs.getTimestamp("check_out_reviewed_at") == null ? null : rs.getTimestamp("check_out_reviewed_at").toLocalDateTime(),
+            rs.getString("check_in_reject_reason"),
+            rs.getString("check_out_reject_reason"),
+            rs.getInt("duration_minutes"),
+            rs.getInt("valid_hours"),
+            rs.getString("effective_status"),
+            rs.getString("source"),
+            rs.getString("manual_reason")
+    );
+
+    public AttendanceRepository(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    public Optional<AttendanceRecord> findById(long id) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject("SELECT * FROM attendance_records WHERE id = ?", mapper, id));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<AttendanceRecord> findOpenToday(long userId, LocalDate dutyDate) {
+        try {
+            return Optional.ofNullable(jdbc.queryForObject("""
+                    SELECT *
+                    FROM attendance_records
+                    WHERE user_id = ?
+                      AND duty_date = ?
+                      AND check_out_time IS NULL
+                      AND check_out_status = 'NOT_SUBMITTED'
+                      AND check_in_status <> 'REJECTED'
+                    ORDER BY check_in_time DESC
+                    LIMIT 1
+                    """, mapper, userId, dutyDate));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public List<AttendanceRecord> pendingForReviewer(long reviewerId, boolean minister) {
+        if (minister) {
+            return jdbc.query("""
+                    SELECT *
+                    FROM attendance_records
+                    WHERE (check_in_status = 'PENDING' OR check_out_status = 'PENDING')
+                      AND user_id <> ?
+                    ORDER BY duty_date DESC, check_in_time DESC
+                    LIMIT 500
+                    """, mapper, reviewerId);
+        }
+        return jdbc.query("""
+                SELECT *
+                FROM attendance_records
+                WHERE check_in_status = 'PENDING' OR check_out_status = 'PENDING'
+                ORDER BY duty_date DESC, check_in_time DESC
+                LIMIT 500
+                """, mapper);
+    }
+
+    public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
+        String studentNoLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
+        String effectiveStatus = status == null || status.isBlank() ? "%" : status;
+        return jdbc.query("""
+                SELECT *
+                FROM attendance_records
+                WHERE duty_date BETWEEN ? AND ?
+                  AND student_no_snapshot LIKE ?
+                  AND effective_status LIKE ?
+                ORDER BY duty_date DESC, check_in_time DESC
+                LIMIT 2000
+                """, mapper, from, to, studentNoLike, effectiveStatus);
+    }
+
+    public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
+                              boolean isDutyDay, Timestamp checkInTime, String checkInStatus,
+                              String effectiveStatus) {
+        jdbc.update("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day,
+                  check_in_time, check_in_status, check_out_status, effective_status, source
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
+                """, userId, studentNo, name, dutyDate, weekday, isDutyDay, checkInTime, checkInStatus, effectiveStatus);
+        return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    }
+
+    public void updateCheckOut(long recordId, Timestamp checkOutTime, String checkOutStatus) {
+        jdbc.update("""
+                UPDATE attendance_records
+                SET check_out_time = ?, check_out_status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, checkOutTime, checkOutStatus, recordId);
+    }
+
+    public void updateReview(long recordId, String part, String status, long reviewerId, String reason) {
+        if ("CHECK_IN".equals(part)) {
+            jdbc.update("""
+                    UPDATE attendance_records
+                    SET check_in_status = ?, check_in_reviewed_by = ?, check_in_reviewed_at = CURRENT_TIMESTAMP,
+                        check_in_reject_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """, status, reviewerId, reason, reviewerId, recordId);
+        } else {
+            jdbc.update("""
+                    UPDATE attendance_records
+                    SET check_out_status = ?, check_out_reviewed_by = ?, check_out_reviewed_at = CURRENT_TIMESTAMP,
+                        check_out_reject_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """, status, reviewerId, reason, reviewerId, recordId);
+        }
+    }
+
+    public void updateEffective(long recordId, int durationMinutes, int validHours, String effectiveStatus) {
+        jdbc.update("""
+                UPDATE attendance_records
+                SET duration_minutes = ?, valid_hours = ?, effective_status = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, durationMinutes, validHours, effectiveStatus, recordId);
+    }
+
+    public void manualUpdate(long id, Timestamp checkInTime, Timestamp checkOutTime, String checkInStatus,
+                             String checkOutStatus, String reason, long operatorId) {
+        jdbc.update("""
+                UPDATE attendance_records
+                SET check_in_time = ?, check_out_time = ?, check_in_status = ?, check_out_status = ?,
+                    source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """, checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, operatorId, id);
+    }
+}
