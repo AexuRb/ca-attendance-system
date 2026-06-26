@@ -8,11 +8,32 @@
 | --- | --- |
 | `schema.sql` | 创建数据库和核心表结构 |
 | `seed.sql` | 写入默认值班星期和系统配置 |
+| `init-db.bat` | Windows 一键初始化数据库 |
 | `import_members.py` | 从成员信息 Excel 导入 `users` 表 |
 
 ## 初始化顺序
 
-在 MySQL 中依次执行：
+推荐方式：先在项目根目录复制并修改 `local-config.bat`，然后双击项目根目录的：
+
+```text
+init-db.bat
+```
+
+也可以双击本目录下的：
+
+```text
+database\init-db.bat
+```
+
+脚本会根据自身所在目录自动定位 `schema.sql` 和 `seed.sql`，所以项目移动到其他路径或新电脑后不需要修改 SQL 文件路径。
+
+如果 `mysql` 命令没有加入 PATH，可以在 `local-config.bat` 中额外添加：
+
+```bat
+set "MYSQL_CLIENT=full-path-to-mysql.exe"
+```
+
+备用手动方式：在 MySQL 中依次执行：
 
 ```sql
 SOURCE database/schema.sql;
@@ -24,14 +45,6 @@ SOURCE database/seed.sql;
 ```bash
 mysql -u root -p < database/schema.sql
 mysql -u root -p ca_attendance < database/seed.sql
-```
-
-如果在 Windows PowerShell 中使用完整路径导入，建议通过 `cmd.exe` 执行输入重定向：
-
-```powershell
-$mysql = "C:\Program Files\MySQL\MySQL Server 9.7\bin\mysql.exe"
-cmd.exe /c "`"$mysql`" -u root -p --default-character-set=utf8mb4 < `"C:\Codex\计算机协会签到签退系统\database\schema.sql`""
-cmd.exe /c "`"$mysql`" -u root -p --default-character-set=utf8mb4 ca_attendance < `"C:\Codex\计算机协会签到签退系统\database\seed.sql`""
 ```
 
 ## 核心表
@@ -121,11 +134,7 @@ cmd.exe /c "`"$mysql`" -u root -p --default-character-set=utf8mb4 ca_attendance 
 
 ## 导入成员信息表
 
-成员信息表默认路径：
-
-```text
-C:\Users\AexuRb\Desktop\杂物\课程资料\2025-2026学年计算机协会社团成员信息表.xlsx
-```
+脚本不再内置本机成员表路径。使用时请通过 `--excel` 指定当前电脑上的 Excel 文件，或设置 `MEMBER_EXCEL` 环境变量。
 
 导入字段映射：
 
@@ -143,7 +152,7 @@ C:\Users\AexuRb\Desktop\杂物\课程资料\2025-2026学年计算机协会社团
 ```powershell
 $env:PYTHONIOENCODING = "utf-8"
 $env:MYSQL_PWD = "你的 MySQL 密码"
-python database/import_members.py --dry-run
+python database/import_members.py --excel ".\成员信息表.xlsx" --dry-run
 Remove-Item Env:MYSQL_PWD
 Remove-Item Env:PYTHONIOENCODING
 ```
@@ -153,7 +162,7 @@ Remove-Item Env:PYTHONIOENCODING
 ```powershell
 $env:PYTHONIOENCODING = "utf-8"
 $env:MYSQL_PWD = "你的 MySQL 密码"
-python database/import_members.py
+python database/import_members.py --excel ".\成员信息表.xlsx"
 Remove-Item Env:MYSQL_PWD
 Remove-Item Env:PYTHONIOENCODING
 ```

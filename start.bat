@@ -3,7 +3,53 @@ chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
-call "%~dp0local-config.bat"
+if exist "%~dp0local-config.bat" (
+  call "%~dp0local-config.bat"
+) else (
+  echo [错误] 未找到 local-config.bat。
+  if exist "%~dp0local-config.example.bat" (
+    copy "%~dp0local-config.example.bat" "%~dp0local-config.bat" >nul
+    echo 已自动生成 local-config.bat。
+  )
+  echo 请先打开 local-config.bat，填写 DB_PASSWORD 和 INITIAL_ADMIN_PASSWORD。
+  pause
+  exit /b 1
+)
+
+if not defined APP_PORT set "APP_PORT=8080"
+if not defined DB_HOST set "DB_HOST=127.0.0.1"
+if not defined DB_PORT set "DB_PORT=3306"
+if not defined DB_NAME set "DB_NAME=ca_attendance"
+if not defined DB_USER set "DB_USER=root"
+
+if not defined DB_PASSWORD (
+  echo [错误] DB_PASSWORD 还没有配置。
+  echo 请打开 local-config.bat，填写 MySQL 密码。
+  pause
+  exit /b 1
+)
+
+if "%DB_PASSWORD%"=="change-me" (
+  echo [错误] DB_PASSWORD 仍然是 change-me。
+  echo 请打开 local-config.bat，把它改成你的 MySQL 密码。
+  pause
+  exit /b 1
+)
+
+if "%INITIAL_ADMIN_PASSWORD%"=="change-me" (
+  echo [错误] INITIAL_ADMIN_PASSWORD 仍然是 change-me。
+  echo 请打开 local-config.bat，设置初始管理员密码。
+  pause
+  exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { [void][uint16]'%APP_PORT%'; exit 0 } catch { exit 1 }"
+if errorlevel 1 (
+  echo [错误] APP_PORT 配置不正确：%APP_PORT%
+  echo 请在 local-config.bat 中设置类似：set "APP_PORT=8080"
+  pause
+  exit /b 1
+)
 
 set "ROOT_DIR=%~dp0"
 set "BACKEND_DIR=%ROOT_DIR%backend"
@@ -51,7 +97,7 @@ if not exist "%JAR%" (
 )
 
 echo [启动] 正在打开后端服务窗口...
-start "计算机协会签到签退系统" /D "%BACKEND_DIR%" cmd /k java -jar target\attendance-backend-0.0.1-SNAPSHOT.jar
+start "计算机协会签到签退系统" /D "%BACKEND_DIR%" cmd /k java -jar target\attendance-backend-0.0.1-SNAPSHOT.jar --server.port=%APP_PORT%
 
 echo [等待] 正在等待服务启动...
 for /l %%i in (1,1,20) do (

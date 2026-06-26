@@ -9,9 +9,6 @@ import mysql.connector
 from openpyxl import load_workbook
 
 
-DEFAULT_EXCEL = r"C:\Users\AexuRb\Desktop\杂物\课程资料\2025-2026学年计算机协会社团成员信息表.xlsx"
-
-
 def clean(value):
     if value is None:
         return ""
@@ -124,7 +121,7 @@ def import_members(args, members):
 
 def main():
     parser = argparse.ArgumentParser(description="Import association members from Excel into MySQL.")
-    parser.add_argument("--excel", default=DEFAULT_EXCEL)
+    parser.add_argument("--excel", default=os.environ.get("MEMBER_EXCEL"), help="Path to the member Excel file.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=3306)
     parser.add_argument("--user", default="root")
@@ -132,6 +129,10 @@ def main():
     parser.add_argument("--database", default="ca_attendance")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+
+    if not args.excel:
+        print("Missing Excel file. Pass --excel or set MEMBER_EXCEL.", file=sys.stderr)
+        return 1
 
     path = Path(args.excel)
     if not path.exists():

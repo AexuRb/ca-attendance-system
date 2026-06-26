@@ -108,12 +108,12 @@
         </div>
       </section>
 
-      <section v-else class="dashboard">
+      <section v-else class="dashboard" :class="[{ 'login-dashboard': !currentUser }, dashboardRoleClass]">
         <header class="dashboard-header">
           <div class="dashboard-title">
-            <p class="eyebrow">Management Console</p>
-            <h2>协会值班后台</h2>
-            <span>CUGB CA · #include &lt;the.world&gt;</span>
+            <p class="eyebrow">{{ currentUser ? roleDashboard.eyebrow : 'Management Console' }}</p>
+            <h2>{{ currentUser ? roleDashboard.headerTitle : '协会值班后台' }}</h2>
+            <span>{{ currentUser ? roleDashboard.headerMeta : 'CUGB CA · #include <the.world>' }}</span>
           </div>
           <div v-if="currentUser" class="user-chip">
             <UserRound :size="17" />
@@ -143,7 +143,32 @@
         </div>
 
         <div v-else class="workspace">
-          <div class="tab-row">
+          <div class="role-command">
+            <div class="role-command-main">
+              <div class="role-command-mark">
+                <component :is="roleDashboard.icon" :size="28" />
+              </div>
+              <div class="role-command-copy">
+                <p class="eyebrow">{{ roleDashboard.eyebrow }}</p>
+                <h3>{{ roleDashboard.title }}</h3>
+                <span>{{ roleDashboard.subtitle }}</span>
+              </div>
+            </div>
+            <div class="role-command-metrics">
+              <div v-for="metric in roleMetrics" :key="metric.label" class="role-metric">
+                <span>{{ metric.label }}</span>
+                <strong>{{ metric.value }}</strong>
+              </div>
+            </div>
+            <div class="role-quick-actions">
+              <button v-for="action in roleActions" :key="action.label" class="ghost-button" @click="runRoleAction(action)">
+                <component :is="action.icon" :size="16" />
+                <span>{{ action.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="availableTabs.length > 1" class="tab-row">
             <button v-for="tab in availableTabs" :key="tab.id" :class="{ active: activeTab === tab.id }" @click="selectTab(tab.id)">
               <component :is="tab.icon" :size="17" />
               <span>{{ tab.label }}</span>
@@ -215,20 +240,6 @@
             </div>
 
             <div class="overview-layout">
-              <div class="overview-panel action-panel">
-                <div class="subsection-head">
-                  <h4>快捷入口</h4>
-                </div>
-                <div class="overview-actions">
-                  <button class="ghost-button" @click="selectTab('reviews')"><ListChecks :size="16" />待审核</button>
-                  <button v-if="canAddAttendanceRecords" class="ghost-button" @click="selectTab('records')"><ClipboardList :size="16" />签到记录</button>
-                  <button v-if="canManageUsers" class="ghost-button" @click="selectTab('members')"><UsersRound :size="16" />成员管理</button>
-                  <button class="ghost-button" @click="selectTab('stats')"><LayoutDashboard :size="16" />统计</button>
-                  <button v-if="canViewLogs" class="ghost-button" @click="selectTab('logs')"><History :size="16" />日志</button>
-                  <button v-if="canBackupData" class="ghost-button" @click="selectTab('maintenance')"><Save :size="16" />维护</button>
-                </div>
-              </div>
-
               <div class="overview-panel">
                 <div class="subsection-head">
                   <h4>今日未签退</h4>
@@ -973,6 +984,111 @@ const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / logP
 const overviewDutyDaysText = computed(() => overview.dutyDays.length ? overview.dutyDays.join('、') : '未设置')
 const todayText = computed(() => today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }))
 const weekdayText = computed(() => today.toLocaleDateString('zh-CN', { weekday: 'long' }))
+const dashboardRoleClass = computed(() => currentUser.value ? `role-${String(currentUser.value.role).toLowerCase()}` : '')
+const roleDashboard = computed(() => {
+  const role = currentUser.value?.role
+  return {
+    MEMBER: {
+      eyebrow: 'Member Desk',
+      headerTitle: '个人值班中心',
+      headerMeta: `${currentUser.value?.name || '成员'} · ${todayText.value} ${weekdayText.value}`,
+      title: '我的值班记录',
+      subtitle: '值班记录、个人资料和密码维护',
+      icon: UserRound
+    },
+    MINISTER: {
+      eyebrow: 'Review Desk',
+      headerTitle: '部长审核台',
+      headerMeta: `待审核 ${overview.pendingCount} 条 · 本周 ${overview.dashboard.weekValidHours} h`,
+      title: '审核与统计',
+      subtitle: '待审核记录、今日值班和阶段统计',
+      icon: ListChecks
+    },
+    PRESIDENT: {
+      eyebrow: 'President Desk',
+      headerTitle: '会长工作台',
+      headerMeta: `今日 ${overview.dashboard.todayRecordCount} 条 · 未签退 ${overview.dashboard.todayOpenCount} 条`,
+      title: '成员和值班统筹',
+      subtitle: '成员管理、签到记录、统计和值班星期',
+      icon: ShieldCheck
+    },
+    ADMIN: {
+      eyebrow: 'Admin Console',
+      headerTitle: '管理员控制台',
+      headerMeta: `维护 · 日志 · 数据记录`,
+      title: '系统维护与数据控制',
+      subtitle: '签到记录、成员数据、日志和备份维护',
+      icon: SlidersHorizontal
+    }
+  }[role] || {
+    eyebrow: 'Management Console',
+    headerTitle: '协会值班后台',
+    headerMeta: 'CUGB CA · #include <the.world>',
+    title: '值班后台',
+    subtitle: '协会值班管理',
+    icon: Gauge
+  }
+})
+const roleMetrics = computed(() => {
+  const role = currentUser.value?.role
+  if (role === 'MEMBER') {
+    return [
+      { label: '我的记录', value: myRecordCount.value },
+      { label: '有效时长', value: `${myRecordHours.value} h` },
+      { label: '年级', value: profile.grade || '-' }
+    ]
+  }
+  if (role === 'MINISTER') {
+    return [
+      { label: '待审核', value: overview.pendingCount },
+      { label: '今日记录', value: overview.dashboard.todayRecordCount },
+      { label: '本周时长', value: `${overview.dashboard.weekValidHours} h` }
+    ]
+  }
+  if (role === 'PRESIDENT') {
+    return [
+      { label: '今日未签退', value: overview.dashboard.todayOpenCount },
+      { label: '今日待审核', value: overview.dashboard.todayPendingCount },
+      { label: '本年时长', value: `${overview.dashboard.yearValidHours} h` }
+    ]
+  }
+  if (role === 'ADMIN') {
+    return [
+      { label: '今日记录', value: overview.dashboard.todayRecordCount },
+      { label: '待审核', value: overview.pendingCount },
+      { label: '未签退', value: overview.dashboard.todayOpenCount }
+    ]
+  }
+  return []
+})
+const roleActions = computed(() => {
+  const role = currentUser.value?.role
+  const actions = {
+    MEMBER: [
+      { label: '个人中心', tab: 'profile', icon: UserRound },
+      { label: '签到台', view: 'kiosk', icon: ScanLine }
+    ],
+    MINISTER: [
+      { label: '待审核', tab: 'reviews', icon: ListChecks },
+      { label: '统计', tab: 'stats', icon: LayoutDashboard },
+      { label: '个人中心', tab: 'profile', icon: UserRound }
+    ],
+    PRESIDENT: [
+      { label: '成员', tab: 'members', icon: UsersRound },
+      { label: '记录', tab: 'records', icon: ClipboardList },
+      { label: '统计', tab: 'stats', icon: LayoutDashboard },
+      { label: '值班星期', tab: 'settings', icon: SlidersHorizontal }
+    ],
+    ADMIN: [
+      { label: '记录', tab: 'records', icon: ClipboardList },
+      { label: '成员', tab: 'members', icon: UsersRound },
+      { label: '日志', tab: 'logs', icon: History },
+      { label: '维护', tab: 'maintenance', icon: Save }
+    ]
+  }[role] || []
+  const allowed = new Set(availableTabs.value.map(tab => tab.id))
+  return actions.filter(action => action.view || allowed.has(action.tab))
+})
 const logFilters = reactive({
   keyword: '',
   actionType: '',
@@ -1066,6 +1182,14 @@ async function selectTab(tab) {
     await loadMe()
     await loadMyRecords()
   }
+}
+
+async function runRoleAction(action) {
+  if (action.view) {
+    view.value = action.view
+    return
+  }
+  if (action.tab) await selectTab(action.tab)
 }
 
 async function loadOverview() {

@@ -546,6 +546,46 @@ select:focus {
 .dashboard {
   min-width: 0;
   max-width: 1160px;
+  --role-accent: var(--green);
+  --role-accent-soft: rgba(55, 216, 137, 0.12);
+  --role-ink: #111513;
+}
+
+.dashboard.login-dashboard {
+  display: grid;
+  min-height: calc(100vh - 56px);
+  max-width: none;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.dashboard.login-dashboard .dashboard-header {
+  width: 100%;
+  max-width: 1160px;
+  justify-self: center;
+}
+
+.dashboard.role-member {
+  --role-accent: var(--teal);
+  --role-accent-soft: rgba(24, 127, 120, 0.12);
+  --role-ink: #12433f;
+}
+
+.dashboard.role-minister {
+  --role-accent: var(--amber);
+  --role-accent-soft: rgba(170, 116, 24, 0.14);
+  --role-ink: #5a3b0c;
+}
+
+.dashboard.role-president {
+  --role-accent: var(--blueprint);
+  --role-accent-soft: rgba(36, 67, 90, 0.13);
+  --role-ink: #1f3b52;
+}
+
+.dashboard.role-admin {
+  --role-accent: var(--red);
+  --role-accent-soft: rgba(199, 60, 53, 0.11);
+  --role-ink: #6f201c;
 }
 
 .dashboard-header {
@@ -570,21 +610,28 @@ select:focus {
 }
 
 .login-panel {
-  max-width: 420px;
-  padding: 24px;
+  width: min(520px, 100%);
+  max-width: 520px;
+  padding: 34px;
+}
+
+.dashboard.login-dashboard .login-panel {
+  align-self: center;
+  justify-self: center;
+  margin-top: -18px;
 }
 
 .login-brand {
   display: flex;
-  gap: 14px;
+  gap: 18px;
   align-items: center;
-  padding-bottom: 18px;
+  padding-bottom: 24px;
   border-bottom: 1px solid var(--line);
 }
 
 .login-brand img {
-  width: 76px;
-  height: 76px;
+  width: 94px;
+  height: 94px;
   object-fit: contain;
   filter: invert(1);
 }
@@ -596,22 +643,158 @@ select:focus {
 
 .login-brand strong {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 28px;
+  font-size: 34px;
   line-height: 1;
 }
 
 .login-brand span {
-  margin-top: 6px;
+  margin-top: 8px;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
+}
+
+.login-panel form {
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.login-panel input {
+  min-height: 52px;
+  padding: 12px 14px;
+  font-size: 16px;
+}
+
+.login-panel .primary-action {
+  min-height: 52px;
+  margin-top: 4px;
+  font-size: 16px;
 }
 
 .workspace {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   min-width: 0;
+}
+
+.role-command {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(320px, 1.15fr) minmax(320px, 0.9fr) auto;
+  gap: 16px;
+  align-items: stretch;
+  padding: 16px;
+  border: 1px solid #111513;
+  border-radius: 8px;
+  background:
+    linear-gradient(110deg, var(--role-accent-soft), transparent 52%),
+    repeating-linear-gradient(90deg, rgba(17, 21, 19, 0.035) 0 1px, transparent 1px 22px),
+    var(--panel);
+  box-shadow: 6px 6px 0 var(--shadow), 0 16px 34px rgba(17, 21, 19, 0.06);
+}
+
+.role-command::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  content: "";
+  background: var(--role-accent);
+}
+
+.role-command-main {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+}
+
+.role-command-mark {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: #fff;
+  border: 1px solid #111513;
+  border-radius: 8px;
+  background: var(--role-ink);
+  box-shadow: 4px 4px 0 rgba(17, 21, 19, 0.13);
+}
+
+.role-command-copy {
+  min-width: 0;
+}
+
+.role-command-copy .eyebrow {
+  color: var(--role-ink);
+}
+
+.role-command-copy h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 26px;
+  line-height: 1.14;
+}
+
+.role-command-copy span {
+  display: block;
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.role-command-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.role-metric {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(17, 21, 19, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.role-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.role-metric strong {
+  display: block;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.role-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(112px, 1fr));
+  gap: 8px;
+  align-content: center;
+}
+
+.role-quick-actions .ghost-button {
+  justify-content: flex-start;
+  border-color: rgba(17, 21, 19, 0.8);
+  background: #fff;
+}
+
+.role-quick-actions .ghost-button:hover {
+  border-color: var(--role-accent);
+  color: var(--role-ink);
+  background: #fff;
 }
 
 .tab-row {
@@ -849,7 +1032,7 @@ select:focus {
 
 .overview-layout {
   display: grid;
-  grid-template-columns: minmax(240px, 0.82fr) minmax(0, 1.1fr) minmax(0, 1.1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-top: 16px;
   align-items: start;
@@ -865,22 +1048,6 @@ select:focus {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.62), transparent 52%),
     var(--wash);
-}
-
-.overview-panel.action-panel {
-  background:
-    linear-gradient(135deg, rgba(55, 216, 137, 0.08), transparent 58%),
-    var(--wash);
-}
-
-.overview-actions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.overview-actions .ghost-button {
-  justify-content: flex-start;
 }
 
 .overview-table-wrap {
@@ -909,6 +1076,14 @@ select:focus {
   grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
+}
+
+.role-member .profile-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.82fr);
+}
+
+.role-member .records-card {
+  order: -1;
 }
 
 .profile-card,
@@ -1731,8 +1906,17 @@ tbody tr:hover {
   }
 
   .overview-grid,
-  .overview-layout,
-  .overview-actions {
+  .overview-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .role-command {
+    grid-template-columns: 1fr;
+  }
+
+  .role-command-metrics,
+  .role-quick-actions,
+  .role-member .profile-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1810,6 +1994,23 @@ tbody tr:hover {
   .tab-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .role-command {
+    padding: 14px;
+  }
+
+  .role-command-main {
+    align-items: flex-start;
+  }
+
+  .role-command-mark {
+    width: 52px;
+    height: 52px;
+  }
+
+  .role-command-copy h3 {
+    font-size: 22px;
   }
 
   .tab-row button,

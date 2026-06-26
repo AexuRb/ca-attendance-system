@@ -12,15 +12,17 @@
 ## 本地启动
 
 1. 安装 JDK 21、Maven、Node.js、MySQL。
-2. 创建数据库并导入 `database/schema.sql`，需要初始数据时再导入 `database/seed.sql`。
-3. 复制配置模板：
+2. 复制配置模板：
 
 ```bat
 copy local-config.example.bat local-config.bat
 ```
 
-4. 修改 `local-config.bat` 里的 MySQL 密码和初始管理员密码。
+3. 修改 `local-config.bat` 里的 MySQL 密码和初始管理员密码。
+4. 双击 `init-db.bat` 初始化数据库。
 5. 双击 `start.bat` 启动网站。
+
+如果启动日志出现 `using password: NO`，说明 `local-config.bat` 没有配置 `DB_PASSWORD`，后端正在用空密码连接 MySQL。
 
 启动后访问：
 
