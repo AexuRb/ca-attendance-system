@@ -73,17 +73,29 @@ Authorization: Bearer <token>
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/api/attendance` | 查询全部签到签退记录 |
+| `GET` | `/api/attendance/open` | 查看未签退记录 |
 | `GET` | `/api/attendance/reviews/pending` | 查看待审核记录 |
 | `POST` | `/api/attendance/{id}/review` | 审核签到或签退 |
+| `POST` | `/api/attendance/reviews/bulk` | 批量通过待审核记录 |
+| `POST` | `/api/attendance/manual` | 会长或管理员新增签到记录 |
 | `PUT` | `/api/attendance/{id}/manual` | 管理员手动修改记录 |
+| `DELETE` | `/api/attendance/{id}` | 管理员删除签到记录 |
 | `GET` | `/api/users` | 成员查询 |
 | `POST` | `/api/users` | 新增成员 |
 | `PUT` | `/api/users/{id}` | 修改成员、状态、角色 |
 | `POST` | `/api/users/{id}/reset-password` | 重置密码 |
 | `GET` | `/api/settings/weekdays` | 查看值班星期 |
 | `PUT` | `/api/settings/weekdays` | 修改值班星期 |
+| `GET` | `/api/stats/dashboard` | 后台概览统计 |
 | `GET` | `/api/stats/summary` | 统计汇总 |
 | `GET` | `/api/stats/export` | 导出 Excel |
+| `GET` | `/api/logs` | 管理员查看操作日志 |
+| `GET` | `/api/logs/export` | 管理员导出操作日志 |
+| `DELETE` | `/api/logs` | 管理员清空操作日志 |
+| `GET` | `/api/maintenance/backups` | 会长或管理员查看备份 |
+| `POST` | `/api/maintenance/backups` | 会长或管理员创建备份 |
+| `GET` | `/api/maintenance/backups/{filename}` | 会长或管理员下载备份 |
+| `DELETE` | `/api/maintenance/backups/{filename}` | 管理员删除备份 |
 
 ## 验证情况
 

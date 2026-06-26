@@ -15,6 +15,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -121,6 +122,16 @@ public class AttendanceService {
         return records.pendingForReviewer(current.id(), current.role() == Role.MINISTER);
     }
 
+    public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
+        if (!AuthContext.current().role().atLeastManager()) {
+            throw ApiException.forbidden("无权查看未签退记录");
+        }
+        if (from.isAfter(to)) {
+            throw ApiException.badRequest("开始日期不能晚于结束日期");
+        }
+        return records.openRecords(from, to);
+    }
+
     public void review(long id, String part, String action, String reason) {
         AuthUser current = AuthContext.current();
         if (!current.role().atLeastManager()) {
@@ -149,6 +160,52 @@ public class AttendanceService {
         recompute(id);
         AttendanceRecord after = records.findById(id).orElseThrow();
         logs.log("REVIEW_ATTENDANCE", "attendance_records", id, record, after, reviewReason(normalizedPart, status, reason));
+    }
+
+    public BulkReviewResult bulkReview(BulkReviewRequest request) {
+        if (!AuthContext.current().role().atLeastManager()) {
+            throw ApiException.forbidden("无权审核");
+        }
+        if (request.ids() == null || request.ids().isEmpty()) {
+            throw ApiException.badRequest("请选择要审核的记录");
+        }
+
+        List<String> parts = bulkParts(request.part());
+        int reviewed = 0;
+        int skipped = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (Long id : request.ids().stream().filter(item -> item != null && item > 0).distinct().limit(500).toList()) {
+            AttendanceRecord first = records.findById(id).orElse(null);
+            if (first == null) {
+                skipped++;
+                errors.add("记录 #" + id + " 不存在");
+                continue;
+            }
+
+            boolean touched = false;
+            for (String part : parts) {
+                AttendanceRecord current = records.findById(id).orElse(null);
+                if (current == null) {
+                    break;
+                }
+                String status = "CHECK_IN".equals(part) ? current.checkInStatus() : current.checkOutStatus();
+                if (!ReviewStatus.PENDING.name().equals(status)) {
+                    continue;
+                }
+                try {
+                    review(id, part, "APPROVE", "批量审核通过");
+                    reviewed++;
+                    touched = true;
+                } catch (ApiException ex) {
+                    errors.add(first.name() + "（" + first.studentNo() + "）：" + ex.getMessage());
+                }
+            }
+            if (!touched) {
+                skipped++;
+            }
+        }
+        return new BulkReviewResult(reviewed, skipped, errors);
     }
 
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
@@ -185,6 +242,65 @@ public class AttendanceService {
         AttendanceRecord after = records.findById(id).orElseThrow();
         logs.log("MANUAL_UPDATE_ATTENDANCE", "attendance_records", id, before, after, request.reason());
         return after;
+    }
+
+    public AttendanceRecord manualCreate(ManualCreateRequest request) {
+        AuthUser current = AuthContext.current();
+        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
+            throw ApiException.forbidden("只有会长或管理员可以添加签到记录");
+        }
+        if (request.studentNo() == null || request.studentNo().isBlank()) {
+            throw ApiException.badRequest("请填写学号");
+        }
+        if (request.checkInTime() == null) {
+            throw ApiException.badRequest("请填写签到时间");
+        }
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw ApiException.badRequest("添加签到记录必须填写原因");
+        }
+        if (request.checkOutTime() != null && !request.checkOutTime().isAfter(request.checkInTime())) {
+            throw ApiException.badRequest("签退时间必须晚于签到时间");
+        }
+
+        UserSummary user = users.findActiveByStudentNo(request.studentNo().trim())
+                .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
+        LocalDate dutyDate = request.checkInTime().toLocalDate();
+        int weekday = dutyDate.getDayOfWeek().getValue();
+        boolean dutyDay = weekdays.isDutyWeekday(weekday);
+        if (!dutyDay) {
+            throw ApiException.badRequest("所选日期不是当前设置的值班日，不能添加有效签到记录");
+        }
+
+        String checkOutStatus = request.checkOutTime() == null
+                ? ReviewStatus.NOT_SUBMITTED.name()
+                : ReviewStatus.AUTO_APPROVED.name();
+        long id = records.insertManual(
+                user.id(),
+                user.studentNo(),
+                user.name(),
+                dutyDate,
+                weekday,
+                Timestamp.valueOf(request.checkInTime()),
+                request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
+                ReviewStatus.AUTO_APPROVED.name(),
+                checkOutStatus,
+                request.reason().trim(),
+                current.id()
+        );
+        recompute(id);
+        AttendanceRecord created = records.findById(id).orElseThrow();
+        logs.log("MANUAL_CREATE_ATTENDANCE", "attendance_records", id, null, created, request.reason());
+        return created;
+    }
+
+    public void delete(long id) {
+        AuthUser current = AuthContext.current();
+        if (current.role() != Role.ADMIN) {
+            throw ApiException.forbidden("只有管理员可以删除签到记录");
+        }
+        AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        records.delete(id);
+        logs.log("DELETE_ATTENDANCE_RECORD", "attendance_records", id, before, null, "管理员删除签到记录");
     }
 
     public void recompute(long id) {
@@ -236,6 +352,14 @@ public class AttendanceService {
         return normalized;
     }
 
+    private List<String> bulkParts(String part) {
+        String normalized = part == null ? "" : part.trim().toUpperCase();
+        if ("ALL".equals(normalized)) {
+            return List.of("CHECK_IN", "CHECK_OUT");
+        }
+        return List.of(normalizePart(normalized));
+    }
+
     public record PublicLookupResponse(
             boolean exists,
             boolean dutyDay,
@@ -273,5 +397,19 @@ public class AttendanceService {
             String checkOutStatus,
             String reason
     ) {
+    }
+
+    public record ManualCreateRequest(
+            String studentNo,
+            LocalDateTime checkInTime,
+            LocalDateTime checkOutTime,
+            String reason
+    ) {
+    }
+
+    public record BulkReviewRequest(List<Long> ids, String part) {
+    }
+
+    public record BulkReviewResult(int reviewed, int skipped, List<String> errors) {
     }
 }

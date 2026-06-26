@@ -126,6 +126,59 @@ public class StatsService {
         return result;
     }
 
+    public Map<String, Object> dashboard(LocalDate date) {
+        requireManager();
+        LocalDate weekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekEnd = weekStart.plusDays(6);
+        LocalDate yearStart = LocalDate.of(date.getYear(), 1, 1);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("todayRecordCount", number("""
+                SELECT COUNT(*)
+                FROM attendance_records
+                WHERE duty_date = ?
+                """, date));
+        result.put("todayOpenCount", number("""
+                SELECT COUNT(*)
+                FROM attendance_records
+                WHERE duty_date = ?
+                  AND check_out_time IS NULL
+                  AND check_out_status = 'NOT_SUBMITTED'
+                  AND check_in_status <> 'REJECTED'
+                """, date));
+        result.put("todayPendingCount", number("""
+                SELECT COUNT(*)
+                FROM attendance_records
+                WHERE duty_date = ?
+                  AND (check_in_status = 'PENDING' OR check_out_status = 'PENDING')
+                """, date));
+        result.put("todayValidHours", number("""
+                SELECT COALESCE(SUM(valid_hours), 0)
+                FROM attendance_records
+                WHERE duty_date = ?
+                  AND effective_status = 'VALID'
+                """, date));
+        result.put("weekValidHours", number("""
+                SELECT COALESCE(SUM(valid_hours), 0)
+                FROM attendance_records
+                WHERE duty_date BETWEEN ? AND ?
+                  AND effective_status = 'VALID'
+                """, weekStart, weekEnd));
+        result.put("yearValidHours", number("""
+                SELECT COALESCE(SUM(valid_hours), 0)
+                FROM attendance_records
+                WHERE duty_date BETWEEN ? AND ?
+                  AND effective_status = 'VALID'
+                """, yearStart, date));
+        result.put("yearValidCount", number("""
+                SELECT COUNT(*)
+                FROM attendance_records
+                WHERE duty_date BETWEEN ? AND ?
+                  AND effective_status = 'VALID'
+                """, yearStart, date));
+        return result;
+    }
+
     public byte[] export(LocalDate from, LocalDate to) {
         if (!AuthContext.current().role().canExport()) {
             throw ApiException.forbidden("无权导出 Excel");
@@ -372,6 +425,11 @@ public class StatsService {
         if (!AuthContext.current().role().atLeastManager()) {
             throw ApiException.forbidden("无权查看统计");
         }
+    }
+
+    private int number(String sql, Object... args) {
+        Number value = jdbc.queryForObject(sql, Number.class, args);
+        return value == null ? 0 : value.intValue();
     }
 
     private record ExportDay(LocalDate date, String weekdayName, LocalDate weekStart) {

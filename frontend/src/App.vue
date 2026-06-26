@@ -155,35 +155,99 @@
               <h3>今日概览</h3>
               <button class="ghost-button" @click="loadOverview"><RefreshCw :size="16" />刷新</button>
             </div>
-            <div class="overview-grid">
-              <div class="overview-metric urgent">
-                <span>待审核</span>
-                <strong>{{ overview.pendingCount }}</strong>
+            <div class="overview-command">
+              <div class="overview-hero">
+                <div class="overview-hero-mark">
+                  <CalendarDays :size="28" />
+                </div>
+                <div class="overview-hero-copy">
+                  <p class="eyebrow">CA DUTY DESK</p>
+                  <h3>{{ todayText }} · {{ weekdayText }}</h3>
+                  <span>当前值班日：{{ overviewDutyDaysText }}</span>
+                </div>
+                <div class="overview-hero-number" :class="{ alert: overview.dashboard.todayOpenCount > 0 }">
+                  <span>今日未签退</span>
+                  <strong>{{ overview.dashboard.todayOpenCount }}</strong>
+                </div>
               </div>
+
+              <div class="overview-signal-board">
+                <div class="overview-signal urgent">
+                  <ListChecks :size="18" />
+                  <span>全部待审核</span>
+                  <strong>{{ overview.pendingCount }}</strong>
+                </div>
+                <div class="overview-signal">
+                  <ClipboardList :size="18" />
+                  <span>今日签到记录</span>
+                  <strong>{{ overview.dashboard.todayRecordCount }}</strong>
+                </div>
+                <div class="overview-signal">
+                  <Clock3 :size="18" />
+                  <span>今日有效时长</span>
+                  <strong>{{ overview.dashboard.todayValidHours }} h</strong>
+                </div>
+                <div class="overview-signal">
+                  <Gauge :size="18" />
+                  <span>本周有效时长</span>
+                  <strong>{{ overview.dashboard.weekValidHours }} h</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="overview-grid">
               <div class="overview-metric">
                 <span>本年有效时长</span>
-                <strong>{{ overview.totalHours }} h</strong>
+                <strong>{{ overview.dashboard.yearValidHours }} h</strong>
               </div>
               <div class="overview-metric">
                 <span>本年有效次数</span>
-                <strong>{{ overview.totalCount }}</strong>
+                <strong>{{ overview.dashboard.yearValidCount }}</strong>
+              </div>
+              <div class="overview-metric">
+                <span>今日待审核</span>
+                <strong>{{ overview.dashboard.todayPendingCount }}</strong>
               </div>
               <div class="overview-metric wide">
-                <span>当前值班日</span>
-                <strong>{{ overviewDutyDaysText }}</strong>
+                <span>年度排行样本</span>
+                <strong>{{ overview.topRows.length }} 人</strong>
               </div>
             </div>
 
             <div class="overview-layout">
-              <div class="overview-panel">
+              <div class="overview-panel action-panel">
                 <div class="subsection-head">
                   <h4>快捷入口</h4>
                 </div>
                 <div class="overview-actions">
                   <button class="ghost-button" @click="selectTab('reviews')"><ListChecks :size="16" />待审核</button>
+                  <button v-if="canAddAttendanceRecords" class="ghost-button" @click="selectTab('records')"><ClipboardList :size="16" />签到记录</button>
                   <button v-if="canManageUsers" class="ghost-button" @click="selectTab('members')"><UsersRound :size="16" />成员管理</button>
                   <button class="ghost-button" @click="selectTab('stats')"><LayoutDashboard :size="16" />统计</button>
-                  <button v-if="canExport" class="ghost-button" @click="selectTab('logs')"><History :size="16" />日志</button>
+                  <button v-if="canViewLogs" class="ghost-button" @click="selectTab('logs')"><History :size="16" />日志</button>
+                  <button v-if="canBackupData" class="ghost-button" @click="selectTab('maintenance')"><Save :size="16" />维护</button>
+                </div>
+              </div>
+
+              <div class="overview-panel">
+                <div class="subsection-head">
+                  <h4>今日未签退</h4>
+                  <span>{{ openRecords.length }} 条</span>
+                </div>
+                <div class="table-wrap compact-table overview-table-wrap">
+                  <table>
+                    <thead>
+                      <tr><th>姓名</th><th>学号</th><th>签到时间</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in openRecords" :key="item.id">
+                        <td>{{ item.name }}</td>
+                        <td class="mono">{{ item.studentNo }}</td>
+                        <td>{{ timeText(item.checkInTime) }}</td>
+                      </tr>
+                      <tr v-if="openRecords.length === 0"><td colspan="3" class="empty">今日暂无未签退记录</td></tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
@@ -191,7 +255,7 @@
                 <div class="subsection-head">
                   <h4>本年排行</h4>
                 </div>
-                <div class="table-wrap compact-table">
+                <div class="table-wrap compact-table overview-table-wrap">
                   <table>
                     <thead>
                       <tr><th>姓名</th><th>学号</th><th>次数</th><th>时长</th></tr>
@@ -215,6 +279,11 @@
             <div class="section-head">
               <h3>待审核记录</h3>
               <button class="ghost-button" @click="loadPending"><RefreshCw :size="16" />刷新</button>
+            </div>
+            <div v-if="pendingRecords.length" class="review-bulk-actions">
+              <button class="ghost-button" @click="bulkReview('CHECK_IN')">全部通过签到</button>
+              <button class="ghost-button" @click="bulkReview('CHECK_OUT')">全部通过签退</button>
+              <button class="ghost-button" @click="bulkReview('ALL')">全部通过</button>
             </div>
             <div v-if="pendingRecords.length === 0" class="empty-state">
               <ListChecks :size="34" />
@@ -241,6 +310,87 @@
                       <button v-if="item.checkOutStatus === 'PENDING'" class="danger" @click="review(item.id, 'CHECK_OUT', 'REJECT')">驳回签退</button>
                     </td>
                   </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section v-if="activeTab === 'records'" class="work-section">
+            <div class="section-head">
+              <h3>签到记录</h3>
+              <div class="section-actions">
+                <button v-if="canAddAttendanceRecords" class="ghost-button" :class="{ active: showCreateAttendanceRecord }" @click="showCreateAttendanceRecord = !showCreateAttendanceRecord">
+                  <ClipboardCheck :size="16" />新增记录
+                </button>
+                <button class="ghost-button" @click="loadAttendanceRecords"><RefreshCw :size="16" />刷新</button>
+              </div>
+            </div>
+            <div v-if="showCreateAttendanceRecord" class="inline-form-block record-action-panel">
+              <div class="subsection-head">
+                <h4>新增签到记录</h4>
+                <span>会长和管理员可补录，新增后自动计算有效时长</span>
+              </div>
+              <form class="record-create-form" @submit.prevent="createAttendanceRecord">
+                <input v-model.trim="manualRecord.studentNo" inputmode="numeric" placeholder="成员学号" />
+                <input v-model="manualRecord.checkInTime" type="datetime-local" />
+                <input v-model="manualRecord.checkOutTime" type="datetime-local" />
+                <input v-model.trim="manualRecord.reason" placeholder="补录原因" />
+                <button class="primary-action" type="submit" :disabled="busy">
+                  <ClipboardCheck :size="18" />
+                  <span>添加记录</span>
+                </button>
+              </form>
+            </div>
+            <div class="filters record-filters">
+              <input v-model.trim="recordFilters.keyword" placeholder="学号或姓名" @keyup.enter="loadAttendanceRecords" />
+              <select v-model="recordFilters.status">
+                <option value="">全部状态</option>
+                <option v-for="item in effectiveStatusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
+              </select>
+              <input v-model="recordFilters.from" type="date" />
+              <input v-model="recordFilters.to" type="date" />
+              <button class="ghost-button" @click="loadAttendanceRecords">查询</button>
+            </div>
+            <div class="record-summary-strip">
+              <div><span>记录数</span><strong>{{ attendanceRecords.length }}</strong></div>
+              <div><span>有效时长</span><strong>{{ attendanceRecordHours }} h</strong></div>
+              <div><span>待审核项</span><strong>{{ attendanceRecordPendingCount }}</strong></div>
+            </div>
+            <div class="table-wrap records-table-wrap">
+              <table class="records-table">
+                <thead>
+                  <tr>
+                    <th class="record-action-column">操作</th>
+                    <th>日期</th>
+                    <th>姓名</th>
+                    <th>学号</th>
+                    <th>签到</th>
+                    <th>签退</th>
+                    <th>签到审核</th>
+                    <th>签退审核</th>
+                    <th>状态</th>
+                    <th>有效时长</th>
+                    <th>来源</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in attendanceRecords" :key="item.id">
+                    <td class="actions record-action-column">
+                      <button v-if="canDeleteAttendanceRecords" class="danger" @click="deleteAttendanceRecord(item)"><Trash2 :size="14" />删除</button>
+                      <span v-else class="muted-cell">-</span>
+                    </td>
+                    <td>{{ item.dutyDate }}</td>
+                    <td>{{ item.name }}</td>
+                    <td class="mono">{{ item.studentNo }}</td>
+                    <td>{{ timeText(item.checkInTime) }}</td>
+                    <td>{{ timeText(item.checkOutTime) }}</td>
+                    <td>{{ statusText(item.checkInStatus) }}</td>
+                    <td>{{ statusText(item.checkOutStatus) }}</td>
+                    <td><span class="status-badge" :class="item.effectiveStatus?.toLowerCase()">{{ effectiveStatusText(item.effectiveStatus) }}</span></td>
+                    <td>{{ item.validHours }} h</td>
+                    <td>{{ sourceText(item.source) }}</td>
+                  </tr>
+                  <tr v-if="attendanceRecords.length === 0"><td colspan="11" class="empty">暂无签到记录</td></tr>
                 </tbody>
               </table>
             </div>
@@ -459,6 +609,46 @@
             </div>
           </section>
 
+          <section v-if="activeTab === 'maintenance'" class="work-section">
+            <div class="section-head">
+              <h3>系统维护</h3>
+              <div class="section-actions">
+                <button class="ghost-button" @click="loadBackups"><RefreshCw :size="16" />刷新</button>
+                <button class="primary-action" @click="createBackup" :disabled="busy">
+                  <Save :size="17" />
+                  <span>一键备份</span>
+                </button>
+              </div>
+            </div>
+            <div class="maintenance-grid">
+              <div class="maintenance-panel">
+                <div class="subsection-head">
+                  <h4>数据备份</h4>
+                  <span>成员、签到记录、日志和值班星期</span>
+                </div>
+                <div class="table-wrap">
+                  <table class="backup-table">
+                    <thead>
+                      <tr><th>文件名</th><th>生成时间</th><th>大小</th><th>操作</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="item in backups" :key="item.filename">
+                        <td class="mono">{{ item.filename }}</td>
+                        <td>{{ timeText(item.createdAt) }}</td>
+                        <td>{{ bytesText(item.size) }}</td>
+                        <td class="actions">
+                          <button @click="downloadBackup(item)"><Download :size="14" />下载</button>
+                          <button v-if="canDeleteBackups" class="danger" @click="deleteBackup(item)"><Trash2 :size="14" />删除</button>
+                        </td>
+                      </tr>
+                      <tr v-if="backups.length === 0"><td colspan="4" class="empty">暂无备份文件</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section v-if="activeTab === 'settings'" class="work-section">
             <div class="section-head">
               <h3>值班星期</h3>
@@ -476,7 +666,11 @@
           <section v-if="activeTab === 'logs'" class="work-section">
             <div class="section-head">
               <h3>操作日志</h3>
-              <button class="ghost-button" @click="loadOperationLogs(logPage)"><RefreshCw :size="16" />刷新</button>
+              <div class="section-actions">
+                <button class="ghost-button" @click="exportOperationLogs"><Download :size="16" />导出日志</button>
+                <button class="ghost-button danger-button" @click="clearOperationLogs"><Trash2 :size="16" />清空日志</button>
+                <button class="ghost-button" @click="loadOperationLogs(logPage)"><RefreshCw :size="16" />刷新</button>
+              </div>
             </div>
             <div class="filters log-filters">
               <input class="log-search" v-model.trim="logFilters.keyword" placeholder="按操作人/学号/原因搜索" @keyup.enter="loadOperationLogs(1)" />
@@ -618,6 +812,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
+  ClipboardList,
   Clock3,
   Download,
   Gauge,
@@ -633,6 +828,7 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
   Upload,
   UserPlus,
   UserRound,
@@ -648,6 +844,8 @@ const studentNo = ref('')
 const lookupResult = ref(null)
 const currentUser = ref(null)
 const pendingRecords = ref([])
+const attendanceRecords = ref([])
+const openRecords = ref([])
 const users = ref([])
 const userTotal = ref(0)
 const userPage = ref(1)
@@ -658,6 +856,7 @@ const gradeFilter = ref('')
 const gradeOptions = ref([])
 const showCreateMember = ref(false)
 const showImportMembers = ref(false)
+const showCreateAttendanceRecord = ref(false)
 const stats = ref([])
 const weeklyDetail = ref(emptyWeeklyDetail())
 const statsPreset = ref('custom')
@@ -669,6 +868,12 @@ const range = reactive({
   from: `${today.getFullYear()}-01-01`,
   to: todayValue
 })
+const recordFilters = reactive({
+  keyword: '',
+  status: '',
+  from: `${today.getFullYear()}-01-01`,
+  to: todayValue
+})
 const myRecordRange = reactive({
   from: `${today.getFullYear()}-01-01`,
   to: todayValue
@@ -677,10 +882,12 @@ const loginForm = reactive({ studentNo: '', password: '' })
 const profile = reactive({ phone: '', major: '', grade: '', qq: '' })
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const newMember = reactive({ studentNo: '', name: '', phone: '', major: '', grade: '', qq: '' })
+const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
 const importInput = ref(null)
 const importFile = ref(null)
 const importResult = ref(null)
 const operationLogs = ref([])
+const backups = ref([])
 const logTotal = ref(0)
 const logPage = ref(1)
 const selectedLog = ref(null)
@@ -689,7 +896,16 @@ const overview = reactive({
   totalHours: 0,
   totalCount: 0,
   dutyDays: [],
-  topRows: []
+  topRows: [],
+  dashboard: {
+    todayRecordCount: 0,
+    todayOpenCount: 0,
+    todayPendingCount: 0,
+    todayValidHours: 0,
+    weekValidHours: 0,
+    yearValidHours: 0,
+    yearValidCount: 0
+  }
 })
 const toast = reactive({ message: '', type: 'info' })
 const logPageSize = 20
@@ -697,10 +913,12 @@ const logPageSize = 20
 const tabs = [
   { id: 'overview', label: '概览', icon: Gauge, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
   { id: 'reviews', label: '审核', icon: ListChecks, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
+  { id: 'records', label: '记录', icon: ClipboardList, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'members', label: '成员', icon: UsersRound, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'stats', label: '统计', icon: LayoutDashboard, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
+  { id: 'maintenance', label: '维护', icon: Save, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'settings', label: '设置', icon: SlidersHorizontal, roles: ['PRESIDENT', 'ADMIN'] },
-  { id: 'logs', label: '日志', icon: History, roles: ['PRESIDENT', 'ADMIN'] },
+  { id: 'logs', label: '日志', icon: History, roles: ['ADMIN'] },
   { id: 'profile', label: '资料', icon: UserRound, roles: ['MEMBER', 'MINISTER', 'PRESIDENT', 'ADMIN'] }
 ]
 
@@ -712,8 +930,17 @@ const logActionOptions = [
   { value: 'DELETE_USER', label: '删除成员' },
   { value: 'BULK_UPDATE_USER_STATUS', label: '批量启停账号' },
   { value: 'REVIEW_ATTENDANCE', label: '审核签到记录' },
+  { value: 'MANUAL_CREATE_ATTENDANCE', label: '新增签到记录' },
+  { value: 'DELETE_ATTENDANCE_RECORD', label: '删除签到记录' },
   { value: 'UPDATE_DUTY_WEEKDAYS', label: '调整值班星期' },
   { value: 'MANUAL_UPDATE_ATTENDANCE', label: '手动修改记录' }
+]
+
+const effectiveStatusOptions = [
+  { value: 'VALID', label: '有效' },
+  { value: 'PENDING', label: '待审核' },
+  { value: 'INCOMPLETE', label: '未签退' },
+  { value: 'INVALID', label: '无效' }
 ]
 
 const statsPresets = [
@@ -726,9 +953,18 @@ const availableTabs = computed(() => currentUser.value ? tabs.filter(t => t.role
 const canExport = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canManageUsers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canImportMembers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
+const canAddAttendanceRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
+const canDeleteAttendanceRecords = computed(() => currentUser.value?.role === 'ADMIN')
+const canViewLogs = computed(() => currentUser.value?.role === 'ADMIN')
+const canBackupData = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
+const canDeleteBackups = computed(() => currentUser.value?.role === 'ADMIN')
 const lookupCandidates = computed(() => lookupResult.value?.matches || [])
 const totalHours = computed(() => stats.value.reduce((sum, row) => sum + Number(row.totalHours || 0), 0))
 const totalCount = computed(() => stats.value.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0))
+const attendanceRecordHours = computed(() => attendanceRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0))
+const attendanceRecordPendingCount = computed(() => attendanceRecords.value.filter(row =>
+  row.checkInStatus === 'PENDING' || row.checkOutStatus === 'PENDING'
+).length)
 const myRecordHours = computed(() => myRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0))
 const myRecordCount = computed(() => myRecords.value.length)
 const profileGradeOptions = Array.from({ length: 2057 - 2007 + 1 }, (_, index) => `${2007 + index}级`)
@@ -813,6 +1049,7 @@ async function selectTab(tab) {
   activeTab.value = tab
   if (tab === 'overview') await loadOverview()
   if (tab === 'reviews') await loadPending()
+  if (tab === 'records') await loadAttendanceRecords()
   if (tab === 'members') {
     if (canManageUsers.value) {
       await loadGradeOptions()
@@ -822,6 +1059,7 @@ async function selectTab(tab) {
     }
   }
   if (tab === 'stats') await loadStats()
+  if (tab === 'maintenance') await loadBackups()
   if (tab === 'settings') await loadWeekdays()
   if (tab === 'logs') await loadOperationLogs(1)
   if (tab === 'profile') {
@@ -832,16 +1070,20 @@ async function selectTab(tab) {
 
 async function loadOverview() {
   await run(async () => {
-    const [pending, summary, dutyDays] = await Promise.all([
+    const [pending, summary, dutyDays, dashboard, open] = await Promise.all([
       api('/api/attendance/reviews/pending'),
       api(`/api/stats/summary?from=${today.getFullYear()}-01-01&to=${todayValue}`),
-      api('/api/settings/weekdays')
+      api('/api/settings/weekdays'),
+      api(`/api/stats/dashboard?date=${todayValue}`),
+      api(`/api/attendance/open?from=${todayValue}&to=${todayValue}`)
     ])
     overview.pendingCount = pending.length
     overview.totalHours = summary.reduce((sum, row) => sum + Number(row.totalHours || 0), 0)
     overview.totalCount = summary.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0)
     overview.dutyDays = dutyDays.filter(day => day.enabled).map(day => day.weekday_name)
     overview.topRows = summary.slice(0, 5)
+    Object.assign(overview.dashboard, dashboard)
+    openRecords.value = open
   }, false)
 }
 
@@ -907,6 +1149,72 @@ async function review(id, part, action) {
     await post(`/api/attendance/${id}/review`, { part, action, reason })
     notify('审核已处理', 'success')
     await loadPending()
+  })
+}
+
+async function bulkReview(part) {
+  if (!pendingRecords.value.length) return notify('当前没有待审核记录', 'warn')
+  const label = part === 'CHECK_IN' ? '签到' : part === 'CHECK_OUT' ? '签退' : '签到和签退'
+  if (!dangerConfirm(`确认将当前列表中可处理的${label}全部通过？`, '确认')) return
+  await run(async () => {
+    const result = await post('/api/attendance/reviews/bulk', {
+      ids: pendingRecords.value.map(item => item.id),
+      part
+    })
+    notify(`批量审核完成：通过 ${result.reviewed} 项，跳过 ${result.skipped} 条`, result.errors?.length ? 'warn' : 'success')
+    await loadPending()
+    await loadOverview()
+  })
+}
+
+async function loadAttendanceRecords() {
+  await run(async () => {
+    const params = new URLSearchParams()
+    params.set('from', recordFilters.from || `${today.getFullYear()}-01-01`)
+    params.set('to', recordFilters.to || todayValue)
+    if (recordFilters.keyword) params.set('studentNo', recordFilters.keyword)
+    if (recordFilters.status) params.set('status', recordFilters.status)
+    attendanceRecords.value = await api(`/api/attendance?${params.toString()}`)
+  }, false)
+}
+
+async function createAttendanceRecord() {
+  if (!canAddAttendanceRecords.value) return notify('只有会长或管理员可以添加签到记录', 'warn')
+  if (!manualRecord.studentNo || !manualRecord.checkInTime || !manualRecord.reason) {
+    return notify('请填写学号、签到时间和补录原因', 'warn')
+  }
+  if (manualRecord.checkOutTime && manualRecord.checkOutTime <= manualRecord.checkInTime) {
+    return notify('签退时间必须晚于签到时间', 'warn')
+  }
+  await run(async () => {
+    await post('/api/attendance/manual', {
+      studentNo: manualRecord.studentNo,
+      checkInTime: manualRecord.checkInTime,
+      checkOutTime: manualRecord.checkOutTime || null,
+      reason: manualRecord.reason
+    })
+    clearManualRecordForm()
+    showCreateAttendanceRecord.value = false
+    notify('签到记录已添加', 'success')
+    await loadAttendanceRecords()
+  })
+}
+
+function clearManualRecordForm() {
+  manualRecord.studentNo = ''
+  manualRecord.checkInTime = ''
+  manualRecord.checkOutTime = ''
+  manualRecord.reason = ''
+}
+
+async function deleteAttendanceRecord(item) {
+  if (!canDeleteAttendanceRecords.value) return notify('只有管理员可以删除签到记录', 'warn')
+  const timeLabel = item.checkInTime ? timeText(item.checkInTime) : item.dutyDate
+  if (!dangerConfirm(`确认删除 ${item.name}（${item.studentNo}）在 ${timeLabel} 的签到记录？删除后无法恢复。`, '删除')) return
+  await run(async () => {
+    await del(`/api/attendance/${item.id}`)
+    notify('签到记录已删除', 'success')
+    await loadAttendanceRecords()
   })
 }
 
@@ -1009,7 +1317,7 @@ async function bulkUpdateUserStatus(status) {
   if (!canManageUsers.value) return notify('无权管理成员', 'warn')
   if (userTotal.value === 0) return notify('筛选后列表暂无成员', 'warn')
   const label = status === 'ACTIVE' ? '启用' : '停用'
-  if (!window.confirm(`确认将当前筛选结果中的 ${userTotal.value} 个账号全部${label}？`)) return
+  if (!dangerConfirm(`确认将当前筛选结果中的 ${userTotal.value} 个账号全部${label}？`, label)) return
   await run(async () => {
     const result = await put('/api/users/bulk-status', {
       keyword: userQuery.value,
@@ -1026,7 +1334,7 @@ async function bulkUpdateUserStatus(status) {
 
 async function resetPassword(user) {
   if (!canEditUser(user)) return notify('只有管理员可以修改管理员账号', 'warn')
-  if (!window.confirm(`重置 ${user.name} 的密码为学号后六位？`)) return
+  if (!dangerConfirm(`确认重置 ${user.name} 的密码为学号后六位？`, '重置')) return
   await run(async () => {
     await post(`/api/users/${user.id}/reset-password`, { reason: '前端重置密码' })
     notify('密码已重置', 'success')
@@ -1035,7 +1343,7 @@ async function resetPassword(user) {
 
 async function deleteUser(user) {
   if (!canDeleteUser(user)) return notify('不能删除当前登录账号', 'warn')
-  if (!window.confirm(`确认删除 ${user.name}（${user.studentNo}）？删除后无法恢复。已有值班记录的成员请改为停用账号。`)) return
+  if (!dangerConfirm(`确认删除 ${user.name}（${user.studentNo}）？删除后无法恢复。已有值班记录的成员请改为停用账号。`, '删除')) return
   await run(async () => {
     await del(`/api/users/${user.id}`)
     notify('成员已删除', 'success')
@@ -1086,12 +1394,40 @@ async function applyStatsPreset(preset) {
 async function exportExcel() {
   await run(async () => {
     const blob = await api(`/api/stats/export?from=${range.from}&to=${range.to}`)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `值班记录_${range.from}_${range.to}.xlsx`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadBlob(blob, `值班记录_${range.from}_${range.to}.xlsx`)
+  })
+}
+
+async function loadBackups() {
+  if (!canBackupData.value) return
+  await run(async () => {
+    backups.value = await api('/api/maintenance/backups')
+  }, false)
+}
+
+async function createBackup() {
+  if (!canBackupData.value) return notify('只有会长或管理员可以备份数据', 'warn')
+  await run(async () => {
+    await post('/api/maintenance/backups')
+    notify('备份已生成', 'success')
+    await loadBackups()
+  })
+}
+
+async function downloadBackup(item) {
+  await run(async () => {
+    const blob = await api(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
+    downloadBlob(blob, item.filename)
+  })
+}
+
+async function deleteBackup(item) {
+  if (!canDeleteBackups.value) return notify('只有管理员可以删除备份', 'warn')
+  if (!dangerConfirm(`确认删除备份 ${item.filename}？删除后无法恢复。`, '删除')) return
+  await run(async () => {
+    await del(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
+    notify('备份已删除', 'success')
+    await loadBackups()
   })
 }
 
@@ -1124,6 +1460,31 @@ async function loadOperationLogs(page = 1) {
     logPage.value = result.page
     selectedLog.value = null
   }, false)
+}
+
+async function exportOperationLogs() {
+  await run(async () => {
+    const params = new URLSearchParams()
+    if (logFilters.keyword) params.set('keyword', logFilters.keyword)
+    if (logFilters.actionType) params.set('actionType', logFilters.actionType)
+    if (logFilters.from) params.set('from', logFilters.from)
+    if (logFilters.to) params.set('to', logFilters.to)
+    const blob = await api(`/api/logs/export?${params.toString()}`)
+    downloadBlob(blob, `操作日志_${logFilters.from || '开始'}_${logFilters.to || '结束'}.xlsx`)
+  })
+}
+
+async function clearOperationLogs() {
+  if (!canViewLogs.value) return notify('只有管理员可以清空操作日志', 'warn')
+  if (!dangerConfirm('确认清空全部操作日志？建议先导出日志留档。该操作不可恢复。', '清空日志')) return
+  await run(async () => {
+    const result = await del('/api/logs')
+    operationLogs.value = []
+    logTotal.value = 0
+    logPage.value = 1
+    selectedLog.value = null
+    notify(`已清空 ${result?.deleted || 0} 条日志`, 'success')
+  })
 }
 
 async function changeOperationLogPage(delta) {
@@ -1177,6 +1538,20 @@ function prettyLogData(value) {
   }
 }
 
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function dangerConfirm(message, phrase = '确认') {
+  const input = window.prompt(`${message}\n\n请输入“${phrase}”继续`)
+  return input === phrase
+}
+
 function canEditUser(user) {
   return currentUser.value?.role === 'ADMIN' || user.role !== 'ADMIN'
 }
@@ -1202,6 +1577,20 @@ function effectiveStatusText(status) {
     INCOMPLETE: '未签退',
     INVALID: '无效'
   }[status] || status
+}
+
+function sourceText(source) {
+  return {
+    PUBLIC: '公开提交',
+    ADMIN_MANUAL: '后台手动'
+  }[source] || source || '-'
+}
+
+function bytesText(value) {
+  const size = Number(value || 0)
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
 function timeText(value) {

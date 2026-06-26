@@ -89,18 +89,30 @@ public class AttendanceRepository {
                 """, mapper);
     }
 
+    public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
+        return jdbc.query("""
+                SELECT *
+                FROM attendance_records
+                WHERE duty_date BETWEEN ? AND ?
+                  AND check_out_time IS NULL
+                  AND check_out_status = 'NOT_SUBMITTED'
+                  AND check_in_status <> 'REJECTED'
+                ORDER BY check_in_time DESC
+                LIMIT 500
+                """, mapper, from, to);
+    }
+
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
-        String studentNoLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
+        String keywordLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
         String effectiveStatus = status == null || status.isBlank() ? "%" : status;
         return jdbc.query("""
                 SELECT *
                 FROM attendance_records
                 WHERE duty_date BETWEEN ? AND ?
-                  AND student_no_snapshot LIKE ?
+                  AND (student_no_snapshot LIKE ? OR name_snapshot LIKE ?)
                   AND effective_status LIKE ?
                 ORDER BY duty_date DESC, check_in_time DESC
-                LIMIT 2000
-                """, mapper, from, to, studentNoLike, effectiveStatus);
+                """, mapper, from, to, keywordLike, keywordLike, effectiveStatus);
     }
 
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
@@ -113,6 +125,21 @@ public class AttendanceRepository {
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
                 """, userId, studentNo, name, dutyDate, weekday, isDutyDay, checkInTime, checkInStatus, effectiveStatus);
+        return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+    }
+
+    public long insertManual(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
+                             Timestamp checkInTime, Timestamp checkOutTime, String checkInStatus,
+                             String checkOutStatus, String reason, long operatorId) {
+        jdbc.update("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day,
+                  check_in_time, check_out_time, check_in_status, check_out_status, effective_status,
+                  source, manual_reason, created_by, updated_by
+                )
+                VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
+                """, userId, studentNo, name, dutyDate, weekday, checkInTime, checkOutTime,
+                checkInStatus, checkOutStatus, reason, operatorId, operatorId);
         return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
 
@@ -158,5 +185,9 @@ public class AttendanceRepository {
                     source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """, checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, operatorId, id);
+    }
+
+    public void delete(long id) {
+        jdbc.update("DELETE FROM attendance_records WHERE id = ?", id);
     }
 }

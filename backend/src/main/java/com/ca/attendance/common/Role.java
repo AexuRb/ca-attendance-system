@@ -23,6 +23,6 @@ public enum Role {
     }
 
     public boolean canViewOperationLogs() {
-        return this == PRESIDENT || this == ADMIN;
+        return this == ADMIN;
     }
 }

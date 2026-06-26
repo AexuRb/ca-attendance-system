@@ -37,6 +37,13 @@ public class StatsController {
         return stats.weeklyDetail(from, to);
     }
 
+    @GetMapping("/dashboard")
+    public Map<String, Object> dashboard(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+    ) {
+        return stats.dashboard(date == null ? LocalDate.now() : date);
+    }
+
     @GetMapping("/export")
     public ResponseEntity<byte[]> export(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
