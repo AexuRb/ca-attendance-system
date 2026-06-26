@@ -9,7 +9,6 @@
 | `schema.sql` | 创建数据库和核心表结构 |
 | `seed.sql` | 写入默认值班星期和系统配置 |
 | `import_members.py` | 从成员信息 Excel 导入 `users` 表 |
-| `backup-mysql.sh` | Ubuntu 服务器上的 MySQL 备份脚本 |
 
 ## 初始化顺序
 
@@ -183,19 +182,6 @@ python -m pip install openpyxl bcrypt mysql-connector-python
 - 成功写入系统配置。
 - 临时用户和临时签到记录可以插入，并可事务回滚。
 
-## 备份脚本
+## 数据备份
 
-`backup-mysql.sh` 默认备份 `ca_attendance` 数据库，备份目录为：
-
-```text
-/var/backups/ca-attendance/mysql
-```
-
-部署到 Ubuntu 后可以这样测试：
-
-```bash
-chmod +x database/backup-mysql.sh
-DB_NAME=ca_attendance ./database/backup-mysql.sh
-```
-
-正式挂到 `cron` 时不要把数据库密码写进脚本里，建议使用 MySQL 的 `~/.my.cnf` 保存受限账号配置。
+系统不再使用外部备份脚本。管理员或会长可在后台“维护”页面执行一键备份，备份文件保存到项目根目录的 `backups/app`。
