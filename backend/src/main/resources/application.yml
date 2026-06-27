@@ -14,7 +14,7 @@ app:
   auth:
     token-hours: 12
   initial-admin:
-    student-no: ${INITIAL_ADMIN_STUDENT_NO:1004231224}
+    student-no: ${INITIAL_ADMIN_ACCOUNT:${INITIAL_ADMIN_STUDENT_NO:cugbcacyh}}
     password: ${INITIAL_ADMIN_PASSWORD:}
 
 logging:

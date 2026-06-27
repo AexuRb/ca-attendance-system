@@ -412,7 +412,7 @@ public class UserService {
             if (header.contains("联系方式") || header.contains("手机号") || header.contains("手机") || header.contains("电话")) {
                 columns.putIfAbsent("phone", col);
             }
-            if (header.contains("专业") || header.contains("学院")) {
+            if (header.contains("学院")) {
                 columns.putIfAbsent("major", col);
             }
             if (header.contains("年级")) {

@@ -65,7 +65,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/auth/me` | 当前登录用户 |
 | `POST` | `/api/auth/change-password` | 修改密码 |
 | `POST` | `/api/auth/logout` | 退出登录 |
-| `PUT` | `/api/me/profile` | 修改本人手机号、专业、QQ |
+| `PUT` | `/api/me/profile` | 修改本人手机号、学院、QQ |
 | `GET` | `/api/attendance/me` | 查看本人值班记录 |
 
 后台管理：
@@ -105,6 +105,6 @@ Authorization: Bearer <token>
 - Maven 打包通过。
 - 后端可连接本机 MySQL。
 - `/api/health` 返回正常。
-- 管理员账号 `1004231224` 可登录。
+- 默认初始管理员账号为 `cugbcacyh`。
 - 公开学号查询可识别姓名。
 - 临时成员签到、签退、审核闭环通过，测试数据已清理。

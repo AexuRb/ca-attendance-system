@@ -113,7 +113,7 @@ mysql -u root -p ca_attendance < database/seed.sql
 初始管理员账号：
 
 ```text
-1004231224
+cugbcacyh
 ```
 
 初始管理员密码不写入 SQL 明文。后端开发阶段会实现初始化逻辑：
@@ -173,7 +173,7 @@ Remove-Item Env:PYTHONIOENCODING
 - 默认账号状态为 `ACTIVE`。
 - 初始密码为学号后六位，并以 BCrypt 哈希写入。
 - `must_change_password = 1`，后端登录后应要求首次修改密码。
-- 学号重复时更新姓名、手机号、专业、年级，不覆盖角色、状态和已有密码。
+- 学号重复时更新姓名、手机号、学院、年级，不覆盖角色、状态和已有密码。
 
 脚本依赖：
 

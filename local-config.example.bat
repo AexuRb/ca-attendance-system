@@ -12,5 +12,5 @@ set "DB_PASSWORD=change-me"
 rem Optional: set this if mysql.exe is not in PATH.
 rem set "MYSQL_CLIENT=full-path-to-mysql.exe"
 
-set "INITIAL_ADMIN_STUDENT_NO=1004231224"
+set "INITIAL_ADMIN_ACCOUNT=cugbcacyh"
 set "INITIAL_ADMIN_PASSWORD=change-me"

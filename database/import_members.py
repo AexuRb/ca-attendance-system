@@ -25,46 +25,105 @@ def normalize_grade(value):
     return text
 
 
+def find_header_row(ws):
+    for row_no, row in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=True), start=1):
+        headers = [clean(cell) for cell in row]
+        if any("学号" in header for header in headers) and any("姓名" in header for header in headers):
+            return row_no, read_columns(headers)
+    return None, fallback_columns()
+
+
+def read_columns(headers):
+    columns = {}
+    for index, header in enumerate(headers):
+        text = header.lower()
+        if "学号" in text:
+            columns.setdefault("student_no", index)
+        if "姓名" in text:
+            columns.setdefault("name", index)
+        if "手机号" in text or "手机" in text or "联系方式" in text or "电话" in text:
+            columns.setdefault("phone", index)
+        if "学院" in text:
+            columns.setdefault("college", index)
+        if "年级" in text:
+            columns.setdefault("grade", index)
+        if "qq" in text:
+            columns.setdefault("qq", index)
+
+    if "student_no" not in columns or "name" not in columns:
+        return fallback_columns()
+
+    columns.setdefault("phone", -1)
+    columns.setdefault("college", -1)
+    columns.setdefault("grade", -1)
+    columns.setdefault("qq", -1)
+    return columns
+
+
+def fallback_columns():
+    return {
+        "name": 1,
+        "college": 3,
+        "grade": 4,
+        "student_no": 5,
+        "phone": 8,
+        "qq": -1,
+    }
+
+
+def row_value(row, columns, key):
+    index = columns.get(key, -1)
+    if index is None or index < 0 or index >= len(row):
+        return ""
+    return row[index]
+
+
 def parse_members(path):
     wb = load_workbook(path, data_only=True, read_only=True)
-    ws = wb.active
-    members = []
-    skipped = []
-    seen = set()
-    duplicates = []
+    try:
+        ws = wb.active
+        members = []
+        skipped = []
+        seen = set()
+        duplicates = []
+        header_row, columns = find_header_row(ws)
+        start_row = header_row + 1 if header_row else 3
 
-    for row_no, row in enumerate(ws.iter_rows(min_row=3, values_only=True), start=3):
-        name = clean(row[1] if len(row) > 1 else "")
-        college = clean(row[3] if len(row) > 3 else "")
-        grade = normalize_grade(row[4] if len(row) > 4 else "")
-        student_no = clean(row[5] if len(row) > 5 else "")
-        phone = clean(row[8] if len(row) > 8 else "")
+        for row_no, row in enumerate(ws.iter_rows(min_row=start_row, values_only=True), start=start_row):
+            name = clean(row_value(row, columns, "name"))
+            college = clean(row_value(row, columns, "college"))
+            grade = normalize_grade(row_value(row, columns, "grade"))
+            student_no = clean(row_value(row, columns, "student_no"))
+            phone = clean(row_value(row, columns, "phone"))
+            qq = clean(row_value(row, columns, "qq"))
 
-        if not any([name, student_no, phone, college, grade]):
-            continue
-        if not name or not student_no:
-            skipped.append((row_no, "missing_name_or_student_no"))
-            continue
-        if not re.fullmatch(r"\d{6,32}", student_no):
-            skipped.append((row_no, f"invalid_student_no:{student_no}"))
-            continue
-        if student_no in seen:
-            duplicates.append((row_no, student_no))
-            continue
-        seen.add(student_no)
+            if not any([name, student_no, phone, college, grade]):
+                continue
+            if not name or not student_no:
+                skipped.append((row_no, "missing_name_or_student_no"))
+                continue
+            if not re.fullmatch(r"\d{6,32}", student_no):
+                skipped.append((row_no, f"invalid_student_no:{student_no}"))
+                continue
+            if student_no in seen:
+                duplicates.append((row_no, student_no))
+                continue
+            seen.add(student_no)
 
-        members.append(
-            {
-                "student_no": student_no,
-                "name": name,
-                "phone": phone or None,
-                "major": college or None,
-                "grade": grade or None,
-                "qq": None,
-            }
-        )
+            members.append(
+                {
+                    "student_no": student_no,
+                    "name": name,
+                    "phone": phone or None,
+                    "major": college or None,
+                    "grade": grade or None,
+                    "qq": qq or None,
+                }
+            )
 
-    return members, skipped, duplicates
+        return members, skipped, duplicates
+    finally:
+        wb.close()
 
 
 def make_password_hash(student_no):

@@ -72,7 +72,7 @@
               >
                 <strong>{{ candidate.name }}</strong>
                 <span class="mono">{{ candidate.studentNo }}</span>
-                <small>{{ [candidate.grade, candidate.major].filter(Boolean).join(' · ') || '未填写年级专业' }}</small>
+                <small>{{ [candidate.grade, candidate.major].filter(Boolean).join(' · ') || '未填写年级/学院' }}</small>
               </button>
             </div>
           </div>
@@ -131,8 +131,8 @@
             </div>
           </div>
           <form @submit.prevent="login">
-            <label>学号</label>
-            <input v-model.trim="loginForm.studentNo" placeholder="管理员/成员学号" />
+            <label>账号/学号</label>
+            <input v-model.trim="loginForm.studentNo" placeholder="管理员账号或成员学号" />
             <label>密码</label>
             <input v-model="loginForm.password" type="password" placeholder="密码" />
             <button class="primary-action" type="submit" :disabled="busy">
@@ -175,7 +175,7 @@
             </button>
           </div>
 
-          <section v-if="activeTab === 'overview'" class="work-section">
+          <section v-if="activeTab === 'overview'" class="work-section tab-overview">
             <div class="section-head">
               <h3>今日概览</h3>
               <button class="ghost-button" @click="loadOverview"><RefreshCw :size="16" />刷新</button>
@@ -286,7 +286,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'reviews'" class="work-section">
+          <section v-if="activeTab === 'reviews'" class="work-section tab-reviews">
             <div class="section-head">
               <h3>待审核记录</h3>
               <button class="ghost-button" @click="loadPending"><RefreshCw :size="16" />刷新</button>
@@ -326,7 +326,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'records'" class="work-section">
+          <section v-if="activeTab === 'records'" class="work-section tab-records">
             <div class="section-head">
               <h3>签到记录</h3>
               <div class="section-actions">
@@ -407,7 +407,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'members'" class="work-section">
+          <section v-if="activeTab === 'members'" class="work-section tab-members">
             <div class="section-head">
               <h3>成员管理</h3>
               <button v-if="canManageUsers" class="ghost-button" @click="loadUsers"><RefreshCw :size="16" />刷新</button>
@@ -430,7 +430,7 @@
                 <input v-model.trim="newMember.studentNo" inputmode="numeric" placeholder="学号" />
                 <input v-model.trim="newMember.name" placeholder="姓名" />
                 <input v-model.trim="newMember.phone" inputmode="tel" placeholder="手机号" />
-                <input v-model.trim="newMember.major" placeholder="专业" />
+                <input v-model.trim="newMember.major" placeholder="学院" />
                 <select v-model="newMember.grade">
                   <option value="">年级</option>
                   <option v-for="grade in profileGradeOptions" :key="grade" :value="grade">{{ grade }}</option>
@@ -465,7 +465,7 @@
               </ul>
             </div>
             <div v-if="canManageUsers" class="filters member-filters">
-              <input class="member-search" v-model.trim="userQuery" placeholder="按姓名/学号/手机号/专业搜索" @keyup.enter="loadUsers(1)" />
+              <input class="member-search" v-model.trim="userQuery" placeholder="按姓名/学号/手机号/学院搜索" @keyup.enter="loadUsers(1)" />
               <select class="role-select" v-model="roleFilter" @change="loadUsers(1)">
                 <option value="">全部职位</option>
                 <option value="MEMBER">成员</option>
@@ -492,7 +492,7 @@
             <div v-if="canManageUsers" class="table-wrap member-table-wrap">
               <table class="member-table">
                 <thead>
-                  <tr><th>姓名</th><th>学号</th><th>状态</th><th>手机号</th><th>专业</th><th>年级</th><th>操作</th><th>角色</th></tr>
+                  <tr><th>姓名</th><th>学号</th><th>状态</th><th>手机号</th><th>学院</th><th>年级</th><th>操作</th><th>角色</th></tr>
                 </thead>
                 <tbody>
                   <tr v-for="user in users" :key="user.id">
@@ -536,7 +536,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'stats'" class="work-section">
+          <section v-if="activeTab === 'stats'" class="work-section tab-stats">
             <div class="section-head">
               <h3>统计与导出</h3>
               <button v-if="canExport" class="ghost-button" @click="exportExcel"><Download :size="16" />导出</button>
@@ -620,7 +620,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'maintenance'" class="work-section">
+          <section v-if="activeTab === 'maintenance'" class="work-section tab-maintenance">
             <div class="section-head">
               <h3>系统维护</h3>
               <div class="section-actions">
@@ -660,7 +660,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'settings'" class="work-section">
+          <section v-if="activeTab === 'settings'" class="work-section tab-settings">
             <div class="section-head">
               <h3>值班星期</h3>
               <button class="ghost-button" @click="saveWeekdays"><Save :size="16" />保存</button>
@@ -674,7 +674,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'logs'" class="work-section">
+          <section v-if="activeTab === 'logs'" class="work-section tab-logs">
             <div class="section-head">
               <h3>操作日志</h3>
               <div class="section-actions">
@@ -736,7 +736,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'profile'" class="work-section">
+          <section v-if="activeTab === 'profile'" class="work-section tab-profile">
             <div class="section-head"><h3>个人中心</h3></div>
             <div class="profile-grid">
               <div class="profile-card">
@@ -746,7 +746,7 @@
                 <form class="profile-form" @submit.prevent="saveProfile">
                   <label>手机号</label>
                   <input v-model.trim="profile.phone" />
-                  <label>专业</label>
+                  <label>学院</label>
                   <input v-model.trim="profile.major" />
                   <label>年级</label>
                   <select v-model="profile.grade">
