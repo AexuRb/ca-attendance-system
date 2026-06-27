@@ -39,17 +39,14 @@ public class StatsService {
                   r.user_id AS userId,
                   r.student_no_snapshot AS studentNo,
                   r.name_snapshot AS name,
-                  u.phone AS phone,
-                  u.major AS major,
                   u.grade AS grade,
-                  u.qq AS qq,
                   COUNT(*) AS dutyCount,
                   COALESCE(SUM(r.valid_hours), 0) AS totalHours
                 FROM attendance_records r
                 JOIN users u ON u.id = r.user_id
                 WHERE r.effective_status = 'VALID'
                   AND r.duty_date BETWEEN ? AND ?
-                GROUP BY r.user_id, r.student_no_snapshot, r.name_snapshot, u.phone, u.major, u.grade, u.qq
+                GROUP BY r.user_id, r.student_no_snapshot, r.name_snapshot, u.grade
                 ORDER BY totalHours DESC, dutyCount DESC, r.student_no_snapshot
                 """, from, to);
     }

@@ -66,7 +66,7 @@ public class AttendanceService {
         }
 
         List<PublicMemberOption> matches = sameNameUsers.stream()
-                .map(user -> new PublicMemberOption(user.studentNo(), user.name(), user.grade(), user.major()))
+                .map(user -> new PublicMemberOption(user.studentNo(), user.name(), user.grade()))
                 .toList();
         String message = dutyDay ? "找到多位同名成员，请选择自己的学号" : "今日不是值班日；找到多位同名成员";
         return new PublicLookupResponse(false, dutyDay, null, null, null, message, matches);
@@ -374,8 +374,7 @@ public class AttendanceService {
     public record PublicMemberOption(
             String studentNo,
             String name,
-            String grade,
-            String major
+            String grade
     ) {
     }
 

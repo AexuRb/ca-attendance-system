@@ -142,10 +142,7 @@ cugbcacyh
 | --- | --- |
 | 姓名 | `users.name` |
 | 学号 | `users.student_no` |
-| 联系方式 | `users.phone` |
-| 学院 | `users.major` |
 | 年级 | `users.grade` |
-| QQ | 暂无对应 Excel 列，导入为空 |
 
 导入前先 dry-run：
 
@@ -173,7 +170,7 @@ Remove-Item Env:PYTHONIOENCODING
 - 默认账号状态为 `ACTIVE`。
 - 初始密码为学号后六位，并以 BCrypt 哈希写入。
 - `must_change_password = 1`，后端登录后应要求首次修改密码。
-- 学号重复时更新姓名、手机号、学院、年级，不覆盖角色、状态和已有密码。
+- 学号重复时更新姓名、年级，不覆盖角色、状态和已有密码。
 
 脚本依赖：
 

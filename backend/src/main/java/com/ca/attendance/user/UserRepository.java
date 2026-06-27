@@ -20,10 +20,7 @@ public class UserRepository {
             rs.getString("name"),
             Role.valueOf(rs.getString("role")),
             rs.getString("status"),
-            rs.getString("phone"),
-            rs.getString("major"),
             rs.getString("grade"),
-            rs.getString("qq"),
             rs.getBoolean("must_change_password"),
             rs.getTimestamp("created_at").toLocalDateTime(),
             rs.getTimestamp("updated_at").toLocalDateTime()
@@ -148,11 +145,11 @@ public class UserRepository {
         String statusFilter = status == null || status.isBlank() ? "%" : status;
         String gradeFilter = grade == null || grade.isBlank() ? "%" : grade.trim();
         return new SearchQuery("""
-                WHERE (student_no LIKE ? OR name LIKE ? OR phone LIKE ? OR major LIKE ?)
+                WHERE (student_no LIKE ? OR name LIKE ?)
                   AND role LIKE ?
                   AND status LIKE ?
                   AND COALESCE(grade, '') LIKE ?
-                """, List.of(like, like, like, like, roleFilter, statusFilter, gradeFilter));
+                """, List.of(like, like, roleFilter, statusFilter, gradeFilter));
     }
 
     private record SearchQuery(String where, List<Object> args) {

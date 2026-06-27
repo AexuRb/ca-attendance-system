@@ -72,7 +72,7 @@
               >
                 <strong>{{ candidate.name }}</strong>
                 <span class="mono">{{ candidate.studentNo }}</span>
-                <small>{{ [candidate.grade, candidate.major].filter(Boolean).join(' · ') || '未填写年级/学院' }}</small>
+                <small>{{ candidate.grade || '未填写年级' }}</small>
               </button>
             </div>
           </div>
@@ -429,13 +429,10 @@
               <form class="create-member-form" @submit.prevent="createMember">
                 <input v-model.trim="newMember.studentNo" inputmode="numeric" placeholder="学号" />
                 <input v-model.trim="newMember.name" placeholder="姓名" />
-                <input v-model.trim="newMember.phone" inputmode="tel" placeholder="手机号" />
-                <input v-model.trim="newMember.major" placeholder="学院" />
                 <select v-model="newMember.grade">
                   <option value="">年级</option>
                   <option v-for="grade in profileGradeOptions" :key="grade" :value="grade">{{ grade }}</option>
                 </select>
-                <input v-model.trim="newMember.qq" placeholder="QQ" />
                 <button class="primary-action" type="submit" :disabled="busy">
                   <UserPlus :size="18" />
                   <span>新增成员</span>
@@ -465,7 +462,7 @@
               </ul>
             </div>
             <div v-if="canManageUsers" class="filters member-filters">
-              <input class="member-search" v-model.trim="userQuery" placeholder="按姓名/学号/手机号/学院搜索" @keyup.enter="loadUsers(1)" />
+              <input class="member-search" v-model.trim="userQuery" placeholder="按姓名/学号搜索" @keyup.enter="loadUsers(1)" />
               <select class="role-select" v-model="roleFilter" @change="loadUsers(1)">
                 <option value="">全部职位</option>
                 <option value="MEMBER">成员</option>
@@ -492,7 +489,7 @@
             <div v-if="canManageUsers" class="table-wrap member-table-wrap">
               <table class="member-table">
                 <thead>
-                  <tr><th>姓名</th><th>学号</th><th>状态</th><th>手机号</th><th>学院</th><th>年级</th><th>操作</th><th>角色</th></tr>
+                  <tr><th>姓名</th><th>学号</th><th>状态</th><th>年级</th><th>操作</th><th>角色</th></tr>
                 </thead>
                 <tbody>
                   <tr v-for="user in users" :key="user.id">
@@ -503,8 +500,6 @@
                         {{ user.status === 'ACTIVE' ? '启用' : '停用' }}
                       </span>
                     </td>
-                    <td>{{ user.phone || '-' }}</td>
-                    <td>{{ user.major || '-' }}</td>
                     <td>{{ user.grade || '-' }}</td>
                     <td class="actions actions-cell">
                       <button :disabled="!canEditUser(user)" @click="toggleUser(user)">{{ user.status === 'ACTIVE' ? '停用' : '启用' }}</button>
@@ -744,17 +739,11 @@
                   <h4>个人资料</h4>
                 </div>
                 <form class="profile-form" @submit.prevent="saveProfile">
-                  <label>手机号</label>
-                  <input v-model.trim="profile.phone" />
-                  <label>学院</label>
-                  <input v-model.trim="profile.major" />
                   <label>年级</label>
                   <select v-model="profile.grade">
                     <option value="">未填写</option>
                     <option v-for="grade in profileGradeOptions" :key="grade" :value="grade">{{ grade }}</option>
                   </select>
-                  <label>QQ</label>
-                  <input v-model.trim="profile.qq" />
                   <button class="primary-action" type="submit"><Save :size="18" /><span>保存资料</span></button>
                 </form>
 
@@ -890,9 +879,9 @@ const myRecordRange = reactive({
   to: todayValue
 })
 const loginForm = reactive({ studentNo: '', password: '' })
-const profile = reactive({ phone: '', major: '', grade: '', qq: '' })
+const profile = reactive({ grade: '' })
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
-const newMember = reactive({ studentNo: '', name: '', phone: '', major: '', grade: '', qq: '' })
+const newMember = reactive({ studentNo: '', name: '', grade: '' })
 const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
 const importInput = ref(null)
 const importFile = ref(null)
@@ -1144,10 +1133,7 @@ async function login() {
     const res = await post('/api/auth/login', loginForm)
     setToken(res.token)
     currentUser.value = res
-    profile.phone = ''
-    profile.major = ''
     profile.grade = ''
-    profile.qq = ''
     clearPasswordForm()
     notify('已登录后台', 'success')
     selectTab(availableTabs.value[0]?.id || 'profile')
@@ -1214,10 +1200,7 @@ async function loadOverview() {
 async function loadMe() {
   await run(async () => {
     const me = await api('/api/auth/me')
-    profile.phone = me.phone || ''
-    profile.major = me.major || ''
     profile.grade = me.grade || ''
-    profile.qq = me.qq || ''
   }, false)
 }
 
@@ -1381,10 +1364,7 @@ async function createMember() {
 function clearNewMemberForm() {
   newMember.studentNo = ''
   newMember.name = ''
-  newMember.phone = ''
-  newMember.major = ''
   newMember.grade = ''
-  newMember.qq = ''
 }
 
 function pickImportFile(event) {

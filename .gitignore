@@ -5,6 +5,7 @@ local-config.bat
 
 # Database backups and exported data
 backups/
+release/
 *.sql.gz
 
 # Build output and dependencies

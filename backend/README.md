@@ -65,7 +65,7 @@ Authorization: Bearer <token>
 | `GET` | `/api/auth/me` | 当前登录用户 |
 | `POST` | `/api/auth/change-password` | 修改密码 |
 | `POST` | `/api/auth/logout` | 退出登录 |
-| `PUT` | `/api/me/profile` | 修改本人手机号、学院、QQ |
+| `PUT` | `/api/me/profile` | 修改本人年级 |
 | `GET` | `/api/attendance/me` | 查看本人值班记录 |
 
 后台管理：

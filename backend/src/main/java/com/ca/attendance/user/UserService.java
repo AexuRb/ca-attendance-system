@@ -70,19 +70,16 @@ public class UserService {
         try {
             jdbc.update("""
                     INSERT INTO users (
-                      student_no, name, password_hash, role, status, phone, major, grade, qq,
+                      student_no, name, password_hash, role, status, grade,
                       must_change_password, created_by, updated_by
                     )
-                    VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, 1, ?, ?)
+                    VALUES (?, ?, ?, ?, 'ACTIVE', ?, 1, ?, ?)
                     """,
                     studentNo,
                     required(request.name(), "姓名不能为空"),
                     passwordEncoder.encode(password),
                     role.name(),
-                    blankToNull(request.phone()),
-                    blankToNull(request.major()),
                     normalizeGrade(request.grade()),
-                    blankToNull(request.qq()),
                     current.id(),
                     current.id()
             );
@@ -122,10 +119,9 @@ public class UserService {
         AuthUser current = AuthContext.current();
         jdbc.update("""
                 UPDATE users
-                SET phone = ?, major = ?, grade = ?, qq = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                SET grade = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-                """, blankToNull(request.phone()), blankToNull(request.major()), normalizeGrade(request.grade()),
-                blankToNull(request.qq()), current.id(), current.id());
+                """, normalizeGrade(request.grade()), current.id(), current.id());
     }
 
     public UserSummary update(long id, UpdateUserRequest request) {
@@ -143,7 +139,7 @@ public class UserService {
         }
         jdbc.update("""
                 UPDATE users
-                SET name = ?, role = ?, status = ?, phone = ?, major = ?, grade = ?, qq = ?,
+                SET name = ?, role = ?, status = ?, grade = ?,
                     disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, CURRENT_TIMESTAMP) ELSE NULL END,
                     disabled_by = CASE WHEN ? = 'DISABLED' THEN ? ELSE NULL END,
                     updated_by = ?, updated_at = CURRENT_TIMESTAMP
@@ -152,10 +148,7 @@ public class UserService {
                 required(request.name() == null ? before.name() : request.name(), "姓名不能为空"),
                 targetRole.name(),
                 targetStatus,
-                blankToNull(request.phone() == null ? before.phone() : request.phone()),
-                blankToNull(request.major() == null ? before.major() : request.major()),
                 normalizeGrade(request.grade() == null ? before.grade() : request.grade()),
-                blankToNull(request.qq() == null ? before.qq() : request.qq()),
                 targetStatus,
                 targetStatus,
                 current.id(),
@@ -332,15 +325,12 @@ public class UserService {
             if (userExists(studentNo)) {
                 jdbc.update("""
                         UPDATE users
-                        SET name = ?, phone = ?, major = ?, grade = ?, qq = COALESCE(?, qq),
+                        SET name = ?, grade = ?,
                             updated_by = ?, updated_at = CURRENT_TIMESTAMP
                         WHERE student_no = ?
                         """,
                         candidate.name(),
-                        blankToNull(candidate.phone()),
-                        blankToNull(candidate.major()),
                         grade,
-                        blankToNull(candidate.qq()),
                         current.id(),
                         studentNo
                 );
@@ -349,18 +339,15 @@ public class UserService {
                 String password = studentNo.length() <= 6 ? studentNo : studentNo.substring(studentNo.length() - 6);
                 jdbc.update("""
                         INSERT INTO users (
-                          student_no, name, password_hash, role, status, phone, major, grade, qq,
+                          student_no, name, password_hash, role, status, grade,
                           must_change_password, created_by, updated_by
                         )
-                        VALUES (?, ?, ?, 'MEMBER', 'ACTIVE', ?, ?, ?, ?, 1, ?, ?)
+                        VALUES (?, ?, ?, 'MEMBER', 'ACTIVE', ?, 1, ?, ?)
                         """,
                         studentNo,
                         candidate.name(),
                         passwordEncoder.encode(password),
-                        blankToNull(candidate.phone()),
-                        blankToNull(candidate.major()),
                         grade,
-                        blankToNull(candidate.qq()),
                         current.id(),
                         current.id()
                 );
@@ -409,37 +396,22 @@ public class UserService {
             if (header.contains("学号")) {
                 columns.putIfAbsent("studentNo", col);
             }
-            if (header.contains("联系方式") || header.contains("手机号") || header.contains("手机") || header.contains("电话")) {
-                columns.putIfAbsent("phone", col);
-            }
-            if (header.contains("学院")) {
-                columns.putIfAbsent("major", col);
-            }
             if (header.contains("年级")) {
                 columns.putIfAbsent("grade", col);
-            }
-            if (header.contains("qq")) {
-                columns.putIfAbsent("qq", col);
             }
         }
         if (!columns.containsKey("name") || !columns.containsKey("studentNo")) {
             return fallbackColumns();
         }
-        columns.putIfAbsent("phone", -1);
-        columns.putIfAbsent("major", -1);
         columns.putIfAbsent("grade", -1);
-        columns.putIfAbsent("qq", -1);
         return columns;
     }
 
     private Map<String, Integer> fallbackColumns() {
         return Map.of(
                 "name", 1,
-                "major", 3,
                 "grade", 4,
-                "studentNo", 5,
-                "phone", 8,
-                "qq", -1
+                "studentNo", 5
         );
     }
 
@@ -447,10 +419,7 @@ public class UserService {
         return new ImportCandidate(
                 cell(row, columns.get("studentNo"), formatter),
                 cell(row, columns.get("name"), formatter),
-                cell(row, columns.get("phone"), formatter),
-                cell(row, columns.get("major"), formatter),
-                cell(row, columns.get("grade"), formatter),
-                cell(row, columns.get("qq"), formatter)
+                cell(row, columns.get("grade"), formatter)
         );
     }
 
@@ -545,13 +514,13 @@ public class UserService {
         return year + "级";
     }
 
-    public record CreateUserRequest(String studentNo, String name, String role, String phone, String major, String grade, String qq) {
+    public record CreateUserRequest(String studentNo, String name, String role, String grade) {
     }
 
-    public record UpdateUserRequest(String name, String role, String status, String phone, String major, String grade, String qq, String reason) {
+    public record UpdateUserRequest(String name, String role, String status, String grade, String reason) {
     }
 
-    public record ProfileRequest(String phone, String major, String grade, String qq) {
+    public record ProfileRequest(String grade) {
     }
 
     public record ResetPasswordRequest(String newPassword, String reason) {
@@ -566,9 +535,9 @@ public class UserService {
     public record ImportResult(int created, int updated, int skipped, List<String> errors) {
     }
 
-    private record ImportCandidate(String studentNo, String name, String phone, String major, String grade, String qq) {
+    private record ImportCandidate(String studentNo, String name, String grade) {
         boolean isBlank() {
-            return studentNo.isBlank() && name.isBlank() && phone.isBlank() && major.isBlank() && grade.isBlank() && qq.isBlank();
+            return studentNo.isBlank() && name.isBlank() && grade.isBlank();
         }
     }
 }

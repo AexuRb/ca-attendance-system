@@ -41,33 +41,21 @@ def read_columns(headers):
             columns.setdefault("student_no", index)
         if "姓名" in text:
             columns.setdefault("name", index)
-        if "手机号" in text or "手机" in text or "联系方式" in text or "电话" in text:
-            columns.setdefault("phone", index)
-        if "学院" in text:
-            columns.setdefault("college", index)
         if "年级" in text:
             columns.setdefault("grade", index)
-        if "qq" in text:
-            columns.setdefault("qq", index)
 
     if "student_no" not in columns or "name" not in columns:
         return fallback_columns()
 
-    columns.setdefault("phone", -1)
-    columns.setdefault("college", -1)
     columns.setdefault("grade", -1)
-    columns.setdefault("qq", -1)
     return columns
 
 
 def fallback_columns():
     return {
         "name": 1,
-        "college": 3,
         "grade": 4,
         "student_no": 5,
-        "phone": 8,
-        "qq": -1,
     }
 
 
@@ -91,13 +79,10 @@ def parse_members(path):
 
         for row_no, row in enumerate(ws.iter_rows(min_row=start_row, values_only=True), start=start_row):
             name = clean(row_value(row, columns, "name"))
-            college = clean(row_value(row, columns, "college"))
             grade = normalize_grade(row_value(row, columns, "grade"))
             student_no = clean(row_value(row, columns, "student_no"))
-            phone = clean(row_value(row, columns, "phone"))
-            qq = clean(row_value(row, columns, "qq"))
 
-            if not any([name, student_no, phone, college, grade]):
+            if not any([name, student_no, grade]):
                 continue
             if not name or not student_no:
                 skipped.append((row_no, "missing_name_or_student_no"))
@@ -114,10 +99,7 @@ def parse_members(path):
                 {
                     "student_no": student_no,
                     "name": name,
-                    "phone": phone or None,
-                    "major": college or None,
                     "grade": grade or None,
-                    "qq": qq or None,
                 }
             )
 
@@ -149,17 +131,14 @@ def connect(args):
 def import_members(args, members):
     sql = """
         INSERT INTO users (
-          student_no, name, password_hash, role, status, phone, major, grade, qq, must_change_password
+          student_no, name, password_hash, role, status, grade, must_change_password
         ) VALUES (
           %(student_no)s, %(name)s, %(password_hash)s, 'MEMBER', 'ACTIVE',
-          %(phone)s, %(major)s, %(grade)s, %(qq)s, 1
+          %(grade)s, 1
         )
         ON DUPLICATE KEY UPDATE
           name = VALUES(name),
-          phone = VALUES(phone),
-          major = VALUES(major),
           grade = VALUES(grade),
-          qq = COALESCE(users.qq, VALUES(qq)),
           updated_at = CURRENT_TIMESTAMP
     """
     payload = []

@@ -10,10 +10,7 @@ public record UserSummary(
         String name,
         Role role,
         String status,
-        String phone,
-        String major,
         String grade,
-        String qq,
         boolean mustChangePassword,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
