@@ -657,6 +657,30 @@
                   </table>
                 </div>
               </div>
+              <div v-if="canRestoreBackups" class="maintenance-panel restore-panel">
+                <div class="subsection-head">
+                  <h4>数据恢复</h4>
+                  <span>恢复前会自动备份当前数据，恢复后需要重新登录</span>
+                </div>
+                <div class="restore-box">
+                  <div>
+                    <p class="eyebrow">Restore ZIP</p>
+                    <strong>{{ restoreFile ? restoreFile.name : '未选择备份文件' }}</strong>
+                    <span>{{ restoreFile ? bytesText(restoreFile.size) : '请选择系统生成的 backup_*.zip' }}</span>
+                  </div>
+                  <div class="restore-actions">
+                    <input ref="restoreInput" type="file" accept=".zip,application/zip" hidden @change="selectRestoreFile" />
+                    <button class="ghost-button" type="button" @click="restoreInput?.click()">
+                      <Upload :size="16" />
+                      <span>选择备份</span>
+                    </button>
+                    <button class="ghost-button danger-button" type="button" :disabled="!restoreFile || busy" @click="restoreBackup">
+                      <RefreshCw :size="16" />
+                      <span>恢复数据</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -897,6 +921,8 @@ const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: ''
 const importInput = ref(null)
 const importFile = ref(null)
 const importResult = ref(null)
+const restoreInput = ref(null)
+const restoreFile = ref(null)
 const operationLogs = ref([])
 const backups = ref([])
 const logTotal = ref(0)
@@ -944,7 +970,8 @@ const logActionOptions = [
   { value: 'MANUAL_CREATE_ATTENDANCE', label: '新增签到记录' },
   { value: 'DELETE_ATTENDANCE_RECORD', label: '删除签到记录' },
   { value: 'UPDATE_DUTY_WEEKDAYS', label: '调整值班星期' },
-  { value: 'MANUAL_UPDATE_ATTENDANCE', label: '手动修改记录' }
+  { value: 'MANUAL_UPDATE_ATTENDANCE', label: '手动修改记录' },
+  { value: 'RESTORE_BACKUP', label: '恢复备份' }
 ]
 
 const effectiveStatusOptions = [
@@ -969,6 +996,7 @@ const canDeleteAttendanceRecords = computed(() => currentUser.value?.role === 'A
 const canViewLogs = computed(() => currentUser.value?.role === 'ADMIN')
 const canBackupData = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canDeleteBackups = computed(() => currentUser.value?.role === 'ADMIN')
+const canRestoreBackups = computed(() => currentUser.value?.role === 'ADMIN')
 const lookupCandidates = computed(() => lookupResult.value?.matches || [])
 const totalHours = computed(() => stats.value.reduce((sum, row) => sum + Number(row.totalHours || 0), 0))
 const totalCount = computed(() => stats.value.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0))
@@ -1552,6 +1580,30 @@ async function deleteBackup(item) {
     await del(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
     notify('备份已删除', 'success')
     await loadBackups()
+  })
+}
+
+function selectRestoreFile(event) {
+  restoreFile.value = event.target.files?.[0] || null
+}
+
+async function restoreBackup() {
+  if (!canRestoreBackups.value) return notify('只有管理员可以恢复备份', 'warn')
+  if (!restoreFile.value) return notify('请选择备份 zip 文件', 'warn')
+  if (!dangerConfirm('恢复会覆盖当前成员、签到记录、日志和值班星期。系统会先自动备份当前数据，恢复成功后需要重新登录。', '恢复')) return
+
+  const formData = new FormData()
+  formData.append('file', restoreFile.value)
+  await run(async () => {
+    const result = await api('/api/maintenance/backups/restore', { method: 'POST', body: formData })
+    restoreFile.value = null
+    if (restoreInput.value) restoreInput.value.value = ''
+    backups.value = []
+    setToken('')
+    currentUser.value = null
+    clearPasswordForm()
+    activeTab.value = 'overview'
+    notify(`恢复完成，恢复前备份：${result.safetyBackup.filename}`, 'success')
   })
 }
 

@@ -94,6 +94,7 @@ Authorization: Bearer <token>
 | `DELETE` | `/api/logs` | 管理员清空操作日志 |
 | `GET` | `/api/maintenance/backups` | 会长或管理员查看备份 |
 | `POST` | `/api/maintenance/backups` | 会长或管理员创建备份 |
+| `POST` | `/api/maintenance/backups/restore` | 管理员上传系统备份并恢复数据 |
 | `GET` | `/api/maintenance/backups/{filename}` | 会长或管理员下载备份 |
 | `DELETE` | `/api/maintenance/backups/{filename}` | 管理员删除备份 |
 

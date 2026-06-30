@@ -4,6 +4,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -26,6 +27,11 @@ public class BackupController {
     @PostMapping
     public BackupService.BackupItem create() {
         return backups.create();
+    }
+
+    @PostMapping(value = "/restore", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BackupService.RestoreResult restore(@RequestParam("file") MultipartFile file) {
+        return backups.restore(file);
     }
 
     @GetMapping("/{filename}")

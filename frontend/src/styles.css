@@ -1715,6 +1715,45 @@ tbody tr:hover {
   min-width: 780px;
 }
 
+.restore-panel {
+  border-color: rgba(180, 35, 24, 0.34);
+  background:
+    linear-gradient(90deg, rgba(180, 35, 24, 0.08), transparent 46%),
+    var(--wash);
+}
+
+.restore-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px dashed rgba(180, 35, 24, 0.42);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.restore-box strong,
+.restore-box span {
+  display: block;
+}
+
+.restore-box strong {
+  margin: 4px 0;
+  word-break: break-all;
+}
+
+.restore-box span {
+  color: var(--muted);
+}
+
+.restore-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .weekly-detail-panel {
   display: grid;
   gap: 12px;

@@ -42,4 +42,8 @@ public class TokenService {
             tokens.remove(token);
         }
     }
+
+    public void revokeAll() {
+        tokens.clear();
+    }
 }
