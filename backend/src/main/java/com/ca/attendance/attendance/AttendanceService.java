@@ -6,6 +6,7 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.common.ReviewStatus;
 import com.ca.attendance.log.OperationLogService;
+import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
@@ -24,12 +25,14 @@ public class AttendanceService {
     private final AttendanceRepository records;
     private final DutyWeekdayService weekdays;
     private final OperationLogService logs;
+    private final BackupService backups;
 
-    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays, OperationLogService logs) {
+    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays, OperationLogService logs, BackupService backups) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
         this.logs = logs;
+        this.backups = backups;
     }
 
     public PublicLookupResponse lookup(String studentNo) {
@@ -299,8 +302,10 @@ public class AttendanceService {
             throw ApiException.forbidden("只有管理员可以删除签到记录");
         }
         AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        BackupService.BackupItem safetyBackup = backups.create();
         records.delete(id);
-        logs.log("DELETE_ATTENDANCE_RECORD", "attendance_records", id, before, null, "管理员删除签到记录");
+        logs.log("DELETE_ATTENDANCE_RECORD", "attendance_records", id, before, null,
+                "管理员删除签到记录；删除前自动备份：" + safetyBackup.filename());
     }
 
     public void recompute(long id) {

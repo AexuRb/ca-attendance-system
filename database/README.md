@@ -194,3 +194,4 @@ python -m pip install openpyxl bcrypt mysql-connector-python
 ## 数据备份
 
 系统不再使用外部备份脚本。管理员或会长可在后台“维护”页面执行一键备份，备份文件保存到项目根目录的 `backups/app`。
+备份包含 `users`、`duty_weekday_settings`、`app_settings`、`attendance_records`、`operation_logs` 五张核心表。

@@ -44,20 +44,24 @@ public class BackupService {
             new TableExport("users", "SELECT * FROM users ORDER BY id"),
             new TableExport("attendance_records", "SELECT * FROM attendance_records ORDER BY duty_date DESC, check_in_time DESC, id DESC"),
             new TableExport("operation_logs", "SELECT * FROM operation_logs ORDER BY created_at DESC, id DESC"),
-            new TableExport("duty_weekday_settings", "SELECT * FROM duty_weekday_settings ORDER BY weekday")
+            new TableExport("duty_weekday_settings", "SELECT * FROM duty_weekday_settings ORDER BY weekday"),
+            new TableExport("app_settings", "SELECT * FROM app_settings ORDER BY setting_key")
     );
     private static final List<String> RESTORE_TABLE_ORDER = List.of(
             "users",
             "duty_weekday_settings",
+            "app_settings",
             "attendance_records",
             "operation_logs"
     );
     private static final List<String> CLEAR_TABLE_ORDER = List.of(
             "operation_logs",
             "attendance_records",
+            "app_settings",
             "duty_weekday_settings",
             "users"
     );
+    private static final Set<String> OPTIONAL_RESTORE_TABLES = Set.of("app_settings");
     private static final Map<String, Set<String>> TABLE_COLUMNS = Map.of(
             "users", Set.of(
                     "id", "student_no", "name", "password_hash", "role", "status", "phone", "major", "grade", "qq",
@@ -77,13 +81,17 @@ public class BackupService {
             ),
             "duty_weekday_settings", Set.of(
                     "weekday", "weekday_name", "enabled", "updated_by", "created_at", "updated_at"
+            ),
+            "app_settings", Set.of(
+                    "setting_key", "setting_value", "description", "updated_by", "created_at", "updated_at"
             )
     );
     private static final Map<String, Set<String>> REQUIRED_KEYS = Map.of(
             "users", Set.of("id", "student_no", "name", "password_hash", "role", "status"),
             "attendance_records", Set.of("id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "check_in_time"),
             "operation_logs", Set.of("id", "action_type", "target_type", "created_at"),
-            "duty_weekday_settings", Set.of("weekday", "weekday_name", "enabled")
+            "duty_weekday_settings", Set.of("weekday", "weekday_name", "enabled"),
+            "app_settings", Set.of("setting_key", "setting_value")
     );
     private static final Map<String, Set<String>> DATE_COLUMNS = Map.of(
             "attendance_records", Set.of("duty_date")
@@ -95,7 +103,8 @@ public class BackupService {
                     "created_at", "updated_at"
             ),
             "operation_logs", Set.of("created_at"),
-            "duty_weekday_settings", Set.of("created_at", "updated_at")
+            "duty_weekday_settings", Set.of("created_at", "updated_at"),
+            "app_settings", Set.of("created_at", "updated_at")
     );
     private static final Set<String> JSON_COLUMNS = Set.of("before_data", "after_data");
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
@@ -135,7 +144,7 @@ public class BackupService {
                 writeText(zip, "README.txt", """
                         计算机协会签到签退系统数据备份
 
-                        本备份由系统后台生成，包含 users、attendance_records、operation_logs、duty_weekday_settings 四张业务表。
+                        本备份由系统后台生成，包含 users、attendance_records、operation_logs、duty_weekday_settings、app_settings 五张核心表。
                         文件格式为 JSON，适合留档、核对和必要时人工恢复。
                         请勿把包含真实成员信息的备份文件上传到公开仓库。
                         """);
@@ -218,11 +227,15 @@ public class BackupService {
         jdbc.execute("SET FOREIGN_KEY_CHECKS = 0");
         try {
             for (String table : CLEAR_TABLE_ORDER) {
-                jdbc.update("DELETE FROM " + table);
+                if (shouldRestoreTable(payload, table)) {
+                    jdbc.update("DELETE FROM " + table);
+                }
             }
             for (String table : RESTORE_TABLE_ORDER) {
-                int count = restoreTable(table, payload.rows().get(table));
-                restoredRows.put(table, count);
+                if (shouldRestoreTable(payload, table)) {
+                    int count = restoreTable(table, payload.rows().get(table));
+                    restoredRows.put(table, count);
+                }
             }
         } finally {
             jdbc.execute("SET FOREIGN_KEY_CHECKS = 1");
@@ -268,11 +281,18 @@ public class BackupService {
 
         validateRequiredEntries(entries);
         Map<String, Object> metadata = readMetadata(entries.get("metadata.json"));
-        validateMetadata(metadata);
+        Set<String> tableNames = validateMetadata(metadata);
 
         Map<String, List<LinkedHashMap<String, Object>>> rows = new LinkedHashMap<>();
         for (String table : RESTORE_TABLE_ORDER) {
-            List<LinkedHashMap<String, Object>> tableRows = readRows(entries.get(table + ".json"), table);
+            byte[] tableBytes = entries.get(table + ".json");
+            if (tableBytes == null) {
+                if (tableNames.contains(table) || !OPTIONAL_RESTORE_TABLES.contains(table)) {
+                    throw ApiException.badRequest("备份文件缺少 " + table + ".json");
+                }
+                continue;
+            }
+            List<LinkedHashMap<String, Object>> tableRows = readRows(tableBytes, table);
             validateRows(table, tableRows);
             rows.put(table, tableRows);
         }
@@ -283,6 +303,9 @@ public class BackupService {
         Set<String> required = new LinkedHashSet<>();
         required.add("metadata.json");
         for (String table : RESTORE_TABLE_ORDER) {
+            if (OPTIONAL_RESTORE_TABLES.contains(table)) {
+                continue;
+            }
             required.add(table + ".json");
         }
         for (String name : required) {
@@ -300,15 +323,19 @@ public class BackupService {
         }
     }
 
-    private void validateMetadata(Map<String, Object> metadata) {
+    private Set<String> validateMetadata(Map<String, Object> metadata) {
         Object tables = metadata.get("tables");
         if (!(tables instanceof List<?> tableList)) {
             throw ApiException.badRequest("备份元数据缺少表信息");
         }
         Set<String> tableNames = new LinkedHashSet<>(tableList.stream().map(String::valueOf).toList());
-        if (!tableNames.containsAll(RESTORE_TABLE_ORDER)) {
+        List<String> requiredTables = RESTORE_TABLE_ORDER.stream()
+                .filter(table -> !OPTIONAL_RESTORE_TABLES.contains(table))
+                .toList();
+        if (!tableNames.containsAll(requiredTables)) {
             throw ApiException.badRequest("备份表信息不完整");
         }
+        return tableNames;
     }
 
     private List<LinkedHashMap<String, Object>> readRows(byte[] bytes, String table) {
@@ -353,6 +380,10 @@ public class BackupService {
             count++;
         }
         return count;
+    }
+
+    private boolean shouldRestoreTable(BackupPayload payload, String table) {
+        return payload.rows().containsKey(table) || !OPTIONAL_RESTORE_TABLES.contains(table);
     }
 
     private Object restoreValue(String table, String column, Object value) {

@@ -33,9 +33,13 @@
       <section v-if="view === 'kiosk'" class="kiosk-grid">
         <div class="terminal-panel branded-panel">
           <img class="panel-watermark" src="/brand/ca-logo-white.png" alt="" aria-hidden="true" />
-          <div class="panel-title">
-            <ClipboardCheck :size="20" />
-            <span>公开签到/签退</span>
+          <div class="ticket-head blueprint-head">
+            <div>
+              <p class="eyebrow">CA Duty Kiosk</p>
+              <h2>值班签到</h2>
+              <span>输入学号或姓名，确认本次签到或签退。</span>
+            </div>
+            <div class="ticket-stamp">CA<br />LOCAL</div>
           </div>
           <form class="lookup-form" @submit.prevent="lookupMember">
             <label for="studentNo">学号或姓名</label>
@@ -52,8 +56,8 @@
               <ScanLine :size="24" />
             </div>
             <div>
-              <p class="eyebrow">CA DUTY DESK</p>
-              <strong>等待输入</strong>
+              <p class="eyebrow">签到状态</p>
+              <strong>等待查询</strong>
             </div>
           </div>
 
@@ -79,7 +83,7 @@
 
           <div v-if="lookupResult && !lookupCandidates.length" class="confirm-zone">
             <div class="member-confirm" :class="{ blocked: !lookupResult.dutyDay || !lookupResult.exists }">
-              <p class="eyebrow">确认信息</p>
+              <p class="eyebrow">票据持有人</p>
               <h2>{{ lookupResult.name || '未找到成员' }}</h2>
               <p>{{ lookupResult.message }}</p>
               <div class="status-pills">
@@ -92,12 +96,37 @@
               <span>确认{{ lookupResult.action === 'CHECK_OUT' ? '签退' : '签到' }}</span>
             </button>
           </div>
+
+          <div class="blueprint-track" aria-label="值班轨道">
+            <div class="track-row active">
+              <span class="track-code">01</span>
+              <div>
+                <strong>查询成员</strong>
+                <small>输入学号或姓名</small>
+              </div>
+            </div>
+            <div class="track-row">
+              <span class="track-code">02</span>
+              <div>
+                <strong>确认动作</strong>
+                <small>核对签到或签退</small>
+              </div>
+            </div>
+            <div class="track-row">
+              <span class="track-code">03</span>
+              <div>
+                <strong>完成记录</strong>
+                <small>提交后进入后台</small>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="side-summary">
           <div class="today-card">
-            <p class="eyebrow">Today</p>
-            <strong>{{ todayText }}</strong>
+            <p class="eyebrow">今日</p>
+            <strong>{{ todayDayNumber }}</strong>
+            <em>{{ todayMonthText }}</em>
             <span>{{ weekdayText }}</span>
           </div>
           <div class="rule-list">
@@ -108,7 +137,7 @@
         </div>
       </section>
 
-      <section v-else class="dashboard" :class="[{ 'login-dashboard': !currentUser }, dashboardRoleClass]">
+      <section v-else class="dashboard" :class="[{ 'login-dashboard': !currentUser, 'logged-in-dashboard': currentUser }, dashboardRoleClass]">
         <header class="dashboard-header">
           <div class="dashboard-title">
             <p class="eyebrow">{{ currentUser ? roleDashboard.eyebrow : 'Management Console' }}</p>
@@ -143,6 +172,51 @@
         </div>
 
         <div v-else class="workspace">
+          <div class="console-status-bus" aria-label="后台状态母线">
+            <div>
+              <span>本机服务</span>
+              <strong>{{ healthOk ? '在线' : '未连接' }}</strong>
+            </div>
+            <div>
+              <span>今日未签退</span>
+              <strong>{{ overview.dashboard.todayOpenCount }}</strong>
+            </div>
+            <div>
+              <span>待审核</span>
+              <strong>{{ overview.pendingCount }}</strong>
+            </div>
+            <div>
+              <span>备份保护</span>
+              <strong>启用</strong>
+            </div>
+          </div>
+
+          <div class="dashboard-blueprint">
+            <div class="blueprint-day">
+              <p class="eyebrow">Today Blueprint</p>
+              <h3>{{ todayText }} · {{ weekdayText }}</h3>
+              <span>当前值班日：{{ overviewDutyDaysText }}</span>
+            </div>
+            <div class="blueprint-signal-board">
+              <div class="blueprint-signal urgent">
+                <span>待审核</span>
+                <strong>{{ overview.pendingCount }}</strong>
+              </div>
+              <div class="blueprint-signal">
+                <span>今日记录</span>
+                <strong>{{ overview.dashboard.todayRecordCount }}</strong>
+              </div>
+              <div class="blueprint-signal warn">
+                <span>未签退</span>
+                <strong>{{ overview.dashboard.todayOpenCount }}</strong>
+              </div>
+              <div class="blueprint-signal">
+                <span>本周时长</span>
+                <strong>{{ overview.dashboard.weekValidHours }} h</strong>
+              </div>
+            </div>
+          </div>
+
           <div class="role-command">
             <div class="role-command-main">
               <div class="role-command-mark">
@@ -620,69 +694,20 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'maintenance'" class="work-section tab-maintenance">
-            <div class="section-head">
-              <h3>系统维护</h3>
-              <div class="section-actions">
-                <button class="ghost-button" @click="loadBackups"><RefreshCw :size="16" />刷新</button>
-                <button class="primary-action" @click="createBackup" :disabled="busy">
-                  <Save :size="17" />
-                  <span>一键备份</span>
-                </button>
-              </div>
-            </div>
-            <div class="maintenance-grid">
-              <div class="maintenance-panel">
-                <div class="subsection-head">
-                  <h4>数据备份</h4>
-                  <span>成员、签到记录、日志和值班星期</span>
-                </div>
-                <div class="table-wrap">
-                  <table class="backup-table">
-                    <thead>
-                      <tr><th>文件名</th><th>生成时间</th><th>大小</th><th>操作</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in backups" :key="item.filename">
-                        <td class="mono">{{ item.filename }}</td>
-                        <td>{{ timeText(item.createdAt) }}</td>
-                        <td>{{ bytesText(item.size) }}</td>
-                        <td class="actions">
-                          <button @click="downloadBackup(item)"><Download :size="14" />下载</button>
-                          <button v-if="canDeleteBackups" class="danger" @click="deleteBackup(item)"><Trash2 :size="14" />删除</button>
-                        </td>
-                      </tr>
-                      <tr v-if="backups.length === 0"><td colspan="4" class="empty">暂无备份文件</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div v-if="canRestoreBackups" class="maintenance-panel restore-panel">
-                <div class="subsection-head">
-                  <h4>数据恢复</h4>
-                  <span>恢复前会自动备份当前数据，恢复后需要重新登录</span>
-                </div>
-                <div class="restore-box">
-                  <div>
-                    <p class="eyebrow">Restore ZIP</p>
-                    <strong>{{ restoreFile ? restoreFile.name : '未选择备份文件' }}</strong>
-                    <span>{{ restoreFile ? bytesText(restoreFile.size) : '请选择系统生成的 backup_*.zip' }}</span>
-                  </div>
-                  <div class="restore-actions">
-                    <input ref="restoreInput" type="file" accept=".zip,application/zip" hidden @change="selectRestoreFile" />
-                    <button class="ghost-button" type="button" @click="restoreInput?.click()">
-                      <Upload :size="16" />
-                      <span>选择备份</span>
-                    </button>
-                    <button class="ghost-button danger-button" type="button" :disabled="!restoreFile || busy" @click="restoreBackup">
-                      <RefreshCw :size="16" />
-                      <span>恢复数据</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+          <MaintenancePanel
+            v-if="activeTab === 'maintenance'"
+            :backups="backups"
+            :busy="busy"
+            :restore-file="restoreFile"
+            :can-delete-backups="canDeleteBackups"
+            :can-restore-backups="canRestoreBackups"
+            @load-backups="loadBackups"
+            @create-backup="createBackup"
+            @download-backup="downloadBackup"
+            @delete-backup="deleteBackup"
+            @select-restore-file="selectRestoreFile"
+            @restore-backup="restoreBackup"
+          />
 
           <section v-if="activeTab === 'settings'" class="work-section tab-settings">
             <div class="section-head">
@@ -760,78 +785,19 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'profile'" class="work-section tab-profile">
-            <div class="section-head"><h3>个人中心</h3></div>
-            <div class="profile-grid">
-              <div class="profile-card">
-                <div class="subsection-head">
-                  <h4>个人资料</h4>
-                </div>
-                <form class="profile-form" @submit.prevent="saveProfile">
-                  <label>手机号</label>
-                  <input v-model.trim="profile.phone" />
-                  <label>学院</label>
-                  <input v-model.trim="profile.major" />
-                  <label>年级</label>
-                  <select v-model="profile.grade">
-                    <option value="">未填写</option>
-                    <option v-for="grade in profileGradeOptions" :key="grade" :value="grade">{{ grade }}</option>
-                  </select>
-                  <label>QQ</label>
-                  <input v-model.trim="profile.qq" />
-                  <button class="primary-action" type="submit"><Save :size="18" /><span>保存资料</span></button>
-                </form>
-
-                <div class="profile-divider"></div>
-                <div class="subsection-head">
-                  <h4>修改密码</h4>
-                </div>
-                <form class="profile-form password-form" @submit.prevent="changePassword">
-                  <label>原密码</label>
-                  <input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" />
-                  <label>新密码</label>
-                  <input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" />
-                  <label>确认新密码</label>
-                  <input v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" />
-                  <button class="primary-action" type="submit"><Save :size="18" /><span>修改密码</span></button>
-                </form>
-              </div>
-
-              <div class="records-card">
-                <div class="subsection-head">
-                  <h4>我的值班记录</h4>
-                  <button class="ghost-button" @click="loadMyRecords"><RefreshCw :size="16" />刷新</button>
-                </div>
-                <div class="filters">
-                  <input v-model="myRecordRange.from" type="date" />
-                  <input v-model="myRecordRange.to" type="date" />
-                  <button class="ghost-button" @click="loadMyRecords">查询</button>
-                </div>
-                <div class="mini-summary">
-                  <div><span>记录数</span><strong>{{ myRecordCount }}</strong></div>
-                  <div><span>有效时长</span><strong>{{ myRecordHours }} h</strong></div>
-                </div>
-                <div class="table-wrap compact-table">
-                  <table>
-                    <thead>
-                      <tr><th>日期</th><th>签到</th><th>签退</th><th>审核</th><th>状态</th><th>有效时长</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in myRecords" :key="item.id">
-                        <td>{{ item.dutyDate }}</td>
-                        <td>{{ timeText(item.checkInTime) }}</td>
-                        <td>{{ timeText(item.checkOutTime) }}</td>
-                        <td>{{ statusText(item.checkInStatus) }} / {{ statusText(item.checkOutStatus) }}</td>
-                        <td><span class="status-badge" :class="item.effectiveStatus?.toLowerCase()">{{ effectiveStatusText(item.effectiveStatus) }}</span></td>
-                        <td>{{ item.validHours }} h</td>
-                      </tr>
-                      <tr v-if="myRecords.length === 0"><td colspan="6" class="empty">暂无值班记录</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </section>
+          <ProfilePanel
+            v-if="activeTab === 'profile'"
+            :profile="profile"
+            :password-form="passwordForm"
+            :my-record-range="myRecordRange"
+            :my-records="myRecords"
+            :my-record-count="myRecordCount"
+            :my-record-hours="myRecordHours"
+            :grade-options="profileGradeOptions"
+            @save-profile="saveProfile"
+            @change-password="changePassword"
+            @load-my-records="loadMyRecords"
+          />
         </div>
       </section>
 
@@ -870,6 +836,8 @@ import {
   UsersRound
 } from '@lucide/vue'
 import { api, del, post, put, setToken } from './api.js'
+import MaintenancePanel from './components/MaintenancePanel.vue'
+import ProfilePanel from './components/ProfilePanel.vue'
 
 const view = ref('kiosk')
 const activeTab = ref('overview')
@@ -921,7 +889,6 @@ const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: ''
 const importInput = ref(null)
 const importFile = ref(null)
 const importResult = ref(null)
-const restoreInput = ref(null)
 const restoreFile = ref(null)
 const operationLogs = ref([])
 const backups = ref([])
@@ -1012,6 +979,8 @@ const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / logP
 const overviewDutyDaysText = computed(() => overview.dutyDays.length ? overview.dutyDays.join('、') : '未设置')
 const todayText = computed(() => today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }))
 const weekdayText = computed(() => today.toLocaleDateString('zh-CN', { weekday: 'long' }))
+const todayDayNumber = computed(() => String(today.getDate()).padStart(2, '0'))
+const todayMonthText = computed(() => `${today.getFullYear()} 年 ${today.getMonth() + 1} 月`)
 const dashboardRoleClass = computed(() => currentUser.value ? `role-${String(currentUser.value.role).toLowerCase()}` : '')
 const roleDashboard = computed(() => {
   const role = currentUser.value?.role
@@ -1365,7 +1334,7 @@ async function deleteAttendanceRecord(item) {
   if (!dangerConfirm(`确认删除 ${item.name}（${item.studentNo}）在 ${timeLabel} 的签到记录？删除后无法恢复。`, '删除')) return
   await run(async () => {
     await del(`/api/attendance/${item.id}`)
-    notify('签到记录已删除', 'success')
+    notify('签到记录已删除，删除前已自动备份', 'success')
     await loadAttendanceRecords()
   })
 }
@@ -1478,7 +1447,8 @@ async function bulkUpdateUserStatus(status) {
       status,
       reason: `批量${label}筛选后成员`
     })
-    notify(`批量${label}完成：更新 ${result.updated}，无变化 ${result.unchanged}，跳过 ${result.skipped}`,
+    const backupText = result.safetyBackup ? `，操作前备份：${result.safetyBackup.filename}` : ''
+    notify(`批量${label}完成：更新 ${result.updated}，无变化 ${result.unchanged}，跳过 ${result.skipped}${backupText}`,
       result.skipped ? 'warn' : 'success')
     await loadUsers()
   })
@@ -1498,7 +1468,7 @@ async function deleteUser(user) {
   if (!dangerConfirm(`确认删除 ${user.name}（${user.studentNo}）？删除后无法恢复。已有值班记录的成员请改为停用账号。`, '删除')) return
   await run(async () => {
     await del(`/api/users/${user.id}`)
-    notify('成员已删除', 'success')
+    notify('成员已删除，删除前已自动备份', 'success')
     await loadGradeOptions()
     await loadUsers()
   })
@@ -1597,7 +1567,6 @@ async function restoreBackup() {
   await run(async () => {
     const result = await api('/api/maintenance/backups/restore', { method: 'POST', body: formData })
     restoreFile.value = null
-    if (restoreInput.value) restoreInput.value.value = ''
     backups.value = []
     setToken('')
     currentUser.value = null
@@ -1659,7 +1628,8 @@ async function clearOperationLogs() {
     logTotal.value = 0
     logPage.value = 1
     selectedLog.value = null
-    notify(`已清空 ${result?.deleted || 0} 条日志`, 'success')
+    const backupText = result?.safetyBackup ? `，清空前备份：${result.safetyBackup.filename}` : ''
+    notify(`已清空 ${result?.deleted || 0} 条日志${backupText}`, 'success')
   })
 }
 

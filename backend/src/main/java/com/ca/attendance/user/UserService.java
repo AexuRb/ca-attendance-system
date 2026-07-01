@@ -5,6 +5,7 @@ import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
+import com.ca.attendance.maintenance.BackupService;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -35,12 +36,14 @@ public class UserService {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
     private final OperationLogService logs;
+    private final BackupService backups;
 
-    public UserService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder, OperationLogService logs) {
+    public UserService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder, OperationLogService logs, BackupService backups) {
         this.users = users;
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
         this.logs = logs;
+        this.backups = backups;
     }
 
     public List<UserSummary> search(String keyword, String role, String status, String grade) {
@@ -204,7 +207,9 @@ public class UserService {
         if (recordCount != null && recordCount > 0) {
             throw ApiException.badRequest("该成员已有值班记录，不能删除，请改为停用账号");
         }
-        logs.log("DELETE_USER", "users", id, target, Map.of("deleted", true), "删除成员");
+        BackupService.BackupItem safetyBackup = backups.create();
+        logs.log("DELETE_USER", "users", id, target, Map.of("deleted", true),
+                "删除成员；删除前自动备份：" + safetyBackup.filename());
         jdbc.update("DELETE FROM users WHERE id = ?", id);
     }
 
@@ -227,6 +232,7 @@ public class UserService {
         int skipped = 0;
         List<String> issues = new ArrayList<>();
         Set<Long> seenIds = new LinkedHashSet<>();
+        BackupService.BackupItem safetyBackup = null;
 
         for (Long id : targetIds) {
             if (id == null || !seenIds.add(id)) {
@@ -253,6 +259,9 @@ public class UserService {
                 continue;
             }
 
+            if ("DISABLED".equals(targetStatus) && safetyBackup == null) {
+                safetyBackup = backups.create();
+            }
             jdbc.update("""
                     UPDATE users
                     SET status = ?,
@@ -271,12 +280,17 @@ public class UserService {
             updated++;
         }
 
-        BulkStatusResult result = new BulkStatusResult(updated, unchanged, skipped, issues);
+        BulkStatusResult result = new BulkStatusResult(updated, unchanged, skipped, issues, safetyBackup);
         logs.log("BULK_UPDATE_USER_STATUS", "users", null,
                 Map.of("ids", seenIds, "targetStatus", targetStatus),
                 result,
-                request.reason() == null ? "批量修改账号状态" : request.reason());
+                bulkStatusReason(request.reason(), safetyBackup));
         return result;
+    }
+
+    private String bulkStatusReason(String reason, BackupService.BackupItem safetyBackup) {
+        String text = reason == null ? "批量修改账号状态" : reason;
+        return safetyBackup == null ? text : text + "；停用前自动备份：" + safetyBackup.filename();
     }
 
     private ImportResult importMembersFromSheet(Sheet sheet, AuthUser current) {
@@ -560,7 +574,7 @@ public class UserService {
     public record BulkStatusRequest(List<Long> ids, String keyword, String role, String statusFilter, String grade, String status, String reason) {
     }
 
-    public record BulkStatusResult(int updated, int unchanged, int skipped, List<String> errors) {
+    public record BulkStatusResult(int updated, int unchanged, int skipped, List<String> errors, BackupService.BackupItem safetyBackup) {
     }
 
     public record ImportResult(int created, int updated, int skipped, List<String> errors) {
