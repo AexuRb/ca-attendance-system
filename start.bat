@@ -17,10 +17,12 @@ if exist "%~dp0local-config.bat" (
 )
 
 if not defined APP_PORT set "APP_PORT=8080"
+if not defined APP_HOST set "APP_HOST=127.0.0.1"
 if not defined DB_HOST set "DB_HOST=127.0.0.1"
 if not defined DB_PORT set "DB_PORT=3306"
 if not defined DB_NAME set "DB_NAME=ca_attendance"
 if not defined DB_USER set "DB_USER=root"
+if not defined MYSQL_CLIENT set "MYSQL_CLIENT=mysql"
 
 if not defined DB_PASSWORD (
   echo [ERROR] DB_PASSWORD is not set.
@@ -68,6 +70,36 @@ if errorlevel 1 (
   exit /b 1
 )
 
+echo [CHECK] Checking MySQL service at %DB_HOST%:%DB_PORT% ...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$client = [Net.Sockets.TcpClient]::new(); try { $wait = $client.BeginConnect('%DB_HOST%', [int]'%DB_PORT%', $null, $null); if (-not $wait.AsyncWaitHandle.WaitOne(2000, $false)) { exit 1 }; $client.EndConnect($wait); exit 0 } catch { exit 1 } finally { $client.Close() }"
+if errorlevel 1 (
+  echo [ERROR] Cannot connect to MySQL at %DB_HOST%:%DB_PORT%.
+  echo Please start MySQL first, then run this script again.
+  pause
+  exit /b 1
+)
+
+"%MYSQL_CLIENT%" --version >nul 2>nul
+if errorlevel 1 (
+  echo [WARN] mysql client was not found, skipping database table check.
+  echo If startup fails later, add MYSQL_CLIENT to local-config.bat or initialize the database with init-db.bat.
+) else (
+  echo [CHECK] Checking database tables ...
+  if defined DB_PASSWORD set "MYSQL_PWD=%DB_PASSWORD%"
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\check-db.ps1" -MysqlClient "%MYSQL_CLIENT%" -DbHost "%DB_HOST%" -DbPort "%DB_PORT%" -DbUser "%DB_USER%" -DbName "%DB_NAME%"
+  if errorlevel 2 (
+    echo [ERROR] Failed to query MySQL. Check DB_USER, DB_PASSWORD, and DB_NAME in local-config.bat.
+    pause
+    exit /b 1
+  )
+  if errorlevel 1 (
+    echo [ERROR] Database %DB_NAME% is not initialized or core tables are missing.
+    echo Please run init-db.bat first.
+    pause
+    exit /b 1
+  )
+)
+
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\check-port.ps1" "%APP_PORT%"
 set "PORT_CHECK=%ERRORLEVEL%"
 if "%PORT_CHECK%"=="10" (
@@ -104,7 +136,7 @@ if not exist "%JAR%" (
 )
 
 echo [START] Opening backend service window...
-start "CA Attendance System" /D "%BACKEND_DIR%" cmd /k java -jar target\attendance-backend-0.0.1-SNAPSHOT.jar --server.port=%APP_PORT%
+start "CA Attendance System" /D "%BACKEND_DIR%" cmd /k java -jar target\attendance-backend-0.0.1-SNAPSHOT.jar --server.address=%APP_HOST% --server.port=%APP_PORT%
 
 echo [WAIT] Waiting for service startup...
 for /l %%i in (1,1,20) do (

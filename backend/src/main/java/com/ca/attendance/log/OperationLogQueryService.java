@@ -2,6 +2,7 @@ package com.ca.attendance.log;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.maintenance.BackupService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -23,6 +24,7 @@ public class OperationLogQueryService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final JdbcTemplate jdbc;
+    private final BackupService backups;
 
     private final RowMapper<LogItem> mapper = (rs, rowNum) -> new LogItem(
             rs.getLong("id"),
@@ -38,8 +40,9 @@ public class OperationLogQueryService {
             rs.getTimestamp("created_at").toLocalDateTime()
     );
 
-    public OperationLogQueryService(JdbcTemplate jdbc) {
+    public OperationLogQueryService(JdbcTemplate jdbc, BackupService backups) {
         this.jdbc = jdbc;
+        this.backups = backups;
     }
 
     public LogPage search(String keyword, String actionType, String from, String to, int page, int pageSize) {
@@ -78,8 +81,9 @@ public class OperationLogQueryService {
         if (!AuthContext.current().role().canViewOperationLogs()) {
             throw ApiException.forbidden("只有管理员可以清空操作日志");
         }
+        BackupService.BackupItem safetyBackup = backups.create();
         int deleted = jdbc.update("DELETE FROM operation_logs");
-        return new ClearResult(deleted);
+        return new ClearResult(deleted, safetyBackup);
     }
 
     public byte[] export(String keyword, String actionType, String from, String to) {
@@ -246,7 +250,7 @@ public class OperationLogQueryService {
     public record LogPage(List<LogItem> items, long total, int page, int pageSize) {
     }
 
-    public record ClearResult(int deleted) {
+    public record ClearResult(int deleted, BackupService.BackupItem safetyBackup) {
     }
 
     public record LogItem(

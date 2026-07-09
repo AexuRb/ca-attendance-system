@@ -56,6 +56,11 @@ mysql -u root -p ca_attendance < database/seed.sql
 | `attendance_records` | 签到签退记录表 |
 | `operation_logs` | 操作日志表 |
 | `app_settings` | 系统配置表 |
+| `training_sessions` | 培训场次表 |
+| `training_participants` | 培训参与记录表 |
+| `duty_schedule_slots` | 值班周排班时间段表 |
+| `duty_schedule_assignees` | 值班周排班人员表 |
+| `repair_cases` | 维修事务记录表，保存接修、处理、协议确认和打印数据 |
 
 ## 角色值
 
@@ -186,7 +191,7 @@ python -m pip install openpyxl bcrypt mysql-connector-python
 当前脚本已在本机 MySQL 9.7.1 中导入并通过基础烟雾测试：
 
 - 成功创建 `ca_attendance` 数据库。
-- 成功创建 5 张核心表。
+- 成功创建 12 张核心表。
 - 成功写入 7 条默认值班星期配置。
 - 成功写入系统配置。
 - 临时用户和临时签到记录可以插入，并可事务回滚。
@@ -194,3 +199,4 @@ python -m pip install openpyxl bcrypt mysql-connector-python
 ## 数据备份
 
 系统不再使用外部备份脚本。管理员或会长可在后台“维护”页面执行一键备份，备份文件保存到项目根目录的 `backups/app`。
+备份包含 `users`、`training_sessions`、`training_participants`、`duty_schedule_slots`、`duty_schedule_assignees`、`repair_cases`、`duty_weekday_settings`、`app_settings`、`attendance_records`、`operation_logs` 等核心表。

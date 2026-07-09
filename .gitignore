@@ -5,6 +5,7 @@ local-config.bat
 
 # Database backups and exported data
 backups/
+materials/
 *.sql.gz
 
 # Build output and dependencies
@@ -20,9 +21,17 @@ frontend/.vite/
 backend/*.log
 backend/*.pid
 backend/*.err
+ca-attendance-system-*.zip
+release-artifacts/
 
 # Local UI screenshots and smoke-test output
 frontend/ui-check/
+design-previews/
+docs/admin-layout-v2/
+docs/full-ui-design-v1/
+docs/layout-v2/
+docs/frontend-design*.html
+docs/frontend-design*.pdf
 
 # IDE and OS files
 .idea/

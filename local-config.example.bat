@@ -1,6 +1,8 @@
 @echo off
 rem Copy this file to local-config.bat, then edit the values for your machine.
 
+rem The system is intended to run on this offline computer only.
+set "APP_HOST=127.0.0.1"
 set "APP_PORT=8080"
 
 set "DB_HOST=127.0.0.1"
