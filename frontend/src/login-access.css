@@ -625,6 +625,175 @@
   animation: login-submit-scan 850ms linear infinite;
 }
 
+.login-recovery-trigger {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  margin-top: 12px;
+  color: #4c708a;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  transition: color 150ms var(--login-ease), transform 150ms var(--login-ease);
+}
+
+.login-recovery-trigger:hover:not(:disabled) {
+  color: var(--login-blue);
+  transform: translateY(-1px);
+}
+
+.login-recovery-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.login-recovery-backdrop {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(12, 42, 66, 0.48);
+  backdrop-filter: blur(7px);
+}
+
+.login-recovery-dialog {
+  width: min(480px, 100%);
+  overflow: hidden;
+  border: 1px solid #bed9eb;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 26px 70px rgba(12, 53, 82, 0.28);
+}
+
+.login-recovery-dialog > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 25px 28px 21px;
+  border-bottom: 1px solid #d7e7f2;
+  background: #f4f9fd;
+}
+
+.login-recovery-dialog header .eyebrow {
+  margin: 0 0 4px;
+  color: var(--login-blue);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.login-recovery-dialog header h2 {
+  margin: 0;
+  color: var(--login-ink);
+  font-size: 22px;
+}
+
+.login-recovery-dialog header span {
+  display: block;
+  margin-top: 5px;
+  color: var(--login-muted);
+  font-size: 12px;
+}
+
+.login-recovery-dialog header > button {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: #66869d;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.login-recovery-dialog header > button:hover:not(:disabled) {
+  color: var(--login-blue);
+  background: #e5f1f9;
+}
+
+.login-recovery-dialog form {
+  display: grid;
+  padding: 24px 28px 28px;
+}
+
+.login-recovery-dialog form > label {
+  margin: 0 0 7px;
+  color: #365a74;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.login-recovery-dialog form > label:not(:first-of-type) {
+  margin-top: 15px;
+}
+
+.login-recovery-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.login-recovery-actions button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  min-height: 42px;
+  padding: 0 16px;
+  color: #466880;
+  border: 1px solid #c8dce9;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.login-recovery-actions button[type="submit"] {
+  color: #fff;
+  border-color: var(--login-blue);
+  background: var(--login-blue);
+}
+
+.login-recovery-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.login-recovery-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.login-recovery-enter-active,
+.login-recovery-leave-active {
+  transition: opacity 180ms var(--login-ease);
+}
+
+.login-recovery-enter-active .login-recovery-dialog,
+.login-recovery-leave-active .login-recovery-dialog {
+  transition: transform 220ms var(--login-ease), opacity 180ms var(--login-ease);
+}
+
+.login-recovery-enter-from,
+.login-recovery-leave-to {
+  opacity: 0;
+}
+
+.login-recovery-enter-from .login-recovery-dialog,
+.login-recovery-leave-to .login-recovery-dialog {
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+}
+
 .login-verified-state {
   display: grid;
   justify-items: center;

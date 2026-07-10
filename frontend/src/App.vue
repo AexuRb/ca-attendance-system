@@ -415,10 +415,100 @@
                     <span>{{ busy ? '正在验证' : '登录后台' }}</span>
                     <i v-if="busy" aria-hidden="true"></i>
                   </button>
+
+                  <button
+                    v-if="desktopAvailable"
+                    class="login-recovery-trigger"
+                    type="button"
+                    :disabled="busy"
+                    @click="openAdminRecovery"
+                  >
+                    <KeyRound :size="16" />
+                    <span>本机管理员密码恢复</span>
+                  </button>
                 </form>
               </Transition>
             </section>
           </section>
+
+          <Transition name="login-recovery">
+            <div
+              v-if="showRecoveryModal"
+              class="login-recovery-backdrop"
+              role="presentation"
+              @click.self="closeAdminRecovery"
+            >
+              <section class="login-recovery-dialog" role="dialog" aria-modal="true" aria-labelledby="recoveryTitle">
+                <header>
+                  <div>
+                    <p class="eyebrow">Local Recovery</p>
+                    <h2 id="recoveryTitle">恢复管理员密码</h2>
+                    <span>操作前将自动创建数据库备份</span>
+                  </div>
+                  <button type="button" title="关闭" aria-label="关闭" :disabled="busy" @click="closeAdminRecovery">
+                    <X :size="20" />
+                  </button>
+                </header>
+
+                <form @submit.prevent="recoverAdministrator">
+                  <label for="recoveryAccount">管理员账号</label>
+                  <div class="login-field">
+                    <UserRound :size="19" aria-hidden="true" />
+                    <input
+                      id="recoveryAccount"
+                      v-model.trim="recoveryForm.account"
+                      autocomplete="username"
+                      maxlength="32"
+                      placeholder="输入需要恢复的管理员账号"
+                    />
+                  </div>
+
+                  <label for="recoveryPassword">新密码</label>
+                  <div class="login-field login-password-field">
+                    <KeyRound :size="19" aria-hidden="true" />
+                    <input
+                      id="recoveryPassword"
+                      v-model="recoveryForm.password"
+                      :type="showRecoveryPassword ? 'text' : 'password'"
+                      autocomplete="new-password"
+                      maxlength="64"
+                      placeholder="6-64 位"
+                    />
+                    <button
+                      type="button"
+                      :title="showRecoveryPassword ? '隐藏密码' : '显示密码'"
+                      :aria-label="showRecoveryPassword ? '隐藏密码' : '显示密码'"
+                      @click="showRecoveryPassword = !showRecoveryPassword"
+                    >
+                      <EyeOff v-if="showRecoveryPassword" :size="18" />
+                      <Eye v-else :size="18" />
+                    </button>
+                  </div>
+
+                  <label for="recoveryPasswordConfirm">确认新密码</label>
+                  <div class="login-field">
+                    <ShieldCheck :size="19" aria-hidden="true" />
+                    <input
+                      id="recoveryPasswordConfirm"
+                      v-model="recoveryForm.confirmPassword"
+                      :type="showRecoveryPassword ? 'text' : 'password'"
+                      autocomplete="new-password"
+                      maxlength="64"
+                      placeholder="再次输入新密码"
+                    />
+                  </div>
+
+                  <div class="login-recovery-actions">
+                    <button type="button" :disabled="busy" @click="closeAdminRecovery">取消</button>
+                    <button type="submit" :disabled="busy || !recoveryFormReady">
+                      <ShieldCheck :size="17" />
+                      {{ busy ? '正在恢复' : '确认恢复' }}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            </div>
+          </Transition>
         </div>
 
         <div v-else class="workspace admin-ledger-workspace admin-workbench-workspace">
@@ -1140,7 +1230,8 @@ import {
   UserPlus,
   UserRound,
   UsersRound,
-  Wrench
+  Wrench,
+  X
 } from '@lucide/vue'
 import { api, del, post, put, setToken } from './api.js'
 import DataCenterPanel from './components/DataCenterPanel.vue'
@@ -1203,9 +1294,13 @@ const myRecordRange = reactive({
 })
 const loginForm = reactive({ studentNo: '', password: '' })
 const setupForm = reactive({ account: '', name: '', password: '', confirmPassword: '' })
+const recoveryForm = reactive({ account: '', password: '', confirmPassword: '' })
 const setupRequired = ref(false)
+const desktopAvailable = typeof window !== 'undefined' && window.desktopAPI?.isDesktop === true
+const showRecoveryModal = ref(false)
 const showLoginPassword = ref(false)
 const showSetupPassword = ref(false)
+const showRecoveryPassword = ref(false)
 const rememberLogin = ref(true)
 const loginVerified = ref(false)
 const loginError = ref(false)
@@ -1364,6 +1459,12 @@ const setupFormReady = computed(() => (
   setupForm.name.length > 0 &&
   setupForm.password.length >= 6 &&
   setupForm.password === setupForm.confirmPassword
+))
+const recoveryFormReady = computed(() => (
+  /^[A-Za-z0-9_-]{4,32}$/.test(recoveryForm.account) &&
+  recoveryForm.password.length >= 6 &&
+  recoveryForm.password.length <= 64 &&
+  recoveryForm.password === recoveryForm.confirmPassword
 ))
 const lookupCandidates = computed(() => lookupResult.value?.matches || [])
 const totalHours = computed(() => stats.value.reduce((sum, row) => sum + Number(row.totalHours || 0), 0))
@@ -1696,6 +1797,52 @@ async function login() {
     loginVerified.value = false
     triggerLoginError()
     notify(error.message, 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+function openAdminRecovery() {
+  recoveryForm.account = loginForm.studentNo
+  recoveryForm.password = ''
+  recoveryForm.confirmPassword = ''
+  showRecoveryPassword.value = false
+  showRecoveryModal.value = true
+}
+
+function closeAdminRecovery() {
+  if (busy.value) return
+  showRecoveryModal.value = false
+  recoveryForm.password = ''
+  recoveryForm.confirmPassword = ''
+  showRecoveryPassword.value = false
+}
+
+async function recoverAdministrator() {
+  if (!desktopAvailable || !window.desktopAPI?.resetAdminPassword) {
+    notify('密码恢复仅支持原生桌面版', 'warn')
+    return
+  }
+  if (!recoveryFormReady.value) {
+    if (recoveryForm.password !== recoveryForm.confirmPassword) return notify('两次输入的新密码不一致', 'warn')
+    return notify('请检查管理员账号和新密码', 'warn')
+  }
+
+  busy.value = true
+  try {
+    await window.desktopAPI.resetAdminPassword({
+      account: recoveryForm.account,
+      newPassword: recoveryForm.password
+    })
+    loginForm.studentNo = recoveryForm.account
+    loginForm.password = ''
+    showRecoveryModal.value = false
+    recoveryForm.password = ''
+    recoveryForm.confirmPassword = ''
+    showRecoveryPassword.value = false
+    notify('管理员密码已恢复，请使用新密码登录', 'success')
+  } catch (error) {
+    notify(error?.message || '管理员密码恢复失败', 'error')
   } finally {
     busy.value = false
   }

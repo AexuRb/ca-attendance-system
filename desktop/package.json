@@ -1,0 +1,65 @@
+{
+  "name": "ca-attendance-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "计算机协会本地离线管理系统桌面端",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.cjs",
+    "pack": "electron-builder --dir --win --x64",
+    "dist": "electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "43.1.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "cn.cugb.computerassociation.attendance",
+    "productName": "计算机协会管理系统",
+    "artifactName": "CA-Attendance-System-Setup-${version}.${ext}",
+    "asar": true,
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "runtime.cjs",
+      "splash.html",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/target/attendance-backend-0.0.1-SNAPSHOT.jar",
+        "to": "backend/attendance-backend.jar"
+      },
+      {
+        "from": "../runtime/temurin-21",
+        "to": "runtime"
+      }
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh"
+    }
+  }
+}
