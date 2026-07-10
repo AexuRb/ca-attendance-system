@@ -5,7 +5,9 @@ cd /d "%~dp0"
 
 if not defined APP_HOST set "APP_HOST=127.0.0.1"
 if not defined APP_PORT set "APP_PORT=8080"
-set "APP_ROOT=%~dp0"
+if not defined APP_ROOT set "APP_ROOT=%~dp0"
+for %%I in ("%APP_ROOT%") do set "APP_ROOT=%%~fI"
+if "%APP_ROOT:~-1%"=="\" if not "%APP_ROOT:~1%"==":\" set "APP_ROOT=%APP_ROOT:~0,-1%"
 set "BACKEND_DIR=%~dp0backend"
 set "JAR=%BACKEND_DIR%\target\attendance-backend.jar"
 
@@ -65,24 +67,25 @@ if not exist "%JAR%" (
 )
 
 echo [START] Opening local SQLite service...
-start "CA Attendance System" /D "%~dp0" cmd /k java -jar "backend\target\attendance-backend.jar" --server.address=%APP_HOST% --server.port=%APP_PORT% --app.storage.root="%APP_ROOT%"
-
-echo [WAIT] Waiting for service startup...
-for /l %%i in (1,1,30) do (
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $r = Invoke-RestMethod -Uri 'http://127.0.0.1:%APP_PORT%/api/health' -TimeoutSec 2; if ($r.status -eq 'ok') { exit 0 } } catch { exit 1 }"
-  if not errorlevel 1 goto started
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Sleep -Seconds 1"
-)
-
-echo [WARN] Service did not become ready. Check the backend window.
-pause
-exit /b 1
-
-:started
-echo [DONE] Service started with SQLite.
-echo [DATA] %APP_ROOT%data\attendance.db
+echo [WAIT] The browser will open after the service is ready.
+echo [DATA] %APP_ROOT%\data\attendance.db
 echo [URL] http://127.0.0.1:%APP_PORT%
-start "" "http://127.0.0.1:%APP_PORT%"
 echo.
-echo Close the backend window to stop the service.
+echo Close this window or press Ctrl+C to stop the service.
+
+set "WAIT_BROWSER_ARG="
+if defined CA_START_NO_BROWSER set "WAIT_BROWSER_ARG=-NoBrowser"
+start "" /b powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\wait-open-service.ps1" -Address "%APP_HOST%" -Port "%APP_PORT%" %WAIT_BROWSER_ARG%
+
+java -jar "%JAR%" --server.address="%APP_HOST%" --server.port="%APP_PORT%"
+set "BACKEND_EXIT=%ERRORLEVEL%"
+
+echo.
+if "%BACKEND_EXIT%"=="0" (
+  echo [STOP] Local service stopped normally.
+) else (
+  echo [ERROR] Local service exited with code %BACKEND_EXIT%.
+)
+if defined CA_START_NO_PAUSE exit /b %BACKEND_EXIT%
 pause
+exit /b %BACKEND_EXIT%
