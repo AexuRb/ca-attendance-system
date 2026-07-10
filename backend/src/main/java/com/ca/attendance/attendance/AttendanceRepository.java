@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import static com.ca.attendance.common.JdbcTime.localDate;
 import static com.ca.attendance.common.JdbcTime.localDateTime;
+import static com.ca.attendance.common.JdbcTime.databaseDate;
 
 @Repository
 public class AttendanceRepository {
@@ -68,7 +69,7 @@ public class AttendanceRepository {
                       AND check_in_status <> 'REJECTED'
                     ORDER BY check_in_time DESC
                     LIMIT 1
-                    """, mapper, userId, dutyDate));
+                    """, mapper, userId, databaseDate(dutyDate)));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
@@ -104,7 +105,7 @@ public class AttendanceRepository {
                   AND check_in_status <> 'REJECTED'
                 ORDER BY check_in_time DESC
                 LIMIT 500
-                """, mapper, from, to);
+                """, mapper, databaseDate(from), databaseDate(to));
     }
 
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
@@ -117,7 +118,7 @@ public class AttendanceRepository {
                   AND (student_no_snapshot LIKE ? OR name_snapshot LIKE ?)
                   AND effective_status LIKE ?
                 ORDER BY duty_date DESC, check_in_time DESC
-                """, mapper, from, to, keywordLike, keywordLike, effectiveStatus);
+                """, mapper, databaseDate(from), databaseDate(to), keywordLike, keywordLike, effectiveStatus);
     }
 
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
@@ -130,7 +131,7 @@ public class AttendanceRepository {
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
                 RETURNING id
-                """, Long.class, userId, studentNo, name, dutyDate, weekday, isDutyDay, checkInTime, checkInStatus, effectiveStatus);
+                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, isDutyDay, checkInTime, checkInStatus, effectiveStatus);
         return id == null ? 0 : id;
     }
 
@@ -145,7 +146,7 @@ public class AttendanceRepository {
                 )
                 VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
                 RETURNING id
-                """, Long.class, userId, studentNo, name, dutyDate, weekday, checkInTime, checkOutTime,
+                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, checkInTime, checkOutTime,
                 checkInStatus, checkOutStatus, reason, operatorId, operatorId);
         return id == null ? 0 : id;
     }
@@ -153,7 +154,7 @@ public class AttendanceRepository {
     public void updateCheckOut(long recordId, Timestamp checkOutTime, String checkOutStatus) {
         jdbc.update("""
                 UPDATE attendance_records
-                SET check_out_time = ?, check_out_status = ?, updated_at = CURRENT_TIMESTAMP
+                SET check_out_time = ?, check_out_status = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, checkOutTime, checkOutStatus, recordId);
     }
@@ -162,15 +163,15 @@ public class AttendanceRepository {
         if ("CHECK_IN".equals(part)) {
             jdbc.update("""
                     UPDATE attendance_records
-                    SET check_in_status = ?, check_in_reviewed_by = ?, check_in_reviewed_at = CURRENT_TIMESTAMP,
-                        check_in_reject_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    SET check_in_status = ?, check_in_reviewed_by = ?, check_in_reviewed_at = datetime('now', 'localtime'),
+                        check_in_reject_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ?
                     """, status, reviewerId, reason, reviewerId, recordId);
         } else {
             jdbc.update("""
                     UPDATE attendance_records
-                    SET check_out_status = ?, check_out_reviewed_by = ?, check_out_reviewed_at = CURRENT_TIMESTAMP,
-                        check_out_reject_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    SET check_out_status = ?, check_out_reviewed_by = ?, check_out_reviewed_at = datetime('now', 'localtime'),
+                        check_out_reject_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ?
                     """, status, reviewerId, reason, reviewerId, recordId);
         }
@@ -179,7 +180,7 @@ public class AttendanceRepository {
     public void updateEffective(long recordId, int durationMinutes, int validHours, String effectiveStatus) {
         jdbc.update("""
                 UPDATE attendance_records
-                SET duration_minutes = ?, valid_hours = ?, effective_status = ?, updated_at = CURRENT_TIMESTAMP
+                SET duration_minutes = ?, valid_hours = ?, effective_status = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, durationMinutes, validHours, effectiveStatus, recordId);
     }
@@ -189,7 +190,7 @@ public class AttendanceRepository {
         jdbc.update("""
                 UPDATE attendance_records
                 SET check_in_time = ?, check_out_time = ?, check_in_status = ?, check_out_status = ?,
-                    source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, operatorId, id);
     }

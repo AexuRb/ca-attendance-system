@@ -12,7 +12,6 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 
 import java.sql.ResultSet;
-import java.sql.Time;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -23,6 +22,7 @@ import java.util.regex.Pattern;
 
 import static com.ca.attendance.common.JdbcTime.localDateTime;
 import static com.ca.attendance.common.JdbcTime.localTime;
+import static com.ca.attendance.common.JdbcTime.databaseTime;
 
 @Service
 public class DutyScheduleService {
@@ -117,7 +117,7 @@ public class DutyScheduleService {
         jdbc.update("""
                 UPDATE duty_schedule_slots
                 SET weekday = ?, start_time = ?, end_time = ?, title = ?, location = ?, note = ?,
-                    enabled = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    enabled = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """,
                 values.weekday(),
@@ -142,7 +142,7 @@ public class DutyScheduleService {
         DutyScheduleSlotItem before = find(id).orElseThrow(() -> ApiException.notFound("排班不存在"));
         jdbc.update("""
                 UPDATE duty_schedule_slots
-                SET status = 'ARCHIVED', updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                SET status = 'ARCHIVED', updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, current.id(), id);
         logs.log("ARCHIVE_DUTY_SCHEDULE", "duty_schedule_slots", id, before, Map.of("status", "ARCHIVED"), "归档排班");
@@ -367,8 +367,8 @@ public class DutyScheduleService {
         };
     }
 
-    private Time toSqlTime(LocalTime time) {
-        return time == null ? null : Time.valueOf(time);
+    private String toSqlTime(LocalTime time) {
+        return databaseTime(time);
     }
 
     private Long nullableLong(ResultSet rs, String column) throws java.sql.SQLException {

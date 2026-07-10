@@ -18,9 +18,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
@@ -29,6 +26,8 @@ import java.util.regex.Pattern;
 import static com.ca.attendance.common.JdbcTime.localDate;
 import static com.ca.attendance.common.JdbcTime.localDateTime;
 import static com.ca.attendance.common.JdbcTime.localTime;
+import static com.ca.attendance.common.JdbcTime.databaseDate;
+import static com.ca.attendance.common.JdbcTime.databaseTime;
 
 @Service
 public class TrainingService {
@@ -89,8 +88,8 @@ public class TrainingService {
             throw ApiException.badRequest("开始日期不能晚于结束日期");
         }
         List<Object> args = new ArrayList<>();
-        args.add(start);
-        args.add(end);
+        args.add(databaseDate(start));
+        args.add(databaseDate(end));
         StringBuilder where = new StringBuilder("""
                 WHERE s.status <> 'ARCHIVED'
                   AND s.training_date BETWEEN ? AND ?
@@ -126,9 +125,9 @@ public class TrainingService {
                 RETURNING id
                 """, Long.class,
                 values.title(),
-                Date.valueOf(values.trainingDate()),
-                toSqlTime(values.startTime()),
-                toSqlTime(values.endTime()),
+                databaseDate(values.trainingDate()),
+                databaseTime(values.startTime()),
+                databaseTime(values.endTime()),
                 values.location(),
                 values.speaker(),
                 values.description(),
@@ -149,13 +148,13 @@ public class TrainingService {
         jdbc.update("""
                 UPDATE training_sessions
                 SET title = ?, training_date = ?, start_time = ?, end_time = ?, location = ?,
-                    speaker = ?, description = ?, status = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    speaker = ?, description = ?, status = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """,
                 values.title(),
-                Date.valueOf(values.trainingDate()),
-                toSqlTime(values.startTime()),
-                toSqlTime(values.endTime()),
+                databaseDate(values.trainingDate()),
+                databaseTime(values.startTime()),
+                databaseTime(values.endTime()),
                 values.location(),
                 values.speaker(),
                 values.description(),
@@ -174,7 +173,7 @@ public class TrainingService {
         TrainingSessionItem before = findSession(id).orElseThrow(() -> ApiException.notFound("培训不存在"));
         jdbc.update("""
                 UPDATE training_sessions
-                SET status = 'ARCHIVED', updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                SET status = 'ARCHIVED', updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, current.id(), id);
         logs.log("ARCHIVE_TRAINING", "training_sessions", id, before, Map.of("status", "ARCHIVED"), "归档培训");
@@ -213,7 +212,7 @@ public class TrainingService {
             jdbc.update("""
                     UPDATE training_participants
                     SET user_id = ?, student_no_snapshot = ?, name_snapshot = ?, attendance_status = ?,
-                        duration_hours = ?, remark = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                        duration_hours = ?, remark = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ? AND session_id = ?
                     """,
                     values.userId(),
@@ -314,7 +313,7 @@ public class TrainingService {
                   AND s.training_date BETWEEN ? AND ?
                   AND p.user_id = ?
                   AND p.duration_hours > 0
-                """, start, end, current.id());
+                """, databaseDate(start), databaseDate(end), current.id());
         return Map.of(
                 "trainingCount", number(row.get("trainingCount")),
                 "trainingHours", decimal(row.get("trainingHours"))
@@ -625,7 +624,7 @@ public class TrainingService {
         jdbc.update("""
                 UPDATE training_participants
                 SET user_id = ?, name_snapshot = ?, attendance_status = ?, duration_hours = ?, remark = ?,
-                    source = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    source = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE session_id = ? AND student_no_snapshot = ?
                 """,
                 values.userId(),
@@ -1002,10 +1001,6 @@ public class TrainingService {
     private String cleanFilename(String value) {
         String text = value == null ? "training" : value.replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
         return text.isBlank() ? "training" : text;
-    }
-
-    private Time toSqlTime(LocalTime time) {
-        return time == null ? null : Time.valueOf(time);
     }
 
     private Long nullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {

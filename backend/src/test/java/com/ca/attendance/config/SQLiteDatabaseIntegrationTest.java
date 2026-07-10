@@ -36,6 +36,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -95,6 +96,10 @@ class SQLiteDatabaseIntegrationTest {
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM pragma_foreign_key_check", Integer.class));
         assertEquals(7, jdbc.queryForObject("SELECT COUNT(*) FROM duty_weekday_settings", Integer.class));
+        String createdAt = jdbc.queryForObject("SELECT created_at FROM users WHERE id = ?", String.class, adminId);
+        LocalDateTime localCreatedAt = LocalDateTime.parse(createdAt.replace('T', ' '),
+                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        assertTrue(Duration.between(localCreatedAt, LocalDateTime.now()).abs().toMinutes() < 2);
     }
 
     @Test
@@ -136,6 +141,8 @@ class SQLiteDatabaseIntegrationTest {
         ));
         assertTrue(slot.id() > 0);
         assertEquals(1, slot.assignees().size());
+        assertEquals("14:00:00", jdbc.queryForObject(
+                "SELECT start_time FROM duty_schedule_slots WHERE id = ?", String.class, slot.id()));
 
         TrainingService trainings = new TrainingService(jdbc, logs);
         TrainingSessionItem session = trainings.create(new TrainingService.SessionRequest(
@@ -154,6 +161,11 @@ class SQLiteDatabaseIntegrationTest {
         );
         assertTrue(session.id() > 0);
         assertEquals(new BigDecimal("2"), participant.durationHours().stripTrailingZeros());
+        assertEquals(today.toString(), jdbc.queryForObject(
+                "SELECT training_date FROM training_sessions WHERE id = ?", String.class, session.id()));
+        assertEquals("14:00:00", jdbc.queryForObject(
+                "SELECT start_time FROM training_sessions WHERE id = ?", String.class, session.id()));
+        assertEquals(1, trainings.list("离线系统培训", null, today, today).size());
 
         RepairCaseService repairs = new RepairCaseService(jdbc, logs);
         RepairCaseItem repair = repairs.create(new RepairCaseService.RepairCaseRequest(
@@ -193,6 +205,12 @@ class SQLiteDatabaseIntegrationTest {
                 storagePaths
         );
 
+        LocalDate backupDate = LocalDate.now();
+        jdbc.update("""
+                INSERT INTO training_sessions (title, training_date, start_time, end_time, status)
+                VALUES ('备份恢复培训', ?, '09:00:00', '10:00:00', 'PLANNED')
+                """, backupDate.toString());
+
         BackupService.BackupItem backup = backups.create();
         Path backupPath = storagePaths.backupDirectory().resolve(backup.filename());
         assertTrue(Files.isRegularFile(backupPath));
@@ -214,6 +232,10 @@ class SQLiteDatabaseIntegrationTest {
         assertTrue(result.totalRows() >= 9);
         assertEquals(2, jdbc.queryForObject("SELECT COUNT(*) FROM users", Integer.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE student_no = 'temporary'", Integer.class));
+        assertEquals(backupDate.toString(), jdbc.queryForObject(
+                "SELECT training_date FROM training_sessions WHERE title = '备份恢复培训'", String.class));
+        assertEquals("09:00:00", jdbc.queryForObject(
+                "SELECT start_time FROM training_sessions WHERE title = '备份恢复培训'", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA integrity_check", String.class));
     }
 

@@ -7,8 +7,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 public final class JdbcTime {
+    private static final DateTimeFormatter DATABASE_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter DATABASE_DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private JdbcTime() {
     }
 
@@ -61,6 +65,18 @@ public final class JdbcTime {
         } catch (IllegalArgumentException ex) {
             throw new SQLException("Invalid time value in " + column + ": " + text, ex);
         }
+    }
+
+    public static String databaseDate(LocalDate value) {
+        return value == null ? null : value.toString();
+    }
+
+    public static String databaseTime(LocalTime value) {
+        return value == null ? null : value.withNano(0).format(DATABASE_TIME);
+    }
+
+    public static String databaseDateTime(LocalDateTime value) {
+        return value == null ? null : value.withNano(0).format(DATABASE_DATE_TIME);
     }
 
     private static LocalDateTime fromEpoch(long epochMillis) {

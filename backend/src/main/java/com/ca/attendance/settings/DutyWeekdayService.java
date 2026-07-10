@@ -38,7 +38,7 @@ public class DutyWeekdayService {
         List<Map<String, Object>> before = list();
         for (int i = 1; i <= 7; i++) {
             boolean enabled = enabledWeekdays != null && enabledWeekdays.contains(i);
-            jdbc.update("UPDATE duty_weekday_settings SET enabled = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE weekday = ?",
+            jdbc.update("UPDATE duty_weekday_settings SET enabled = ?, updated_by = ?, updated_at = datetime('now', 'localtime') WHERE weekday = ?",
                     enabled, current.id(), i);
         }
         logs.log("UPDATE_DUTY_WEEKDAYS", "duty_weekday_settings", null, before, list(), "调整值班星期");

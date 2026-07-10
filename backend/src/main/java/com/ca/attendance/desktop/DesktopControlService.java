@@ -56,7 +56,7 @@ public class DesktopControlService {
         BackupService.BackupItem safetyBackup = backups.createSystemBackup("重置管理员密码前自动备份");
         jdbc.update("""
                 UPDATE users
-                SET password_hash = ?, must_change_password = 0, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                SET password_hash = ?, must_change_password = 0, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, passwordEncoder.encode(newPassword), admin.id(), admin.id());
         jdbc.update("""

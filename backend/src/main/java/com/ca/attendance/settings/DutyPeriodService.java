@@ -67,7 +67,7 @@ public class DutyPeriodService {
                       setting_value = excluded.setting_value,
                       description = excluded.description,
                       updated_by = excluded.updated_by,
-                      updated_at = CURRENT_TIMESTAMP
+                      updated_at = datetime('now', 'localtime')
                     """, SETTING_KEY, value, DESCRIPTION, current.id());
             logs.log("UPDATE_DUTY_PERIODS", "app_settings", null, before, normalized, "调整值班时间段");
             return normalized;

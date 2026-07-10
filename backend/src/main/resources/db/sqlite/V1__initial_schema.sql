@@ -15,8 +15,8 @@ CREATE TABLE users (
   disabled_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_users_role_status ON users (role, status);
@@ -30,8 +30,8 @@ CREATE TABLE duty_weekday_settings (
   weekday_name TEXT NOT NULL,
   enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_duty_weekday_enabled ON duty_weekday_settings (enabled);
@@ -72,8 +72,8 @@ CREATE TABLE attendance_records (
   manual_reason TEXT,
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_attendance_user_date ON attendance_records (user_id, duty_date);
@@ -97,7 +97,7 @@ CREATE TABLE operation_logs (
   reason TEXT,
   ip_address TEXT,
   user_agent TEXT,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_operation_logs_operator ON operation_logs (operator_user_id);
@@ -110,8 +110,8 @@ CREATE TABLE app_settings (
   setting_value TEXT NOT NULL,
   description TEXT,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_app_settings_updated_by ON app_settings (updated_by);
@@ -128,8 +128,8 @@ CREATE TABLE training_sessions (
   status TEXT NOT NULL DEFAULT 'PLANNED' CHECK (status IN ('PLANNED', 'COMPLETED', 'CANCELED', 'ARCHIVED')),
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_training_sessions_date_status ON training_sessions (training_date, status);
@@ -148,8 +148,8 @@ CREATE TABLE training_participants (
   source TEXT NOT NULL DEFAULT 'MANUAL' CHECK (source IN ('MANUAL', 'IMPORT')),
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
   UNIQUE (session_id, student_no_snapshot)
 );
 
@@ -170,8 +170,8 @@ CREATE TABLE duty_schedule_slots (
   status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'ARCHIVED')),
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_duty_schedule_weekday_enabled ON duty_schedule_slots (weekday, enabled, status);
@@ -185,7 +185,7 @@ CREATE TABLE duty_schedule_assignees (
   student_no_snapshot TEXT,
   name_snapshot TEXT NOT NULL,
   sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_duty_schedule_assignee_slot ON duty_schedule_assignees (slot_id, sort_order);
@@ -209,15 +209,15 @@ CREATE TABLE repair_cases (
   risk_acknowledged INTEGER NOT NULL DEFAULT 1 CHECK (risk_acknowledged IN (0, 1)),
   privacy_acknowledged INTEGER NOT NULL DEFAULT 1 CHECK (privacy_acknowledged IN (0, 1)),
   status TEXT NOT NULL DEFAULT 'REPAIRING' CHECK (status IN ('REPAIRING', 'COMPLETED', 'CANCELED')),
-  received_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  received_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
   completed_at DATETIME,
   handler_user_id INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   handler_name_snapshot TEXT,
   remark TEXT,
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE INDEX idx_repair_cases_status_received ON repair_cases (status, received_at);

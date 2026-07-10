@@ -477,17 +477,18 @@ public class BackupService {
         return value;
     }
 
-    private java.sql.Date toSqlDate(Object value) {
+    private String toSqlDate(Object value) {
+        LocalDate date;
         if (value instanceof Number number) {
-            return new java.sql.Date(number.longValue());
+            date = new java.sql.Date(number.longValue()).toLocalDate();
+        } else if (value instanceof List<?> parts && parts.size() >= 3) {
+            date = LocalDate.of(intPart(parts, 0), intPart(parts, 1), intPart(parts, 2));
+        } else if (value instanceof String text && text.trim().length() >= 10) {
+            date = LocalDate.parse(text.trim().substring(0, 10));
+        } else {
+            throw ApiException.badRequest("备份日期格式不正确");
         }
-        if (value instanceof List<?> parts && parts.size() >= 3) {
-            return java.sql.Date.valueOf(LocalDate.of(intPart(parts, 0), intPart(parts, 1), intPart(parts, 2)));
-        }
-        if (value instanceof String text) {
-            return java.sql.Date.valueOf(text.trim());
-        }
-        throw ApiException.badRequest("备份日期格式不正确");
+        return com.ca.attendance.common.JdbcTime.databaseDate(date);
     }
 
     private Timestamp toTimestamp(Object value) {
@@ -510,21 +511,26 @@ public class BackupService {
         throw ApiException.badRequest("备份时间格式不正确");
     }
 
-    private java.sql.Time toSqlTime(Object value) {
+    private String toSqlTime(Object value) {
+        LocalTime time;
         if (value instanceof Number number) {
-            return new java.sql.Time(number.longValue());
-        }
-        if (value instanceof List<?> parts && parts.size() >= 2) {
-            return java.sql.Time.valueOf(LocalTime.of(intPart(parts, 0), intPart(parts, 1), parts.size() > 2 ? intPart(parts, 2) : 0));
-        }
-        if (value instanceof String text) {
+            time = new java.sql.Time(number.longValue()).toLocalTime();
+        } else if (value instanceof List<?> parts && parts.size() >= 2) {
+            time = LocalTime.of(intPart(parts, 0), intPart(parts, 1), parts.size() > 2 ? intPart(parts, 2) : 0);
+        } else if (value instanceof String text) {
             String normalized = text.trim();
+            int separator = Math.max(normalized.lastIndexOf(' '), normalized.lastIndexOf('T'));
+            if (separator >= 0) {
+                normalized = normalized.substring(separator + 1);
+            }
             if (normalized.length() == 5) {
                 normalized += ":00";
             }
-            return java.sql.Time.valueOf(normalized);
+            time = LocalTime.parse(normalized);
+        } else {
+            throw ApiException.badRequest("备份时刻格式不正确");
         }
-        throw ApiException.badRequest("备份时刻格式不正确");
+        return com.ca.attendance.common.JdbcTime.databaseTime(time);
     }
 
     private int intPart(List<?> parts, int index) {

@@ -125,7 +125,7 @@ public class UserService {
         AuthUser current = AuthContext.current();
         jdbc.update("""
                 UPDATE users
-                SET phone = ?, major = ?, grade = ?, qq = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                SET phone = ?, major = ?, grade = ?, qq = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, blankToNull(request.phone()), blankToNull(request.major()), normalizeGrade(request.grade()),
                 blankToNull(request.qq()), current.id(), current.id());
@@ -147,9 +147,9 @@ public class UserService {
         jdbc.update("""
                 UPDATE users
                 SET name = ?, role = ?, status = ?, phone = ?, major = ?, grade = ?, qq = ?,
-                    disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, CURRENT_TIMESTAMP) ELSE NULL END,
+                    disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, datetime('now', 'localtime')) ELSE NULL END,
                     disabled_by = CASE WHEN ? = 'DISABLED' THEN ? ELSE NULL END,
-                    updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """,
                 required(request.name() == null ? before.name() : request.name(), "姓名不能为空"),
@@ -183,7 +183,7 @@ public class UserService {
         }
         jdbc.update("""
                 UPDATE users
-                SET password_hash = ?, must_change_password = 1, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                SET password_hash = ?, must_change_password = 1, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, passwordEncoder.encode(password), current.id(), id);
         logs.log("RESET_PASSWORD", "users", id, Map.of("studentNo", target.studentNo()), Map.of("mustChangePassword", true),
@@ -265,9 +265,9 @@ public class UserService {
             jdbc.update("""
                     UPDATE users
                     SET status = ?,
-                        disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, CURRENT_TIMESTAMP) ELSE NULL END,
+                        disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, datetime('now', 'localtime')) ELSE NULL END,
                         disabled_by = CASE WHEN ? = 'DISABLED' THEN ? ELSE NULL END,
-                        updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                        updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ?
                     """,
                     targetStatus,
@@ -347,7 +347,7 @@ public class UserService {
                 jdbc.update("""
                         UPDATE users
                         SET name = ?, phone = ?, major = ?, grade = ?, qq = COALESCE(?, qq),
-                            updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                            updated_by = ?, updated_at = datetime('now', 'localtime')
                         WHERE student_no = ?
                         """,
                         candidate.name(),

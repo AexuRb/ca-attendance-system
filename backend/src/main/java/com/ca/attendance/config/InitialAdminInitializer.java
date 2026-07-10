@@ -38,7 +38,7 @@ public class InitialAdminInitializer implements CommandLineRunner {
         if (exists != null && exists > 0) {
             jdbc.update("""
                     UPDATE users
-                    SET role = 'ADMIN', password_hash = ?, status = 'ACTIVE', must_change_password = 1, updated_at = CURRENT_TIMESTAMP
+                    SET role = 'ADMIN', password_hash = ?, status = 'ACTIVE', must_change_password = 1, updated_at = datetime('now', 'localtime')
                     WHERE student_no = ?
                     """, passwordEncoder.encode(password), studentNo);
         } else {

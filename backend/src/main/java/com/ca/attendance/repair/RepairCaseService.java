@@ -264,7 +264,7 @@ public class RepairCaseService {
                     accessories = ?, fault_description = ?, service_description = ?,
                     data_backup_confirmed = ?, risk_acknowledged = ?, privacy_acknowledged = ?,
                     status = ?, received_at = ?, completed_at = ?, handler_user_id = ?,
-                    handler_name_snapshot = ?, remark = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
+                    handler_name_snapshot = ?, remark = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """,
                 values.agreementType(),

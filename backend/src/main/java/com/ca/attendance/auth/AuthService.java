@@ -48,7 +48,7 @@ public class AuthService {
         if (!passwordEncoder.matches(oldPassword, user.passwordHash())) {
             throw ApiException.badRequest("原密码错误");
         }
-        jdbc.update("UPDATE users SET password_hash = ?, must_change_password = 0, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        jdbc.update("UPDATE users SET password_hash = ?, must_change_password = 0, updated_by = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
                 passwordEncoder.encode(newPassword), current.id(), current.id());
     }
 
