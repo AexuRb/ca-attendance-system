@@ -2,11 +2,13 @@ package com.ca.attendance.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
+@Order(0)
 public class InitialAdminInitializer implements CommandLineRunner {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;

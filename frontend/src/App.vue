@@ -256,15 +256,15 @@
         </header>
 
         <div v-if="!currentUser" class="login-page">
-          <section class="login-access-panel" :class="{ error: loginError, verified: loginVerified }">
+          <section class="login-access-panel" :class="{ error: loginError, verified: loginVerified, 'setup-mode': setupRequired }">
             <aside class="login-identity-panel">
               <div class="login-identity-logo">
                 <img src="/brand/ca-logo-white.png" alt="计协会徽" />
               </div>
               <div class="login-identity-copy">
                 <p class="eyebrow">Computer Association</p>
-                <h1>本地离线后台</h1>
-                <span>值班、成员与协会事务管理</span>
+                <h1>{{ setupRequired ? '系统首次初始化' : '本地离线后台' }}</h1>
+                <span>{{ setupRequired ? '建立本机数据库与首位管理员' : '值班、成员与协会事务管理' }}</span>
               </div>
               <div class="login-identity-status" :class="{ online: healthOk }">
                 <i aria-hidden="true"></i>
@@ -285,6 +285,83 @@
                   <small>正在进入后台</small>
                   <i aria-hidden="true"></i>
                 </div>
+
+                <form v-else-if="setupRequired" key="setup" class="setup-form" :aria-busy="busy" @submit.prevent="initializeSystem">
+                  <div class="login-form-heading">
+                    <p class="eyebrow">First Run Setup</p>
+                    <h2>创建管理员</h2>
+                    <span>数据将保存在本机应用根目录</span>
+                  </div>
+
+                  <label for="setupAccount">管理员账号</label>
+                  <div class="login-field">
+                    <UserRound :size="19" aria-hidden="true" />
+                    <input
+                      id="setupAccount"
+                      v-model.trim="setupForm.account"
+                      autocomplete="username"
+                      maxlength="32"
+                      placeholder="4-32 位字母、数字、下划线或短横线"
+                    />
+                    <span class="login-field-scan" aria-hidden="true"></span>
+                  </div>
+
+                  <label for="setupName">管理员姓名</label>
+                  <div class="login-field">
+                    <BadgeCheck :size="19" aria-hidden="true" />
+                    <input
+                      id="setupName"
+                      v-model.trim="setupForm.name"
+                      autocomplete="name"
+                      maxlength="64"
+                      placeholder="输入管理员姓名"
+                    />
+                    <span class="login-field-scan" aria-hidden="true"></span>
+                  </div>
+
+                  <label for="setupPassword">设置密码</label>
+                  <div class="login-field login-password-field">
+                    <KeyRound :size="19" aria-hidden="true" />
+                    <input
+                      id="setupPassword"
+                      v-model="setupForm.password"
+                      :type="showSetupPassword ? 'text' : 'password'"
+                      autocomplete="new-password"
+                      maxlength="64"
+                      placeholder="至少 6 位"
+                    />
+                    <button
+                      type="button"
+                      :title="showSetupPassword ? '隐藏密码' : '显示密码'"
+                      :aria-label="showSetupPassword ? '隐藏密码' : '显示密码'"
+                      @click="showSetupPassword = !showSetupPassword"
+                    >
+                      <EyeOff v-if="showSetupPassword" :size="18" />
+                      <Eye v-else :size="18" />
+                    </button>
+                    <span class="login-field-scan" aria-hidden="true"></span>
+                  </div>
+
+                  <label for="setupPasswordConfirm">确认密码</label>
+                  <div class="login-field">
+                    <ShieldCheck :size="19" aria-hidden="true" />
+                    <input
+                      id="setupPasswordConfirm"
+                      v-model="setupForm.confirmPassword"
+                      :type="showSetupPassword ? 'text' : 'password'"
+                      autocomplete="new-password"
+                      maxlength="64"
+                      placeholder="再次输入密码"
+                    />
+                    <span class="login-field-scan" aria-hidden="true"></span>
+                  </div>
+
+                  <button class="login-submit-button" type="submit" :disabled="busy || !setupFormReady">
+                    <ShieldCheck :size="19" />
+                    <span>{{ busy ? '正在初始化' : '完成初始化' }}</span>
+                    <i v-if="busy" aria-hidden="true"></i>
+                  </button>
+                </form>
 
                 <form v-else key="form" :aria-busy="busy" @submit.prevent="login">
                   <div class="login-form-heading">
@@ -1125,7 +1202,10 @@ const myRecordRange = reactive({
   to: todayValue
 })
 const loginForm = reactive({ studentNo: '', password: '' })
+const setupForm = reactive({ account: '', name: '', password: '', confirmPassword: '' })
+const setupRequired = ref(false)
 const showLoginPassword = ref(false)
+const showSetupPassword = ref(false)
 const rememberLogin = ref(true)
 const loginVerified = ref(false)
 const loginError = ref(false)
@@ -1204,6 +1284,8 @@ const adminNavBlueprint = [
 ]
 
 const logActionOptions = [
+  { value: 'INITIALIZE_SYSTEM', label: '初始化系统' },
+  { value: 'RECOVER_ADMIN_PASSWORD', label: '本机恢复管理员密码' },
   { value: 'CREATE_USER', label: '新增成员' },
   { value: 'IMPORT_USERS', label: '批量导入成员' },
   { value: 'UPDATE_USER', label: '修改成员信息' },
@@ -1277,6 +1359,12 @@ const canBackupData = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser
 const canUseDataCenter = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canDeleteBackups = computed(() => currentUser.value?.role === 'ADMIN')
 const canRestoreBackups = computed(() => currentUser.value?.role === 'ADMIN')
+const setupFormReady = computed(() => (
+  /^[A-Za-z0-9_-]{4,32}$/.test(setupForm.account) &&
+  setupForm.name.length > 0 &&
+  setupForm.password.length >= 6 &&
+  setupForm.password === setupForm.confirmPassword
+))
 const lookupCandidates = computed(() => lookupResult.value?.matches || [])
 const totalHours = computed(() => stats.value.reduce((sum, row) => sum + Number(row.totalHours || 0), 0))
 const totalCount = computed(() => stats.value.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0))
@@ -1489,7 +1577,8 @@ onMounted(async () => {
     liveNow.value = new Date()
   }, 1000)
   await checkHealth()
-  await loadPublicSchedules()
+  if (healthOk.value) await checkSetupStatus()
+  if (!setupRequired.value) await loadPublicSchedules()
 })
 
 let kioskClockTimer = null
@@ -1505,6 +1594,16 @@ async function checkHealth() {
     healthOk.value = true
   } catch {
     healthOk.value = false
+  }
+}
+
+async function checkSetupStatus() {
+  try {
+    const status = await api('/api/setup/status')
+    setupRequired.value = !status.initialized
+    if (setupRequired.value) view.value = 'dashboard'
+  } catch {
+    setupRequired.value = false
   }
 }
 
@@ -1593,6 +1692,41 @@ async function login() {
     loginVerified.value = false
     notify('已登录后台', 'success')
     await selectTab(availableTabs.value[0]?.id || 'profile')
+  } catch (error) {
+    loginVerified.value = false
+    triggerLoginError()
+    notify(error.message, 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function initializeSystem() {
+  if (!setupFormReady.value) {
+    if (setupForm.password !== setupForm.confirmPassword) return notify('两次输入的密码不一致', 'warn')
+    return notify('请完整填写管理员信息', 'warn')
+  }
+  busy.value = true
+  loginError.value = false
+  try {
+    const res = await post('/api/setup/initialize', {
+      account: setupForm.account,
+      name: setupForm.name,
+      password: setupForm.password
+    })
+    setToken(res.token)
+    loginVerified.value = true
+    await new Promise(resolve => window.setTimeout(resolve, 720))
+    currentUser.value = res
+    setupRequired.value = false
+    loginVerified.value = false
+    showSetupPassword.value = false
+    setupForm.password = ''
+    setupForm.confirmPassword = ''
+    loginForm.studentNo = res.studentNo
+    notify('系统初始化完成', 'success')
+    await loadPublicSchedules()
+    await selectTab(availableTabs.value[0]?.id || 'overview')
   } catch (error) {
     loginVerified.value = false
     triggerLoginError()

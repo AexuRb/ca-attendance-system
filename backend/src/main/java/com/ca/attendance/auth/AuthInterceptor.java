@@ -19,7 +19,8 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
         String path = request.getRequestURI();
-        if (path.startsWith("/api/public/") || path.equals("/api/auth/login") || path.equals("/api/health")) {
+        if (path.startsWith("/api/public/") || path.startsWith("/api/setup/") || path.startsWith("/api/desktop/")
+                || path.equals("/api/auth/login") || path.equals("/api/health")) {
             return true;
         }
         AuthContext.set(tokenService.require(extractToken(request)));

@@ -59,6 +59,7 @@ def main() -> None:
     parser.add_argument("--base-url", default=env_or_default("CA_TEST_BASE_URL", "http://127.0.0.1:8080"))
     parser.add_argument("--admin-student-no", default=env_or_default("CA_TEST_ADMIN_STUDENT_NO"))
     parser.add_argument("--admin-password", default=env_or_default("CA_TEST_ADMIN_PASSWORD"))
+    parser.add_argument("--admin-name", default=env_or_default("CA_TEST_ADMIN_NAME", "UI 测试管理员"))
     parser.add_argument("--screenshot-dir", default="frontend/ui-check")
     args = parser.parse_args()
 
@@ -77,6 +78,23 @@ def main() -> None:
         page.on("pageerror", lambda err: console_errors.append(str(err)))
 
         page.goto(base_url, wait_until="networkidle")
+        setup_heading = page.get_by_role("heading", name="创建管理员")
+        if setup_heading.is_visible():
+            page.screenshot(path=str(screenshot_dir / "setup.png"), full_page=True)
+            page.set_viewport_size({"width": 390, "height": 844})
+            assert_no_page_overflow(page, "mobile setup")
+            page.screenshot(path=str(screenshot_dir / "setup-mobile.png"), full_page=True)
+            page.set_viewport_size({"width": 1440, "height": 980})
+
+            page.locator("#setupAccount").fill(args.admin_student_no)
+            page.locator("#setupName").fill(args.admin_name)
+            page.locator("#setupPassword").fill(args.admin_password)
+            page.locator("#setupPasswordConfirm").fill(args.admin_password)
+            page.get_by_role("button", name="完成初始化").click()
+            expect(page.get_by_text("今日工作台")).to_be_visible(timeout=15_000)
+            page.get_by_title("退出后台").click()
+            page.get_by_role("button", name="返回签到台").click()
+
         expect(page.locator(".kiosk-portal-brand small")).to_have_text("值班签到台", timeout=10_000)
         expect(page.get_by_text("签到 / 签退")).to_be_visible(timeout=10_000)
         expect(page.get_by_text("今日部长排班", exact=True)).to_be_visible(timeout=10_000)

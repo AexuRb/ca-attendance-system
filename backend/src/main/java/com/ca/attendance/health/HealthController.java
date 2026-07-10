@@ -19,6 +19,11 @@ public class HealthController {
     @GetMapping
     public Map<String, Object> health() {
         Integer db = jdbc.queryForObject("SELECT 1", Integer.class);
-        return Map.of("status", "ok", "database", db == null ? 0 : db);
+        return Map.of(
+                "status", "ok",
+                "application", "ca-attendance-system",
+                "databaseType", "SQLite",
+                "database", db == null ? 0 : db
+        );
     }
 }

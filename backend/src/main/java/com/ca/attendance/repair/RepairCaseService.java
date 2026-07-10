@@ -35,6 +35,8 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.ca.attendance.common.JdbcTime.localDateTime;
+
 @Service
 public class RepairCaseService {
     private static final DateTimeFormatter CASE_DAY = DateTimeFormatter.BASIC_ISO_DATE;
@@ -138,15 +140,15 @@ public class RepairCaseService {
             rs.getBoolean("risk_acknowledged"),
             rs.getBoolean("privacy_acknowledged"),
             normalizeStatus(rs.getString("status")),
-            rs.getTimestamp("received_at").toLocalDateTime(),
-            toLocalDateTime(rs.getTimestamp("completed_at")),
+            localDateTime(rs, "received_at"),
+            localDateTime(rs, "completed_at"),
             nullableLong(rs, "handler_user_id"),
             rs.getString("handler_name_snapshot"),
             rs.getString("remark"),
             rs.getString("created_by_name"),
             rs.getString("updated_by_name"),
-            rs.getTimestamp("created_at").toLocalDateTime(),
-            rs.getTimestamp("updated_at").toLocalDateTime()
+            localDateTime(rs, "created_at"),
+            localDateTime(rs, "updated_at")
     );
 
     public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs) {
@@ -210,7 +212,7 @@ public class RepairCaseService {
         requireManager(current);
         RepairValues values = repairValues(request, null, current);
         String caseNo = nextCaseNo();
-        jdbc.update("""
+        Long id = jdbc.queryForObject("""
                 INSERT INTO repair_cases (
                   case_no, agreement_type, owner_name, owner_phone, owner_org, device_type,
                   device_brand, device_model, device_serial, accessories, fault_description,
@@ -219,7 +221,8 @@ public class RepairCaseService {
                   remark, created_by, updated_by
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                RETURNING id
+                """, Long.class,
                 caseNo,
                 values.agreementType(),
                 values.ownerName(),
@@ -244,7 +247,6 @@ public class RepairCaseService {
                 current.id(),
                 current.id()
         );
-        Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         RepairCaseItem created = findCase(id == null ? 0 : id).orElseThrow();
         logs.log("CREATE_REPAIR_CASE", "repair_cases", created.id(), null, created, "新增维修事务");
         return created;
@@ -1039,10 +1041,6 @@ public class RepairCaseService {
 
     private Timestamp toTimestamp(LocalDateTime value) {
         return value == null ? null : Timestamp.valueOf(value);
-    }
-
-    private static LocalDateTime toLocalDateTime(Timestamp value) {
-        return value == null ? null : value.toLocalDateTime();
     }
 
     private static Long nullableLong(ResultSet rs, String column) throws SQLException {

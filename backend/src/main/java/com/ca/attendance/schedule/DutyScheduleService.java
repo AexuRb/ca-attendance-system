@@ -21,6 +21,9 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.regex.Pattern;
 
+import static com.ca.attendance.common.JdbcTime.localDateTime;
+import static com.ca.attendance.common.JdbcTime.localTime;
+
 @Service
 public class DutyScheduleService {
     private static final Pattern STUDENT_NO_PATTERN = Pattern.compile("\\d{1,32}");
@@ -33,16 +36,16 @@ public class DutyScheduleService {
     private final RowMapper<SlotRow> slotMapper = (rs, rowNum) -> new SlotRow(
             rs.getLong("id"),
             rs.getInt("weekday"),
-            toLocalTime(rs.getTime("start_time")),
-            toLocalTime(rs.getTime("end_time")),
+            localTime(rs, "start_time"),
+            localTime(rs, "end_time"),
             rs.getString("title"),
             rs.getString("location"),
             rs.getString("note"),
             rs.getBoolean("enabled"),
             rs.getString("created_by_name"),
             rs.getString("updated_by_name"),
-            rs.getTimestamp("created_at").toLocalDateTime(),
-            rs.getTimestamp("updated_at").toLocalDateTime()
+            localDateTime(rs, "created_at"),
+            localDateTime(rs, "updated_at")
     );
 
     public DutyScheduleService(JdbcTemplate jdbc, OperationLogService logs, DutyPeriodService dutyPeriods) {
@@ -82,12 +85,13 @@ public class DutyScheduleService {
         AuthUser current = AuthContext.current();
         requireManage(current);
         SlotValues values = slotValues(request, null);
-        jdbc.update("""
+        Long id = jdbc.queryForObject("""
                 INSERT INTO duty_schedule_slots (
                   weekday, start_time, end_time, title, location, note, enabled, created_by, updated_by
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                RETURNING id
+                """, Long.class,
                 values.weekday(),
                 toSqlTime(values.startTime()),
                 toSqlTime(values.endTime()),
@@ -98,7 +102,6 @@ public class DutyScheduleService {
                 current.id(),
                 current.id()
         );
-        Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         long slotId = id == null ? 0 : id;
         replaceAssignees(slotId, values.assignees());
         DutyScheduleSlotItem created = find(slotId).orElseThrow();
@@ -362,10 +365,6 @@ public class DutyScheduleService {
             case 7 -> "星期日";
             default -> "未知";
         };
-    }
-
-    private LocalTime toLocalTime(Time time) {
-        return time == null ? null : time.toLocalTime();
     }
 
     private Time toSqlTime(LocalTime time) {

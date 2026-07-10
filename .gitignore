@@ -4,7 +4,10 @@ local-config.bat
 .env.*
 
 # Database backups and exported data
+data/
 backups/
+exports/
+logs/
 materials/
 *.sql.gz
 
@@ -13,6 +16,10 @@ backend/target/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+desktop/node_modules/
+desktop/dist/
+desktop/release/
+runtime/
 
 # Runtime logs and process files
 *.log

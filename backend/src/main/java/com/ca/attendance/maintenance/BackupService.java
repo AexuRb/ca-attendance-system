@@ -5,6 +5,7 @@ import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
+import com.ca.attendance.config.StoragePaths;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -171,15 +172,18 @@ public class BackupService {
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
     private final TokenService tokenService;
+    private final StoragePaths storagePaths;
 
     public BackupService(JdbcTemplate jdbc,
-                         ObjectMapper objectMapper,
-                         TransactionTemplate transactionTemplate,
-                         TokenService tokenService) {
+                          ObjectMapper objectMapper,
+                          TransactionTemplate transactionTemplate,
+                          TokenService tokenService,
+                          StoragePaths storagePaths) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
         this.tokenService = tokenService;
+        this.storagePaths = storagePaths;
     }
 
     public BackupItem create() {
@@ -187,25 +191,37 @@ public class BackupService {
         if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
             throw ApiException.forbidden("只有会长或管理员可以备份数据");
         }
+        return createBackup(current.studentNo(), current.name(), "后台手动备份");
+    }
 
+    public BackupItem createSystemBackup(String reason) {
+        return createBackup("LOCAL_SYSTEM", "本机恢复工具", reason);
+    }
+
+    private BackupItem createBackup(String operatorStudentNo, String operatorName, String reason) {
         try {
             Path dir = backupDir();
             Files.createDirectories(dir);
             Path target = newBackupPath(dir);
             String filename = target.getFileName().toString();
 
-            try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(target), StandardCharsets.UTF_8)) {
-                writeJson(zip, "metadata.json", metadata(current));
-                for (TableExport table : TABLES) {
-                    writeJson(zip, table.name() + ".json", jdbc.queryForList(table.sql()));
-                }
-                writeText(zip, "README.txt", """
-                        计算机协会签到签退系统数据备份
+            transactionTemplate.executeWithoutResult(status -> {
+                try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(target), StandardCharsets.UTF_8)) {
+                    writeJson(zip, "metadata.json", metadata(operatorStudentNo, operatorName, reason));
+                    for (TableExport table : TABLES) {
+                        writeJson(zip, table.name() + ".json", jdbc.queryForList(table.sql()));
+                    }
+                    writeText(zip, "README.txt", """
+                            计算机协会本地管理系统数据备份
 
-                        本备份由系统后台生成，包含 users、training_sessions、training_participants、duty_schedule_slots、duty_schedule_assignees、repair_cases、attendance_records、operation_logs、duty_weekday_settings、app_settings 等核心表。
-                        请勿把包含真实成员信息的备份文件上传到公开仓库。
-                        """);
-            }
+                            本备份由系统后台生成，包含成员、签到、培训、排班、维修、日志和设置等核心数据。
+                            请勿把包含真实成员信息的备份文件上传到公开仓库。
+                            """);
+                } catch (IOException ex) {
+                    status.setRollbackOnly();
+                    throw ApiException.badRequest("生成备份失败");
+                }
+            });
             return toItem(target);
         } catch (IOException ex) {
             throw ApiException.badRequest("生成备份失败");
@@ -281,21 +297,17 @@ public class BackupService {
 
     private RestoreResult restorePayload(BackupPayload payload, BackupItem safetyBackup, AuthUser current) {
         Map<String, Integer> restoredRows = new LinkedHashMap<>();
-        jdbc.execute("SET FOREIGN_KEY_CHECKS = 0");
-        try {
-            for (String table : CLEAR_TABLE_ORDER) {
-                if (shouldRestoreTable(payload, table)) {
-                    jdbc.update("DELETE FROM " + table);
-                }
+        jdbc.execute("PRAGMA defer_foreign_keys = ON");
+        for (String table : CLEAR_TABLE_ORDER) {
+            if (shouldRestoreTable(payload, table)) {
+                jdbc.update("DELETE FROM " + table);
             }
-            for (String table : RESTORE_TABLE_ORDER) {
-                if (shouldRestoreTable(payload, table)) {
-                    int count = restoreTable(table, payload.rows().get(table));
-                    restoredRows.put(table, count);
-                }
+        }
+        for (String table : RESTORE_TABLE_ORDER) {
+            if (shouldRestoreTable(payload, table)) {
+                int count = restoreTable(table, payload.rows().get(table));
+                restoredRows.put(table, count);
             }
-        } finally {
-            jdbc.execute("SET FOREIGN_KEY_CHECKS = 1");
         }
 
         RestoreResult result = new RestoreResult(safetyBackup, restoredRows, restoredRows.values().stream().mapToInt(Integer::intValue).sum());
@@ -560,12 +572,15 @@ public class BackupService {
         }
     }
 
-    private Map<String, Object> metadata(AuthUser current) {
+    private Map<String, Object> metadata(String operatorStudentNo, String operatorName, String reason) {
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("system", "计算机协会签到签退系统");
+        metadata.put("system", "计算机协会本地管理系统");
+        metadata.put("database", "SQLite");
+        metadata.put("schemaVersion", 1);
         metadata.put("createdAt", LocalDateTime.now());
-        metadata.put("operatorStudentNo", current.studentNo());
-        metadata.put("operatorName", current.name());
+        metadata.put("operatorStudentNo", operatorStudentNo);
+        metadata.put("operatorName", operatorName);
+        metadata.put("reason", reason);
         metadata.put("tables", TABLES.stream().map(TableExport::name).toList());
         return metadata;
     }
@@ -623,11 +638,7 @@ public class BackupService {
     }
 
     private Path backupDir() {
-        Path cwd = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        Path root = cwd.getFileName() != null && "backend".equalsIgnoreCase(cwd.getFileName().toString())
-                ? cwd.getParent()
-                : cwd;
-        return root.resolve("backups").resolve("app").normalize();
+        return storagePaths.backupDirectory();
     }
 
     private Path newBackupPath(Path dir) {

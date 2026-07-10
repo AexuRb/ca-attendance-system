@@ -6,9 +6,14 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+
+import static com.ca.attendance.common.JdbcTime.localDate;
+import static com.ca.attendance.common.JdbcTime.localDateTime;
 
 @Repository
 public class AttendanceRepository {
@@ -19,17 +24,17 @@ public class AttendanceRepository {
             rs.getLong("user_id"),
             rs.getString("student_no_snapshot"),
             rs.getString("name_snapshot"),
-            rs.getDate("duty_date").toLocalDate(),
+            localDate(rs, "duty_date"),
             rs.getInt("duty_weekday"),
             rs.getBoolean("is_duty_day"),
-            rs.getTimestamp("check_in_time").toLocalDateTime(),
-            rs.getTimestamp("check_out_time") == null ? null : rs.getTimestamp("check_out_time").toLocalDateTime(),
+            localDateTime(rs, "check_in_time"),
+            localDateTime(rs, "check_out_time"),
             rs.getString("check_in_status"),
             rs.getString("check_out_status"),
-            rs.getObject("check_in_reviewed_by", Long.class),
-            rs.getObject("check_out_reviewed_by", Long.class),
-            rs.getTimestamp("check_in_reviewed_at") == null ? null : rs.getTimestamp("check_in_reviewed_at").toLocalDateTime(),
-            rs.getTimestamp("check_out_reviewed_at") == null ? null : rs.getTimestamp("check_out_reviewed_at").toLocalDateTime(),
+            nullableLong(rs, "check_in_reviewed_by"),
+            nullableLong(rs, "check_out_reviewed_by"),
+            localDateTime(rs, "check_in_reviewed_at"),
+            localDateTime(rs, "check_out_reviewed_at"),
             rs.getString("check_in_reject_reason"),
             rs.getString("check_out_reject_reason"),
             rs.getInt("duration_minutes"),
@@ -118,29 +123,31 @@ public class AttendanceRepository {
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
                               boolean isDutyDay, Timestamp checkInTime, String checkInStatus,
                               String effectiveStatus) {
-        jdbc.update("""
+        Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
                   user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day,
                   check_in_time, check_in_status, check_out_status, effective_status, source
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
-                """, userId, studentNo, name, dutyDate, weekday, isDutyDay, checkInTime, checkInStatus, effectiveStatus);
-        return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+                RETURNING id
+                """, Long.class, userId, studentNo, name, dutyDate, weekday, isDutyDay, checkInTime, checkInStatus, effectiveStatus);
+        return id == null ? 0 : id;
     }
 
     public long insertManual(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
                              Timestamp checkInTime, Timestamp checkOutTime, String checkInStatus,
                              String checkOutStatus, String reason, long operatorId) {
-        jdbc.update("""
+        Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
                   user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day,
                   check_in_time, check_out_time, check_in_status, check_out_status, effective_status,
                   source, manual_reason, created_by, updated_by
                 )
                 VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
-                """, userId, studentNo, name, dutyDate, weekday, checkInTime, checkOutTime,
+                RETURNING id
+                """, Long.class, userId, studentNo, name, dutyDate, weekday, checkInTime, checkOutTime,
                 checkInStatus, checkOutStatus, reason, operatorId, operatorId);
-        return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
+        return id == null ? 0 : id;
     }
 
     public void updateCheckOut(long recordId, Timestamp checkOutTime, String checkOutStatus) {
@@ -189,5 +196,10 @@ public class AttendanceRepository {
 
     public void delete(long id) {
         jdbc.update("DELETE FROM attendance_records WHERE id = ?", id);
+    }
+
+    private static Long nullableLong(ResultSet result, String column) throws SQLException {
+        long value = result.getLong(column);
+        return result.wasNull() ? null : value;
     }
 }

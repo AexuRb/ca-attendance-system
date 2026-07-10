@@ -26,6 +26,10 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.regex.Pattern;
 
+import static com.ca.attendance.common.JdbcTime.localDate;
+import static com.ca.attendance.common.JdbcTime.localDateTime;
+import static com.ca.attendance.common.JdbcTime.localTime;
+
 @Service
 public class TrainingService {
     private static final Pattern STUDENT_NO_PATTERN = Pattern.compile("\\d{1,32}");
@@ -38,9 +42,9 @@ public class TrainingService {
     private final RowMapper<TrainingSessionItem> sessionMapper = (rs, rowNum) -> new TrainingSessionItem(
             rs.getLong("id"),
             rs.getString("title"),
-            rs.getDate("training_date").toLocalDate(),
-            toLocalTime(rs.getTime("start_time")),
-            toLocalTime(rs.getTime("end_time")),
+            localDate(rs, "training_date"),
+            localTime(rs, "start_time"),
+            localTime(rs, "end_time"),
             rs.getString("location"),
             rs.getString("speaker"),
             rs.getString("description"),
@@ -52,8 +56,8 @@ public class TrainingService {
             rs.getLong("leave_count"),
             rs.getString("created_by_name"),
             rs.getString("updated_by_name"),
-            rs.getTimestamp("created_at").toLocalDateTime(),
-            rs.getTimestamp("updated_at").toLocalDateTime()
+            localDateTime(rs, "created_at"),
+            localDateTime(rs, "updated_at")
     );
 
     private final RowMapper<TrainingParticipantItem> participantMapper = (rs, rowNum) -> new TrainingParticipantItem(
@@ -68,8 +72,8 @@ public class TrainingService {
             rs.getString("source"),
             rs.getString("created_by_name"),
             rs.getString("updated_by_name"),
-            rs.getTimestamp("created_at").toLocalDateTime(),
-            rs.getTimestamp("updated_at").toLocalDateTime()
+            localDateTime(rs, "created_at"),
+            localDateTime(rs, "updated_at")
     );
 
     public TrainingService(JdbcTemplate jdbc, OperationLogService logs) {
@@ -113,13 +117,14 @@ public class TrainingService {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
         SessionValues values = sessionValues(request, null);
-        jdbc.update("""
+        Long id = jdbc.queryForObject("""
                 INSERT INTO training_sessions (
                   title, training_date, start_time, end_time, location, speaker, description, status,
                   created_by, updated_by
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                RETURNING id
+                """, Long.class,
                 values.title(),
                 Date.valueOf(values.trainingDate()),
                 toSqlTime(values.startTime()),
@@ -131,7 +136,6 @@ public class TrainingService {
                 current.id(),
                 current.id()
         );
-        Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         TrainingSessionItem created = findSession(id == null ? 0 : id).orElseThrow();
         logs.log("CREATE_TRAINING", "training_sessions", created.id(), null, created, "新增培训");
         return created;
@@ -595,13 +599,14 @@ public class TrainingService {
     }
 
     private long insertParticipant(long sessionId, ParticipantValues values, Long operatorId) {
-        jdbc.update("""
+        Long id = jdbc.queryForObject("""
                 INSERT INTO training_participants (
                   session_id, user_id, student_no_snapshot, name_snapshot, attendance_status,
                   duration_hours, remark, source, created_by, updated_by
                 )
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                RETURNING id
+                """, Long.class,
                 sessionId,
                 values.userId(),
                 values.studentNo(),
@@ -613,7 +618,6 @@ public class TrainingService {
                 operatorId,
                 operatorId
         );
-        Long id = jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
         return id == null ? 0 : id;
     }
 
@@ -998,10 +1002,6 @@ public class TrainingService {
     private String cleanFilename(String value) {
         String text = value == null ? "training" : value.replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
         return text.isBlank() ? "training" : text;
-    }
-
-    private LocalTime toLocalTime(Time time) {
-        return time == null ? null : time.toLocalTime();
     }
 
     private Time toSqlTime(LocalTime time) {

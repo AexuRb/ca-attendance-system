@@ -63,10 +63,10 @@ public class DutyPeriodService {
             jdbc.update("""
                     INSERT INTO app_settings (setting_key, setting_value, description, updated_by)
                     VALUES (?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                      setting_value = VALUES(setting_value),
-                      description = VALUES(description),
-                      updated_by = VALUES(updated_by),
+                    ON CONFLICT (setting_key) DO UPDATE SET
+                      setting_value = excluded.setting_value,
+                      description = excluded.description,
+                      updated_by = excluded.updated_by,
                       updated_at = CURRENT_TIMESTAMP
                     """, SETTING_KEY, value, DESCRIPTION, current.id());
             logs.log("UPDATE_DUTY_PERIODS", "app_settings", null, before, normalized, "调整值班时间段");

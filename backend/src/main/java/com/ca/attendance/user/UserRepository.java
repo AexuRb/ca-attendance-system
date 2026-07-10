@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static com.ca.attendance.common.JdbcTime.localDateTime;
+
 @Repository
 public class UserRepository {
     private final JdbcTemplate jdbc;
@@ -25,8 +27,8 @@ public class UserRepository {
             rs.getString("grade"),
             rs.getString("qq"),
             rs.getBoolean("must_change_password"),
-            rs.getTimestamp("created_at").toLocalDateTime(),
-            rs.getTimestamp("updated_at").toLocalDateTime()
+            localDateTime(rs, "created_at"),
+            localDateTime(rs, "updated_at")
     );
 
     public UserRepository(JdbcTemplate jdbc) {

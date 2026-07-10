@@ -19,6 +19,8 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.ca.attendance.common.JdbcTime.localDateTime;
+
 @Service
 public class OperationLogQueryService {
     private static final int MAX_PAGE_SIZE = 100;
@@ -37,7 +39,7 @@ public class OperationLogQueryService {
             rs.getString("before_data_text"),
             rs.getString("after_data_text"),
             rs.getString("reason"),
-            rs.getTimestamp("created_at").toLocalDateTime()
+            localDateTime(rs, "created_at")
     );
 
     public OperationLogQueryService(JdbcTemplate jdbc, BackupService backups) {
@@ -64,8 +66,8 @@ public class OperationLogQueryService {
         List<LogItem> items = jdbc.query("""
                 SELECT id, operator_user_id, operator_student_no, operator_name,
                        action_type, target_type, target_id,
-                       CAST(before_data AS CHAR) AS before_data_text,
-                       CAST(after_data AS CHAR) AS after_data_text,
+                       CAST(before_data AS TEXT) AS before_data_text,
+                       CAST(after_data AS TEXT) AS after_data_text,
                        reason, created_at
                 FROM operation_logs
                 """ + query.where() + """
@@ -94,8 +96,8 @@ public class OperationLogQueryService {
         List<LogItem> items = jdbc.query("""
                 SELECT id, operator_user_id, operator_student_no, operator_name,
                        action_type, target_type, target_id,
-                       CAST(before_data AS CHAR) AS before_data_text,
-                       CAST(after_data AS CHAR) AS after_data_text,
+                       CAST(before_data AS TEXT) AS before_data_text,
+                       CAST(after_data AS TEXT) AS after_data_text,
                        reason, created_at
                 FROM operation_logs
                 """ + query.where() + """

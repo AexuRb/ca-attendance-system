@@ -241,6 +241,40 @@
   animation: login-error-shake 420ms ease both;
 }
 
+.login-access-panel.setup-mode {
+  min-height: 650px;
+}
+
+.login-access-panel.setup-mode .login-identity-copy h1 {
+  font-size: 34px;
+  white-space: nowrap;
+}
+
+.login-access-panel.setup-mode .login-form-panel {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+
+.login-access-panel.setup-mode .login-form-heading {
+  margin-bottom: 18px;
+}
+
+.login-access-panel.setup-mode .login-form-panel form > label:not(.login-remember-row):not(:first-of-type) {
+  margin-top: 11px;
+}
+
+.login-access-panel.setup-mode .login-field {
+  min-height: 46px;
+}
+
+.login-access-panel.setup-mode .login-field input {
+  height: 44px;
+}
+
+.login-access-panel.setup-mode .login-submit-button {
+  margin-top: 18px;
+}
+
 .login-identity-panel {
   position: relative;
   display: flex;
