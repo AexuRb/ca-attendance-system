@@ -17,6 +17,14 @@ test('resolves the data root above an installed app directory', () => {
   }), 'C:\\CAAttendance');
 });
 
+test('keeps a custom install directory from writing into its parent', () => {
+  assert.equal(resolveAppRoot({
+    isPackaged: true,
+    executablePath: 'D:\\Association-System\\CA-Attendance-System.exe',
+    moduleDirectory: 'C:\\repo\\desktop'
+  }), 'D:\\Association-System');
+});
+
 test('allows an explicit root override for development and diagnostics', () => {
   const expected = path.resolve('C:\\Attendance-Test');
   assert.equal(resolveAppRoot({

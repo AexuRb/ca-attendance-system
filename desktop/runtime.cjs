@@ -12,7 +12,10 @@ function resolveAppRoot({ isPackaged, executablePath, moduleDirectory, override 
     return path.resolve(override.trim());
   }
   if (isPackaged) {
-    return path.dirname(path.dirname(path.resolve(executablePath)));
+    const executableDirectory = path.dirname(path.resolve(executablePath));
+    return path.basename(executableDirectory).toLowerCase() === 'app'
+      ? path.dirname(executableDirectory)
+      : executableDirectory;
   }
   return path.resolve(moduleDirectory, '..');
 }
