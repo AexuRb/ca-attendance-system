@@ -30,3 +30,18 @@ public class DutyWeekdayController {
     public record UpdateWeekdaysRequest(@NotNull List<Integer> enabledWeekdays) {
     }
 }
+
+@RestController
+@RequestMapping("/api/public/duty-weekdays")
+class PublicDutyWeekdayController {
+    private final DutyWeekdayService service;
+
+    PublicDutyWeekdayController(DutyWeekdayService service) {
+        this.service = service;
+    }
+
+    @GetMapping
+    public List<Map<String, Object>> list() {
+        return service.list();
+    }
+}

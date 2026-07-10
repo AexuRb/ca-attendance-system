@@ -1,0 +1,1853 @@
+/* Final admin theme. Imported after the legacy stylesheet on purpose. */
+.dashboard.logged-in-dashboard {
+  --admin-canvas: #f5faff;
+  --admin-surface: #ffffff;
+  --admin-surface-soft: #f8fcff;
+  --admin-line: #d7e7f3;
+  --admin-line-strong: #aecfe5;
+  --admin-ink: #17324d;
+  --admin-muted: #6a8298;
+  --admin-blue: #2879bb;
+  --admin-blue-dark: #155889;
+  --admin-blue-soft: #e8f4fc;
+  --admin-green: #16836f;
+  --admin-amber: #b77816;
+  --admin-coral: #c15e45;
+  --module-accent: #2879bb;
+  --module-soft: #e8f4fc;
+  --module-rgb: 40, 121, 187;
+  --admin-mono: "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+  --admin-ease: cubic-bezier(0.22, 0.78, 0.24, 1);
+  --admin-fast: 140ms;
+  --admin-motion: 210ms;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  color: var(--admin-ink);
+  font-family: "Microsoft YaHei UI", "Segoe UI", Arial, sans-serif;
+}
+
+.dashboard.logged-in-dashboard.active-module-members,
+.dashboard.logged-in-dashboard.active-module-profile {
+  --module-accent: #16836f;
+  --module-soft: #e7f6f2;
+  --module-rgb: 22, 131, 111;
+}
+
+.dashboard.logged-in-dashboard.active-module-trainings {
+  --module-accent: #b77816;
+  --module-soft: #fff5df;
+  --module-rgb: 183, 120, 22;
+}
+
+.dashboard.logged-in-dashboard.active-module-repairs {
+  --module-accent: #c15e45;
+  --module-soft: #fff0eb;
+  --module-rgb: 193, 94, 69;
+}
+
+.dashboard.logged-in-dashboard.active-module-data,
+.dashboard.logged-in-dashboard.active-module-maintenance,
+.dashboard.logged-in-dashboard.active-module-settings,
+.dashboard.logged-in-dashboard.active-module-logs {
+  --module-accent: #55758f;
+  --module-soft: #edf3f7;
+  --module-rgb: 85, 117, 143;
+}
+
+.app-shell.admin-fullscreen {
+  display: block !important;
+  min-height: 100vh;
+  background: var(--admin-canvas);
+}
+
+.app-shell.admin-fullscreen .side-panel {
+  display: none !important;
+}
+
+.app-shell.admin-fullscreen .main-surface {
+  width: 100%;
+  min-height: 100vh;
+  padding: 0 !important;
+  background-color: var(--admin-canvas);
+  background-image:
+    linear-gradient(rgba(55, 124, 176, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(55, 124, 176, 0.045) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Primary navigation */
+.dashboard.logged-in-dashboard .dashboard-header.admin-topbar {
+  position: sticky;
+  z-index: 30;
+  top: 0;
+  display: grid;
+  grid-template-columns: minmax(200px, 238px) minmax(440px, 1fr) auto;
+  gap: 20px;
+  align-items: center;
+  width: 100%;
+  min-height: 66px;
+  margin: 0;
+  padding: 0 clamp(18px, 3vw, 42px);
+  border: 0;
+  border-bottom: 1px solid var(--admin-line);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 8px 24px rgba(33, 87, 128, 0.07);
+  backdrop-filter: blur(14px);
+  animation: blueprint-topbar-in 360ms var(--admin-ease) both;
+}
+
+.admin-brand-lockup {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-width: 0;
+}
+
+.admin-brand-symbol {
+  position: relative;
+  display: grid;
+  flex: 0 0 42px;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--admin-blue);
+  box-shadow: 7px 7px 0 #dceefa;
+}
+
+.admin-brand-symbol::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  content: "";
+  background: #75d6de;
+  animation: blueprint-brand-scan 3.6s linear infinite;
+}
+
+.admin-brand-symbol img {
+  display: block;
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+}
+
+.admin-brand-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-brand-copy strong {
+  overflow: hidden;
+  color: #102d47;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.admin-brand-copy small {
+  overflow: hidden;
+  color: var(--admin-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.admin-primary-nav {
+  display: flex;
+  gap: 4px;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.admin-primary-nav button {
+  position: relative;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  min-height: 100%;
+  padding: 0 15px;
+  overflow: hidden;
+  color: #506c83;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 750;
+  transition:
+    color var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease);
+}
+
+.admin-primary-nav button::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(105deg, transparent 20%, rgba(40, 121, 187, 0.08), transparent 62%);
+  transform: translateX(-110%);
+}
+
+.admin-primary-nav button::after {
+  position: absolute;
+  right: 14px;
+  bottom: 0;
+  left: 14px;
+  height: 3px;
+  content: "";
+  background: var(--module-accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--admin-motion) var(--admin-ease);
+}
+
+.admin-primary-nav button:hover {
+  color: var(--admin-blue-dark);
+  background: #f2f8fc;
+}
+
+.admin-primary-nav button:hover::before {
+  transform: translateX(110%);
+  transition: transform 520ms var(--admin-ease);
+}
+
+.admin-primary-nav button.active {
+  color: var(--module-accent);
+  background: var(--module-soft);
+}
+
+.admin-primary-nav button.active::after {
+  transform: scaleX(1);
+}
+
+.admin-primary-nav button.active svg {
+  animation: blueprint-icon-lock 260ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .user-chip {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 42px;
+  padding: 4px 5px 4px 7px;
+  color: #34556e;
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  background: #fbfdff;
+  box-shadow: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-user-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--admin-blue);
+  border: 1px solid #c8deed;
+  border-radius: 4px;
+  background: #eaf5fc;
+}
+
+.dashboard.logged-in-dashboard .user-chip .ghost-button {
+  min-height: 30px;
+  padding: 5px 8px;
+}
+
+/* Secondary navigation */
+.dashboard.logged-in-dashboard .workspace.admin-workbench-workspace {
+  display: block;
+  width: 100%;
+  padding: 0 clamp(18px, 3vw, 42px) 36px;
+}
+
+.dashboard.logged-in-dashboard .admin-workbench-shell {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.dashboard.logged-in-dashboard .admin-today-rail,
+.dashboard.logged-in-dashboard .admin-module-nav {
+  display: none !important;
+}
+
+.admin-subnav {
+  position: sticky;
+  z-index: 24;
+  top: 66px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  min-height: 48px;
+  margin: 0 calc(clamp(18px, 3vw, 42px) * -1) 18px;
+  padding: 0 clamp(18px, 3vw, 42px);
+  border-bottom: 1px solid var(--admin-line);
+  background: rgba(246, 251, 255, 0.96);
+  box-shadow: 0 7px 18px rgba(34, 88, 128, 0.045);
+  backdrop-filter: blur(12px);
+  animation: blueprint-subnav-in 380ms 70ms var(--admin-ease) both;
+}
+
+.admin-subnav-date {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #547187;
+  font-size: 12px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.admin-subnav-date svg {
+  color: var(--module-accent);
+}
+
+.admin-subnav nav {
+  display: flex;
+  align-self: stretch;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.admin-subnav nav::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-subnav nav button {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 100%;
+  padding: 0 13px;
+  color: #647d91;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  transition:
+    color var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease);
+}
+
+.admin-subnav nav button::after {
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 12px;
+  height: 2px;
+  content: "";
+  background: var(--module-accent);
+  transform: scaleX(0);
+  transition: transform var(--admin-motion) var(--admin-ease);
+}
+
+.admin-subnav nav button:hover {
+  color: var(--module-accent);
+  background: rgba(var(--module-rgb), 0.055);
+}
+
+.admin-subnav nav button.active {
+  color: var(--module-accent);
+  background: rgba(var(--module-rgb), 0.08);
+}
+
+.admin-subnav nav button.active::after {
+  transform: scaleX(1);
+}
+
+.admin-subnav nav button.active svg {
+  animation: blueprint-icon-lock 260ms var(--admin-ease) both;
+}
+
+.admin-subnav nav button small {
+  min-width: 18px;
+  padding: 1px 5px;
+  color: #fff;
+  border-radius: 999px;
+  background: var(--admin-coral);
+  font-family: var(--admin-mono);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  animation: blueprint-badge-in 240ms var(--admin-ease) both;
+}
+
+.admin-service-state {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  color: #856b39;
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.admin-service-state > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c68a2c;
+  box-shadow: 0 0 0 4px rgba(198, 138, 44, 0.12);
+}
+
+.admin-service-state.online {
+  color: #3f7468;
+}
+
+.admin-service-state.online > span {
+  background: var(--admin-green);
+  box-shadow: 0 0 0 4px rgba(22, 131, 111, 0.12);
+  animation: blueprint-service-pulse 2.8s ease-in-out infinite;
+}
+
+/* Context strip */
+.dashboard.logged-in-dashboard .admin-workbench-main {
+  display: grid;
+  grid-column: auto !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dashboard.logged-in-dashboard .admin-contextbar {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(480px, 0.95fr);
+  gap: 20px;
+  align-items: center;
+  min-height: 88px;
+  padding: 14px 18px;
+  overflow: hidden;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.97);
+  background-image:
+    linear-gradient(rgba(var(--module-rgb), 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--module-rgb), 0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+  box-shadow: 0 10px 28px rgba(30, 82, 122, 0.07);
+  animation: blueprint-section-in 380ms 110ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .admin-contextbar::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  content: "";
+  background: var(--module-accent);
+}
+
+.dashboard.logged-in-dashboard .admin-contextbar::after {
+  position: absolute;
+  bottom: 0;
+  left: -28%;
+  width: 28%;
+  height: 2px;
+  content: "";
+  background: linear-gradient(90deg, transparent, var(--module-accent), transparent);
+  opacity: 0.7;
+  animation: blueprint-context-scan 5.6s linear infinite;
+}
+
+.admin-context-heading {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  min-width: 0;
+}
+
+.admin-context-icon {
+  display: grid;
+  flex: 0 0 46px;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  color: #fff;
+  border-radius: 4px;
+  background: var(--module-accent);
+  box-shadow: 6px 6px 0 rgba(var(--module-rgb), 0.12);
+}
+
+.admin-context-heading > div {
+  min-width: 0;
+}
+
+.dashboard.logged-in-dashboard .admin-contextbar .eyebrow {
+  margin: 0 0 2px;
+  color: var(--module-accent);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.dashboard.logged-in-dashboard .admin-contextbar h3 {
+  margin: 0 0 3px;
+  color: var(--admin-ink);
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.dashboard.logged-in-dashboard .admin-contextbar .admin-context-heading span {
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dashboard.logged-in-dashboard .admin-context-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  min-width: 0;
+}
+
+.dashboard.logged-in-dashboard .admin-context-stats > div {
+  position: relative;
+  min-width: 0;
+  min-height: 50px;
+  padding: 5px 12px;
+  border: 0;
+  border-left: 1px solid var(--admin-line);
+  border-radius: 0;
+  background: transparent;
+  transition: background-color var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard .admin-context-stats > div:hover {
+  background: rgba(var(--module-rgb), 0.06);
+}
+
+.dashboard.logged-in-dashboard .admin-context-stats span {
+  color: var(--admin-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dashboard.logged-in-dashboard .admin-context-stats strong {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--admin-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--admin-mono);
+  font-size: 17px;
+  line-height: 1.1;
+  animation: blueprint-number-in 360ms 180ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .admin-context-stats .tone-ok strong {
+  color: var(--admin-green);
+}
+
+.dashboard.logged-in-dashboard .admin-context-stats .tone-warn strong {
+  color: var(--admin-amber);
+}
+
+/* Page structure */
+.dashboard.logged-in-dashboard .admin-tab-stage {
+  width: 100%;
+  min-width: 0;
+  animation: blueprint-page-in 220ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .admin-tab-stage > .work-section,
+.dashboard.logged-in-dashboard .admin-tab-stage > .tab-trainings,
+.dashboard.logged-in-dashboard .admin-tab-stage > .tab-schedules,
+.dashboard.logged-in-dashboard .admin-tab-stage > .tab-repairs,
+.dashboard.logged-in-dashboard .admin-tab-stage > .tab-data,
+.dashboard.logged-in-dashboard .admin-tab-stage > .tab-maintenance,
+.dashboard.logged-in-dashboard .admin-tab-stage > .tab-profile {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.dashboard.logged-in-dashboard .work-section {
+  position: relative;
+  padding: 17px;
+  overflow: visible;
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 10px 28px rgba(31, 82, 120, 0.055);
+}
+
+.dashboard.logged-in-dashboard .work-section::before {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  left: -1px;
+  display: block;
+  height: 3px;
+  content: "";
+  border-radius: 5px 5px 0 0;
+  background: var(--module-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: blueprint-rule-in 420ms 120ms var(--admin-ease) forwards;
+}
+
+.dashboard.logged-in-dashboard .tab-overview {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dashboard.logged-in-dashboard .tab-overview::before {
+  display: none;
+}
+
+.dashboard.logged-in-dashboard .section-head {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 50px;
+  margin: 0 0 14px;
+  padding: 0 0 12px 12px;
+  border-bottom: 1px solid var(--admin-line);
+  box-shadow: inset 3px 0 0 var(--module-accent);
+}
+
+.dashboard.logged-in-dashboard .tab-overview > .section-head {
+  padding: 13px 16px 13px 15px;
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: inset 4px 0 0 var(--module-accent), 0 8px 22px rgba(31, 82, 120, 0.05);
+}
+
+.dashboard.logged-in-dashboard .section-head h3 {
+  margin: 0;
+  color: var(--admin-ink);
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.dashboard.logged-in-dashboard .section-head > div > span,
+.dashboard.logged-in-dashboard .subsection-head span {
+  display: block;
+  margin-top: 3px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dashboard.logged-in-dashboard .section-actions,
+.dashboard.logged-in-dashboard .row-actions,
+.dashboard.logged-in-dashboard .repair-form-actions,
+.dashboard.logged-in-dashboard .training-form-actions,
+.dashboard.logged-in-dashboard .schedule-form-actions,
+.dashboard.logged-in-dashboard .settings-card-actions,
+.dashboard.logged-in-dashboard .restore-actions,
+.dashboard.logged-in-dashboard .data-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+}
+
+.dashboard.logged-in-dashboard .subsection-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.dashboard.logged-in-dashboard .subsection-head h4,
+.dashboard.logged-in-dashboard .subsection-head h5 {
+  margin: 0;
+  color: var(--admin-ink);
+}
+
+/* Duty timeline: the visual signature of the admin. */
+.dashboard.logged-in-dashboard .admin-home-layout {
+  display: block !important;
+  margin-top: 14px;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-board {
+  position: relative;
+  min-width: 0;
+  padding: 18px 20px 20px;
+  overflow: hidden;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 5px;
+  background-color: rgba(255, 255, 255, 0.98);
+  background-image:
+    linear-gradient(rgba(40, 121, 187, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(40, 121, 187, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  box-shadow: 0 12px 28px rgba(31, 82, 120, 0.065);
+  animation: blueprint-section-in 380ms 140ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-board::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  width: 2px;
+  content: "";
+  background: #67c4d0;
+  box-shadow: 0 0 16px rgba(103, 196, 208, 0.7);
+  animation: blueprint-board-scan 6.8s linear infinite;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-timeline {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 4px 0 2px;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-period {
+  position: relative;
+  display: grid;
+  grid-template-columns: 70px 22px minmax(0, 1fr);
+  gap: 11px;
+  align-items: stretch;
+  min-width: 0;
+  animation: blueprint-timeline-row-in 340ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-period:nth-child(2) { animation-delay: 55ms; }
+.dashboard.logged-in-dashboard .admin-duty-period:nth-child(3) { animation-delay: 110ms; }
+.dashboard.logged-in-dashboard .admin-duty-period:nth-child(4) { animation-delay: 165ms; }
+.dashboard.logged-in-dashboard .admin-duty-period:nth-child(5) { animation-delay: 220ms; }
+
+.dashboard.logged-in-dashboard .admin-duty-period time {
+  align-self: start;
+  padding-top: 17px;
+  color: #315f80;
+  font-family: var(--admin-mono);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-node {
+  position: relative;
+  top: 17px;
+  width: 17px;
+  height: 17px;
+  border: 4px solid #d5ecfa;
+  border-radius: 50%;
+  background: var(--admin-blue);
+  box-shadow: 0 0 0 1px #8ec6e8;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-node::before {
+  position: absolute;
+  top: 13px;
+  left: 4px;
+  width: 2px;
+  height: calc(100% + 64px);
+  content: "";
+  background: #b8dcef;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-period:last-child .admin-duty-node::before {
+  display: none;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-period.active .admin-duty-node {
+  background: #1b91a1;
+  box-shadow: 0 0 0 1px #77c9d1, 0 0 0 8px rgba(27, 145, 161, 0.11);
+  animation: blueprint-current-pulse 2.4s ease-in-out infinite;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(130px, 0.28fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  min-height: 70px;
+  padding: 12px 14px;
+  overflow: hidden;
+  border: 1px solid #cce1ef;
+  border-left: 4px solid #85bde0;
+  border-radius: 4px;
+  background: rgba(250, 253, 255, 0.94);
+  transition:
+    border-color var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease),
+    box-shadow var(--admin-motion) var(--admin-ease),
+    transform var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard .admin-duty-card:hover {
+  border-color: #95c8e7;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(36, 100, 146, 0.1);
+  transform: translateX(3px);
+}
+
+.dashboard.logged-in-dashboard .admin-duty-period.active .admin-duty-card {
+  border-color: #79c3cd;
+  border-left-color: #1b91a1;
+  background: #f0fbfc;
+  box-shadow: inset 0 0 0 1px rgba(27, 145, 161, 0.08);
+}
+
+.dashboard.logged-in-dashboard .admin-duty-period.active .admin-duty-card::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(105deg, transparent 20%, rgba(117, 214, 222, 0.14), transparent 52%);
+  transform: translateX(-110%);
+  animation: blueprint-active-sweep 4.8s 600ms var(--admin-ease) infinite;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-period.missing .admin-duty-card {
+  border-color: #e6c98e;
+  border-left-color: var(--admin-amber);
+  background: #fffaf0;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-card-head,
+.dashboard.logged-in-dashboard .admin-duty-members {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-card-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-card-head strong {
+  color: var(--admin-ink);
+  font-family: var(--admin-mono);
+  font-size: 17px;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-card-head span {
+  min-width: 43px;
+  padding: 4px 7px;
+  color: var(--admin-blue-dark);
+  border: 1px solid #b9d7ea;
+  border-radius: 999px;
+  background: #fff;
+  font-family: var(--admin-mono);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-members span,
+.dashboard.logged-in-dashboard .admin-duty-members em {
+  max-width: 150px;
+  padding: 6px 9px;
+  overflow: hidden;
+  color: #294c65;
+  border: 1px solid #cde1ee;
+  border-radius: 4px;
+  background: #fff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 750;
+  animation: blueprint-person-in 260ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-members span:nth-child(2) { animation-delay: 45ms; }
+.dashboard.logged-in-dashboard .admin-duty-members span:nth-child(3) { animation-delay: 90ms; }
+.dashboard.logged-in-dashboard .admin-duty-members span:nth-child(4) { animation-delay: 135ms; }
+
+.dashboard.logged-in-dashboard .admin-duty-members.empty em {
+  color: #8c5d10;
+  border-color: #e6c98e;
+  background: #fff6df;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-empty {
+  display: grid;
+  gap: 7px;
+  justify-items: start;
+  min-height: 124px;
+  padding: 20px;
+  color: var(--admin-muted);
+  border: 1px dashed var(--admin-line-strong);
+  border-radius: 4px;
+  background: rgba(248, 252, 255, 0.88);
+}
+
+.dashboard.logged-in-dashboard .admin-duty-empty svg {
+  color: var(--module-accent);
+  animation: blueprint-empty-pulse 2.8s ease-in-out infinite;
+}
+
+.dashboard.logged-in-dashboard .admin-duty-empty strong {
+  color: var(--admin-ink);
+}
+
+.dashboard.logged-in-dashboard .admin-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  background: #fff;
+  animation: blueprint-section-in 360ms 190ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .admin-quick-action {
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 132px;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 43px;
+  padding: 8px 12px;
+  color: #31536d;
+  border: 0;
+  border-right: 1px solid var(--admin-line);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  transition:
+    color var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard .admin-quick-action:last-child {
+  border-right: 0;
+}
+
+.dashboard.logged-in-dashboard .admin-quick-action:hover {
+  color: var(--module-accent);
+  background: var(--module-soft);
+}
+
+.dashboard.logged-in-dashboard .admin-quick-action svg {
+  color: var(--module-accent);
+  transition: transform var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard .admin-quick-action:hover svg {
+  transform: translateY(-1px) scale(1.08);
+}
+
+.dashboard.logged-in-dashboard .admin-home-bottom {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 0;
+  animation: blueprint-section-in 360ms 230ms var(--admin-ease) both;
+}
+
+/* Shared panels and module layouts */
+.dashboard.logged-in-dashboard .overview-panel,
+.dashboard.logged-in-dashboard .weekly-detail-panel,
+.dashboard.logged-in-dashboard .maintenance-panel,
+.dashboard.logged-in-dashboard .profile-card,
+.dashboard.logged-in-dashboard .records-card,
+.dashboard.logged-in-dashboard .inline-form-block,
+.dashboard.logged-in-dashboard .member-action-panel,
+.dashboard.logged-in-dashboard .record-action-panel,
+.dashboard.logged-in-dashboard .training-participant-panel,
+.dashboard.logged-in-dashboard .repair-detail-panel,
+.dashboard.logged-in-dashboard .data-tool-card,
+.dashboard.logged-in-dashboard .data-health-card,
+.dashboard.logged-in-dashboard .recent-backup-panel,
+.dashboard.logged-in-dashboard .restore-card,
+.dashboard.logged-in-dashboard .settings-card,
+.dashboard.logged-in-dashboard .log-detail-panel {
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.dashboard.logged-in-dashboard .overview-panel,
+.dashboard.logged-in-dashboard .weekly-detail-panel,
+.dashboard.logged-in-dashboard .maintenance-panel,
+.dashboard.logged-in-dashboard .profile-card,
+.dashboard.logged-in-dashboard .records-card,
+.dashboard.logged-in-dashboard .training-participant-panel,
+.dashboard.logged-in-dashboard .repair-detail-panel,
+.dashboard.logged-in-dashboard .data-tool-card,
+.dashboard.logged-in-dashboard .settings-card,
+.dashboard.logged-in-dashboard .log-detail-panel {
+  padding: 14px;
+}
+
+.dashboard.logged-in-dashboard .inline-form-block,
+.dashboard.logged-in-dashboard .member-action-panel,
+.dashboard.logged-in-dashboard .record-action-panel,
+.dashboard.logged-in-dashboard .schedule-form-panel,
+.dashboard.logged-in-dashboard .participant-form-panel,
+.dashboard.logged-in-dashboard .training-import-panel,
+.dashboard.logged-in-dashboard .training-session-form,
+.dashboard.logged-in-dashboard .repair-form-board {
+  position: relative;
+  margin: 0 0 14px;
+  padding: 15px;
+  overflow: hidden;
+  border-color: rgba(var(--module-rgb), 0.35);
+  border-left: 4px solid var(--module-accent);
+  background: linear-gradient(90deg, rgba(var(--module-rgb), 0.055), #fff 24%);
+  animation: blueprint-form-in 260ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard .training-layout,
+.dashboard.logged-in-dashboard .repair-layout,
+.dashboard.logged-in-dashboard .data-center-layout,
+.dashboard.logged-in-dashboard .maintenance-grid,
+.dashboard.logged-in-dashboard .profile-grid {
+  gap: 12px;
+}
+
+.dashboard.logged-in-dashboard .training-session-list,
+.dashboard.logged-in-dashboard .repair-case-list,
+.dashboard.logged-in-dashboard .schedule-week-grid {
+  gap: 9px;
+}
+
+.dashboard.logged-in-dashboard .training-session-card,
+.dashboard.logged-in-dashboard .repair-case-card,
+.dashboard.logged-in-dashboard .schedule-slot-card,
+.dashboard.logged-in-dashboard .schedule-period-group,
+.dashboard.logged-in-dashboard .data-health-grid > div,
+.dashboard.logged-in-dashboard .maintenance-status-strip > div,
+.dashboard.logged-in-dashboard .training-summary-strip > div,
+.dashboard.logged-in-dashboard .repair-summary-strip > div,
+.dashboard.logged-in-dashboard .record-summary-strip > div,
+.dashboard.logged-in-dashboard .stat-grid > div,
+.dashboard.logged-in-dashboard .mini-summary > div {
+  position: relative;
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  background: var(--admin-surface-soft);
+  box-shadow: none;
+  transition:
+    border-color var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease),
+    box-shadow var(--admin-motion) var(--admin-ease),
+    transform var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard .training-session-card,
+.dashboard.logged-in-dashboard .repair-case-card {
+  overflow: hidden;
+  border-left: 3px solid rgba(var(--module-rgb), 0.45);
+}
+
+.dashboard.logged-in-dashboard .training-session-card:hover,
+.dashboard.logged-in-dashboard .repair-case-card:hover,
+.dashboard.logged-in-dashboard .schedule-slot-card:hover,
+.dashboard.logged-in-dashboard .schedule-period-group:hover,
+.dashboard.logged-in-dashboard .data-health-grid > div:hover,
+.dashboard.logged-in-dashboard .maintenance-status-strip > div:hover,
+.dashboard.logged-in-dashboard .training-summary-strip > div:hover,
+.dashboard.logged-in-dashboard .repair-summary-strip > div:hover,
+.dashboard.logged-in-dashboard .record-summary-strip > div:hover,
+.dashboard.logged-in-dashboard .stat-grid > div:hover,
+.dashboard.logged-in-dashboard .mini-summary > div:hover {
+  border-color: rgba(var(--module-rgb), 0.48);
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(var(--module-rgb), 0.09);
+  transform: translateY(-1px);
+}
+
+.dashboard.logged-in-dashboard .training-session-card.active,
+.dashboard.logged-in-dashboard .repair-case-card.active {
+  border-color: rgba(var(--module-rgb), 0.58);
+  border-left-color: var(--module-accent);
+  background: var(--module-soft);
+  box-shadow: inset 0 0 0 1px rgba(var(--module-rgb), 0.08);
+}
+
+.dashboard.logged-in-dashboard .training-summary-strip,
+.dashboard.logged-in-dashboard .repair-summary-strip,
+.dashboard.logged-in-dashboard .record-summary-strip,
+.dashboard.logged-in-dashboard .maintenance-status-strip,
+.dashboard.logged-in-dashboard .mini-summary,
+.dashboard.logged-in-dashboard .stat-grid {
+  gap: 8px;
+}
+
+.dashboard.logged-in-dashboard .training-summary-strip > div,
+.dashboard.logged-in-dashboard .repair-summary-strip > div,
+.dashboard.logged-in-dashboard .record-summary-strip > div,
+.dashboard.logged-in-dashboard .maintenance-status-strip > div,
+.dashboard.logged-in-dashboard .mini-summary > div,
+.dashboard.logged-in-dashboard .stat-grid > div {
+  min-height: 66px;
+  padding: 10px 12px;
+}
+
+.dashboard.logged-in-dashboard .training-summary-strip strong,
+.dashboard.logged-in-dashboard .repair-summary-strip strong,
+.dashboard.logged-in-dashboard .record-summary-strip strong,
+.dashboard.logged-in-dashboard .maintenance-status-strip strong,
+.dashboard.logged-in-dashboard .mini-summary strong,
+.dashboard.logged-in-dashboard .stat-grid strong {
+  color: var(--admin-ink);
+  font-family: var(--admin-mono);
+}
+
+/* Filters, inputs and buttons */
+.dashboard.logged-in-dashboard .filters,
+.dashboard.logged-in-dashboard .member-filters,
+.dashboard.logged-in-dashboard .record-filters,
+.dashboard.logged-in-dashboard .stats-filters,
+.dashboard.logged-in-dashboard .log-filters,
+.dashboard.logged-in-dashboard .training-filters,
+.dashboard.logged-in-dashboard .repair-filters,
+.dashboard.logged-in-dashboard .review-bulk-actions,
+.dashboard.logged-in-dashboard .bulk-actions {
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  background-color: #f7fbfe;
+  background-image: linear-gradient(90deg, rgba(var(--module-rgb), 0.045) 1px, transparent 1px);
+  background-size: 22px 100%;
+  box-shadow: none;
+}
+
+.dashboard.logged-in-dashboard input,
+.dashboard.logged-in-dashboard select,
+.dashboard.logged-in-dashboard textarea {
+  min-height: 37px;
+  color: var(--admin-ink);
+  border: 1px solid #c6dce9;
+  border-radius: 4px;
+  background: #fff;
+  outline: none;
+  transition:
+    border-color var(--admin-fast) var(--admin-ease),
+    box-shadow var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard textarea {
+  min-height: 86px;
+}
+
+.dashboard.logged-in-dashboard input:hover,
+.dashboard.logged-in-dashboard select:hover,
+.dashboard.logged-in-dashboard textarea:hover {
+  border-color: #93bed8;
+}
+
+.dashboard.logged-in-dashboard input:focus,
+.dashboard.logged-in-dashboard select:focus,
+.dashboard.logged-in-dashboard textarea:focus {
+  border-color: var(--module-accent);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(var(--module-rgb), 0.13);
+}
+
+.dashboard.logged-in-dashboard button {
+  letter-spacing: 0;
+}
+
+.dashboard.logged-in-dashboard .ghost-button,
+.dashboard.logged-in-dashboard .primary-action,
+.dashboard.logged-in-dashboard .actions button,
+.dashboard.logged-in-dashboard .row-actions button {
+  position: relative;
+  min-height: 34px;
+  border-radius: 4px;
+  box-shadow: none;
+  cursor: pointer;
+  transition:
+    color var(--admin-fast) var(--admin-ease),
+    border-color var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease),
+    box-shadow var(--admin-fast) var(--admin-ease),
+    transform var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard .ghost-button {
+  color: #315772;
+  border-color: #c4dae8;
+  background: #fff;
+}
+
+.dashboard.logged-in-dashboard .ghost-button:hover {
+  color: var(--module-accent);
+  border-color: rgba(var(--module-rgb), 0.5);
+  background: var(--module-soft);
+  box-shadow: 0 6px 16px rgba(var(--module-rgb), 0.09);
+  transform: translateY(-1px);
+}
+
+.dashboard.logged-in-dashboard .primary-action {
+  color: #fff;
+  border-color: var(--module-accent);
+  background: var(--module-accent);
+}
+
+.dashboard.logged-in-dashboard .primary-action:hover {
+  border-color: var(--module-accent);
+  background: var(--module-accent);
+  box-shadow: 0 8px 18px rgba(var(--module-rgb), 0.2);
+  filter: brightness(0.94);
+  transform: translateY(-1px);
+}
+
+.dashboard.logged-in-dashboard .ghost-button:active,
+.dashboard.logged-in-dashboard .primary-action:active,
+.dashboard.logged-in-dashboard .actions button:active,
+.dashboard.logged-in-dashboard .row-actions button:active,
+.admin-primary-nav button:active,
+.admin-subnav nav button:active,
+.dashboard.logged-in-dashboard .admin-quick-action:active {
+  transform: scale(0.975);
+}
+
+.dashboard.logged-in-dashboard button:focus-visible,
+.dashboard.logged-in-dashboard input:focus-visible,
+.dashboard.logged-in-dashboard select:focus-visible,
+.dashboard.logged-in-dashboard textarea:focus-visible {
+  outline: 3px solid rgba(var(--module-rgb), 0.2);
+  outline-offset: 2px;
+}
+
+.dashboard.logged-in-dashboard button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.25);
+  opacity: 0.55;
+  transform: none !important;
+}
+
+.dashboard.logged-in-dashboard .danger,
+.dashboard.logged-in-dashboard .danger-button {
+  color: #a8483b;
+  border-color: #e7bdb5;
+  background: #fff7f5;
+}
+
+.dashboard.logged-in-dashboard .maintenance-backup-button {
+  color: #4e6e87;
+  border-color: #a9c1d2;
+  background: #f7fafc;
+  box-shadow: inset 0 0 0 1px rgba(85, 117, 143, 0.04);
+}
+
+.dashboard.logged-in-dashboard .maintenance-backup-button:hover {
+  color: #385a73;
+  border-color: #789bb3;
+  background: #eaf1f6;
+  box-shadow: 0 7px 16px rgba(85, 117, 143, 0.12);
+}
+
+.dashboard.logged-in-dashboard .maintenance-backup-button:disabled {
+  color: #7d909f;
+  border-color: #c8d5de;
+  background: #f3f6f8;
+}
+
+/* Tables */
+.dashboard.logged-in-dashboard .table-wrap {
+  overflow: auto;
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.dashboard.logged-in-dashboard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dashboard.logged-in-dashboard thead {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+}
+
+.dashboard.logged-in-dashboard th {
+  height: 40px;
+  padding: 9px 10px;
+  color: #506d83;
+  border-bottom: 1px solid #c9dfec;
+  background: #edf6fc;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dashboard.logged-in-dashboard td {
+  min-height: 42px;
+  padding: 9px 10px;
+  color: #284a63;
+  border-bottom: 1px solid #e4eef5;
+  background: transparent;
+  font-size: 13px;
+}
+
+.dashboard.logged-in-dashboard tbody tr {
+  position: relative;
+  background: #fff;
+  transition:
+    background-color var(--admin-fast) var(--admin-ease),
+    box-shadow var(--admin-fast) var(--admin-ease);
+  animation: blueprint-table-row-in 230ms var(--admin-ease) both;
+}
+
+.dashboard.logged-in-dashboard tbody tr:nth-child(2) { animation-delay: 28ms; }
+.dashboard.logged-in-dashboard tbody tr:nth-child(3) { animation-delay: 56ms; }
+.dashboard.logged-in-dashboard tbody tr:nth-child(4) { animation-delay: 84ms; }
+.dashboard.logged-in-dashboard tbody tr:nth-child(5) { animation-delay: 112ms; }
+.dashboard.logged-in-dashboard tbody tr:nth-child(6) { animation-delay: 140ms; }
+
+.dashboard.logged-in-dashboard tbody tr:nth-child(even) {
+  background: #fbfdff;
+}
+
+.dashboard.logged-in-dashboard tbody tr:hover {
+  background: var(--module-soft);
+  box-shadow: inset 3px 0 0 var(--module-accent);
+}
+
+.dashboard.logged-in-dashboard tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dashboard.logged-in-dashboard .mono,
+.dashboard.logged-in-dashboard time {
+  font-family: var(--admin-mono);
+}
+
+.dashboard.logged-in-dashboard .empty,
+.dashboard.logged-in-dashboard .muted-cell {
+  color: var(--admin-muted);
+}
+
+.dashboard.logged-in-dashboard .status-badge,
+.dashboard.logged-in-dashboard .status-pill,
+.dashboard.logged-in-dashboard .user-status {
+  border-radius: 999px;
+}
+
+/* Dense module-specific layouts */
+.dashboard.logged-in-dashboard .training-filters {
+  display: grid !important;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 180px) minmax(150px, 180px) auto !important;
+  gap: 8px;
+  align-items: center;
+}
+
+.dashboard.logged-in-dashboard .schedule-week-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.dashboard.logged-in-dashboard .schedule-day-column {
+  min-width: 0;
+  padding: 9px;
+  border-color: var(--admin-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.dashboard.logged-in-dashboard .schedule-day-head {
+  display: grid;
+  gap: 3px;
+  min-height: 47px;
+  padding-bottom: 8px;
+}
+
+.dashboard.logged-in-dashboard .schedule-day-head span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard.logged-in-dashboard .schedule-period-group {
+  gap: 6px;
+  margin-top: 7px;
+  padding: 8px;
+  border-color: #d9e8f2;
+  border-radius: 4px;
+  background: #f8fcff;
+}
+
+.dashboard.logged-in-dashboard .schedule-period-head {
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+.dashboard.logged-in-dashboard .schedule-period-head strong {
+  font-family: var(--admin-mono);
+  font-size: 11px;
+}
+
+.dashboard.logged-in-dashboard .schedule-period-head span {
+  min-height: 21px;
+  padding-inline: 6px;
+  font-size: 10px;
+}
+
+.dashboard.logged-in-dashboard .schedule-slot-card {
+  gap: 6px;
+  padding: 9px;
+  border-radius: 4px;
+}
+
+.dashboard.logged-in-dashboard .schedule-slot-card h4 {
+  font-size: 13px;
+}
+
+.dashboard.logged-in-dashboard .schedule-slot-card p,
+.dashboard.logged-in-dashboard .schedule-assignees span {
+  font-size: 11px;
+}
+
+.dashboard.logged-in-dashboard .schedule-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.dashboard.logged-in-dashboard .schedule-card-actions .ghost-button {
+  min-height: 29px;
+  padding: 4px 7px;
+  font-size: 11px;
+}
+
+.dashboard.logged-in-dashboard .schedule-empty {
+  min-height: 48px;
+  font-size: 11px;
+}
+
+.dashboard.logged-in-dashboard .weekday-grid label {
+  color: #43627a;
+  border-color: var(--admin-line);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: none;
+  transition:
+    color var(--admin-fast) var(--admin-ease),
+    border-color var(--admin-fast) var(--admin-ease),
+    background-color var(--admin-fast) var(--admin-ease),
+    transform var(--admin-fast) var(--admin-ease);
+}
+
+.dashboard.logged-in-dashboard .weekday-grid label:hover {
+  border-color: rgba(var(--module-rgb), 0.5);
+  transform: translateY(-1px);
+}
+
+.dashboard.logged-in-dashboard .weekday-grid label.selected {
+  color: var(--admin-ink);
+  border-color: rgba(var(--module-rgb), 0.55);
+  background: var(--module-soft);
+  box-shadow: inset 0 3px 0 var(--module-accent);
+}
+
+.dashboard.logged-in-dashboard .weekday-grid input {
+  accent-color: var(--module-accent);
+}
+
+/* Empty states and logs */
+.dashboard.logged-in-dashboard .empty-state {
+  min-height: 190px;
+  border: 1px dashed var(--admin-line-strong);
+  border-radius: 4px;
+  background-color: #f8fcff;
+  background-image:
+    linear-gradient(rgba(var(--module-rgb), 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--module-rgb), 0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.dashboard.logged-in-dashboard .empty-state svg {
+  color: var(--module-accent);
+  animation: blueprint-empty-pulse 2.8s ease-in-out infinite;
+}
+
+.dashboard.logged-in-dashboard .log-detail-grid pre {
+  border-radius: 4px;
+  background: #102b40;
+  color: #d7eef8;
+  font-family: var(--admin-mono);
+}
+
+/* Toast */
+.toast {
+  top: auto;
+  right: 24px;
+  bottom: 24px;
+  width: max-content;
+  min-height: 0;
+  max-width: min(420px, calc(100vw - 32px));
+  border-radius: 4px;
+  box-shadow: 0 16px 36px rgba(18, 48, 71, 0.2);
+}
+
+.toast-pop-enter-active,
+.toast-pop-leave-active {
+  transition:
+    opacity 220ms var(--admin-ease),
+    transform 220ms var(--admin-ease);
+}
+
+.toast-pop-enter-from,
+.toast-pop-leave-to {
+  opacity: 0;
+  transform: translateY(14px) scale(0.97);
+}
+
+/* Motion */
+@keyframes blueprint-topbar-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blueprint-subnav-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blueprint-section-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blueprint-page-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blueprint-form-in {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(-6px); }
+  to { opacity: 1; clip-path: inset(0); transform: translateY(0); }
+}
+
+@keyframes blueprint-rule-in {
+  to { transform: scaleX(1); }
+}
+
+@keyframes blueprint-icon-lock {
+  0% { transform: scale(0.82) rotate(-6deg); }
+  70% { transform: scale(1.08) rotate(1deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes blueprint-badge-in {
+  from { opacity: 0; transform: scale(0.65); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes blueprint-number-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blueprint-timeline-row-in {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes blueprint-person-in {
+  from { opacity: 0; transform: translateY(5px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes blueprint-table-row-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blueprint-context-scan {
+  0%, 15% { transform: translateX(0); opacity: 0; }
+  24% { opacity: 0.7; }
+  58%, 100% { transform: translateX(460%); opacity: 0; }
+}
+
+@keyframes blueprint-board-scan {
+  0%, 12% { transform: translateY(-105%); opacity: 0; }
+  20% { opacity: 0.75; }
+  48%, 100% { transform: translateY(105%); opacity: 0; }
+}
+
+@keyframes blueprint-active-sweep {
+  0%, 18% { transform: translateX(-110%); opacity: 0; }
+  24% { opacity: 1; }
+  58%, 100% { transform: translateX(110%); opacity: 0; }
+}
+
+@keyframes blueprint-brand-scan {
+  0%, 18% { transform: translateX(-100%); }
+  56%, 100% { transform: translateX(100%); }
+}
+
+@keyframes blueprint-current-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px #77c9d1, 0 0 0 5px rgba(27, 145, 161, 0.08); }
+  50% { box-shadow: 0 0 0 1px #77c9d1, 0 0 0 10px rgba(27, 145, 161, 0.15); }
+}
+
+@keyframes blueprint-service-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(22, 131, 111, 0.1); }
+  50% { box-shadow: 0 0 0 7px rgba(22, 131, 111, 0.15); }
+}
+
+@keyframes blueprint-empty-pulse {
+  0%, 100% { opacity: 0.66; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+/* Responsive */
+@media (max-width: 1180px) {
+  .dashboard.logged-in-dashboard .dashboard-header.admin-topbar {
+    grid-template-columns: minmax(190px, 220px) minmax(390px, 1fr) auto;
+    gap: 12px;
+    padding-inline: 18px;
+  }
+
+  .admin-primary-nav button {
+    min-width: 78px;
+    padding-inline: 10px;
+  }
+
+  .dashboard.logged-in-dashboard .workspace.admin-workbench-workspace {
+    padding-inline: 18px;
+  }
+
+  .admin-subnav {
+    margin-inline: -18px;
+    padding-inline: 18px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-contextbar {
+    grid-template-columns: minmax(260px, 0.8fr) minmax(430px, 1fr);
+  }
+
+  .dashboard.logged-in-dashboard .admin-home-bottom {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1281px) {
+  .dashboard.logged-in-dashboard .schedule-week-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1280px) {
+  .dashboard.logged-in-dashboard .schedule-week-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .dashboard.logged-in-dashboard .dashboard-header.admin-topbar {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto;
+    min-height: 60px;
+  }
+
+  .admin-primary-nav {
+    grid-column: 1 / -1;
+    order: 3;
+    min-height: 48px;
+    overflow-x: auto;
+  }
+
+  .admin-primary-nav button {
+    flex: 1 0 94px;
+  }
+
+  .admin-subnav {
+    position: relative;
+    top: auto;
+    grid-template-columns: 1fr auto;
+  }
+
+  .admin-subnav nav {
+    grid-column: 1 / -1;
+    order: 3;
+    min-height: 44px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-contextbar {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard.logged-in-dashboard .admin-context-stats {
+    border-top: 1px solid var(--admin-line);
+    padding-top: 10px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-context-stats > div:first-child {
+    border-left: 0;
+  }
+
+  .dashboard.logged-in-dashboard .admin-duty-card {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard.logged-in-dashboard .training-filters,
+  .dashboard.logged-in-dashboard .schedule-week-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard.logged-in-dashboard .dashboard-header.admin-topbar {
+    padding-inline: 12px;
+  }
+
+  .admin-brand-copy small,
+  .dashboard.logged-in-dashboard .user-chip > span:not(.admin-user-avatar),
+  .dashboard.logged-in-dashboard .user-chip .ghost-button span,
+  .admin-subnav-date {
+    display: none;
+  }
+
+  .admin-brand-symbol {
+    flex-basis: 38px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .dashboard.logged-in-dashboard .workspace.admin-workbench-workspace {
+    padding: 0 12px 24px;
+  }
+
+  .admin-subnav {
+    display: block;
+    margin: 0 -12px 12px;
+    padding: 0 12px;
+  }
+
+  .admin-subnav nav {
+    min-height: 45px;
+  }
+
+  .admin-service-state {
+    display: none;
+  }
+
+  .dashboard.logged-in-dashboard .admin-contextbar {
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .admin-context-icon {
+    flex-basis: 40px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-contextbar h3 {
+    font-size: 19px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-context-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard.logged-in-dashboard .admin-context-stats > div:nth-child(3) {
+    border-left: 0;
+    border-top: 1px solid var(--admin-line);
+  }
+
+  .dashboard.logged-in-dashboard .admin-context-stats > div:nth-child(4) {
+    border-top: 1px solid var(--admin-line);
+  }
+
+  .dashboard.logged-in-dashboard .work-section,
+  .dashboard.logged-in-dashboard .admin-duty-board {
+    padding: 13px;
+  }
+
+  .dashboard.logged-in-dashboard .section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard.logged-in-dashboard .section-actions {
+    width: 100%;
+  }
+
+  .dashboard.logged-in-dashboard .section-actions > button {
+    flex: 1 1 120px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-duty-period {
+    grid-template-columns: 52px 18px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-duty-period time {
+    font-size: 11px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-duty-card {
+    padding: 10px;
+  }
+
+  .dashboard.logged-in-dashboard .admin-home-bottom,
+  .dashboard.logged-in-dashboard .training-layout,
+  .dashboard.logged-in-dashboard .repair-layout,
+  .dashboard.logged-in-dashboard .maintenance-grid,
+  .dashboard.logged-in-dashboard .profile-grid,
+  .dashboard.logged-in-dashboard .data-center-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard.logged-in-dashboard .training-filters,
+  .dashboard.logged-in-dashboard .schedule-week-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard.logged-in-dashboard th,
+  .dashboard.logged-in-dashboard td {
+    padding: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard.logged-in-dashboard *,
+  .dashboard.logged-in-dashboard *::before,
+  .dashboard.logged-in-dashboard *::after,
+  .toast,
+  .toast::before,
+  .toast::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

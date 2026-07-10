@@ -6,6 +6,7 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.common.ReviewStatus;
 import com.ca.attendance.log.OperationLogService;
+import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
@@ -24,12 +25,14 @@ public class AttendanceService {
     private final AttendanceRepository records;
     private final DutyWeekdayService weekdays;
     private final OperationLogService logs;
+    private final BackupService backups;
 
-    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays, OperationLogService logs) {
+    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays, OperationLogService logs, BackupService backups) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
         this.logs = logs;
+        this.backups = backups;
     }
 
     public PublicLookupResponse lookup(String studentNo) {
@@ -68,13 +71,13 @@ public class AttendanceService {
         List<PublicMemberOption> matches = sameNameUsers.stream()
                 .map(user -> new PublicMemberOption(user.studentNo(), user.name(), user.grade(), user.major()))
                 .toList();
-        String message = dutyDay ? "找到多位同名成员，请选择自己的学号" : "今日不是值班日；找到多位同名成员";
+        String message = dutyDay ? "找到多位同名成员，请选择自己的学号" : "今日非值班日，也可选择成员测试签到签退";
         return new PublicLookupResponse(false, dutyDay, null, null, null, message, matches);
     }
 
     private PublicLookupResponse lookupResponse(UserSummary user, LocalDate today, boolean dutyDay) {
         String action = records.findOpenToday(user.id(), today).isPresent() ? "CHECK_OUT" : "CHECK_IN";
-        String message = dutyDay ? "请确认姓名后提交" : "今日不是值班日";
+        String message = dutyDay ? "请确认姓名后提交" : "今日非值班日，可测试签到签退";
         return new PublicLookupResponse(true, dutyDay, user.studentNo(), user.name(), action, message, List.of());
     }
 
@@ -83,9 +86,6 @@ public class AttendanceService {
         LocalDate today = now.toLocalDate();
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
-        if (!dutyDay) {
-            throw ApiException.badRequest("今日不是值班日，不能普通签到签退");
-        }
         UserSummary user = users.findActiveByStudentNo(studentNo)
                 .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
         boolean autoApproved = user.role() == Role.PRESIDENT || user.role() == Role.ADMIN;
@@ -295,12 +295,14 @@ public class AttendanceService {
 
     public void delete(long id) {
         AuthUser current = AuthContext.current();
-        if (current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有管理员可以删除签到记录");
+        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
+            throw ApiException.forbidden("只有会长或管理员可以删除签到记录");
         }
         AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        BackupService.BackupItem safetyBackup = backups.create();
         records.delete(id);
-        logs.log("DELETE_ATTENDANCE_RECORD", "attendance_records", id, before, null, "管理员删除签到记录");
+        logs.log("DELETE_ATTENDANCE_RECORD", "attendance_records", id, before, null,
+                "会长或管理员删除签到记录；删除前自动备份：" + safetyBackup.filename());
     }
 
     public void recompute(long id) {

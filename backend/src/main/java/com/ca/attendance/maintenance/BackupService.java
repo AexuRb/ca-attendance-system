@@ -42,60 +42,124 @@ public class BackupService {
     private static final long MAX_RESTORE_BYTES = 50L * 1024 * 1024;
     private static final List<TableExport> TABLES = List.of(
             new TableExport("users", "SELECT * FROM users ORDER BY id"),
+            new TableExport("training_sessions", "SELECT * FROM training_sessions ORDER BY training_date DESC, id DESC"),
+            new TableExport("training_participants", "SELECT * FROM training_participants ORDER BY session_id, student_no_snapshot"),
+            new TableExport("duty_schedule_slots", "SELECT * FROM duty_schedule_slots ORDER BY weekday, start_time, id"),
+            new TableExport("duty_schedule_assignees", "SELECT * FROM duty_schedule_assignees ORDER BY slot_id, sort_order, id"),
+            new TableExport("repair_cases", "SELECT * FROM repair_cases ORDER BY received_at DESC, id DESC"),
             new TableExport("attendance_records", "SELECT * FROM attendance_records ORDER BY duty_date DESC, check_in_time DESC, id DESC"),
             new TableExport("operation_logs", "SELECT * FROM operation_logs ORDER BY created_at DESC, id DESC"),
-            new TableExport("duty_weekday_settings", "SELECT * FROM duty_weekday_settings ORDER BY weekday")
+            new TableExport("duty_weekday_settings", "SELECT * FROM duty_weekday_settings ORDER BY weekday"),
+            new TableExport("app_settings", "SELECT * FROM app_settings ORDER BY setting_key")
     );
     private static final List<String> RESTORE_TABLE_ORDER = List.of(
             "users",
+            "training_sessions",
+            "training_participants",
+            "duty_schedule_slots",
+            "duty_schedule_assignees",
+            "repair_cases",
             "duty_weekday_settings",
+            "app_settings",
             "attendance_records",
             "operation_logs"
     );
     private static final List<String> CLEAR_TABLE_ORDER = List.of(
             "operation_logs",
+            "duty_schedule_assignees",
+            "duty_schedule_slots",
+            "training_participants",
+            "training_sessions",
+            "repair_cases",
             "attendance_records",
+            "app_settings",
             "duty_weekday_settings",
             "users"
     );
-    private static final Map<String, Set<String>> TABLE_COLUMNS = Map.of(
-            "users", Set.of(
+    private static final Set<String> OPTIONAL_RESTORE_TABLES = Set.of(
+            "app_settings", "training_sessions", "training_participants",
+            "duty_schedule_slots", "duty_schedule_assignees", "repair_cases"
+    );
+    private static final Map<String, Set<String>> TABLE_COLUMNS = Map.ofEntries(
+            Map.entry("users", Set.of(
                     "id", "student_no", "name", "password_hash", "role", "status", "phone", "major", "grade", "qq",
                     "must_change_password", "last_login_at", "disabled_at", "disabled_by", "created_by", "updated_by",
                     "created_at", "updated_at"
-            ),
-            "attendance_records", Set.of(
+            )),
+            Map.entry("training_sessions", Set.of(
+                    "id", "title", "training_date", "start_time", "end_time", "location", "speaker",
+                    "description", "status", "created_by", "updated_by", "created_at", "updated_at"
+            )),
+            Map.entry("training_participants", Set.of(
+                    "id", "session_id", "user_id", "student_no_snapshot", "name_snapshot", "attendance_status",
+                    "duration_hours", "remark", "source", "created_by", "updated_by", "created_at", "updated_at"
+            )),
+            Map.entry("duty_schedule_slots", Set.of(
+                    "id", "weekday", "start_time", "end_time", "title", "location", "note", "enabled",
+                    "status", "created_by", "updated_by", "created_at", "updated_at"
+            )),
+            Map.entry("duty_schedule_assignees", Set.of(
+                    "id", "slot_id", "user_id", "student_no_snapshot", "name_snapshot", "sort_order", "created_at"
+            )),
+            Map.entry("repair_cases", Set.of(
+                    "id", "case_no", "agreement_type", "owner_name", "owner_phone", "owner_org", "device_type",
+                    "device_brand", "device_model", "device_serial", "accessories", "fault_description",
+                    "service_description", "data_backup_confirmed", "risk_acknowledged", "privacy_acknowledged",
+                    "status", "received_at", "completed_at", "handler_user_id", "handler_name_snapshot",
+                    "remark", "created_by", "updated_by", "created_at", "updated_at"
+            )),
+            Map.entry("attendance_records", Set.of(
                     "id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "duty_weekday", "is_duty_day",
                     "check_in_time", "check_out_time", "check_in_status", "check_out_status", "check_in_reviewed_by",
                     "check_out_reviewed_by", "check_in_reviewed_at", "check_out_reviewed_at", "check_in_reject_reason",
                     "check_out_reject_reason", "duration_minutes", "valid_hours", "effective_status", "source",
                     "manual_reason", "created_by", "updated_by", "created_at", "updated_at"
-            ),
-            "operation_logs", Set.of(
+            )),
+            Map.entry("operation_logs", Set.of(
                     "id", "operator_user_id", "operator_student_no", "operator_name", "action_type", "target_type",
                     "target_id", "before_data", "after_data", "reason", "ip_address", "user_agent", "created_at"
-            ),
-            "duty_weekday_settings", Set.of(
+            )),
+            Map.entry("duty_weekday_settings", Set.of(
                     "weekday", "weekday_name", "enabled", "updated_by", "created_at", "updated_at"
-            )
+            )),
+            Map.entry("app_settings", Set.of(
+                    "setting_key", "setting_value", "description", "updated_by", "created_at", "updated_at"
+            ))
     );
-    private static final Map<String, Set<String>> REQUIRED_KEYS = Map.of(
-            "users", Set.of("id", "student_no", "name", "password_hash", "role", "status"),
-            "attendance_records", Set.of("id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "check_in_time"),
-            "operation_logs", Set.of("id", "action_type", "target_type", "created_at"),
-            "duty_weekday_settings", Set.of("weekday", "weekday_name", "enabled")
+    private static final Map<String, Set<String>> REQUIRED_KEYS = Map.ofEntries(
+            Map.entry("users", Set.of("id", "student_no", "name", "password_hash", "role", "status")),
+            Map.entry("training_sessions", Set.of("id", "title", "training_date", "status")),
+            Map.entry("training_participants", Set.of("id", "session_id", "student_no_snapshot", "name_snapshot", "attendance_status", "source")),
+            Map.entry("duty_schedule_slots", Set.of("id", "weekday", "title", "enabled", "status")),
+            Map.entry("duty_schedule_assignees", Set.of("id", "slot_id", "name_snapshot", "sort_order")),
+            Map.entry("repair_cases", Set.of("id", "case_no", "agreement_type", "owner_name", "device_type", "fault_description", "status", "received_at")),
+            Map.entry("attendance_records", Set.of("id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "check_in_time")),
+            Map.entry("operation_logs", Set.of("id", "action_type", "target_type", "created_at")),
+            Map.entry("duty_weekday_settings", Set.of("weekday", "weekday_name", "enabled")),
+            Map.entry("app_settings", Set.of("setting_key", "setting_value"))
     );
     private static final Map<String, Set<String>> DATE_COLUMNS = Map.of(
-            "attendance_records", Set.of("duty_date")
+            "attendance_records", Set.of("duty_date"),
+            "training_sessions", Set.of("training_date")
     );
-    private static final Map<String, Set<String>> DATE_TIME_COLUMNS = Map.of(
-            "users", Set.of("last_login_at", "disabled_at", "created_at", "updated_at"),
-            "attendance_records", Set.of(
+    private static final Map<String, Set<String>> TIME_COLUMNS = Map.of(
+            "training_sessions", Set.of("start_time", "end_time"),
+            "duty_schedule_slots", Set.of("start_time", "end_time")
+    );
+    private static final Map<String, Set<String>> DATE_TIME_COLUMNS = Map.ofEntries(
+            Map.entry("users", Set.of("last_login_at", "disabled_at", "created_at", "updated_at")),
+            Map.entry("training_sessions", Set.of("created_at", "updated_at")),
+            Map.entry("training_participants", Set.of("created_at", "updated_at")),
+            Map.entry("duty_schedule_slots", Set.of("created_at", "updated_at")),
+            Map.entry("duty_schedule_assignees", Set.of("created_at")),
+            Map.entry("repair_cases", Set.of("received_at", "completed_at", "created_at", "updated_at")),
+            Map.entry("attendance_records", Set.of(
                     "check_in_time", "check_out_time", "check_in_reviewed_at", "check_out_reviewed_at",
                     "created_at", "updated_at"
-            ),
-            "operation_logs", Set.of("created_at"),
-            "duty_weekday_settings", Set.of("created_at", "updated_at")
+            )),
+            Map.entry("operation_logs", Set.of("created_at")),
+            Map.entry("duty_weekday_settings", Set.of("created_at", "updated_at")),
+            Map.entry("app_settings", Set.of("created_at", "updated_at"))
     );
     private static final Set<String> JSON_COLUMNS = Set.of("before_data", "after_data");
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
@@ -108,7 +172,10 @@ public class BackupService {
     private final TransactionTemplate transactionTemplate;
     private final TokenService tokenService;
 
-    public BackupService(JdbcTemplate jdbc, ObjectMapper objectMapper, TransactionTemplate transactionTemplate, TokenService tokenService) {
+    public BackupService(JdbcTemplate jdbc,
+                         ObjectMapper objectMapper,
+                         TransactionTemplate transactionTemplate,
+                         TokenService tokenService) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
@@ -135,8 +202,7 @@ public class BackupService {
                 writeText(zip, "README.txt", """
                         计算机协会签到签退系统数据备份
 
-                        本备份由系统后台生成，包含 users、attendance_records、operation_logs、duty_weekday_settings 四张业务表。
-                        文件格式为 JSON，适合留档、核对和必要时人工恢复。
+                        本备份由系统后台生成，包含 users、training_sessions、training_participants、duty_schedule_slots、duty_schedule_assignees、repair_cases、attendance_records、operation_logs、duty_weekday_settings、app_settings 等核心表。
                         请勿把包含真实成员信息的备份文件上传到公开仓库。
                         """);
             }
@@ -218,11 +284,15 @@ public class BackupService {
         jdbc.execute("SET FOREIGN_KEY_CHECKS = 0");
         try {
             for (String table : CLEAR_TABLE_ORDER) {
-                jdbc.update("DELETE FROM " + table);
+                if (shouldRestoreTable(payload, table)) {
+                    jdbc.update("DELETE FROM " + table);
+                }
             }
             for (String table : RESTORE_TABLE_ORDER) {
-                int count = restoreTable(table, payload.rows().get(table));
-                restoredRows.put(table, count);
+                if (shouldRestoreTable(payload, table)) {
+                    int count = restoreTable(table, payload.rows().get(table));
+                    restoredRows.put(table, count);
+                }
             }
         } finally {
             jdbc.execute("SET FOREIGN_KEY_CHECKS = 1");
@@ -253,11 +323,14 @@ public class BackupService {
                     continue;
                 }
                 String name = entry.getName();
-                if (name.contains("/") || name.contains("\\")) {
+                if (name.contains("\\")) {
                     throw ApiException.badRequest("备份文件结构不正确");
                 }
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 zip.transferTo(out);
+                if (name.contains("/")) {
+                    throw ApiException.badRequest("备份文件结构不正确");
+                }
                 entries.put(name, out.toByteArray());
             }
         } catch (ApiException ex) {
@@ -268,11 +341,18 @@ public class BackupService {
 
         validateRequiredEntries(entries);
         Map<String, Object> metadata = readMetadata(entries.get("metadata.json"));
-        validateMetadata(metadata);
+        Set<String> tableNames = validateMetadata(metadata);
 
         Map<String, List<LinkedHashMap<String, Object>>> rows = new LinkedHashMap<>();
         for (String table : RESTORE_TABLE_ORDER) {
-            List<LinkedHashMap<String, Object>> tableRows = readRows(entries.get(table + ".json"), table);
+            byte[] tableBytes = entries.get(table + ".json");
+            if (tableBytes == null) {
+                if (tableNames.contains(table) || !OPTIONAL_RESTORE_TABLES.contains(table)) {
+                    throw ApiException.badRequest("备份文件缺少 " + table + ".json");
+                }
+                continue;
+            }
+            List<LinkedHashMap<String, Object>> tableRows = readRows(tableBytes, table);
             validateRows(table, tableRows);
             rows.put(table, tableRows);
         }
@@ -283,6 +363,9 @@ public class BackupService {
         Set<String> required = new LinkedHashSet<>();
         required.add("metadata.json");
         for (String table : RESTORE_TABLE_ORDER) {
+            if (OPTIONAL_RESTORE_TABLES.contains(table)) {
+                continue;
+            }
             required.add(table + ".json");
         }
         for (String name : required) {
@@ -300,15 +383,19 @@ public class BackupService {
         }
     }
 
-    private void validateMetadata(Map<String, Object> metadata) {
+    private Set<String> validateMetadata(Map<String, Object> metadata) {
         Object tables = metadata.get("tables");
         if (!(tables instanceof List<?> tableList)) {
             throw ApiException.badRequest("备份元数据缺少表信息");
         }
         Set<String> tableNames = new LinkedHashSet<>(tableList.stream().map(String::valueOf).toList());
-        if (!tableNames.containsAll(RESTORE_TABLE_ORDER)) {
+        List<String> requiredTables = RESTORE_TABLE_ORDER.stream()
+                .filter(table -> !OPTIONAL_RESTORE_TABLES.contains(table))
+                .toList();
+        if (!tableNames.containsAll(requiredTables)) {
             throw ApiException.badRequest("备份表信息不完整");
         }
+        return tableNames;
     }
 
     private List<LinkedHashMap<String, Object>> readRows(byte[] bytes, String table) {
@@ -355,12 +442,19 @@ public class BackupService {
         return count;
     }
 
+    private boolean shouldRestoreTable(BackupPayload payload, String table) {
+        return payload.rows().containsKey(table) || !OPTIONAL_RESTORE_TABLES.contains(table);
+    }
+
     private Object restoreValue(String table, String column, Object value) {
         if (value == null) {
             return null;
         }
         if (DATE_COLUMNS.getOrDefault(table, Set.of()).contains(column)) {
             return toSqlDate(value);
+        }
+        if (TIME_COLUMNS.getOrDefault(table, Set.of()).contains(column)) {
+            return toSqlTime(value);
         }
         if (DATE_TIME_COLUMNS.getOrDefault(table, Set.of()).contains(column)) {
             return toTimestamp(value);
@@ -402,6 +496,23 @@ public class BackupService {
             return Timestamp.valueOf(text.trim().replace('T', ' '));
         }
         throw ApiException.badRequest("备份时间格式不正确");
+    }
+
+    private java.sql.Time toSqlTime(Object value) {
+        if (value instanceof Number number) {
+            return new java.sql.Time(number.longValue());
+        }
+        if (value instanceof List<?> parts && parts.size() >= 2) {
+            return java.sql.Time.valueOf(LocalTime.of(intPart(parts, 0), intPart(parts, 1), parts.size() > 2 ? intPart(parts, 2) : 0));
+        }
+        if (value instanceof String text) {
+            String normalized = text.trim();
+            if (normalized.length() == 5) {
+                normalized += ":00";
+            }
+            return java.sql.Time.valueOf(normalized);
+        }
+        throw ApiException.badRequest("备份时刻格式不正确");
     }
 
     private int intPart(List<?> parts, int index) {

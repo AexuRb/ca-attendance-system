@@ -1,54 +1,81 @@
-# 计算机协会值班签到签退系统
+# 计算机协会本地离线管理系统
 
-用于计算机协会日常值班的本地网页系统，支持公开签到签退、后台审核、成员管理、批量导入、统计查询、Excel 导出、数据库备份和管理员恢复备份。
+面向计算机协会日常工作的本地离线 Web 系统。服务默认只监听 `127.0.0.1`，在单台 Windows 电脑上提供公开签到台和分角色管理后台，不依赖互联网或第三方在线服务。
+
+## 主要功能
+
+- 公开签到、签退、重名成员选择和成功确认
+- 与后台设置同步的今日部长排班和本周值班概览
+- 签到与签退审核、手动补录、记录查询和时长统计
+- 成员管理、角色调整、批量启停和 Excel 导入
+- 培训场次、主讲人、参与名单、培训时长和 Excel 导入导出
+- 每周排班和值班星期、值班时间段设置
+- 维修事务、维修协议、免责协议和维修记录导出
+- 数据中心、操作日志、完整备份与管理员恢复
+- 响应式签到门厅、身份验证台和双层导航后台
+
+## 角色权限
+
+| 角色 | 主要权限 |
+| --- | --- |
+| 成员 | 公开签到签退，查看个人记录，维护个人资料和密码 |
+| 部长 | 审核记录，查看统计，管理维修事务；不能进入培训或成员管理，不能导出维修事务 |
+| 会长 | 管理成员、培训、排班和维修，导入导出业务数据，新增或删除签到记录，执行备份 |
+| 管理员 | 拥有会长业务权限，并可维护管理员账号、修改签到记录、查看日志、删除或恢复备份 |
 
 ## 技术栈
 
-- 前端：Vue 3 + Vite
-- 后端：Spring Boot
+- 前端：Vue 3、Vite、Lucide Icons
+- 后端：Spring Boot、Spring JDBC
 - 数据库：MySQL
-- 运行方式：Windows 本地单服务，默认端口 `8080`
+- 运行环境：Windows、JDK 21
+- 默认地址：`http://127.0.0.1:8080`
 
-## 本地启动
+## 使用 Release 包
 
-1. 安装 JDK 21、Maven、Node.js、MySQL。
-2. 复制配置模板：
+Release 压缩包包含已构建的后端 JAR，无需安装 Node.js 或 Maven。
 
-```bat
-copy local-config.example.bat local-config.bat
-```
+1. 解压到不需要管理员权限的目录。
+2. 复制 `local-config.example.bat` 为 `local-config.bat`。
+3. 在 `local-config.bat` 中配置 MySQL 密码和初始管理员密码。
+4. 首次运行双击 `init-db.bat` 初始化数据库。
+5. 双击 `start.bat`，浏览器会自动打开系统。
 
-3. 修改 `local-config.bat` 里的 MySQL 密码和初始管理员密码。
-4. 双击 `init-db.bat` 初始化数据库。
-5. 双击 `start.bat` 启动网站。
+完整说明见 [`本地运行说明.md`](本地运行说明.md)。
 
-如果启动日志出现 `using password: NO`，说明 `local-config.bat` 没有配置 `DB_PASSWORD`，后端正在用空密码连接 MySQL。
+## 源码构建
 
-启动后访问：
-
-```text
-http://127.0.0.1:8080
-```
-
-## 前端重新构建
-
-如果修改了 `frontend/src` 下的前端代码：
+开发环境需要 JDK 21、Maven、Node.js 和 MySQL。
 
 ```bash
 cd frontend
 npm install
 npm run build
+
+cd ../backend
+mvn test
+mvn package
 ```
 
-构建产物会写入 `backend/src/main/resources/static`，再通过后端服务统一访问。
+前端产物会写入 `backend/src/main/resources/static`，最终由 Spring Boot 在同一端口提供。
+
+## 项目结构
+
+```text
+backend/        Spring Boot 后端
+database/       数据库结构、种子数据和导入脚本
+docs/           Excel 模板及项目补充文档
+frontend/       Vue 前端
+scripts/        本地检查和浏览器冒烟测试
+```
 
 ## 文档
 
-- `系统使用说明.md`：面向日常使用者的操作说明
-- `计算机协会值班签到签退系统需求说明书.md`：需求和权限规则
-- `本地运行说明.md`：启动和后台备份说明
-- `database/README.md`：数据库结构和初始化说明
+- [`系统使用说明.md`](系统使用说明.md)：角色权限和日常操作
+- [`本地运行说明.md`](本地运行说明.md)：配置、启动、备份和故障排查
+- [`计算机协会值班签到签退系统需求说明书.md`](计算机协会值班签到签退系统需求说明书.md)：业务规则和验收标准
+- [`database/README.md`](database/README.md)：数据库初始化说明
 
-## 安全说明
+## 数据与安全
 
-`local-config.bat`、数据库备份、运行日志、依赖目录和构建缓存不会上传到 GitHub。请不要把真实数据库密码、管理员密码或成员隐私数据提交到仓库。
+`local-config.bat`、数据库备份、材料、运行日志、依赖目录、构建缓存和本地测试截图均已加入 `.gitignore`。不要把真实数据库密码、成员隐私数据或协会内部材料提交到公开仓库。

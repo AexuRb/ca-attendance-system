@@ -1,5 +1,12 @@
 <template>
-  <div class="app-shell">
+  <div
+    class="app-shell"
+    :class="{
+      'admin-fullscreen': view === 'dashboard' && currentUser,
+      'login-fullscreen': view === 'dashboard' && !currentUser,
+      'kiosk-fullscreen': view === 'kiosk'
+    }"
+  >
     <aside class="side-panel">
       <div class="brand-block">
         <div class="brand-mark">
@@ -30,216 +37,424 @@
     </aside>
 
     <main class="main-surface">
-      <section v-if="view === 'kiosk'" class="kiosk-grid">
-        <div class="terminal-panel branded-panel">
-          <img class="panel-watermark" src="/brand/ca-logo-white.png" alt="" aria-hidden="true" />
-          <div class="panel-title">
-            <ClipboardCheck :size="20" />
-            <span>公开签到/签退</span>
-          </div>
-          <form class="lookup-form" @submit.prevent="lookupMember">
-            <label for="studentNo">学号或姓名</label>
-            <div class="input-row">
-              <input id="studentNo" v-model.trim="studentNo" placeholder="输入学号或姓名" />
-              <button type="submit" class="icon-button" title="查询">
-                <Search :size="20" />
-              </button>
-            </div>
-          </form>
-
-          <div v-if="!lookupResult" class="kiosk-idle">
-            <div class="idle-mark">
-              <ScanLine :size="24" />
-            </div>
+      <section v-if="view === 'kiosk'" class="kiosk-portal">
+        <header class="kiosk-portal-header">
+          <div class="kiosk-portal-brand">
+            <span><img src="/brand/ca-logo-white.png" alt="计协会徽" /></span>
             <div>
-              <p class="eyebrow">CA DUTY DESK</p>
-              <strong>等待输入</strong>
+              <strong>计算机协会</strong>
+              <small>值班签到台</small>
             </div>
           </div>
-
-          <div v-if="lookupCandidates.length" class="candidate-zone">
-            <p class="eyebrow">同名成员</p>
-            <h2>请选择自己的学号</h2>
-            <p>{{ lookupResult.message }}</p>
-            <div class="candidate-list">
-              <button
-                v-for="candidate in lookupCandidates"
-                :key="candidate.studentNo"
-                type="button"
-                class="candidate-card"
-                :disabled="busy"
-                @click="selectLookupCandidate(candidate)"
-              >
-                <strong>{{ candidate.name }}</strong>
-                <span class="mono">{{ candidate.studentNo }}</span>
-                <small>{{ [candidate.grade, candidate.major].filter(Boolean).join(' · ') || '未填写年级/学院' }}</small>
-              </button>
-            </div>
+          <div class="kiosk-live-clock" aria-label="当前时间">
+            <span>{{ kioskDateText }}</span>
+            <strong>{{ kioskTimeText }}</strong>
           </div>
-
-          <div v-if="lookupResult && !lookupCandidates.length" class="confirm-zone">
-            <div class="member-confirm" :class="{ blocked: !lookupResult.dutyDay || !lookupResult.exists }">
-              <p class="eyebrow">确认信息</p>
-              <h2>{{ lookupResult.name || '未找到成员' }}</h2>
-              <p>{{ lookupResult.message }}</p>
-              <div class="status-pills">
-                <span v-if="lookupResult.exists">{{ lookupResult.action === 'CHECK_OUT' ? '本次为签退' : '本次为签到' }}</span>
-                <span>{{ lookupResult.dutyDay ? '今日可值班' : '今日非值班日' }}</span>
-              </div>
-            </div>
-            <button class="primary-action" :disabled="!lookupResult.exists || !lookupResult.dutyDay || busy" @click="submitAttendance">
-              <CheckCircle2 :size="19" />
-              <span>确认{{ lookupResult.action === 'CHECK_OUT' ? '签退' : '签到' }}</span>
+          <div class="kiosk-portal-tools">
+            <span class="kiosk-health" :class="{ online: healthOk }">
+              <i aria-hidden="true"></i>{{ healthOk ? '服务正常' : '服务未连接' }}
+            </span>
+            <button class="kiosk-admin-button" type="button" title="进入后台" aria-label="进入后台" @click="openDashboard">
+              <LayoutDashboard :size="19" />
             </button>
-          </div>
-        </div>
-
-        <div class="side-summary">
-          <div class="today-card">
-            <p class="eyebrow">Today</p>
-            <strong>{{ todayText }}</strong>
-            <span>{{ weekdayText }}</span>
-          </div>
-          <div class="rule-list">
-            <div><BadgeCheck :size="18" /> 输入学号或姓名后显示确认</div>
-            <div><Clock3 :size="18" /> 同一天允许多次值班</div>
-            <div><ShieldCheck :size="18" /> 成员和部长记录需要审核</div>
-          </div>
-        </div>
-      </section>
-
-      <section v-else class="dashboard" :class="[{ 'login-dashboard': !currentUser }, dashboardRoleClass]">
-        <header class="dashboard-header">
-          <div class="dashboard-title">
-            <p class="eyebrow">{{ currentUser ? roleDashboard.eyebrow : 'Management Console' }}</p>
-            <h2>{{ currentUser ? roleDashboard.headerTitle : '协会值班后台' }}</h2>
-            <span>{{ currentUser ? roleDashboard.headerMeta : 'CUGB CA · #include <the.world>' }}</span>
-          </div>
-          <div v-if="currentUser" class="user-chip">
-            <UserRound :size="17" />
-            <span>{{ currentUser.name }} · {{ roleLabel(currentUser.role) }}</span>
-            <button class="ghost-button" @click="logout">退出</button>
           </div>
         </header>
 
-        <div v-if="!currentUser" class="login-panel">
-          <div class="login-brand">
-            <img src="/brand/ca-logo-white.png" alt="计协会徽" />
-            <div>
-              <strong>CUGB CA</strong>
-              <span>Computer Association</span>
+        <main class="kiosk-portal-main">
+          <section class="kiosk-checkin-stage" :class="{ success: attendanceSuccess }">
+            <div class="kiosk-stage-heading">
+              <div>
+                <p class="eyebrow">Duty Checkpoint</p>
+                <h1>{{ attendanceSuccess ? `${attendanceSuccess.actionLabel}成功` : '签到 / 签退' }}</h1>
+              </div>
+              <span v-if="!attendanceSuccess">{{ kioskCurrentPeriodText }}</span>
             </div>
-          </div>
-          <form @submit.prevent="login">
-            <label>账号/学号</label>
-            <input v-model.trim="loginForm.studentNo" placeholder="管理员账号或成员学号" />
-            <label>密码</label>
-            <input v-model="loginForm.password" type="password" placeholder="密码" />
-            <button class="primary-action" type="submit" :disabled="busy">
-              <LogIn :size="18" />
-              <span>登录后台</span>
-            </button>
-          </form>
+
+            <Transition name="kiosk-state" mode="out-in">
+              <div v-if="attendanceSuccess" key="success" class="kiosk-success-state">
+                <span class="kiosk-success-ring"><CheckCircle2 :size="48" /></span>
+                <div>
+                  <p>{{ attendanceSuccess.actionLabel }}完成</p>
+                  <strong>{{ attendanceSuccess.name }}</strong>
+                  <span>{{ attendanceSuccess.message }}</span>
+                </div>
+                <button class="kiosk-next-button" type="button" @click="resetKiosk">
+                  <ScanLine :size="19" />下一位
+                </button>
+              </div>
+
+              <div v-else key="lookup" class="kiosk-lookup-stage">
+                <form class="lookup-form kiosk-lookup-form" @submit.prevent="lookupMember">
+                  <label for="studentNo">学号或姓名</label>
+                  <div class="input-row">
+                    <ScanLine class="kiosk-input-icon" :size="22" aria-hidden="true" />
+                    <input id="studentNo" v-model.trim="studentNo" autocomplete="off" placeholder="输入学号或姓名" />
+                    <button type="submit" class="kiosk-search-button" :disabled="busy">
+                      <Search :size="20" />
+                      <span>查询</span>
+                    </button>
+                    <span v-if="busy" class="kiosk-search-scan" aria-hidden="true"></span>
+                  </div>
+                </form>
+
+                <div v-if="lookupCandidates.length" class="candidate-zone kiosk-choice-box">
+                  <div class="kiosk-result-heading">
+                    <div>
+                      <p class="eyebrow">同名成员</p>
+                      <h2>选择自己的学号</h2>
+                    </div>
+                    <span>{{ lookupCandidates.length }} 人</span>
+                  </div>
+                  <div class="candidate-list">
+                    <button
+                      v-for="candidate in lookupCandidates"
+                      :key="candidate.studentNo"
+                      type="button"
+                      class="candidate-card"
+                      :disabled="busy"
+                      @click="selectLookupCandidate(candidate)"
+                    >
+                      <strong>{{ candidate.name }}</strong>
+                      <span class="mono">{{ candidate.studentNo }}</span>
+                      <small>{{ [candidate.grade, candidate.major].filter(Boolean).join(' · ') || '未填写年级/学院' }}</small>
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="lookupResult && !lookupCandidates.length" class="confirm-zone kiosk-confirm-box">
+                  <div class="member-confirm" :class="{ blocked: !lookupResult.exists }">
+                    <div>
+                      <p class="eyebrow">查询结果</p>
+                      <h2>{{ lookupResult.name || '未找到成员' }}</h2>
+                      <p>{{ lookupResult.message }}</p>
+                    </div>
+                    <div class="status-pills">
+                      <span v-if="lookupResult.exists">{{ lookupResult.action === 'CHECK_OUT' ? '本次签退' : '本次签到' }}</span>
+                      <span>{{ lookupResult.dutyDay ? '今日值班日' : '非值班时段' }}</span>
+                    </div>
+                  </div>
+                  <button class="kiosk-confirm-button" :disabled="!lookupResult.exists || busy" @click="submitAttendance">
+                    <CheckCircle2 :size="20" />
+                    <span>确认{{ lookupResult.action === 'CHECK_OUT' ? '签退' : '签到' }}</span>
+                  </button>
+                </div>
+              </div>
+            </Transition>
+          </section>
+
+          <section class="kiosk-duty-track">
+            <header class="kiosk-track-head">
+              <div>
+                <p class="eyebrow">Today Schedule</p>
+                <h2>今日部长排班</h2>
+              </div>
+              <button type="button" title="刷新排班" aria-label="刷新排班" @click="loadPublicSchedules">
+                <RefreshCw :size="17" />
+              </button>
+            </header>
+
+            <div v-if="todayPeriodSummary.length" class="kiosk-track-grid">
+              <article
+                v-for="period in todayPeriodSummary"
+                :key="period.key"
+                class="kiosk-track-period"
+                :class="{ active: period.active, missing: period.missing }"
+                :style="{ '--period-progress': `${dutyPeriodProgress(period)}%` }"
+              >
+                <div class="kiosk-track-time">
+                  <strong>{{ period.timeText }}</strong>
+                  <span>{{ period.count }} 人</span>
+                </div>
+                <div class="kiosk-track-members" :class="{ empty: !period.people.length }">
+                  <span v-for="person in period.people" :key="person.key">{{ person.name }}</span>
+                  <em v-if="!period.people.length">待安排部长</em>
+                </div>
+                <span v-if="period.active" class="kiosk-period-progress" aria-hidden="true"></span>
+              </article>
+            </div>
+            <div v-else class="kiosk-track-empty">
+              <CalendarDays :size="22" />
+              <strong>{{ kioskEmptyBoardText }}</strong>
+            </div>
+          </section>
+
+          <section class="kiosk-week-board" aria-label="本周值班概览">
+            <div v-for="day in kioskWeekSummary" :key="day.weekday" :class="{ today: day.isToday }">
+              <strong>{{ day.name }}</strong>
+              <span>{{ day.count ? `${day.count} 个时段` : '暂无排班' }}</span>
+              <i v-if="day.isToday">今日</i>
+            </div>
+          </section>
+        </main>
+      </section>
+
+      <section
+        v-else
+        class="dashboard"
+        :class="[
+          { 'login-dashboard': !currentUser, 'logged-in-dashboard': currentUser },
+          dashboardRoleClass,
+          currentUser ? `active-module-${activeTab}` : ''
+        ]"
+      >
+        <header class="dashboard-header" :class="{ 'admin-topbar': currentUser }">
+          <template v-if="currentUser">
+            <div class="admin-brand-lockup">
+              <span class="admin-brand-symbol">
+                <img src="/brand/ca-logo-white.png" alt="计协会徽" />
+              </span>
+              <span class="admin-brand-copy">
+                <strong>计算机协会</strong>
+                <small>本地离线管理后台</small>
+              </span>
+            </div>
+
+            <nav class="admin-primary-nav" aria-label="后台一级导航">
+              <button
+                v-for="group in adminNavGroups"
+                :key="group.id"
+                type="button"
+                :class="{ active: activeAdminGroup?.id === group.id }"
+                :aria-current="activeAdminGroup?.id === group.id ? 'page' : undefined"
+                @click="selectAdminGroup(group)"
+              >
+                <component :is="group.icon" :size="18" />
+                <span>{{ group.label }}</span>
+              </button>
+            </nav>
+
+            <div class="user-chip">
+              <span class="admin-user-avatar"><UserRound :size="17" /></span>
+              <span>{{ currentUser.name }} · {{ roleLabel(currentUser.role) }}</span>
+              <button class="ghost-button" type="button" title="退出后台" @click="logout">
+                <Power :size="15" />
+                <span>退出</span>
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="login-topbar-brand">
+              <span><img src="/brand/ca-logo-white.png" alt="计协会徽" /></span>
+              <div>
+                <strong>计算机协会</strong>
+                <small>本地离线管理后台</small>
+              </div>
+            </div>
+            <div class="login-topbar-clock">
+              <span>{{ kioskDateText }}</span>
+              <strong>{{ kioskTimeText }}</strong>
+            </div>
+            <div class="login-topbar-tools">
+              <span class="login-health" :class="{ online: healthOk }">
+                <i aria-hidden="true"></i>{{ healthOk ? '服务正常' : '服务未连接' }}
+              </span>
+              <button type="button" title="返回签到台" aria-label="返回签到台" @click="returnToKiosk">
+                <ScanLine :size="19" />
+              </button>
+            </div>
+          </template>
+        </header>
+
+        <div v-if="!currentUser" class="login-page">
+          <section class="login-access-panel" :class="{ error: loginError, verified: loginVerified }">
+            <aside class="login-identity-panel">
+              <div class="login-identity-logo">
+                <img src="/brand/ca-logo-white.png" alt="计协会徽" />
+              </div>
+              <div class="login-identity-copy">
+                <p class="eyebrow">Computer Association</p>
+                <h1>本地离线后台</h1>
+                <span>值班、成员与协会事务管理</span>
+              </div>
+              <div class="login-identity-status" :class="{ online: healthOk }">
+                <i aria-hidden="true"></i>
+                <div>
+                  <span>本机服务</span>
+                  <strong>{{ healthOk ? '连接正常' : '暂未连接' }}</strong>
+                </div>
+              </div>
+              <span class="login-identity-scan" aria-hidden="true"></span>
+            </aside>
+
+            <section class="login-form-panel">
+              <Transition name="login-state" mode="out-in">
+                <div v-if="loginVerified" key="verified" class="login-verified-state">
+                  <span><CheckCircle2 :size="48" /></span>
+                  <p>Access Granted</p>
+                  <h2>身份验证通过</h2>
+                  <small>正在进入后台</small>
+                  <i aria-hidden="true"></i>
+                </div>
+
+                <form v-else key="form" :aria-busy="busy" @submit.prevent="login">
+                  <div class="login-form-heading">
+                    <p class="eyebrow">Identity Verification</p>
+                    <h2>后台身份验证</h2>
+                    <span>使用协会后台账号登录</span>
+                  </div>
+
+                  <label for="loginStudentNo">账号 / 学号</label>
+                  <div class="login-field">
+                    <UserRound :size="19" aria-hidden="true" />
+                    <input
+                      id="loginStudentNo"
+                      v-model.trim="loginForm.studentNo"
+                      autocomplete="username"
+                      placeholder="输入后台账号或学号"
+                    />
+                    <span class="login-field-scan" aria-hidden="true"></span>
+                  </div>
+
+                  <label for="loginPassword">密码</label>
+                  <div class="login-field login-password-field">
+                    <KeyRound :size="19" aria-hidden="true" />
+                    <input
+                      id="loginPassword"
+                      v-model="loginForm.password"
+                      :type="showLoginPassword ? 'text' : 'password'"
+                      autocomplete="current-password"
+                      placeholder="输入密码"
+                    />
+                    <button
+                      type="button"
+                      :title="showLoginPassword ? '隐藏密码' : '显示密码'"
+                      :aria-label="showLoginPassword ? '隐藏密码' : '显示密码'"
+                      @click="showLoginPassword = !showLoginPassword"
+                    >
+                      <EyeOff v-if="showLoginPassword" :size="18" />
+                      <Eye v-else :size="18" />
+                    </button>
+                    <span class="login-field-scan" aria-hidden="true"></span>
+                  </div>
+
+                  <label class="login-remember-row">
+                    <input v-model="rememberLogin" type="checkbox" />
+                    <span>记住账号</span>
+                    <small>不会保存密码</small>
+                  </label>
+
+                  <button class="login-submit-button" type="submit" :disabled="busy || !loginForm.studentNo || !loginForm.password">
+                    <LogIn :size="19" />
+                    <span>{{ busy ? '正在验证' : '登录后台' }}</span>
+                    <i v-if="busy" aria-hidden="true"></i>
+                  </button>
+                </form>
+              </Transition>
+            </section>
+          </section>
         </div>
 
-        <div v-else class="workspace">
-          <div class="role-command">
-            <div class="role-command-main">
-              <div class="role-command-mark">
-                <component :is="roleDashboard.icon" :size="28" />
+        <div v-else class="workspace admin-ledger-workspace admin-workbench-workspace">
+          <div class="admin-ledger-shell admin-workbench-shell">
+            <div class="admin-subnav">
+              <div class="admin-subnav-date">
+                <CalendarDays :size="17" />
+                <span>{{ todayText }} · {{ weekdayText }}</span>
               </div>
-              <div class="role-command-copy">
-                <p class="eyebrow">{{ roleDashboard.eyebrow }}</p>
-                <h3>{{ roleDashboard.title }}</h3>
-                <span>{{ roleDashboard.subtitle }}</span>
+              <nav aria-label="当前模块页面">
+                <button
+                  v-for="tab in activeAdminGroupTabs"
+                  :key="tab.id"
+                  :class="{ active: activeTab === tab.id }"
+                  :aria-current="activeTab === tab.id ? 'page' : undefined"
+                  type="button"
+                  @click="selectTab(tab.id)"
+                >
+                  <component :is="tab.icon" :size="16" />
+                  <span>{{ tab.label }}</span>
+                  <small v-if="adminTabBadge(tab.id)">{{ adminTabBadge(tab.id) }}</small>
+                </button>
+              </nav>
+              <div class="admin-service-state" :class="{ online: healthOk }">
+                <span aria-hidden="true"></span>
+                {{ healthOk ? '本机服务正常' : '本机服务未连接' }}
               </div>
             </div>
-            <div class="role-command-metrics">
-              <div v-for="metric in roleMetrics" :key="metric.label" class="role-metric">
-                <span>{{ metric.label }}</span>
-                <strong>{{ metric.value }}</strong>
+
+            <div class="admin-ledger-main admin-workbench-main">
+              <div class="admin-contextbar">
+                <div class="admin-context-heading">
+                  <span class="admin-context-icon"><component :is="activeTabInfo.icon" :size="21" /></span>
+                  <div>
+                  <p class="eyebrow">{{ roleDashboard.eyebrow }}</p>
+                  <h3>{{ activeTabInfo.label }}</h3>
+                  <span>{{ activeTabDescription }}</span>
+                  </div>
+                </div>
+                <div class="admin-context-stats" aria-label="后台关键状态">
+                  <div v-for="item in adminContextStats" :key="item.label" :class="`tone-${item.tone || 'steady'}`">
+                    <span>{{ item.label }}</span>
+                    <strong>{{ item.value }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div :key="activeTab" class="admin-tab-stage">
+          <section v-if="activeTab === 'overview'" class="work-section tab-overview">
+            <div class="section-head">
+              <div>
+                <h3>今日工作台</h3>
+                <span>排班、签到、审核和交接状态集中在这里</span>
+              </div>
+              <div class="section-actions">
+                <button class="ghost-button" @click="loadPublicSchedules"><RefreshCw :size="16" />同步排班</button>
+                <button class="ghost-button" @click="loadOverview"><RefreshCw :size="16" />刷新数据</button>
               </div>
             </div>
-            <div class="role-quick-actions">
-              <button v-for="action in roleActions" :key="action.label" class="ghost-button" @click="runRoleAction(action)">
-                <component :is="action.icon" :size="16" />
+
+            <div class="admin-home-layout">
+              <section class="admin-duty-board" aria-labelledby="admin-duty-title">
+                <div class="subsection-head">
+                  <div>
+                    <h4 id="admin-duty-title"><CalendarDays :size="17" />今日部长排班</h4>
+                    <span>按后台设置的值班时段自动分组</span>
+                  </div>
+                  <button class="ghost-button" @click="selectTab('schedules')"><Plus :size="16" />安排排班</button>
+                </div>
+                <div v-if="todayPeriodSummary.length" class="admin-duty-timeline">
+                  <article
+                    v-for="period in todayPeriodSummary"
+                    :key="period.key"
+                    class="admin-duty-period"
+                    :class="{ active: period.active, missing: period.missing }"
+                  >
+                    <time>{{ period.startTime }}</time>
+                    <span class="admin-duty-node" aria-hidden="true"></span>
+                    <div class="admin-duty-card">
+                      <div class="admin-duty-card-head">
+                        <strong>{{ period.timeText }}</strong>
+                        <span>{{ period.count }} 人</span>
+                      </div>
+                      <div class="admin-duty-members" :class="{ empty: !period.people.length }">
+                        <span v-for="person in period.people" :key="person.key">{{ person.name }}</span>
+                        <em v-if="!period.people.length">待安排部长</em>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <div v-else class="admin-duty-empty">
+                  <Clock3 :size="22" />
+                  <strong>{{ kioskEmptyBoardText }}</strong>
+                  <span>保存值班时间段和排班后，这里会和签到台同步显示。</span>
+                </div>
+              </section>
+
+            </div>
+
+            <div class="admin-quick-row" aria-label="快捷操作">
+              <button
+                v-for="action in adminQuickActions"
+                :key="`${action.label}-${action.tab || action.view}`"
+                type="button"
+                class="admin-quick-action"
+                @click="runRoleAction(action)"
+              >
+                <component :is="action.icon" :size="18" />
                 <span>{{ action.label }}</span>
               </button>
             </div>
-          </div>
 
-          <div v-if="availableTabs.length > 1" class="tab-row">
-            <button v-for="tab in availableTabs" :key="tab.id" :class="{ active: activeTab === tab.id }" @click="selectTab(tab.id)">
-              <component :is="tab.icon" :size="17" />
-              <span>{{ tab.label }}</span>
-            </button>
-          </div>
-
-          <section v-if="activeTab === 'overview'" class="work-section tab-overview">
-            <div class="section-head">
-              <h3>今日概览</h3>
-              <button class="ghost-button" @click="loadOverview"><RefreshCw :size="16" />刷新</button>
-            </div>
-            <div class="overview-command">
-              <div class="overview-hero">
-                <div class="overview-hero-mark">
-                  <CalendarDays :size="28" />
-                </div>
-                <div class="overview-hero-copy">
-                  <p class="eyebrow">CA DUTY DESK</p>
-                  <h3>{{ todayText }} · {{ weekdayText }}</h3>
-                  <span>当前值班日：{{ overviewDutyDaysText }}</span>
-                </div>
-                <div class="overview-hero-number" :class="{ alert: overview.dashboard.todayOpenCount > 0 }">
-                  <span>今日未签退</span>
-                  <strong>{{ overview.dashboard.todayOpenCount }}</strong>
-                </div>
-              </div>
-
-              <div class="overview-signal-board">
-                <div class="overview-signal urgent">
-                  <ListChecks :size="18" />
-                  <span>全部待审核</span>
-                  <strong>{{ overview.pendingCount }}</strong>
-                </div>
-                <div class="overview-signal">
-                  <ClipboardList :size="18" />
-                  <span>今日签到记录</span>
-                  <strong>{{ overview.dashboard.todayRecordCount }}</strong>
-                </div>
-                <div class="overview-signal">
-                  <Clock3 :size="18" />
-                  <span>今日有效时长</span>
-                  <strong>{{ overview.dashboard.todayValidHours }} h</strong>
-                </div>
-                <div class="overview-signal">
-                  <Gauge :size="18" />
-                  <span>本周有效时长</span>
-                  <strong>{{ overview.dashboard.weekValidHours }} h</strong>
-                </div>
-              </div>
-            </div>
-
-            <div class="overview-grid">
-              <div class="overview-metric">
-                <span>本年有效时长</span>
-                <strong>{{ overview.dashboard.yearValidHours }} h</strong>
-              </div>
-              <div class="overview-metric">
-                <span>本年有效次数</span>
-                <strong>{{ overview.dashboard.yearValidCount }}</strong>
-              </div>
-              <div class="overview-metric">
-                <span>今日待审核</span>
-                <strong>{{ overview.dashboard.todayPendingCount }}</strong>
-              </div>
-              <div class="overview-metric wide">
-                <span>年度排行样本</span>
-                <strong>{{ overview.topRows.length }} 人</strong>
-              </div>
-            </div>
-
-            <div class="overview-layout">
+            <div class="overview-layout admin-home-bottom">
               <div class="overview-panel">
                 <div class="subsection-head">
                   <h4>今日未签退</h4>
@@ -265,6 +480,7 @@
               <div class="overview-panel">
                 <div class="subsection-head">
                   <h4>本年排行</h4>
+                  <span>{{ overview.topRows.length }} 人</span>
                 </div>
                 <div class="table-wrap compact-table overview-table-wrap">
                   <table>
@@ -276,7 +492,7 @@
                         <td>{{ row.name }}</td>
                         <td class="mono">{{ row.studentNo }}</td>
                         <td>{{ row.dutyCount }}</td>
-                        <td>{{ row.totalHours }} h</td>
+                        <td>{{ formatHours(row.totalHours) }} h</td>
                       </tr>
                       <tr v-if="overview.topRows.length === 0"><td colspan="4" class="empty">暂无有效统计</td></tr>
                     </tbody>
@@ -364,7 +580,7 @@
             </div>
             <div class="record-summary-strip">
               <div><span>记录数</span><strong>{{ attendanceRecords.length }}</strong></div>
-              <div><span>有效时长</span><strong>{{ attendanceRecordHours }} h</strong></div>
+              <div><span>有效时长</span><strong>{{ formatHours(attendanceRecordHours) }} h</strong></div>
               <div><span>待审核项</span><strong>{{ attendanceRecordPendingCount }}</strong></div>
             </div>
             <div class="table-wrap records-table-wrap">
@@ -559,7 +775,7 @@
             </div>
             <div class="stat-grid">
               <div><span>总人数</span><strong>{{ stats.length }}</strong></div>
-              <div><span>总时长</span><strong>{{ totalHours }}</strong></div>
+              <div><span>总时长</span><strong>{{ formatHours(totalHours) }}</strong></div>
               <div><span>总次数</span><strong>{{ totalCount }}</strong></div>
             </div>
             <div v-if="statsPreset === 'week'" class="weekly-detail-panel">
@@ -591,7 +807,7 @@
                         class="matrix-hour"
                         :class="{ filled: weeklyCell(day.dutyDate, user.userId) > 0 }"
                       >
-                        {{ weeklyCell(day.dutyDate, user.userId) }} h
+                        {{ formatHours(weeklyCell(day.dutyDate, user.userId)) }} h
                       </td>
                       <td v-if="weeklyDetail.days.length === 0" class="matrix-hour">0 h</td>
                     </tr>
@@ -612,7 +828,7 @@
                     <td class="mono">{{ row.studentNo }}</td>
                     <td>{{ row.grade || '-' }}</td>
                     <td>{{ row.dutyCount }}</td>
-                    <td>{{ row.totalHours }} h</td>
+                    <td>{{ formatHours(row.totalHours) }} h</td>
                   </tr>
                   <tr v-if="stats.length === 0"><td colspan="6" class="empty">暂无有效统计</td></tr>
                 </tbody>
@@ -620,81 +836,108 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'maintenance'" class="work-section tab-maintenance">
-            <div class="section-head">
-              <h3>系统维护</h3>
-              <div class="section-actions">
-                <button class="ghost-button" @click="loadBackups"><RefreshCw :size="16" />刷新</button>
-                <button class="primary-action" @click="createBackup" :disabled="busy">
-                  <Save :size="17" />
-                  <span>一键备份</span>
-                </button>
-              </div>
-            </div>
-            <div class="maintenance-grid">
-              <div class="maintenance-panel">
-                <div class="subsection-head">
-                  <h4>数据备份</h4>
-                  <span>成员、签到记录、日志和值班星期</span>
-                </div>
-                <div class="table-wrap">
-                  <table class="backup-table">
-                    <thead>
-                      <tr><th>文件名</th><th>生成时间</th><th>大小</th><th>操作</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in backups" :key="item.filename">
-                        <td class="mono">{{ item.filename }}</td>
-                        <td>{{ timeText(item.createdAt) }}</td>
-                        <td>{{ bytesText(item.size) }}</td>
-                        <td class="actions">
-                          <button @click="downloadBackup(item)"><Download :size="14" />下载</button>
-                          <button v-if="canDeleteBackups" class="danger" @click="deleteBackup(item)"><Trash2 :size="14" />删除</button>
-                        </td>
-                      </tr>
-                      <tr v-if="backups.length === 0"><td colspan="4" class="empty">暂无备份文件</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div v-if="canRestoreBackups" class="maintenance-panel restore-panel">
-                <div class="subsection-head">
-                  <h4>数据恢复</h4>
-                  <span>恢复前会自动备份当前数据，恢复后需要重新登录</span>
-                </div>
-                <div class="restore-box">
-                  <div>
-                    <p class="eyebrow">Restore ZIP</p>
-                    <strong>{{ restoreFile ? restoreFile.name : '未选择备份文件' }}</strong>
-                    <span>{{ restoreFile ? bytesText(restoreFile.size) : '请选择系统生成的 backup_*.zip' }}</span>
-                  </div>
-                  <div class="restore-actions">
-                    <input ref="restoreInput" type="file" accept=".zip,application/zip" hidden @change="selectRestoreFile" />
-                    <button class="ghost-button" type="button" @click="restoreInput?.click()">
-                      <Upload :size="16" />
-                      <span>选择备份</span>
-                    </button>
-                    <button class="ghost-button danger-button" type="button" :disabled="!restoreFile || busy" @click="restoreBackup">
-                      <RefreshCw :size="16" />
-                      <span>恢复数据</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+          <TrainingPanel
+            v-if="activeTab === 'trainings'"
+            :current-user="currentUser"
+            @notify="notify($event.message, $event.type)"
+          />
+
+          <SchedulePanel
+            v-if="activeTab === 'schedules'"
+            :current-user="currentUser"
+            @notify="notify($event.message, $event.type)"
+          />
+
+          <RepairPanel
+            v-if="activeTab === 'repairs'"
+            :current-user="currentUser"
+            @notify="notify($event.message, $event.type)"
+          />
+
+          <DataCenterPanel
+            v-if="activeTab === 'data'"
+            :summary="dataCenterSummary"
+            :backups="backups"
+            :busy="busy"
+            :restore-file="restoreFile"
+            :can-delete-backups="canDeleteBackups"
+            :can-restore-backups="canRestoreBackups"
+            :can-view-logs="canViewLogs"
+            @refresh="loadDataCenter"
+            @create-backup="createBackup"
+            @download-backup="downloadBackup"
+            @delete-backup="deleteBackup"
+            @select-restore-file="selectRestoreFile"
+            @restore-backup="restoreBackup"
+            @open-tab="selectTab"
+            @notify="notify($event.message, $event.type)"
+          />
+
+          <MaintenancePanel
+            v-if="activeTab === 'maintenance'"
+            :backups="backups"
+            :busy="busy"
+            :restore-file="restoreFile"
+            :can-delete-backups="canDeleteBackups"
+            :can-restore-backups="canRestoreBackups"
+            @load-backups="loadBackups"
+            @create-backup="createBackup"
+            @download-backup="downloadBackup"
+            @delete-backup="deleteBackup"
+            @select-restore-file="selectRestoreFile"
+            @restore-backup="restoreBackup"
+          />
 
           <section v-if="activeTab === 'settings'" class="work-section tab-settings">
             <div class="section-head">
-              <h3>值班星期</h3>
-              <button class="ghost-button" @click="saveWeekdays"><Save :size="16" />保存</button>
+              <div>
+                <h3>值班设置</h3>
+                <span>控制签到台显示的值班星期和值班时间段</span>
+              </div>
             </div>
-            <div class="weekday-grid">
-              <label v-for="day in weekdays" :key="day.weekday" :class="{ selected: day.enabled }">
-                <input v-model="day.enabled" type="checkbox" />
-                <CalendarDays :size="18" />
-                <span>{{ day.weekday_name }}</span>
-              </label>
+
+            <div class="settings-stack">
+              <section class="settings-card">
+                <div class="settings-card-head">
+                  <div>
+                    <h4>值班星期</h4>
+                    <span>关闭某天后，当天记录仍可测试提交，但不会计入有效值班</span>
+                  </div>
+                  <button class="ghost-button" @click="saveWeekdays"><Save :size="16" />保存星期</button>
+                </div>
+                <div class="weekday-grid">
+                  <label v-for="day in weekdays" :key="day.weekday" :class="{ selected: day.enabled }">
+                    <input v-model="day.enabled" type="checkbox" />
+                    <CalendarDays :size="18" />
+                    <span>{{ day.weekday_name }}</span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="settings-card">
+                <div class="settings-card-head">
+                  <div>
+                    <h4>值班时间段</h4>
+                    <span>签到台会按后台保存的值班时间段统计部长人数</span>
+                  </div>
+                  <div class="settings-card-actions">
+                    <button class="ghost-button" @click="addDutyPeriod"><Plus :size="16" />新增时间段</button>
+                    <button class="ghost-button" @click="saveDutyPeriods"><Save :size="16" />保存时间段</button>
+                  </div>
+                </div>
+                <div class="duty-period-list">
+                  <div v-if="dutyPeriodDrafts.length === 0" class="duty-period-empty">
+                    <Clock3 :size="18" />
+                    <strong>暂无值班时间段</strong>
+                  </div>
+                  <article v-for="(period, index) in dutyPeriodDrafts" :key="`${period.startTime}-${period.endTime}-${index}`" class="duty-period-row">
+                    <input v-model="period.startTime" type="time" />
+                    <span>至</span>
+                    <input v-model="period.endTime" type="time" />
+                    <button class="ghost-button danger-button" type="button" @click="removeDutyPeriod(index)">删除</button>
+                  </article>
+                </div>
+              </section>
             </div>
           </section>
 
@@ -760,88 +1003,34 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'profile'" class="work-section tab-profile">
-            <div class="section-head"><h3>个人中心</h3></div>
-            <div class="profile-grid">
-              <div class="profile-card">
-                <div class="subsection-head">
-                  <h4>个人资料</h4>
-                </div>
-                <form class="profile-form" @submit.prevent="saveProfile">
-                  <label>手机号</label>
-                  <input v-model.trim="profile.phone" />
-                  <label>学院</label>
-                  <input v-model.trim="profile.major" />
-                  <label>年级</label>
-                  <select v-model="profile.grade">
-                    <option value="">未填写</option>
-                    <option v-for="grade in profileGradeOptions" :key="grade" :value="grade">{{ grade }}</option>
-                  </select>
-                  <label>QQ</label>
-                  <input v-model.trim="profile.qq" />
-                  <button class="primary-action" type="submit"><Save :size="18" /><span>保存资料</span></button>
-                </form>
-
-                <div class="profile-divider"></div>
-                <div class="subsection-head">
-                  <h4>修改密码</h4>
-                </div>
-                <form class="profile-form password-form" @submit.prevent="changePassword">
-                  <label>原密码</label>
-                  <input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" />
-                  <label>新密码</label>
-                  <input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" />
-                  <label>确认新密码</label>
-                  <input v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" />
-                  <button class="primary-action" type="submit"><Save :size="18" /><span>修改密码</span></button>
-                </form>
-              </div>
-
-              <div class="records-card">
-                <div class="subsection-head">
-                  <h4>我的值班记录</h4>
-                  <button class="ghost-button" @click="loadMyRecords"><RefreshCw :size="16" />刷新</button>
-                </div>
-                <div class="filters">
-                  <input v-model="myRecordRange.from" type="date" />
-                  <input v-model="myRecordRange.to" type="date" />
-                  <button class="ghost-button" @click="loadMyRecords">查询</button>
-                </div>
-                <div class="mini-summary">
-                  <div><span>记录数</span><strong>{{ myRecordCount }}</strong></div>
-                  <div><span>有效时长</span><strong>{{ myRecordHours }} h</strong></div>
-                </div>
-                <div class="table-wrap compact-table">
-                  <table>
-                    <thead>
-                      <tr><th>日期</th><th>签到</th><th>签退</th><th>审核</th><th>状态</th><th>有效时长</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in myRecords" :key="item.id">
-                        <td>{{ item.dutyDate }}</td>
-                        <td>{{ timeText(item.checkInTime) }}</td>
-                        <td>{{ timeText(item.checkOutTime) }}</td>
-                        <td>{{ statusText(item.checkInStatus) }} / {{ statusText(item.checkOutStatus) }}</td>
-                        <td><span class="status-badge" :class="item.effectiveStatus?.toLowerCase()">{{ effectiveStatusText(item.effectiveStatus) }}</span></td>
-                        <td>{{ item.validHours }} h</td>
-                      </tr>
-                      <tr v-if="myRecords.length === 0"><td colspan="6" class="empty">暂无值班记录</td></tr>
-                    </tbody>
-                  </table>
-                </div>
+          <ProfilePanel
+            v-if="activeTab === 'profile'"
+            :profile="profile"
+            :password-form="passwordForm"
+            :my-record-range="myRecordRange"
+            :my-records="myRecords"
+            :my-record-count="myRecordCount"
+            :my-record-hours="myRecordHours"
+            :grade-options="profileGradeOptions"
+            @save-profile="saveProfile"
+            @change-password="changePassword"
+            @load-my-records="loadMyRecords"
+          />
               </div>
             </div>
-          </section>
+          </div>
         </div>
       </section>
 
-      <div v-if="toast.message" class="toast" :class="toast.type">{{ toast.message }}</div>
+      <Transition name="toast-pop">
+        <div v-if="toast.message" class="toast" :class="toast.type" role="status" aria-live="polite">{{ toast.message }}</div>
+      </Transition>
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import {
   BadgeCheck,
   CalendarDays,
@@ -849,14 +1038,20 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock3,
+  Database,
   Download,
+  Eye,
+  EyeOff,
   Gauge,
+  GraduationCap,
   History,
   LayoutDashboard,
   ListChecks,
   LogIn,
+  KeyRound,
   Power,
   PowerOff,
+  Plus,
   RefreshCw,
   Save,
   ScanLine,
@@ -867,9 +1062,16 @@ import {
   Upload,
   UserPlus,
   UserRound,
-  UsersRound
+  UsersRound,
+  Wrench
 } from '@lucide/vue'
 import { api, del, post, put, setToken } from './api.js'
+import DataCenterPanel from './components/DataCenterPanel.vue'
+import MaintenancePanel from './components/MaintenancePanel.vue'
+import ProfilePanel from './components/ProfilePanel.vue'
+import RepairPanel from './components/RepairPanel.vue'
+import SchedulePanel from './components/SchedulePanel.vue'
+import TrainingPanel from './components/TrainingPanel.vue'
 
 const view = ref('kiosk')
 const activeTab = ref('overview')
@@ -877,10 +1079,17 @@ const healthOk = ref(false)
 const busy = ref(false)
 const studentNo = ref('')
 const lookupResult = ref(null)
+const attendanceSuccess = ref(null)
+const liveNow = ref(new Date())
 const currentUser = ref(null)
 const pendingRecords = ref([])
 const attendanceRecords = ref([])
 const openRecords = ref([])
+const todaySchedule = ref([])
+const weekSchedule = ref([])
+const dutyPeriods = ref([])
+const publicDutyWeekdays = ref([])
+const dutyPeriodDrafts = ref([])
 const users = ref([])
 const userTotal = ref(0)
 const userPage = ref(1)
@@ -896,6 +1105,8 @@ const stats = ref([])
 const weeklyDetail = ref(emptyWeeklyDetail())
 const statsPreset = ref('custom')
 const myRecords = ref([])
+const myTrainingHours = ref(0)
+const myTrainingCount = ref(0)
 const weekdays = ref([])
 const today = new Date()
 const todayValue = formatLocalDate(today)
@@ -914,6 +1125,10 @@ const myRecordRange = reactive({
   to: todayValue
 })
 const loginForm = reactive({ studentNo: '', password: '' })
+const showLoginPassword = ref(false)
+const rememberLogin = ref(true)
+const loginVerified = ref(false)
+const loginError = ref(false)
 const profile = reactive({ phone: '', major: '', grade: '', qq: '' })
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const newMember = reactive({ studentNo: '', name: '', phone: '', major: '', grade: '', qq: '' })
@@ -921,10 +1136,10 @@ const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: ''
 const importInput = ref(null)
 const importFile = ref(null)
 const importResult = ref(null)
-const restoreInput = ref(null)
 const restoreFile = ref(null)
 const operationLogs = ref([])
 const backups = ref([])
+const dataCenterSummary = ref(null)
 const logTotal = ref(0)
 const logPage = ref(1)
 const selectedLog = ref(null)
@@ -946,17 +1161,46 @@ const overview = reactive({
 })
 const toast = reactive({ message: '', type: 'info' })
 const logPageSize = 20
+const loginAccountStorageKey = 'ca-attendance-remembered-account'
+let loginErrorTimer = null
 
 const tabs = [
-  { id: 'overview', label: '概览', icon: Gauge, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
+  { id: 'overview', label: '今日', icon: Gauge, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
   { id: 'reviews', label: '审核', icon: ListChecks, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
   { id: 'records', label: '记录', icon: ClipboardList, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'members', label: '成员', icon: UsersRound, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'stats', label: '统计', icon: LayoutDashboard, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
+  { id: 'trainings', label: '培训', icon: GraduationCap, roles: ['PRESIDENT', 'ADMIN'] },
+  { id: 'schedules', label: '排班', icon: CalendarDays, roles: ['PRESIDENT', 'ADMIN'] },
+  { id: 'repairs', label: '维修', icon: Wrench, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
+  { id: 'data', label: '数据', icon: Database, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'maintenance', label: '维护', icon: Save, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'settings', label: '设置', icon: SlidersHorizontal, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'logs', label: '日志', icon: History, roles: ['ADMIN'] },
-  { id: 'profile', label: '资料', icon: UserRound, roles: ['MEMBER', 'MINISTER', 'PRESIDENT', 'ADMIN'] }
+  { id: 'profile', label: '个人', icon: UserRound, roles: ['MEMBER', 'MINISTER', 'PRESIDENT', 'ADMIN'] }
+]
+
+const adminTabDescriptions = {
+  overview: '今日排班、待处理事项和关键值班状态集中在这里。',
+  reviews: '处理成员提交的签到和签退审核，优先清掉待办。',
+  records: '查询、补录和修正值班记录，适合做月度核对。',
+  members: '维护协会成员账号、角色、状态和批量导入。',
+  stats: '按时间范围汇总值班时长、次数和明细。',
+  trainings: '管理培训场次、参与名单和计入值班时长的培训记录。',
+  schedules: '按已设置的值班时间段安排部长值班。',
+  repairs: '登记维修工单，预览协议并跟踪处理状态。',
+  data: '集中下载模板、导出统计和进行交接备份。',
+  maintenance: '查看备份状态，执行备份、恢复和数据维护。',
+  settings: '配置值班星期和值班时间段。',
+  logs: '查看后台关键操作记录，用于追溯和交接。',
+  profile: '维护个人资料、密码和自己的值班记录。'
+}
+
+const adminNavBlueprint = [
+  { id: 'duty', label: '值班', icon: Gauge, tabs: ['overview', 'reviews', 'records', 'stats', 'schedules'] },
+  { id: 'people', label: '人员', icon: UsersRound, tabs: ['members', 'profile'] },
+  { id: 'affairs', label: '事务', icon: Wrench, tabs: ['trainings', 'repairs'] },
+  { id: 'system', label: '系统', icon: SlidersHorizontal, tabs: ['data', 'maintenance', 'settings', 'logs'] }
 ]
 
 const logActionOptions = [
@@ -969,6 +1213,19 @@ const logActionOptions = [
   { value: 'REVIEW_ATTENDANCE', label: '审核签到记录' },
   { value: 'MANUAL_CREATE_ATTENDANCE', label: '新增签到记录' },
   { value: 'DELETE_ATTENDANCE_RECORD', label: '删除签到记录' },
+  { value: 'CREATE_TRAINING', label: '新增培训' },
+  { value: 'UPDATE_TRAINING', label: '修改培训' },
+  { value: 'ARCHIVE_TRAINING', label: '归档培训' },
+  { value: 'CREATE_TRAINING_PARTICIPANT', label: '新增培训参与记录' },
+  { value: 'UPDATE_TRAINING_PARTICIPANT', label: '修改培训参与记录' },
+  { value: 'DELETE_TRAINING_PARTICIPANT', label: '删除培训参与记录' },
+  { value: 'IMPORT_TRAINING_PARTICIPANTS', label: '导入培训名单' },
+  { value: 'CREATE_DUTY_SCHEDULE', label: '新增排班' },
+  { value: 'UPDATE_DUTY_SCHEDULE', label: '修改排班' },
+  { value: 'ARCHIVE_DUTY_SCHEDULE', label: '归档排班' },
+  { value: 'UPDATE_DUTY_PERIODS', label: '调整值班时间段' },
+  { value: 'CREATE_REPAIR_CASE', label: '新增维修事务' },
+  { value: 'UPDATE_REPAIR_CASE', label: '修改维修事务' },
   { value: 'UPDATE_DUTY_WEEKDAYS', label: '调整值班星期' },
   { value: 'MANUAL_UPDATE_ATTENDANCE', label: '手动修改记录' },
   { value: 'RESTORE_BACKUP', label: '恢复备份' }
@@ -988,13 +1245,36 @@ const statsPresets = [
 ]
 
 const availableTabs = computed(() => currentUser.value ? tabs.filter(t => t.roles.includes(currentUser.value.role)) : [])
+const activeTabInfo = computed(() => availableTabs.value.find(tab => tab.id === activeTab.value) || availableTabs.value[0] || tabs[0])
+const activeTabDescription = computed(() => adminTabDescriptions[activeTabInfo.value?.id] || '管理当前模块的数据和操作。')
+const adminNavGroups = computed(() => {
+  const tabMap = new Map(availableTabs.value.map(tab => [tab.id, tab]))
+  return adminNavBlueprint
+    .map(group => ({
+      ...group,
+      tabs: group.tabs.map(id => tabMap.get(id)).filter(Boolean)
+    }))
+    .filter(group => group.tabs.length > 0)
+})
+const activeAdminGroup = computed(() => (
+  adminNavGroups.value.find(group => group.tabs.some(tab => tab.id === activeTab.value)) || adminNavGroups.value[0]
+))
+const activeAdminGroupTabs = computed(() => activeAdminGroup.value?.tabs || [])
+const adminContextStats = computed(() => [
+  { label: '本机服务', value: healthOk.value ? '在线' : '未连接', tone: healthOk.value ? 'ok' : 'warn' },
+  { label: '待审核', value: overview.pendingCount, tone: overview.pendingCount > 0 ? 'warn' : 'steady' },
+  { label: '未签退', value: overview.dashboard.todayOpenCount, tone: overview.dashboard.todayOpenCount > 0 ? 'warn' : 'steady' },
+  { label: '本周时长', value: `${formatHours(overview.dashboard.weekValidHours)} h`, tone: 'steady' }
+])
+const adminQuickActions = computed(() => roleActions.value.slice(0, 5))
 const canExport = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canManageUsers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canImportMembers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canAddAttendanceRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
-const canDeleteAttendanceRecords = computed(() => currentUser.value?.role === 'ADMIN')
+const canDeleteAttendanceRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canViewLogs = computed(() => currentUser.value?.role === 'ADMIN')
 const canBackupData = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
+const canUseDataCenter = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canDeleteBackups = computed(() => currentUser.value?.role === 'ADMIN')
 const canRestoreBackups = computed(() => currentUser.value?.role === 'ADMIN')
 const lookupCandidates = computed(() => lookupResult.value?.matches || [])
@@ -1004,14 +1284,82 @@ const attendanceRecordHours = computed(() => attendanceRecords.value.reduce((sum
 const attendanceRecordPendingCount = computed(() => attendanceRecords.value.filter(row =>
   row.checkInStatus === 'PENDING' || row.checkOutStatus === 'PENDING'
 ).length)
-const myRecordHours = computed(() => myRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0))
-const myRecordCount = computed(() => myRecords.value.length)
+const myRecordHours = computed(() => myRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0) + Number(myTrainingHours.value || 0))
+const myRecordCount = computed(() => myRecords.value.length + Number(myTrainingCount.value || 0))
 const profileGradeOptions = Array.from({ length: 2057 - 2007 + 1 }, (_, index) => `${2007 + index}级`)
 const userTotalPages = computed(() => Math.max(1, Math.ceil(userTotal.value / userPageSize.value)))
 const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / logPageSize)))
 const overviewDutyDaysText = computed(() => overview.dutyDays.length ? overview.dutyDays.join('、') : '未设置')
 const todayText = computed(() => today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }))
 const weekdayText = computed(() => today.toLocaleDateString('zh-CN', { weekday: 'long' }))
+const todayDayNumber = computed(() => String(today.getDate()).padStart(2, '0'))
+const todayMonthText = computed(() => `${today.getFullYear()} 年 ${today.getMonth() + 1} 月`)
+const kioskDateText = computed(() => liveNow.value.toLocaleDateString('zh-CN', {
+  month: 'long',
+  day: 'numeric',
+  weekday: 'long'
+}))
+const kioskTimeText = computed(() => liveNow.value.toLocaleTimeString('zh-CN', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+}))
+const allWeekdayOptions = [
+  { weekday: 1, name: '周一', fullName: '星期一' },
+  { weekday: 2, name: '周二', fullName: '星期二' },
+  { weekday: 3, name: '周三', fullName: '星期三' },
+  { weekday: 4, name: '周四', fullName: '星期四' },
+  { weekday: 5, name: '周五', fullName: '星期五' },
+  { weekday: 6, name: '周六', fullName: '星期六' },
+  { weekday: 7, name: '周日', fullName: '星期日' }
+]
+const kioskEnabledWeekdays = computed(() => {
+  if (!publicDutyWeekdays.value.length) return allWeekdayOptions
+  return publicDutyWeekdays.value
+    .map(row => {
+      const weekday = Number(row.weekday)
+      const fallback = allWeekdayOptions.find(day => day.weekday === weekday)
+      return {
+        weekday,
+        name: shortWeekdayName(row.weekday_name || row.weekdayName || fallback?.fullName),
+        fullName: row.weekday_name || row.weekdayName || fallback?.fullName || `星期${weekday}`,
+        enabled: row.enabled === true || row.enabled === 1 || row.enabled === '1' || row.enabled === 'true'
+      }
+    })
+    .filter(day => day.weekday >= 1 && day.weekday <= 7 && day.enabled)
+})
+const todayWeekdayValue = today.getDay() || 7
+const hasDutyPeriodSettings = computed(() => dutyPeriodsForDisplay().length > 0)
+const todayIsConfiguredDutyDay = computed(() => kioskEnabledWeekdays.value.some(day => day.weekday === todayWeekdayValue))
+const todayPeriodSummary = computed(() => {
+  liveNow.value
+  return todayIsConfiguredDutyDay.value ? periodSummaryForSlots(todaySchedule.value) : []
+})
+const kioskCurrentPeriodText = computed(() => {
+  const activePeriod = todayPeriodSummary.value.find(period => period.active)
+  if (activePeriod) return `当前时段 ${activePeriod.timeText}`
+  if (!todayIsConfiguredDutyDay.value) return '今日非值班日'
+  return '当前无值班时段'
+})
+const kioskEmptyBoardText = computed(() => {
+  if (!todayIsConfiguredDutyDay.value) return '今日非值班日'
+  if (!hasDutyPeriodSettings.value) return '请先在后台设置值班时间段'
+  return '今日暂无部长排班'
+})
+const kioskWeekSummary = computed(() => {
+  return kioskEnabledWeekdays.value.map(day => {
+    const weekday = day.weekday
+    const daySlots = weekSchedule.value.filter(slot => Number(slot.weekday) === weekday)
+    const dayPeriods = periodSummaryForSlots(daySlots)
+    return {
+      weekday,
+      name: day.name,
+      count: dayPeriods.filter(period => period.count > 0).length,
+      isToday: weekday === todayWeekdayValue
+    }
+  })
+})
 const dashboardRoleClass = computed(() => currentUser.value ? `role-${String(currentUser.value.role).toLowerCase()}` : '')
 const roleDashboard = computed(() => {
   const role = currentUser.value?.role
@@ -1027,7 +1375,7 @@ const roleDashboard = computed(() => {
     MINISTER: {
       eyebrow: 'Review Desk',
       headerTitle: '部长审核台',
-      headerMeta: `待审核 ${overview.pendingCount} 条 · 本周 ${overview.dashboard.weekValidHours} h`,
+      headerMeta: `待审核 ${overview.pendingCount} 条 · 本周 ${formatHours(overview.dashboard.weekValidHours)} h`,
       title: '审核与统计',
       subtitle: '待审核记录、今日值班和阶段统计',
       icon: ListChecks
@@ -1062,7 +1410,7 @@ const roleMetrics = computed(() => {
   if (role === 'MEMBER') {
     return [
       { label: '我的记录', value: myRecordCount.value },
-      { label: '有效时长', value: `${myRecordHours.value} h` },
+      { label: '有效时长', value: `${formatHours(myRecordHours.value)} h` },
       { label: '年级', value: profile.grade || '-' }
     ]
   }
@@ -1070,14 +1418,14 @@ const roleMetrics = computed(() => {
     return [
       { label: '待审核', value: overview.pendingCount },
       { label: '今日记录', value: overview.dashboard.todayRecordCount },
-      { label: '本周时长', value: `${overview.dashboard.weekValidHours} h` }
+      { label: '本周时长', value: `${formatHours(overview.dashboard.weekValidHours)} h` }
     ]
   }
   if (role === 'PRESIDENT') {
     return [
       { label: '今日未签退', value: overview.dashboard.todayOpenCount },
       { label: '今日待审核', value: overview.dashboard.todayPendingCount },
-      { label: '本年时长', value: `${overview.dashboard.yearValidHours} h` }
+      { label: '本年时长', value: `${formatHours(overview.dashboard.yearValidHours)} h` }
     ]
   }
   if (role === 'ADMIN') {
@@ -1094,22 +1442,33 @@ const roleActions = computed(() => {
   const actions = {
     MEMBER: [
       { label: '个人中心', tab: 'profile', icon: UserRound },
+      { label: '培训', tab: 'trainings', icon: GraduationCap },
       { label: '签到台', view: 'kiosk', icon: ScanLine }
     ],
     MINISTER: [
       { label: '待审核', tab: 'reviews', icon: ListChecks },
       { label: '统计', tab: 'stats', icon: LayoutDashboard },
+      { label: '培训', tab: 'trainings', icon: GraduationCap },
+      { label: '维修', tab: 'repairs', icon: Wrench },
       { label: '个人中心', tab: 'profile', icon: UserRound }
     ],
     PRESIDENT: [
       { label: '成员', tab: 'members', icon: UsersRound },
       { label: '记录', tab: 'records', icon: ClipboardList },
+      { label: '培训', tab: 'trainings', icon: GraduationCap },
+      { label: '排班', tab: 'schedules', icon: CalendarDays },
+      { label: '维修', tab: 'repairs', icon: Wrench },
+      { label: '数据中心', tab: 'data', icon: Database },
       { label: '统计', tab: 'stats', icon: LayoutDashboard },
       { label: '值班星期', tab: 'settings', icon: SlidersHorizontal }
     ],
     ADMIN: [
       { label: '记录', tab: 'records', icon: ClipboardList },
       { label: '成员', tab: 'members', icon: UsersRound },
+      { label: '培训', tab: 'trainings', icon: GraduationCap },
+      { label: '排班', tab: 'schedules', icon: CalendarDays },
+      { label: '维修', tab: 'repairs', icon: Wrench },
+      { label: '数据中心', tab: 'data', icon: Database },
       { label: '日志', tab: 'logs', icon: History },
       { label: '维护', tab: 'maintenance', icon: Save }
     ]
@@ -1125,7 +1484,19 @@ const logFilters = reactive({
 })
 
 onMounted(async () => {
+  loadRememberedLoginAccount()
+  kioskClockTimer = window.setInterval(() => {
+    liveNow.value = new Date()
+  }, 1000)
   await checkHealth()
+  await loadPublicSchedules()
+})
+
+let kioskClockTimer = null
+
+onBeforeUnmount(() => {
+  if (kioskClockTimer) window.clearInterval(kioskClockTimer)
+  if (loginErrorTimer) window.clearTimeout(loginErrorTimer)
 })
 
 async function checkHealth() {
@@ -1137,8 +1508,24 @@ async function checkHealth() {
   }
 }
 
+async function loadPublicSchedules() {
+  await run(async () => {
+    const [todayItems, weekItems, periods, dutyWeekdays] = await Promise.all([
+      api('/api/public/schedules/today'),
+      api('/api/public/schedules/week'),
+      api('/api/public/duty-periods'),
+      api('/api/public/duty-weekdays')
+    ])
+    todaySchedule.value = todayItems
+    weekSchedule.value = weekItems
+    dutyPeriods.value = normalizeDutyPeriods(periods)
+    publicDutyWeekdays.value = dutyWeekdays
+  }, false)
+}
+
 async function lookupMember() {
   if (!studentNo.value) return notify('请输入学号或姓名', 'warn')
+  attendanceSuccess.value = null
   await run(async () => {
     lookupResult.value = await api(`/api/public/attendance/lookup?query=${encodeURIComponent(studentNo.value)}`)
   })
@@ -1151,42 +1538,121 @@ async function selectLookupCandidate(candidate) {
 
 async function submitAttendance() {
   await run(async () => {
+    const result = lookupResult.value
     const submitStudentNo = lookupResult.value?.studentNo || studentNo.value
     if (!submitStudentNo) {
       notify('请先查询并确认成员', 'warn')
       return
     }
     const res = await post('/api/public/attendance/submit', { studentNo: submitStudentNo })
-    notify(res.message, 'success')
+    attendanceSuccess.value = {
+      name: result?.name || submitStudentNo,
+      actionLabel: result?.action === 'CHECK_OUT' ? '签退' : '签到',
+      message: res.message
+    }
     lookupResult.value = null
     studentNo.value = ''
   })
+}
+
+function resetKiosk() {
+  attendanceSuccess.value = null
+  lookupResult.value = null
+  studentNo.value = ''
 }
 
 function openDashboard() {
   view.value = 'dashboard'
 }
 
+function returnToKiosk() {
+  loginVerified.value = false
+  loginError.value = false
+  showLoginPassword.value = false
+  loginForm.password = ''
+  view.value = 'kiosk'
+}
+
 async function login() {
-  await run(async () => {
+  busy.value = true
+  loginError.value = false
+  try {
     const res = await post('/api/auth/login', loginForm)
     setToken(res.token)
+    saveRememberedLoginAccount()
+    loginVerified.value = true
+    await new Promise(resolve => window.setTimeout(resolve, 720))
     currentUser.value = res
     profile.phone = ''
     profile.major = ''
     profile.grade = ''
     profile.qq = ''
     clearPasswordForm()
+    loginForm.password = ''
+    showLoginPassword.value = false
+    loginVerified.value = false
     notify('已登录后台', 'success')
-    selectTab(availableTabs.value[0]?.id || 'profile')
-  })
+    await selectTab(availableTabs.value[0]?.id || 'profile')
+  } catch (error) {
+    loginVerified.value = false
+    triggerLoginError()
+    notify(error.message, 'error')
+  } finally {
+    busy.value = false
+  }
 }
 
 function logout() {
   setToken('')
   currentUser.value = null
+  loginForm.password = ''
+  showLoginPassword.value = false
+  loginVerified.value = false
   clearPasswordForm()
   notify('已退出', 'info')
+}
+
+function loadRememberedLoginAccount() {
+  try {
+    const rememberedAccount = window.localStorage.getItem(loginAccountStorageKey)
+    if (rememberedAccount) loginForm.studentNo = rememberedAccount
+  } catch {
+    // Local storage can be disabled without blocking login.
+  }
+}
+
+function saveRememberedLoginAccount() {
+  try {
+    if (rememberLogin.value) {
+      window.localStorage.setItem(loginAccountStorageKey, loginForm.studentNo)
+    } else {
+      window.localStorage.removeItem(loginAccountStorageKey)
+    }
+  } catch {
+    // Local storage can be disabled without blocking login.
+  }
+}
+
+function triggerLoginError() {
+  loginError.value = false
+  window.requestAnimationFrame(() => {
+    loginError.value = true
+    window.clearTimeout(loginErrorTimer)
+    loginErrorTimer = window.setTimeout(() => {
+      loginError.value = false
+    }, 520)
+  })
+}
+
+async function selectAdminGroup(group) {
+  if (!group?.tabs?.length || group.tabs.some(tab => tab.id === activeTab.value)) return
+  await selectTab(group.tabs[0].id)
+}
+
+function adminTabBadge(tabId) {
+  if (tabId === 'reviews' && overview.pendingCount > 0) return overview.pendingCount
+  if (tabId === 'overview' && overview.dashboard.todayOpenCount > 0) return overview.dashboard.todayOpenCount
+  return ''
 }
 
 async function selectTab(tab) {
@@ -1203,8 +1669,9 @@ async function selectTab(tab) {
     }
   }
   if (tab === 'stats') await loadStats()
+  if (tab === 'data') await loadDataCenter()
   if (tab === 'maintenance') await loadBackups()
-  if (tab === 'settings') await loadWeekdays()
+  if (tab === 'settings') await loadDutySettings()
   if (tab === 'logs') await loadOperationLogs(1)
   if (tab === 'profile') {
     await loadMe()
@@ -1284,7 +1751,13 @@ function clearPasswordForm() {
 
 async function loadMyRecords() {
   await run(async () => {
-    myRecords.value = await api(`/api/attendance/me?from=${myRecordRange.from}&to=${myRecordRange.to}`)
+    const [records, training] = await Promise.all([
+      api(`/api/attendance/me?from=${myRecordRange.from}&to=${myRecordRange.to}`),
+      api(`/api/trainings/me/hours?from=${myRecordRange.from}&to=${myRecordRange.to}`)
+    ])
+    myRecords.value = records
+    myTrainingHours.value = Number(training.trainingHours || 0)
+    myTrainingCount.value = Number(training.trainingCount || 0)
   }, false)
 }
 
@@ -1360,12 +1833,12 @@ function clearManualRecordForm() {
 }
 
 async function deleteAttendanceRecord(item) {
-  if (!canDeleteAttendanceRecords.value) return notify('只有管理员可以删除签到记录', 'warn')
+  if (!canDeleteAttendanceRecords.value) return notify('只有会长或管理员可以删除签到记录', 'warn')
   const timeLabel = item.checkInTime ? timeText(item.checkInTime) : item.dutyDate
   if (!dangerConfirm(`确认删除 ${item.name}（${item.studentNo}）在 ${timeLabel} 的签到记录？删除后无法恢复。`, '删除')) return
   await run(async () => {
     await del(`/api/attendance/${item.id}`)
-    notify('签到记录已删除', 'success')
+    notify('签到记录已删除，删除前已自动备份', 'success')
     await loadAttendanceRecords()
   })
 }
@@ -1478,7 +1951,8 @@ async function bulkUpdateUserStatus(status) {
       status,
       reason: `批量${label}筛选后成员`
     })
-    notify(`批量${label}完成：更新 ${result.updated}，无变化 ${result.unchanged}，跳过 ${result.skipped}`,
+    const backupText = result.safetyBackup ? `，操作前备份：${result.safetyBackup.filename}` : ''
+    notify(`批量${label}完成：更新 ${result.updated}，无变化 ${result.unchanged}，跳过 ${result.skipped}${backupText}`,
       result.skipped ? 'warn' : 'success')
     await loadUsers()
   })
@@ -1498,7 +1972,7 @@ async function deleteUser(user) {
   if (!dangerConfirm(`确认删除 ${user.name}（${user.studentNo}）？删除后无法恢复。已有值班记录的成员请改为停用账号。`, '删除')) return
   await run(async () => {
     await del(`/api/users/${user.id}`)
-    notify('成员已删除', 'success')
+    notify('成员已删除，删除前已自动备份', 'success')
     await loadGradeOptions()
     await loadUsers()
   })
@@ -1557,12 +2031,25 @@ async function loadBackups() {
   }, false)
 }
 
+async function loadDataCenter() {
+  if (!canUseDataCenter.value) return
+  await run(async () => {
+    const [summary, items] = await Promise.all([
+      api('/api/maintenance/summary'),
+      api('/api/maintenance/backups')
+    ])
+    dataCenterSummary.value = summary
+    backups.value = items
+  }, false)
+}
+
 async function createBackup() {
   if (!canBackupData.value) return notify('只有会长或管理员可以备份数据', 'warn')
   await run(async () => {
     await post('/api/maintenance/backups')
     notify('备份已生成', 'success')
-    await loadBackups()
+    if (activeTab.value === 'data') await loadDataCenter()
+    else await loadBackups()
   })
 }
 
@@ -1579,7 +2066,8 @@ async function deleteBackup(item) {
   await run(async () => {
     await del(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
     notify('备份已删除', 'success')
-    await loadBackups()
+    if (activeTab.value === 'data') await loadDataCenter()
+    else await loadBackups()
   })
 }
 
@@ -1597,7 +2085,6 @@ async function restoreBackup() {
   await run(async () => {
     const result = await api('/api/maintenance/backups/restore', { method: 'POST', body: formData })
     restoreFile.value = null
-    if (restoreInput.value) restoreInput.value.value = ''
     backups.value = []
     setToken('')
     currentUser.value = null
@@ -1613,12 +2100,93 @@ async function loadWeekdays() {
   }, false)
 }
 
+async function loadDutySettings() {
+  await run(async () => {
+    const [days, periods] = await Promise.all([
+      api('/api/settings/weekdays'),
+      api('/api/settings/duty-periods')
+    ])
+    weekdays.value = days
+    dutyPeriods.value = normalizeDutyPeriods(periods)
+    resetDutyPeriodDrafts()
+  }, false)
+}
+
 async function saveWeekdays() {
   await run(async () => {
     const enabledWeekdays = weekdays.value.filter(d => d.enabled).map(d => d.weekday)
     await put('/api/settings/weekdays', { enabledWeekdays })
     notify('值班星期已保存', 'success')
   })
+}
+
+function resetDutyPeriodDrafts() {
+  dutyPeriodDrafts.value = dutyPeriodsForDisplay().map(period => ({
+    startTime: period.startTime,
+    endTime: period.endTime
+  }))
+}
+
+function addDutyPeriod() {
+  const last = dutyPeriodDrafts.value.at(-1)
+  dutyPeriodDrafts.value.push({
+    startTime: last?.endTime || '',
+    endTime: last?.endTime ? nextPeriodEnd(last.endTime) : ''
+  })
+}
+
+function removeDutyPeriod(index) {
+  dutyPeriodDrafts.value.splice(index, 1)
+}
+
+async function saveDutyPeriods() {
+  const periods = dutyPeriodDraftsForSave()
+  if (!periods) return
+  await run(async () => {
+    const saved = await put('/api/settings/duty-periods', { periods })
+    dutyPeriods.value = normalizeDutyPeriods(saved)
+    resetDutyPeriodDrafts()
+    await loadPublicSchedules()
+    notify('值班时间段已保存', 'success')
+  })
+}
+
+function dutyPeriodDraftsForSave() {
+  const periods = []
+  for (const [index, draft] of dutyPeriodDrafts.value.entries()) {
+    const startTime = shortTime(draft.startTime)
+    const endTime = shortTime(draft.endTime)
+    if (!startTime && !endTime) continue
+    if (!startTime || !endTime) {
+      notify(`第 ${index + 1} 个时间段未填写完整`, 'warn')
+      return null
+    }
+    const start = timeToMinutes(startTime)
+    const end = timeToMinutes(endTime)
+    if (start == null || end == null) {
+      notify(`第 ${index + 1} 个时间段格式不正确`, 'warn')
+      return null
+    }
+    if (end <= start) {
+      notify(`第 ${index + 1} 个时间段结束时间必须晚于开始时间`, 'warn')
+      return null
+    }
+    periods.push({ startTime, endTime })
+  }
+  if (periods.length === 0) {
+    notify('请至少填写一个值班时间段', 'warn')
+    return null
+  }
+  return periods
+}
+
+function nextPeriodEnd(startTime) {
+  const start = timeToMinutes(startTime)
+  if (start == null) return ''
+  const end = Math.min(start + 120, 23 * 60 + 59)
+  const hour = String(Math.floor(end / 60)).padStart(2, '0')
+  const minute = String(end % 60).padStart(2, '0')
+  return `${hour}:${minute}`
 }
 
 async function loadOperationLogs(page = 1) {
@@ -1659,7 +2227,8 @@ async function clearOperationLogs() {
     logTotal.value = 0
     logPage.value = 1
     selectedLog.value = null
-    notify(`已清空 ${result?.deleted || 0} 条日志`, 'success')
+    const backupText = result?.safetyBackup ? `，清空前备份：${result.safetyBackup.filename}` : ''
+    notify(`已清空 ${result?.deleted || 0} 条日志${backupText}`, 'success')
   })
 }
 
@@ -1769,9 +2338,129 @@ function bytesText(value) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
+function periodSummaryForSlots(slots) {
+  const periods = dutyPeriodsForDisplay()
+  const groupedSlots = slotsByAssignedPeriod(slots, periods)
+  return periods.map(period => {
+    const key = periodKey(period)
+    const people = assigneePeopleForSlots(groupedSlots.get(key) || [])
+    const timeText = periodTime(period)
+    return {
+      key,
+      startTime: shortTime(period.startTime),
+      endTime: shortTime(period.endTime),
+      timeText,
+      count: people.length,
+      people,
+      active: isCurrentPeriod(period),
+      missing: people.length === 0
+    }
+  })
+}
+
+function dutyPeriodsForDisplay() {
+  return normalizeDutyPeriods(dutyPeriods.value)
+}
+
+function slotsByAssignedPeriod(slots, periods) {
+  const groups = new Map(periods.map(period => [periodKey(period), []]))
+  for (const slot of slots || []) {
+    const key = assignedPeriodKey(slot, periods)
+    if (key && groups.has(key)) {
+      groups.get(key).push(slot)
+    }
+  }
+  return groups
+}
+
+function assigneePeopleForSlots(slots) {
+  const people = new Map()
+  for (const slot of slots || []) {
+    for (const person of slot.assignees || []) {
+      if (!person?.name) continue
+      const key = person.studentNo || person.name
+      if (!people.has(key)) {
+        people.set(key, {
+          key,
+          name: person.name
+        })
+      }
+    }
+  }
+  return Array.from(people.values())
+}
+
+function assignedPeriodKey(slot, periods) {
+  for (const period of periods) {
+    const key = periodKey(period)
+    if (periodKey(slot) === key) {
+      return key
+    }
+  }
+  return null
+}
+
+function isCurrentPeriod(period) {
+  const start = timeToMinutes(period.startTime)
+  const end = timeToMinutes(period.endTime)
+  if (start == null || end == null) return false
+  const now = liveNow.value.getHours() * 60 + liveNow.value.getMinutes()
+  return now >= start && now < end
+}
+
+function dutyPeriodProgress(period) {
+  const start = timeToMinutes(period.startTime)
+  const end = timeToMinutes(period.endTime)
+  if (start == null || end == null || end <= start) return 0
+  const now = liveNow.value.getHours() * 60 + liveNow.value.getMinutes() + liveNow.value.getSeconds() / 60
+  return Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100))
+}
+
+function periodTime(period) {
+  const start = shortTime(period.startTime)
+  const end = shortTime(period.endTime)
+  return start && end ? `${start}-${end}` : start || end || '全天'
+}
+
+function periodKey(period) {
+  return `${shortTime(period.startTime)}-${shortTime(period.endTime)}`
+}
+
+function normalizeDutyPeriods(items) {
+  return (items || [])
+    .map((item, index) => ({
+      sortOrder: Number(item.sortOrder ?? index),
+      startTime: shortTime(item.startTime),
+      endTime: shortTime(item.endTime)
+    }))
+    .filter(item => item.startTime && item.endTime)
+    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime) || timeToMinutes(a.endTime) - timeToMinutes(b.endTime))
+}
+
+function timeToMinutes(value) {
+  if (!value) return null
+  const [hour, minute] = String(value).split(':').map(part => Number(part))
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
+  return hour * 60 + minute
+}
+
+function shortTime(value) {
+  return value ? String(value).slice(0, 5) : ''
+}
+
+function shortWeekdayName(value) {
+  const text = String(value || '')
+  return text.startsWith('星期') ? text.replace('星期', '周') : text || '周?'
+}
+
 function timeText(value) {
   if (!value) return '-'
   return String(value).replace('T', ' ').slice(0, 16)
+}
+
+function formatHours(value) {
+  const number = Number(value || 0)
+  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function formatLocalDate(value) {
