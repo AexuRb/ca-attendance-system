@@ -88,7 +88,7 @@ function createMainWindow() {
     splashWindow = null;
     mainWindow?.show();
     const smokeExitMs = Number(process.env.CA_ATTENDANCE_SMOKE_EXIT_MS || 0);
-    if (!app.isPackaged && smokeExitMs >= 1000) {
+    if (smokeExitMs >= 1000) {
       writeDesktopLog(`scheduled smoke-test exit in ${smokeExitMs}ms`);
       setTimeout(() => app.quit(), smokeExitMs);
     }

@@ -13,7 +13,7 @@
 
     <groupId>com.ca</groupId>
     <artifactId>attendance-backend</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>2.0.0</version>
     <name>attendance-backend</name>
     <description>Computer Association duty attendance backend</description>
 
@@ -76,6 +76,7 @@
     </dependencies>
 
     <build>
+        <finalName>attendance-backend</finalName>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

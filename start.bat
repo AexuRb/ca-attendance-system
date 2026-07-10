@@ -7,7 +7,7 @@ if not defined APP_HOST set "APP_HOST=127.0.0.1"
 if not defined APP_PORT set "APP_PORT=8080"
 set "APP_ROOT=%~dp0"
 set "BACKEND_DIR=%~dp0backend"
-set "JAR=%BACKEND_DIR%\target\attendance-backend-0.0.1-SNAPSHOT.jar"
+set "JAR=%BACKEND_DIR%\target\attendance-backend.jar"
 
 echo.
 echo ========================================
@@ -65,7 +65,7 @@ if not exist "%JAR%" (
 )
 
 echo [START] Opening local SQLite service...
-start "CA Attendance System" /D "%~dp0" cmd /k java -jar "backend\target\attendance-backend-0.0.1-SNAPSHOT.jar" --server.address=%APP_HOST% --server.port=%APP_PORT% --app.storage.root="%APP_ROOT%"
+start "CA Attendance System" /D "%~dp0" cmd /k java -jar "backend\target\attendance-backend.jar" --server.address=%APP_HOST% --server.port=%APP_PORT% --app.storage.root="%APP_ROOT%"
 
 echo [WAIT] Waiting for service startup...
 for /l %%i in (1,1,30) do (

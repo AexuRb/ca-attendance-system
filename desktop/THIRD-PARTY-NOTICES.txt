@@ -1,0 +1,10 @@
+CA Attendance System includes the following redistributable runtimes:
+
+- Eclipse Temurin OpenJDK Runtime Environment 21
+  Copyright Eclipse Adoptium contributors and others.
+  Distributed under GPLv2 with the Classpath Exception. The bundled runtime
+  includes its complete license and legal notices under resources/runtime/legal.
+
+- Electron
+  Copyright OpenJS Foundation and Electron contributors.
+  Electron and Chromium license files are included in the packaged app.

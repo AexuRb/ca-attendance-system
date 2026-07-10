@@ -37,7 +37,7 @@ function backendLocations({ isPackaged, resourcesPath, moduleDirectory }) {
   const javaHome = process.env.JAVA_HOME?.trim();
   return {
     java: javaHome ? path.join(javaHome, 'bin', 'java.exe') : 'java',
-    jar: path.join(repoRoot, 'backend', 'target', 'attendance-backend-0.0.1-SNAPSHOT.jar')
+    jar: path.join(repoRoot, 'backend', 'target', 'attendance-backend.jar')
   };
 }
 

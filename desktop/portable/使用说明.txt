@@ -1,0 +1,7 @@
+计算机协会管理系统 2.0.0（便携版）
+
+1. 双击“启动管理系统.bat”，或运行 app\CA-Attendance-System.exe。
+2. 程序运行时可同时在浏览器访问 http://127.0.0.1:8080/。
+3. data、backups、exports、logs 与 app 必须保持在同一个根目录中。
+4. 迁移电脑时，请先退出程序，再复制整个 CAAttendance 文件夹。
+5. 本程序未使用代码签名证书，Windows 首次运行时可能显示信誉提示。
