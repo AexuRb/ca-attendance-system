@@ -525,6 +525,8 @@ try {
         status = "REPAIRING"; receivedAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss");
         handlerName = $ministerName; remark = "烟测维修"
     }
+    $repairDashboard = Invoke-Json GET "/api/stats/dashboard?date=$today"
+    Assert-True ([int]$repairDashboard.ongoingRepairCount -eq 1) "今日工作台未统计进行中的维修事务"
     Invoke-Json PUT "/api/repairs/$($repair.id)" @{
         agreementType = "PUBLIC_DEVICE"; ownerName = "烟测送修$suffix"; ownerPhone = "13000000003";
         deviceType = "台式机"; deviceBrand = "Lenovo"; deviceModel = "M";

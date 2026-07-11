@@ -480,21 +480,52 @@
                 <div class="admin-context-heading">
                   <span class="admin-context-icon"><component :is="activeTabInfo.icon" :size="21" /></span>
                   <div>
-                  <p class="eyebrow">{{ roleDashboard.eyebrow }}</p>
-                  <h3>{{ activeTabInfo.label }}</h3>
-                  <span>{{ activeTabDescription }}</span>
-                  </div>
-                </div>
-                <div class="admin-context-stats" aria-label="后台关键状态">
-                  <div v-for="item in adminContextStats" :key="item.label" :class="`tone-${item.tone || 'steady'}`">
-                    <span>{{ item.label }}</span>
-                    <strong>{{ item.value }}</strong>
+                    <h1>{{ activeTabInfo.label }}</h1>
+                    <span>{{ activeTabDescription }}</span>
                   </div>
                 </div>
               </div>
 
               <div :key="activeTab" class="admin-tab-stage">
           <section v-if="activeTab === 'overview'" class="work-section tab-overview">
+            <section class="today-attention-board" aria-labelledby="today-attention-title">
+              <div class="subsection-head">
+                <div>
+                  <h4 id="today-attention-title"><AlertTriangle :size="17" />今日待处理</h4>
+                  <span v-if="todayIssues.length">{{ todayIssues.length }} 类事项需要关注</span>
+                  <span v-else>当前没有需要处理的异常事项</span>
+                </div>
+              </div>
+
+              <div v-if="todayIssues.length" class="today-issue-grid">
+                <component
+                  :is="issue.actionable ? 'button' : 'article'"
+                  v-for="issue in todayIssues"
+                  :key="issue.id"
+                  :type="issue.actionable ? 'button' : undefined"
+                  class="today-issue-item"
+                  :class="[`tone-${issue.tone}`, { actionable: issue.actionable }]"
+                  @click="openTodayIssue(issue)"
+                >
+                  <span class="today-issue-icon"><component :is="todayIssueIcon(issue.id)" :size="19" /></span>
+                  <span class="today-issue-copy">
+                    <strong>{{ issue.title }}</strong>
+                    <small>{{ issue.detail }}</small>
+                  </span>
+                  <strong class="today-issue-count">{{ issue.count }}<small>{{ issue.unit }}</small></strong>
+                  <ChevronRight v-if="issue.actionable" class="today-issue-arrow" :size="17" />
+                </component>
+              </div>
+
+              <div v-else class="today-clear-state" role="status">
+                <span><CheckCircle2 :size="20" /></span>
+                <div>
+                  <strong>今日暂无待处理事项</strong>
+                  <small>排班、审核、签退与维修状态均正常</small>
+                </div>
+              </div>
+            </section>
+
             <div class="admin-home-layout">
               <section class="admin-duty-board" aria-labelledby="admin-duty-title">
                 <div class="subsection-head">
@@ -502,7 +533,7 @@
                     <h4 id="admin-duty-title"><CalendarDays :size="17" />今日部长排班</h4>
                     <span>按后台设置的值班时段自动分组</span>
                   </div>
-                  <button class="ghost-button" @click="selectTab('schedules')"><Plus :size="16" />安排排班</button>
+                  <button v-if="canOpenAdminTab('schedules')" class="ghost-button" @click="selectTab('schedules')"><Plus :size="16" />安排排班</button>
                 </div>
                 <div v-if="todayPeriodSummary.length" class="admin-duty-timeline">
                   <article
@@ -532,48 +563,13 @@
                 </div>
               </section>
 
-            </div>
-
-            <div class="admin-quick-row" aria-label="快捷操作">
-              <button
-                v-for="action in adminQuickActions"
-                :key="`${action.label}-${action.tab || action.view}`"
-                type="button"
-                class="admin-quick-action"
-                @click="runRoleAction(action)"
-              >
-                <component :is="action.icon" :size="18" />
-                <span>{{ action.label }}</span>
-              </button>
-            </div>
-
-            <div class="overview-layout admin-home-bottom">
-              <div class="overview-panel">
+              <section class="overview-panel today-records-panel" aria-labelledby="today-records-title">
                 <div class="subsection-head">
-                  <h4>今日未签退</h4>
-                  <span>{{ openRecords.length }} 条</span>
-                </div>
-                <div class="table-wrap compact-table overview-table-wrap">
-                  <table>
-                    <thead>
-                      <tr><th>姓名</th><th>学号</th><th>签到时间</th></tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="item in openRecords" :key="item.id">
-                        <td>{{ item.name }}</td>
-                        <td class="mono">{{ item.studentNo }}</td>
-                        <td>{{ timeText(item.checkInTime) }}</td>
-                      </tr>
-                      <tr v-if="openRecords.length === 0"><td colspan="3" class="empty">今日暂无未签退记录</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div class="overview-panel">
-                <div class="subsection-head">
-                  <h4>今日值班记录</h4>
-                  <span>{{ todayRecords.length }} 条</span>
+                  <div>
+                    <h4 id="today-records-title"><ClipboardList :size="17" />今日值班记录</h4>
+                    <span>{{ todayRecords.length }} 条</span>
+                  </div>
+                  <button v-if="canOpenAdminTab('records')" class="ghost-button" @click="selectTab('records')">全部记录<ChevronRight :size="16" /></button>
                 </div>
                 <div class="table-wrap compact-table overview-table-wrap">
                   <table>
@@ -592,7 +588,7 @@
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </section>
             </div>
           </section>
 
@@ -1115,6 +1111,7 @@ import {
   BadgeCheck,
   CalendarDays,
   CheckCircle2,
+  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   Clock3,
@@ -1160,6 +1157,7 @@ import {
   createKioskResetTimer,
   maskStudentNumber
 } from './features/kiosk/kioskFlow.js'
+import { buildTodayIssues } from './features/dashboard/todayIssues.js'
 
 const route = useRoute()
 const appRouter = useRouter()
@@ -1180,7 +1178,6 @@ const liveNow = ref(new Date())
 const currentUser = ref(null)
 const pendingRecords = ref([])
 const attendanceRecords = ref([])
-const openRecords = ref([])
 const todayRecords = ref([])
 const todaySchedule = ref([])
 const weekSchedule = ref([])
@@ -1252,6 +1249,7 @@ const overview = reactive({
     todayRecordCount: 0,
     todayOpenCount: 0,
     todayPendingCount: 0,
+    ongoingRepairCount: 0,
     todayValidHours: 0,
     weekValidHours: 0,
     yearValidHours: 0,
@@ -1363,24 +1361,6 @@ const activeAdminGroup = computed(() => (
   adminNavGroups.value.find(group => group.tabs.some(tab => tab.id === activeTab.value)) || adminNavGroups.value[0]
 ))
 const activeAdminGroupTabs = computed(() => activeAdminGroup.value?.tabs || [])
-const adminContextStats = computed(() => {
-  const service = { label: '本机服务', value: healthOk.value ? '在线' : '未连接', tone: healthOk.value ? 'ok' : 'warn' }
-  if (currentUser.value?.role === 'MEMBER') {
-    return [
-      service,
-      { label: '我的记录', value: myRecordCount.value, tone: 'steady' },
-      { label: '有效时长', value: `${formatHours(myRecordHours.value)} h`, tone: 'steady' },
-      { label: '年级', value: profile.grade || '-', tone: 'steady' }
-    ]
-  }
-  return [
-    service,
-    { label: '待审核', value: overview.pendingCount, tone: overview.pendingCount > 0 ? 'warn' : 'steady' },
-    { label: '未签退', value: overview.dashboard.todayOpenCount, tone: overview.dashboard.todayOpenCount > 0 ? 'warn' : 'steady' },
-    { label: '本周时长', value: `${formatHours(overview.dashboard.weekValidHours)} h`, tone: 'steady' }
-  ]
-})
-const adminQuickActions = computed(() => roleActions.value.slice(0, 5))
 const canExport = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canManageUsers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canImportMembers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
@@ -1409,11 +1389,8 @@ const myRecordCount = computed(() => myRecords.value.length + Number(myTrainingC
 const profileGradeOptions = Array.from({ length: 2057 - 2007 + 1 }, (_, index) => `${2007 + index}级`)
 const userTotalPages = computed(() => Math.max(1, Math.ceil(userTotal.value / userPageSize.value)))
 const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / logPageSize)))
-const overviewDutyDaysText = computed(() => overview.dutyDays.length ? overview.dutyDays.join('、') : '未设置')
 const todayText = computed(() => today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }))
 const weekdayText = computed(() => today.toLocaleDateString('zh-CN', { weekday: 'long' }))
-const todayDayNumber = computed(() => String(today.getDate()).padStart(2, '0'))
-const todayMonthText = computed(() => `${today.getFullYear()} 年 ${today.getMonth() + 1} 月`)
 const kioskDateText = computed(() => liveNow.value.toLocaleDateString('zh-CN', {
   month: 'long',
   day: 'numeric',
@@ -1456,6 +1433,27 @@ const todayPeriodSummary = computed(() => {
   liveNow.value
   return todayIsConfiguredDutyDay.value ? periodSummaryForSlots(todaySchedule.value) : []
 })
+const missingScheduleCount = computed(() => {
+  if (!todayIsConfiguredDutyDay.value) return 0
+  if (!hasDutyPeriodSettings.value) return 1
+  return todayPeriodSummary.value.filter(period => period.missing).length
+})
+const todayIssues = computed(() => buildTodayIssues({
+  pendingCount: overview.pendingCount,
+  openCount: overview.dashboard.todayOpenCount,
+  missingScheduleCount: missingScheduleCount.value,
+  ongoingRepairCount: overview.dashboard.ongoingRepairCount
+}).map(issue => {
+  const needsPeriodSettings = issue.id === 'schedule' && !hasDutyPeriodSettings.value
+  const tab = needsPeriodSettings ? 'settings' : issue.tab
+  return {
+    ...issue,
+    tab,
+    title: needsPeriodSettings ? '值班时段未设置' : issue.title,
+    detail: needsPeriodSettings ? '请先设置今日可用的值班时段' : issue.detail,
+    actionable: canOpenAdminTab(tab)
+  }
+}))
 const kioskCurrentPeriodText = computed(() => {
   const activePeriod = todayPeriodSummary.value.find(period => period.active)
   if (activePeriod) return `当前时段 ${activePeriod.timeText}`
@@ -1481,88 +1479,6 @@ const kioskWeekSummary = computed(() => {
   })
 })
 const dashboardRoleClass = computed(() => currentUser.value ? `role-${String(currentUser.value.role).toLowerCase()}` : '')
-const roleDashboard = computed(() => {
-  const role = currentUser.value?.role
-  return {
-    MEMBER: {
-      eyebrow: 'Member Desk',
-      headerTitle: '个人值班中心',
-      headerMeta: `${currentUser.value?.name || '成员'} · ${todayText.value} ${weekdayText.value}`,
-      title: '我的值班记录',
-      subtitle: '值班记录、个人资料和密码维护',
-      icon: UserRound
-    },
-    MINISTER: {
-      eyebrow: 'Review Desk',
-      headerTitle: '部长审核台',
-      headerMeta: `待审核 ${overview.pendingCount} 条 · 本周 ${formatHours(overview.dashboard.weekValidHours)} h`,
-      title: '审核与统计',
-      subtitle: '待审核记录、今日值班和阶段统计',
-      icon: ListChecks
-    },
-    PRESIDENT: {
-      eyebrow: 'President Desk',
-      headerTitle: '会长工作台',
-      headerMeta: `今日 ${overview.dashboard.todayRecordCount} 条 · 未签退 ${overview.dashboard.todayOpenCount} 条`,
-      title: '成员和值班统筹',
-      subtitle: '成员管理、签到记录、统计和值班星期',
-      icon: ShieldCheck
-    },
-    ADMIN: {
-      eyebrow: 'Admin Console',
-      headerTitle: '管理员控制台',
-      headerMeta: `维护 · 日志 · 数据记录`,
-      title: '系统维护与数据控制',
-      subtitle: '签到记录、成员数据、日志和备份维护',
-      icon: SlidersHorizontal
-    }
-  }[role] || {
-    eyebrow: 'Management Console',
-    headerTitle: '协会值班后台',
-    headerMeta: 'CUGB CA · #include <the.world>',
-    title: '值班后台',
-    subtitle: '协会值班管理',
-    icon: Gauge
-  }
-})
-const roleActions = computed(() => {
-  const role = currentUser.value?.role
-  const actions = {
-    MEMBER: [
-      { label: '个人中心', tab: 'profile', icon: UserRound },
-      { label: '培训', tab: 'trainings', icon: GraduationCap },
-      { label: '签到台', view: 'kiosk', icon: ScanLine }
-    ],
-    MINISTER: [
-      { label: '待审核', tab: 'reviews', icon: ListChecks },
-      { label: '统计', tab: 'stats', icon: LayoutDashboard },
-      { label: '培训', tab: 'trainings', icon: GraduationCap },
-      { label: '维修', tab: 'repairs', icon: Wrench },
-      { label: '个人中心', tab: 'profile', icon: UserRound }
-    ],
-    PRESIDENT: [
-      { label: '成员', tab: 'members', icon: UsersRound },
-      { label: '记录', tab: 'records', icon: ClipboardList },
-      { label: '培训', tab: 'trainings', icon: GraduationCap },
-      { label: '排班', tab: 'schedules', icon: CalendarDays },
-      { label: '维修', tab: 'repairs', icon: Wrench },
-      { label: '数据中心', tab: 'data', icon: Database },
-      { label: '统计', tab: 'stats', icon: LayoutDashboard },
-      { label: '值班星期', tab: 'settings', icon: SlidersHorizontal }
-    ],
-    ADMIN: [
-      { label: '记录', tab: 'records', icon: ClipboardList },
-      { label: '成员', tab: 'members', icon: UsersRound },
-      { label: '培训', tab: 'trainings', icon: GraduationCap },
-      { label: '排班', tab: 'schedules', icon: CalendarDays },
-      { label: '维修', tab: 'repairs', icon: Wrench },
-      { label: '数据中心', tab: 'data', icon: Database },
-      { label: '日志', tab: 'logs', icon: History }
-    ]
-  }[role] || []
-  const allowed = new Set(availableTabs.value.map(tab => tab.id))
-  return actions.filter(action => action.view || allowed.has(action.tab))
-})
 const logFilters = reactive({
   keyword: '',
   actionType: '',
@@ -1932,8 +1848,27 @@ async function selectAdminGroup(group) {
 
 function adminTabBadge(tabId) {
   if (tabId === 'reviews' && overview.pendingCount > 0) return overview.pendingCount
-  if (tabId === 'overview' && overview.dashboard.todayOpenCount > 0) return overview.dashboard.todayOpenCount
+  if (tabId === 'overview') {
+    return todayIssues.value.reduce((sum, issue) => sum + issue.count, 0) || ''
+  }
   return ''
+}
+
+function canOpenAdminTab(tab) {
+  return availableTabs.value.some(item => item.id === tab)
+}
+
+function todayIssueIcon(issueId) {
+  return {
+    pending: ListChecks,
+    open: Clock3,
+    schedule: CalendarDays,
+    repairs: Wrench
+  }[issueId] || AlertTriangle
+}
+
+async function openTodayIssue(issue) {
+  if (issue?.actionable) await selectTab(issue.tab)
 }
 
 async function selectTab(tab, options = {}) {
@@ -1998,22 +1933,13 @@ async function loadTab(tab) {
   }
 }
 
-async function runRoleAction(action) {
-  if (action.view) {
-    if (action.view === 'kiosk') await appRouter.push('/kiosk')
-    return
-  }
-  if (action.tab) await selectTab(action.tab)
-}
-
 async function loadOverview() {
   await run(async () => {
-    const [pending, summary, dutyDays, dashboard, open, records, todayItems, weekItems, periods, publicWeekdays] = await Promise.all([
+    const [pending, summary, dutyDays, dashboard, records, todayItems, weekItems, periods, publicWeekdays] = await Promise.all([
       api('/api/attendance/reviews/pending'),
       api(`/api/stats/summary?from=${today.getFullYear()}-01-01&to=${todayValue}`),
       api('/api/settings/weekdays'),
       api(`/api/stats/dashboard?date=${todayValue}`),
-      api(`/api/attendance/open?from=${todayValue}&to=${todayValue}`),
       api(`/api/attendance?from=${todayValue}&to=${todayValue}`),
       api('/api/public/schedules/today'),
       api('/api/public/schedules/week'),
@@ -2025,7 +1951,6 @@ async function loadOverview() {
     overview.totalCount = summary.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0)
     overview.dutyDays = dutyDays.filter(day => day.enabled).map(day => day.weekday_name)
     Object.assign(overview.dashboard, dashboard)
-    openRecords.value = open
     todayRecords.value = records
       .slice()
       .sort((a, b) => String(b.checkInTime || '').localeCompare(String(a.checkInTime || '')))

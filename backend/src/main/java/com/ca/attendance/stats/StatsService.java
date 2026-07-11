@@ -222,6 +222,12 @@ public class StatsService {
                 WHERE duty_date = ?
                   AND (check_in_status = 'PENDING' OR check_out_status = 'PENDING')
                 """, date));
+        result.put("ongoingRepairCount", number("""
+                SELECT COUNT(*)
+                FROM repair_cases
+                WHERE deleted_at IS NULL
+                  AND status IN ('RECEIVED', 'DIAGNOSING', 'REPAIRING', 'WAITING_PICKUP')
+                """));
         result.put("todayValidHours", hoursForRange(date, date));
         result.put("weekValidHours", hoursForRange(weekStart, weekEnd));
         result.put("yearValidHours", hoursForRange(yearStart, date));
