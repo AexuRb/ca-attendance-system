@@ -157,6 +157,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { Download, GraduationCap, Plus, RefreshCw, Save, Trash2, Upload } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
+import { requestConfirmation } from '../shared/confirm.js'
 
 const props = defineProps({
   currentUser: { type: Object, default: null }
@@ -260,7 +261,11 @@ async function saveSession() {
 }
 
 async function archiveSession(session) {
-  if (!window.confirm(`确认归档培训“${session.title}”？`)) return
+  if (!await requestConfirmation({
+    title: '归档培训',
+    message: `确认归档培训“${session.title}”？归档后不再显示在培训列表中。`,
+    confirmLabel: '归档'
+  })) return
   await run(async () => {
     await del(`/api/trainings/${session.id}`)
     notify('培训已归档', 'success')
@@ -340,7 +345,11 @@ async function saveParticipant() {
 
 async function deleteParticipant(item) {
   if (!selectedSession.value) return
-  if (!window.confirm(`确认删除 ${item.name} 的参与记录？`)) return
+  if (!await requestConfirmation({
+    title: '删除参与记录',
+    message: `确认删除 ${item.name} 的培训参与记录？`,
+    confirmLabel: '删除'
+  })) return
   await run(async () => {
     await del(`/api/trainings/${selectedSession.value.id}/participants/${item.id}`)
     notify('参与记录已删除', 'success')

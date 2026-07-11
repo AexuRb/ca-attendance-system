@@ -173,6 +173,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { AlertTriangle, CalendarDays, Download, FileSearch, FileSpreadsheet, Plus, RefreshCw, Save, Trash2, Upload } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
+import { requestConfirmation } from '../shared/confirm.js'
 
 const props = defineProps({
   currentUser: { type: Object, default: null }
@@ -396,7 +397,11 @@ async function saveSchedule() {
 }
 
 async function archiveSchedule(slot) {
-  if (!window.confirm(`确认归档“${slot.weekdayName} ${slot.title}”这段排班？`)) return
+  if (!await requestConfirmation({
+    title: '归档排班',
+    message: `确认归档“${slot.weekdayName} ${slot.title}”这段排班？`,
+    confirmLabel: '归档'
+  })) return
   await run(async () => {
     await del(`/api/schedules/${slot.id}`)
     notify('排班已归档', 'success')

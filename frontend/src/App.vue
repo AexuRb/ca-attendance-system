@@ -20,7 +20,7 @@
       </div>
 
       <nav class="rail-nav" aria-label="主导航">
-        <button :class="{ active: view === 'kiosk' }" @click="view = 'kiosk'">
+        <button :class="{ active: view === 'kiosk' }" @click="returnToKiosk">
           <ScanLine :size="18" />
           <span>签到台</span>
         </button>
@@ -1076,12 +1076,14 @@
       <Transition name="toast-pop">
         <div v-if="toast.message" class="toast" :class="toast.type" role="status" aria-live="polite">{{ toast.message }}</div>
       </Transition>
+      <ActionConfirmDialog />
     </main>
   </div>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   BadgeCheck,
   CalendarDays,
@@ -1116,15 +1118,22 @@ import {
   Wrench,
   X
 } from '@lucide/vue'
-import { api, del, post, put, setToken } from './api.js'
+import { api, del, getToken, post, put, setToken } from './api.js'
+import { adminModuleLocation, tabFromRoute } from './app/router.js'
 import DataCenterPanel from './components/DataCenterPanel.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
 import RepairPanel from './components/RepairPanel.vue'
 import SchedulePanel from './components/SchedulePanel.vue'
 import TrainingPanel from './components/TrainingPanel.vue'
+import ActionConfirmDialog from './shared/ActionConfirmDialog.vue'
+import { requestConfirmation, requestTextInput } from './shared/confirm.js'
+
+const route = useRoute()
+const appRouter = useRouter()
 
 const view = ref('kiosk')
 const activeTab = ref('overview')
+const pendingAdminTab = ref(null)
 const healthOk = ref(false)
 const busy = ref(false)
 const studentNo = ref('')
@@ -1532,6 +1541,17 @@ onMounted(async () => {
   await checkHealth()
   if (healthOk.value) await checkSetupStatus()
   if (!setupRequired.value) await loadPublicSchedules()
+  await restoreSession()
+  if (setupRequired.value) {
+    await appRouter.replace('/login')
+  } else if (route.name === 'admin-module' && !currentUser.value) {
+    pendingAdminTab.value = tabFromRoute(route)
+    await appRouter.replace('/login')
+  } else if (route.name === 'login' && currentUser.value) {
+    await selectTab(availableTabs.value[0]?.id || 'profile', { replace: true })
+  } else {
+    await applyRouteLocation()
+  }
   overviewRefreshTimer = window.setInterval(refreshVisibleOverview, 30_000)
   document.addEventListener('visibilitychange', refreshVisibleOverview)
   window.addEventListener('focus', refreshVisibleOverview)
@@ -1539,6 +1559,11 @@ onMounted(async () => {
 
 let kioskClockTimer = null
 let overviewRefreshTimer = null
+let appliedRouteKey = ''
+
+watch(() => route.fullPath, () => {
+  void applyRouteLocation()
+})
 
 onBeforeUnmount(() => {
   if (kioskClockTimer) window.clearInterval(kioskClockTimer)
@@ -1575,6 +1600,16 @@ async function checkSetupStatus() {
     if (setupRequired.value) view.value = 'dashboard'
   } catch {
     setupRequired.value = false
+  }
+}
+
+async function restoreSession() {
+  if (!getToken()) return
+  try {
+    currentUser.value = await api('/api/auth/me')
+  } catch {
+    setToken('')
+    currentUser.value = null
   }
 }
 
@@ -1632,7 +1667,11 @@ function resetKiosk() {
 }
 
 function openDashboard() {
-  view.value = 'dashboard'
+  if (!currentUser.value) {
+    void appRouter.push('/login')
+    return
+  }
+  void selectTab(activeTab.value || availableTabs.value[0]?.id || 'profile')
 }
 
 function returnToKiosk() {
@@ -1640,7 +1679,7 @@ function returnToKiosk() {
   loginError.value = false
   showLoginPassword.value = false
   loginForm.password = ''
-  view.value = 'kiosk'
+  void appRouter.push('/kiosk')
 }
 
 async function login() {
@@ -1662,7 +1701,13 @@ async function login() {
     showLoginPassword.value = false
     loginVerified.value = false
     notify('已登录后台', 'success')
-    await selectTab(availableTabs.value[0]?.id || 'profile')
+    const requestedTab = pendingAdminTab.value
+    pendingAdminTab.value = null
+    const targetTab = availableTabs.value.some(tab => tab.id === requestedTab)
+      ? requestedTab
+      : availableTabs.value[0]?.id || 'profile'
+    appliedRouteKey = ''
+    await selectTab(targetTab, { replace: true })
   } catch (error) {
     loginVerified.value = false
     triggerLoginError()
@@ -1697,7 +1742,8 @@ async function initializeSystem() {
     loginForm.studentNo = res.studentNo
     notify('系统初始化完成', 'success')
     await loadPublicSchedules()
-    await selectTab(availableTabs.value[0]?.id || 'overview')
+    appliedRouteKey = ''
+    await selectTab(availableTabs.value[0]?.id || 'overview', { replace: true })
   } catch (error) {
     loginVerified.value = false
     triggerLoginError()
@@ -1715,6 +1761,7 @@ function logout() {
   loginVerified.value = false
   clearPasswordForm()
   notify('已退出', 'info')
+  void appRouter.replace('/login')
 }
 
 function loadRememberedLoginAccount() {
@@ -1760,7 +1807,45 @@ function adminTabBadge(tabId) {
   return ''
 }
 
-async function selectTab(tab) {
+async function selectTab(tab, options = {}) {
+  const safeTab = availableTabs.value.some(item => item.id === tab)
+    ? tab
+    : availableTabs.value[0]?.id || 'profile'
+  const location = adminModuleLocation(safeTab, options.query || {})
+  const sameTab = route.name === 'admin-module' && tabFromRoute(route) === safeTab
+  if (!sameTab || Object.keys(options.query || {}).length) {
+    await appRouter[options.replace ? 'replace' : 'push'](location)
+  }
+  await applyRouteLocation()
+}
+
+async function applyRouteLocation() {
+  if (route.name === 'kiosk') {
+    view.value = 'kiosk'
+    return
+  }
+
+  view.value = 'dashboard'
+  if (route.name === 'login') return
+
+  const tab = tabFromRoute(route)
+  if (!tab) return
+  if (!currentUser.value) {
+    pendingAdminTab.value = tab
+    return
+  }
+  if (!availableTabs.value.some(item => item.id === tab)) {
+    await appRouter.replace(adminModuleLocation(availableTabs.value[0]?.id || 'profile'))
+    return
+  }
+
+  const routeKey = `${route.fullPath}|${currentUser.value.id || currentUser.value.studentNo}`
+  if (appliedRouteKey === routeKey) return
+  appliedRouteKey = routeKey
+  await loadTab(tab)
+}
+
+async function loadTab(tab) {
   activeTab.value = tab
   if (tab === 'overview') await loadOverview()
   if (tab === 'reviews') await loadPending()
@@ -1785,7 +1870,7 @@ async function selectTab(tab) {
 
 async function runRoleAction(action) {
   if (action.view) {
-    view.value = action.view
+    if (action.view === 'kiosk') await appRouter.push('/kiosk')
     return
   }
   if (action.tab) await selectTab(action.tab)
@@ -1883,7 +1968,15 @@ async function loadPending() {
 }
 
 async function review(id, part, action) {
-  const reason = action === 'REJECT' ? window.prompt('请输入驳回原因') : '审核通过'
+  const reason = action === 'REJECT'
+    ? await requestTextInput({
+        title: '驳回签到记录',
+        message: '请填写成员能够理解的具体原因。',
+        inputLabel: '驳回原因',
+        inputPlaceholder: '例如：签到时间填写错误',
+        confirmLabel: '确认驳回'
+      })
+    : '审核通过'
   if (action === 'REJECT' && !reason) return
   await run(async () => {
     await post(`/api/attendance/${id}/review`, { part, action, reason })
@@ -1895,7 +1988,7 @@ async function review(id, part, action) {
 async function bulkReview(part) {
   if (!pendingRecords.value.length) return notify('当前没有待审核记录', 'warn')
   const label = part === 'CHECK_IN' ? '签到' : part === 'CHECK_OUT' ? '签退' : '签到和签退'
-  if (!dangerConfirm(`确认将当前列表中可处理的${label}全部通过？`, '确认')) return
+  if (!await dangerConfirm(`确认将当前列表中可处理的${label}全部通过？`, '确认')) return
   await run(async () => {
     const result = await post('/api/attendance/reviews/bulk', {
       ids: pendingRecords.value.map(item => item.id),
@@ -1950,7 +2043,7 @@ function clearManualRecordForm() {
 async function deleteAttendanceRecord(item) {
   if (!canDeleteAttendanceRecords.value) return notify('只有会长或管理员可以删除签到记录', 'warn')
   const timeLabel = item.checkInTime ? timeText(item.checkInTime) : item.dutyDate
-  if (!dangerConfirm(`确认删除 ${item.name}（${item.studentNo}）在 ${timeLabel} 的签到记录？删除后无法恢复。`, '删除')) return
+  if (!await dangerConfirm(`确认删除 ${item.name}（${item.studentNo}）在 ${timeLabel} 的签到记录？删除后无法恢复。`, '删除')) return
   await run(async () => {
     await del(`/api/attendance/${item.id}`)
     notify('签到记录已删除，删除前已自动备份', 'success')
@@ -2057,7 +2150,7 @@ async function bulkUpdateUserStatus(status) {
   if (!canManageUsers.value) return notify('无权管理成员', 'warn')
   if (userTotal.value === 0) return notify('筛选后列表暂无成员', 'warn')
   const label = status === 'ACTIVE' ? '启用' : '停用'
-  if (!dangerConfirm(`确认将当前筛选结果中的 ${userTotal.value} 个账号全部${label}？`, label)) return
+  if (!await dangerConfirm(`确认将当前筛选结果中的 ${userTotal.value} 个账号全部${label}？`, label)) return
   await run(async () => {
     const result = await put('/api/users/bulk-status', {
       keyword: userQuery.value,
@@ -2075,7 +2168,7 @@ async function bulkUpdateUserStatus(status) {
 
 async function resetPassword(user) {
   if (!canEditUser(user)) return notify('只有管理员可以修改管理员账号', 'warn')
-  if (!dangerConfirm(`确认重置 ${user.name} 的密码为学号后六位？`, '重置')) return
+  if (!await dangerConfirm(`确认重置 ${user.name} 的密码为学号后六位？`, '重置')) return
   await run(async () => {
     await post(`/api/users/${user.id}/reset-password`, { reason: '前端重置密码' })
     notify('密码已重置', 'success')
@@ -2084,7 +2177,7 @@ async function resetPassword(user) {
 
 async function deleteUser(user) {
   if (!canDeleteUser(user)) return notify('不能删除当前登录账号', 'warn')
-  if (!dangerConfirm(`确认删除 ${user.name}（${user.studentNo}）？删除后无法恢复。已有值班记录的成员请改为停用账号。`, '删除')) return
+  if (!await dangerConfirm(`确认删除 ${user.name}（${user.studentNo}）？删除后无法恢复。已有值班记录的成员请改为停用账号。`, '删除')) return
   await run(async () => {
     await del(`/api/users/${user.id}`)
     notify('成员已删除，删除前已自动备份', 'success')
@@ -2169,7 +2262,7 @@ async function downloadBackup(item) {
 
 async function deleteBackup(item) {
   if (!canDeleteBackups.value) return notify('只有管理员可以删除备份', 'warn')
-  if (!dangerConfirm(`确认删除备份 ${item.filename}？删除后无法恢复。`, '删除')) return
+  if (!await dangerConfirm(`确认删除备份 ${item.filename}？删除后无法恢复。`, '删除')) return
   await run(async () => {
     await del(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
     notify('备份已删除', 'success')
@@ -2184,7 +2277,7 @@ function selectRestoreFile(event) {
 async function restoreBackup() {
   if (!canRestoreBackups.value) return notify('只有管理员可以恢复备份', 'warn')
   if (!restoreFile.value) return notify('请选择备份 zip 文件', 'warn')
-  if (!dangerConfirm('恢复会覆盖当前成员、签到记录、日志和值班星期。系统会先自动备份当前数据，恢复成功后需要重新登录。', '恢复')) return
+  if (!await dangerConfirm('恢复会覆盖当前成员、签到记录、日志和值班星期。系统会先自动备份当前数据，恢复成功后需要重新登录。', '恢复')) return
 
   const formData = new FormData()
   formData.append('file', restoreFile.value)
@@ -2326,7 +2419,7 @@ async function exportOperationLogs() {
 
 async function clearOperationLogs() {
   if (!canViewLogs.value) return notify('只有管理员可以清空操作日志', 'warn')
-  if (!dangerConfirm('确认清空全部操作日志？建议先导出日志留档。该操作不可恢复。', '清空日志')) return
+  if (!await dangerConfirm('确认清空全部操作日志？建议先导出日志留档。该操作不可恢复。', '清空日志')) return
   await run(async () => {
     const result = await del('/api/logs')
     operationLogs.value = []
@@ -2399,8 +2492,12 @@ function downloadBlob(blob, filename) {
 }
 
 function dangerConfirm(message, phrase = '确认') {
-  const input = window.prompt(`${message}\n\n请输入“${phrase}”继续`)
-  return input === phrase
+  return requestConfirmation({
+    title: phrase === '确认' ? '确认操作' : `${phrase}确认`,
+    message,
+    confirmLabel: phrase,
+    requiredText: phrase
+  })
 }
 
 function canEditUser(user) {

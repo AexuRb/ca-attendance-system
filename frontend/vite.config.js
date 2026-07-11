@@ -4,6 +4,10 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   plugins: [vue()],
+  test: {
+    environment: 'jsdom',
+    clearMocks: true
+  },
   server: {
     port: 5173,
     proxy: {

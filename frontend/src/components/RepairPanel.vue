@@ -268,6 +268,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ArrowLeft, Download, FileText, Plus, Printer, RefreshCw, RotateCcw, Save, Trash2, Wrench, X } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
+import { requestConfirmation } from '../shared/confirm.js'
 
 const props = defineProps({
   currentUser: { type: Object, default: null }
@@ -462,7 +463,11 @@ async function exportRepairs() {
 
 async function deleteRepair(item) {
   if (!canDeleteRepairs.value) return notify('只有会长或管理员可以删除维修事务', 'warn')
-  if (!window.confirm(`确认将维修事务 ${item.caseNo} 移入回收站？`)) return
+  if (!await requestConfirmation({
+    title: '移入维修回收站',
+    message: `确认将维修事务 ${item.caseNo} 移入回收站？管理员可以稍后恢复。`,
+    confirmLabel: '移入回收站'
+  })) return
   await run(async () => {
     await del(`/api/repairs/${item.id}`)
     selectedRepair.value = null
@@ -474,7 +479,12 @@ async function deleteRepair(item) {
 
 async function restoreRepair(item) {
   if (!canManageRecycle.value) return notify('只有管理员可以恢复维修事务', 'warn')
-  if (!window.confirm(`确认恢复维修事务 ${item.caseNo}？`)) return
+  if (!await requestConfirmation({
+    title: '恢复维修事务',
+    message: `确认恢复维修事务 ${item.caseNo}？`,
+    confirmLabel: '恢复',
+    tone: 'steady'
+  })) return
   await run(async () => {
     await post(`/api/repairs/${item.id}/restore`)
     selectedRepair.value = null

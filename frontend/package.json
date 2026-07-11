@@ -6,12 +6,20 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@lucide/vue": "^1.21.0",
     "@vitejs/plugin-vue": "^6.0.7",
     "vite": "^8.1.4",
-    "vue": "^3.5.38"
+    "vue": "^3.5.38",
+    "vue-router": "4.6.4"
+  },
+  "devDependencies": {
+    "@vue/test-utils": "^2.4.11",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.10"
   }
 }

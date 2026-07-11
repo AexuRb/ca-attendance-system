@@ -78,6 +78,8 @@ def main() -> None:
         page.on("pageerror", lambda err: console_errors.append(str(err)))
 
         page.goto(base_url, wait_until="networkidle")
+        if not page.url.endswith("/#/kiosk"):
+            raise AssertionError(f"kiosk route mismatch: {page.url}")
         setup_heading = page.get_by_role("heading", name="创建管理员")
         if setup_heading.is_visible():
             page.screenshot(path=str(screenshot_dir / "setup.png"), full_page=True)
@@ -127,6 +129,8 @@ def main() -> None:
 
         page.get_by_role("button", name="进入后台").click()
         expect(page.get_by_role("heading", name="后台身份验证")).to_be_visible(timeout=10_000)
+        if not page.url.endswith("/#/login"):
+            raise AssertionError(f"login route mismatch: {page.url}")
         page.wait_for_timeout(800)
         page.screenshot(path=str(screenshot_dir / "login.png"), full_page=True)
         expect(page.get_by_role("button", name="返回签到台")).to_be_visible(timeout=10_000)
@@ -172,6 +176,16 @@ def main() -> None:
             raise AssertionError(f"remembered login account mismatch: {remembered_account!r}")
         page.wait_for_timeout(750)
         page.screenshot(path=str(screenshot_dir / "dashboard-home.png"), full_page=True)
+        if not page.url.endswith("/#/admin/today"):
+            raise AssertionError(f"today route mismatch: {page.url}")
+
+        click_tab(page, "成员")
+        if not page.url.endswith("/#/admin/members"):
+            raise AssertionError(f"members route mismatch: {page.url}")
+        page.reload(wait_until="networkidle")
+        expect(page.get_by_role("heading", name="成员管理")).to_be_visible(timeout=15_000)
+        page.go_back(wait_until="networkidle")
+        expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
 
         for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
             click_tab(page, label)
