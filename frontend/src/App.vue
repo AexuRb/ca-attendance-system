@@ -1867,20 +1867,6 @@ function effectiveStatusText(status) {
   }[status] || status
 }
 
-function sourceText(source) {
-  return {
-    PUBLIC: '公开提交',
-    ADMIN_MANUAL: '后台手动'
-  }[source] || source || '-'
-}
-
-function bytesText(value) {
-  const size = Number(value || 0)
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-}
-
 function periodSummaryForSlots(slots) {
   const periods = dutyPeriodsForDisplay()
   const groupedSlots = slotsByAssignedPeriod(slots, periods)
