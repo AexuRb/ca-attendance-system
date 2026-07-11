@@ -47,8 +47,21 @@ if "%PORT_CHECK%"=="11" (
   exit /b 1
 )
 
+set "NEED_BUILD=0"
 if not exist "%JAR%" (
-  echo [INFO] Backend jar not found. Building it now...
+  set "NEED_BUILD=1"
+) else (
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$jarTime = (Get-Item -LiteralPath $env:JAR).LastWriteTimeUtc; $newer = Get-ChildItem -LiteralPath (Join-Path $env:BACKEND_DIR 'src\main'), (Join-Path $env:BACKEND_DIR 'pom.xml') -Recurse -File | Where-Object { $_.LastWriteTimeUtc -gt $jarTime } | Select-Object -First 1; if ($newer) { exit 10 } else { exit 0 }"
+  if errorlevel 10 (
+    set "NEED_BUILD=1"
+  ) else if errorlevel 1 (
+    echo [WARN] Could not verify backend jar freshness. Rebuilding it for safety...
+    set "NEED_BUILD=1"
+  )
+)
+
+if "%NEED_BUILD%"=="1" (
+  echo [INFO] Backend jar is missing or older than the current source. Building it now...
   where mvn >nul 2>nul
   if errorlevel 1 (
     echo [ERROR] Maven was not found.
