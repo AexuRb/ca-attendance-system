@@ -13,9 +13,9 @@
     </div>
 
     <div class="filters training-filters">
-      <input v-model.trim="filters.keyword" placeholder="搜索标题、地点、主讲人" @keyup.enter="loadSessions" />
-      <input v-model="filters.from" type="date" />
-      <input v-model="filters.to" type="date" />
+      <label class="filter-field" for="trainingKeyword"><span>关键词</span><input id="trainingKeyword" v-model.trim="filters.keyword" name="keyword" autocomplete="off" placeholder="标题、地点或主讲人" @keyup.enter="loadSessions" /></label>
+      <label class="filter-field" for="trainingFrom"><span>开始日期</span><input id="trainingFrom" v-model="filters.from" name="from" type="date" /></label>
+      <label class="filter-field" for="trainingTo"><span>结束日期</span><input id="trainingTo" v-model="filters.to" name="to" type="date" /></label>
       <button class="ghost-button" @click="loadSessions">查询</button>
     </div>
 
@@ -24,16 +24,16 @@
         <h4><GraduationCap :size="17" />{{ editingSessionId ? '编辑培训' : '新增培训' }}</h4>
         <span>培训创建后，可在右侧导入或手动维护参与名单</span>
       </div>
-      <form class="training-form-grid" @submit.prevent="saveSession">
-        <input v-model.trim="sessionForm.title" placeholder="培训标题" />
-        <input v-model="sessionForm.trainingDate" type="date" />
-        <input v-model="sessionForm.startTime" type="time" />
-        <input v-model="sessionForm.endTime" type="time" />
-        <input v-model.trim="sessionForm.location" placeholder="地点" />
-        <input v-model.trim="sessionForm.speaker" placeholder="主讲人" />
-        <input class="training-description-input" v-model.trim="sessionForm.description" placeholder="说明，可选" />
+      <form class="training-form-grid" novalidate @input="setDirty('session', true)" @change="setDirty('session', true)" @submit.prevent="saveSession">
+        <label for="trainingTitle"><span>培训标题</span><input id="trainingTitle" v-model.trim="sessionForm.title" name="title" :aria-invalid="Boolean(sessionErrors.title)" required /><small v-if="sessionErrors.title" class="field-error">{{ sessionErrors.title }}</small></label>
+        <label for="trainingDate"><span>培训日期</span><input id="trainingDate" v-model="sessionForm.trainingDate" name="trainingDate" type="date" :aria-invalid="Boolean(sessionErrors.trainingDate)" required /><small v-if="sessionErrors.trainingDate" class="field-error">{{ sessionErrors.trainingDate }}</small></label>
+        <label for="trainingStartTime"><span>开始时间</span><input id="trainingStartTime" v-model="sessionForm.startTime" name="startTime" type="time" /></label>
+        <label for="trainingEndTime"><span>结束时间</span><input id="trainingEndTime" v-model="sessionForm.endTime" name="endTime" type="time" /></label>
+        <label for="trainingLocation"><span>地点</span><input id="trainingLocation" v-model.trim="sessionForm.location" name="location" autocomplete="off" /></label>
+        <label for="trainingSpeaker"><span>主讲人</span><input id="trainingSpeaker" v-model.trim="sessionForm.speaker" name="speaker" autocomplete="name" /></label>
+        <label class="training-description-input" for="trainingDescription"><span>说明</span><input id="trainingDescription" v-model.trim="sessionForm.description" name="description" placeholder="可选" /></label>
         <div class="training-form-actions">
-          <button class="primary-action" type="submit" :disabled="busy || !sessionForm.title || !sessionForm.trainingDate">
+          <button class="primary-action" type="submit" :disabled="busy">
             <Save :size="16" />保存培训
           </button>
           <button class="ghost-button" type="button" @click="cancelSessionForm">取消</button>
@@ -97,7 +97,7 @@
               <span>识别列：学号、姓名、时长、备注；时长未填时使用培训开始/结束时间</span>
             </div>
             <div class="training-import-row">
-              <input class="file-input" type="file" accept=".xlsx,.xls" @change="pickImportFile" />
+              <label class="file-field" for="trainingImportFile"><span>Excel 文件</span><input id="trainingImportFile" class="file-input" name="trainingImportFile" type="file" accept=".xlsx,.xls" @change="pickImportFile" /></label>
               <span>{{ importFile ? `${importFile.name} · ${bytesText(importFile.size)}` : '请选择 Excel 文件' }}</span>
               <button class="ghost-button" :disabled="busy" @click="downloadImportTemplate"><Download :size="16" />模板</button>
               <button class="primary-action" :disabled="busy || !importFile" @click="importParticipants"><Upload :size="16" />导入</button>
@@ -115,12 +115,12 @@
           </div>
 
           <div v-if="canManageTrainings && showParticipantForm" class="inline-form-block participant-form-panel">
-            <form class="participant-form-grid" @submit.prevent="saveParticipant">
-              <input v-model.trim="participantForm.studentNo" placeholder="学号" />
-              <input v-model.trim="participantForm.name" placeholder="姓名" />
-              <input v-model.number="participantForm.durationHours" min="0" max="999.99" step="0.25" type="number" placeholder="时长" />
-              <input v-model.trim="participantForm.remark" placeholder="备注，可选" />
-              <button class="primary-action" type="submit" :disabled="busy || !participantForm.name">
+            <form class="participant-form-grid" novalidate @input="setDirty('participant', true)" @change="setDirty('participant', true)" @submit.prevent="saveParticipant">
+              <label for="participantStudentNo"><span>学号</span><input id="participantStudentNo" v-model.trim="participantForm.studentNo" name="studentNo" inputmode="numeric" autocomplete="off" /></label>
+              <label for="participantName"><span>姓名</span><input id="participantName" v-model.trim="participantForm.name" name="name" autocomplete="name" :aria-invalid="Boolean(participantErrors.name)" required /><small v-if="participantErrors.name" class="field-error">{{ participantErrors.name }}</small></label>
+              <label for="participantDuration"><span>计入时长</span><input id="participantDuration" v-model.number="participantForm.durationHours" name="durationHours" min="0" max="999.99" step="0.25" type="number" :aria-invalid="Boolean(participantErrors.durationHours)" /><small v-if="participantErrors.durationHours" class="field-error">{{ participantErrors.durationHours }}</small></label>
+              <label for="participantRemark"><span>备注</span><input id="participantRemark" v-model.trim="participantForm.remark" name="remark" placeholder="可选" /></label>
+              <button class="primary-action" type="submit" :disabled="busy">
                 <Save :size="16" />保存
               </button>
               <button class="ghost-button" type="button" @click="cancelParticipantForm">取消</button>
@@ -154,7 +154,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { Download, GraduationCap, Plus, RefreshCw, Save, Trash2, Upload } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
 import { requestConfirmation } from '../shared/confirm.js'
@@ -162,7 +162,7 @@ import { requestConfirmation } from '../shared/confirm.js'
 const props = defineProps({
   currentUser: { type: Object, default: null }
 })
-const emit = defineEmits(['notify'])
+const emit = defineEmits(['notify', 'dirty-change'])
 
 const busy = ref(false)
 const sessions = ref([])
@@ -175,6 +175,7 @@ const importFile = ref(null)
 const importResult = ref(null)
 const showParticipantForm = ref(false)
 const editingParticipantId = ref(null)
+const dirtyScopes = ref(new Set())
 
 const today = new Date()
 const todayValue = formatLocalDate(today)
@@ -185,6 +186,8 @@ const filters = reactive({
 })
 const sessionForm = reactive(emptySessionForm())
 const participantForm = reactive(emptyParticipantForm())
+const sessionErrors = reactive({ title: '', trainingDate: '' })
+const participantErrors = reactive({ name: '', durationHours: '' })
 
 const canManageTrainings = computed(() => ['PRESIDENT', 'ADMIN'].includes(props.currentUser?.role))
 const totalParticipants = computed(() => sessions.value.reduce((sum, item) => sum + Number(item.participantCount || 0), 0))
@@ -207,6 +210,7 @@ async function loadSessions() {
 }
 
 async function selectSession(session) {
+  if (!await confirmLocalChanges()) return
   selectedSession.value = session
   importResult.value = null
   cancelParticipantForm()
@@ -220,12 +224,16 @@ async function loadParticipants(sessionId) {
 }
 
 function startCreateSession() {
+  cancelParticipantForm()
   editingSessionId.value = null
   Object.assign(sessionForm, emptySessionForm())
+  clearSessionErrors()
+  setDirty('session', false)
   showSessionForm.value = true
 }
 
 function startEditSession(session) {
+  cancelParticipantForm()
   editingSessionId.value = session.id
   Object.assign(sessionForm, {
     title: session.title,
@@ -236,6 +244,8 @@ function startEditSession(session) {
     speaker: session.speaker || '',
     description: session.description || ''
   })
+  clearSessionErrors()
+  setDirty('session', false)
   showSessionForm.value = true
 }
 
@@ -243,9 +253,12 @@ function cancelSessionForm() {
   showSessionForm.value = false
   editingSessionId.value = null
   Object.assign(sessionForm, emptySessionForm())
+  clearSessionErrors()
+  setDirty('session', false)
 }
 
 async function saveSession() {
+  if (!await validateSessionForm()) return
   await run(async () => {
     const payload = {
       ...sessionForm,
@@ -277,6 +290,7 @@ async function archiveSession(session) {
 function pickImportFile(event) {
   importFile.value = event.target.files?.[0] || null
   importResult.value = null
+  setDirty('import', Boolean(importFile.value))
 }
 
 async function importParticipants() {
@@ -289,6 +303,7 @@ async function importParticipants() {
       body: formData
     })
     importFile.value = null
+    setDirty('import', false)
     notify('培训名单已导入', importResult.value.skipped ? 'warn' : 'success')
     await loadSessions()
   })
@@ -309,6 +324,8 @@ function startCreateParticipant() {
     participantForm.name = selectedSession.value.speaker
   }
   participantForm.durationHours = defaultSessionDuration(selectedSession.value)
+  clearParticipantErrors()
+  setDirty('participant', false)
   showParticipantForm.value = true
 }
 
@@ -320,6 +337,8 @@ function startEditParticipant(item) {
     durationHours: Number(item.durationHours || 0),
     remark: item.remark || ''
   })
+  clearParticipantErrors()
+  setDirty('participant', false)
   showParticipantForm.value = true
 }
 
@@ -327,10 +346,13 @@ function cancelParticipantForm() {
   showParticipantForm.value = false
   editingParticipantId.value = null
   Object.assign(participantForm, emptyParticipantForm())
+  clearParticipantErrors()
+  setDirty('participant', false)
 }
 
 async function saveParticipant() {
   if (!selectedSession.value) return
+  if (!await validateParticipantForm()) return
   await run(async () => {
     if (editingParticipantId.value) {
       await put(`/api/trainings/${selectedSession.value.id}/participants/${editingParticipantId.value}`, participantForm)
@@ -389,6 +411,61 @@ async function run(fn, showError = true) {
 
 function notify(message, type = 'info') {
   emit('notify', { message, type })
+}
+
+function setDirty(scope, dirty) {
+  const next = new Set(dirtyScopes.value)
+  if (dirty) next.add(scope)
+  else next.delete(scope)
+  dirtyScopes.value = next
+  emit('dirty-change', next.size > 0)
+}
+
+async function confirmLocalChanges() {
+  if (dirtyScopes.value.size === 0) return true
+  const confirmed = await requestConfirmation({
+    title: '放弃未保存的培训修改？',
+    message: '切换培训后，当前未保存的表单内容会丢失。',
+    confirmLabel: '放弃修改'
+  })
+  if (confirmed) {
+    dirtyScopes.value = new Set()
+    emit('dirty-change', false)
+    cancelSessionForm()
+    cancelParticipantForm()
+  }
+  return confirmed
+}
+
+async function validateSessionForm() {
+  sessionErrors.title = sessionForm.title ? '' : '请填写培训标题'
+  sessionErrors.trainingDate = sessionForm.trainingDate ? '' : '请选择培训日期'
+  const firstInvalidId = sessionErrors.title ? 'trainingTitle' : sessionErrors.trainingDate ? 'trainingDate' : ''
+  if (!firstInvalidId) return true
+  await nextTick()
+  document.getElementById(firstInvalidId)?.focus()
+  return false
+}
+
+async function validateParticipantForm() {
+  participantErrors.name = participantForm.name ? '' : '请填写参与人姓名'
+  const duration = Number(participantForm.durationHours)
+  participantErrors.durationHours = Number.isFinite(duration) && duration >= 0 ? '' : '时长不能小于 0'
+  const firstInvalidId = participantErrors.name ? 'participantName' : participantErrors.durationHours ? 'participantDuration' : ''
+  if (!firstInvalidId) return true
+  await nextTick()
+  document.getElementById(firstInvalidId)?.focus()
+  return false
+}
+
+function clearSessionErrors() {
+  sessionErrors.title = ''
+  sessionErrors.trainingDate = ''
+}
+
+function clearParticipantErrors() {
+  participantErrors.name = ''
+  participantErrors.durationHours = ''
 }
 
 function bytesText(value) {

@@ -45,6 +45,7 @@ export function createAppRouter(history = createWebHashHistory()) {
       { path: '/', redirect: '/kiosk' },
       { path: '/kiosk', name: 'kiosk', component: routePlaceholder },
       { path: '/login', name: 'login', component: routePlaceholder },
+      { path: '/password-change', name: 'password-change', component: routePlaceholder },
       {
         path: '/admin/:module',
         name: 'admin-module',

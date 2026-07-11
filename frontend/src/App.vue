@@ -223,7 +223,7 @@
           currentUser ? `active-module-${activeTab}` : ''
         ]"
       >
-        <header class="dashboard-header" :class="{ 'admin-topbar': currentUser }">
+        <header class="dashboard-header" :class="{ 'admin-topbar': currentUser, 'password-change-topbar': currentUser?.mustChangePassword }">
           <template v-if="currentUser">
             <div class="admin-brand-lockup">
               <span class="admin-brand-symbol">
@@ -235,7 +235,7 @@
               </span>
             </div>
 
-            <nav class="admin-primary-nav" aria-label="后台一级导航">
+            <nav v-if="!currentUser.mustChangePassword" class="admin-primary-nav" aria-label="后台一级导航">
               <button
                 v-for="group in adminNavGroups"
                 :key="group.id"
@@ -248,6 +248,9 @@
                 <span>{{ group.label }}</span>
               </button>
             </nav>
+            <div v-else class="required-password-top-state">
+              <KeyRound :size="17" />首次登录需要修改密码
+            </div>
 
             <div class="user-chip">
               <span class="admin-user-avatar"><UserRound :size="17" /></span>
@@ -448,6 +451,56 @@
           </section>
         </div>
 
+        <div v-else-if="currentUser.mustChangePassword" class="required-password-page">
+          <section class="required-password-panel" aria-labelledby="requiredPasswordTitle">
+            <header>
+              <span><KeyRound :size="23" /></span>
+              <div>
+                <p>首次登录</p>
+                <h1 id="requiredPasswordTitle">设置你的新密码</h1>
+                <small>当前密码为初始或重置密码，修改后才能进入后台。</small>
+              </div>
+            </header>
+            <form @submit.prevent="changeRequiredPassword">
+              <label for="requiredOldPassword">当前密码</label>
+              <input
+                id="requiredOldPassword"
+                v-model="passwordForm.oldPassword"
+                name="currentPassword"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+              <label for="requiredNewPassword">新密码</label>
+              <input
+                id="requiredNewPassword"
+                v-model="passwordForm.newPassword"
+                name="newPassword"
+                type="password"
+                autocomplete="new-password"
+                minlength="6"
+                maxlength="64"
+                required
+              />
+              <label for="requiredConfirmPassword">确认新密码</label>
+              <input
+                id="requiredConfirmPassword"
+                v-model="passwordForm.confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autocomplete="new-password"
+                minlength="6"
+                maxlength="64"
+                required
+              />
+              <p v-if="requiredPasswordError" class="required-password-error" role="alert">{{ requiredPasswordError }}</p>
+              <button class="primary-action" type="submit" :disabled="busy">
+                <Save :size="17" />{{ busy ? '正在修改' : '修改密码并重新登录' }}
+              </button>
+            </form>
+          </section>
+        </div>
+
         <div v-else class="workspace admin-ledger-workspace admin-workbench-workspace">
           <div class="admin-ledger-shell admin-workbench-shell">
             <div class="admin-subnav">
@@ -636,7 +689,7 @@
             <div class="section-head">
               <h3>签到记录</h3>
               <div class="section-actions">
-                <button v-if="canAddAttendanceRecords" class="ghost-button" :class="{ active: showCreateAttendanceRecord }" @click="showCreateAttendanceRecord = !showCreateAttendanceRecord">
+                <button v-if="canAddAttendanceRecords" class="ghost-button" :class="{ active: showCreateAttendanceRecord }" @click="toggleManualRecordForm">
                   <ClipboardCheck :size="16" />新增记录
                 </button>
                 <button class="ghost-button" @click="loadAttendanceRecords"><RefreshCw :size="16" />刷新</button>
@@ -647,25 +700,26 @@
                 <h4>新增签到记录</h4>
                 <span>会长和管理员可补录，新增后自动计算有效时长</span>
               </div>
-              <form class="record-create-form" @submit.prevent="createAttendanceRecord">
-                <input v-model.trim="manualRecord.studentNo" inputmode="numeric" placeholder="成员学号" />
-                <input v-model="manualRecord.checkInTime" type="datetime-local" />
-                <input v-model="manualRecord.checkOutTime" type="datetime-local" />
-                <input v-model.trim="manualRecord.reason" placeholder="补录原因" />
+              <form class="record-create-form" novalidate @input="setFormDirty('manual-record', true)" @change="setFormDirty('manual-record', true)" @submit.prevent="createAttendanceRecord">
+                <label for="manualStudentNo"><span>成员学号</span><input id="manualStudentNo" v-model.trim="manualRecord.studentNo" name="studentNo" inputmode="numeric" autocomplete="off" :aria-invalid="Boolean(manualRecordErrors.studentNo)" required /><small v-if="manualRecordErrors.studentNo" class="field-error">{{ manualRecordErrors.studentNo }}</small></label>
+                <label for="manualCheckIn"><span>签到时间</span><input id="manualCheckIn" v-model="manualRecord.checkInTime" name="checkInTime" type="datetime-local" :aria-invalid="Boolean(manualRecordErrors.checkInTime)" required /><small v-if="manualRecordErrors.checkInTime" class="field-error">{{ manualRecordErrors.checkInTime }}</small></label>
+                <label for="manualCheckOut"><span>签退时间</span><input id="manualCheckOut" v-model="manualRecord.checkOutTime" name="checkOutTime" type="datetime-local" /></label>
+                <label for="manualReason"><span>补录原因</span><input id="manualReason" v-model.trim="manualRecord.reason" name="reason" autocomplete="off" :aria-invalid="Boolean(manualRecordErrors.reason)" required /><small v-if="manualRecordErrors.reason" class="field-error">{{ manualRecordErrors.reason }}</small></label>
                 <button class="primary-action" type="submit" :disabled="busy">
                   <ClipboardCheck :size="18" />
                   <span>添加记录</span>
                 </button>
+                <button class="ghost-button" type="button" @click="cancelManualRecordForm">取消</button>
               </form>
             </div>
             <div class="filters record-filters">
-              <input v-model.trim="recordFilters.keyword" placeholder="学号或姓名" @keyup.enter="loadAttendanceRecords" />
-              <select v-model="recordFilters.status">
+              <label class="filter-field" for="recordKeyword"><span>关键词</span><input id="recordKeyword" v-model.trim="recordFilters.keyword" name="keyword" autocomplete="off" placeholder="学号或姓名" @keyup.enter="loadAttendanceRecords" /></label>
+              <label class="filter-field" for="recordStatus"><span>状态</span><select id="recordStatus" v-model="recordFilters.status" name="status">
                 <option value="">全部状态</option>
                 <option v-for="item in effectiveStatusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-              <input v-model="recordFilters.from" type="date" />
-              <input v-model="recordFilters.to" type="date" />
+              </select></label>
+              <label class="filter-field" for="recordFrom"><span>开始日期</span><input id="recordFrom" v-model="recordFilters.from" name="from" type="date" /></label>
+              <label class="filter-field" for="recordTo"><span>结束日期</span><input id="recordTo" v-model="recordFilters.to" name="to" type="date" /></label>
               <button class="ghost-button" @click="loadAttendanceRecords">查询</button>
             </div>
             <div class="record-summary-strip">
@@ -719,7 +773,7 @@
               <button v-if="canManageUsers" class="ghost-button" @click="loadUsers"><RefreshCw :size="16" />刷新</button>
             </div>
             <div class="member-action-strip">
-              <button class="ghost-button" :class="{ active: showCreateMember }" @click="showCreateMember = !showCreateMember">
+              <button class="ghost-button" :class="{ active: showCreateMember }" @click="toggleCreateMemberForm">
                 <UserPlus :size="17" />
                 <span>新增成员</span>
               </button>
@@ -732,20 +786,21 @@
               <div class="subsection-head">
                 <h4>新增成员</h4>
               </div>
-              <form class="create-member-form" @submit.prevent="createMember">
-                <input v-model.trim="newMember.studentNo" inputmode="numeric" placeholder="学号" />
-                <input v-model.trim="newMember.name" placeholder="姓名" />
-                <input v-model.trim="newMember.phone" inputmode="tel" placeholder="手机号" />
-                <input v-model.trim="newMember.major" placeholder="学院" />
-                <select v-model="newMember.grade">
+              <form class="create-member-form" novalidate @input="setFormDirty('new-member', true)" @change="setFormDirty('new-member', true)" @submit.prevent="createMember">
+                <label for="newMemberStudentNo"><span>学号</span><input id="newMemberStudentNo" v-model.trim="newMember.studentNo" name="studentNo" inputmode="numeric" autocomplete="off" :aria-invalid="Boolean(newMemberErrors.studentNo)" required /><small v-if="newMemberErrors.studentNo" class="field-error">{{ newMemberErrors.studentNo }}</small></label>
+                <label for="newMemberName"><span>姓名</span><input id="newMemberName" v-model.trim="newMember.name" name="name" autocomplete="name" :aria-invalid="Boolean(newMemberErrors.name)" required /><small v-if="newMemberErrors.name" class="field-error">{{ newMemberErrors.name }}</small></label>
+                <label for="newMemberPhone"><span>手机号</span><input id="newMemberPhone" v-model.trim="newMember.phone" name="phone" inputmode="tel" autocomplete="tel" /></label>
+                <label for="newMemberMajor"><span>学院</span><input id="newMemberMajor" v-model.trim="newMember.major" name="major" autocomplete="organization" /></label>
+                <label for="newMemberGrade"><span>年级</span><select id="newMemberGrade" v-model="newMember.grade" name="grade">
                   <option value="">年级</option>
                   <option v-for="grade in profileGradeOptions" :key="grade" :value="grade">{{ grade }}</option>
-                </select>
-                <input v-model.trim="newMember.qq" placeholder="QQ" />
+                </select></label>
+                <label for="newMemberQq"><span>QQ</span><input id="newMemberQq" v-model.trim="newMember.qq" name="qq" inputmode="numeric" autocomplete="off" /></label>
                 <button class="primary-action" type="submit" :disabled="busy">
                   <UserPlus :size="18" />
                   <span>新增成员</span>
                 </button>
+                <button class="ghost-button" type="button" @click="cancelCreateMember">取消</button>
               </form>
             </div>
             <div v-if="canImportMembers && showImportMembers" class="inline-form-block import-members-block member-action-panel">
@@ -753,7 +808,7 @@
                 <h4>批量导入成员</h4>
               </div>
               <form class="import-member-form" @submit.prevent="importMembers">
-                <input ref="importInput" class="file-input" type="file" accept=".xlsx,.xls" @change="pickImportFile" />
+                <label class="file-field" for="memberImportFile"><span>Excel 文件</span><input id="memberImportFile" ref="importInput" class="file-input" name="memberImportFile" type="file" accept=".xlsx,.xls" @change="pickImportFile" /></label>
                 <button class="primary-action" type="submit" :disabled="busy || !importFile">
                   <Upload :size="18" />
                   <span>导入成员</span>
@@ -771,18 +826,18 @@
               </ul>
             </div>
             <div v-if="canManageUsers" class="filters member-filters">
-              <input class="member-search" v-model.trim="userQuery" placeholder="按姓名/学号/手机号/学院搜索" @keyup.enter="loadUsers(1)" />
-              <select class="role-select" v-model="roleFilter" @change="loadUsers(1)">
+              <label class="filter-field member-search-field" for="memberKeyword"><span>关键词</span><input id="memberKeyword" class="member-search" v-model.trim="userQuery" name="keyword" autocomplete="off" placeholder="姓名、学号、手机号或学院" @keyup.enter="loadUsers(1)" /></label>
+              <label class="filter-field" for="memberRole"><span>职位</span><select id="memberRole" class="role-select" v-model="roleFilter" name="role" @change="loadUsers(1)">
                 <option value="">全部职位</option>
                 <option value="MEMBER">成员</option>
                 <option value="MINISTER">部长</option>
                 <option value="PRESIDENT">会长</option>
                 <option value="ADMIN">管理员</option>
-              </select>
-              <select class="grade-select" v-model="gradeFilter" @change="loadUsers(1)">
+              </select></label>
+              <label class="filter-field" for="memberGrade"><span>年级</span><select id="memberGrade" class="grade-select" v-model="gradeFilter" name="grade" @change="loadUsers(1)">
                 <option value="">全部年级</option>
                 <option v-for="grade in gradeOptions" :key="grade" :value="grade">{{ grade }}</option>
-              </select>
+              </select></label>
               <button class="ghost-button" @click="loadUsers(1)">搜索</button>
               <div class="bulk-actions">
                 <button class="ghost-button bulk-enable-button" :disabled="busy || userTotal === 0" @click="bulkUpdateUserStatus('ACTIVE')">
@@ -818,7 +873,7 @@
                       <button v-if="currentUser.role === 'ADMIN'" class="danger" :disabled="!canDeleteUser(user)" @click="deleteUser(user)">删除</button>
                     </td>
                     <td class="role-cell">
-                      <select :value="user.role" :disabled="!canEditUser(user)" @change="updateUserRole(user, $event.target.value)">
+                      <select :value="user.role" :aria-label="`修改 ${user.name} 的角色`" :disabled="!canEditUser(user)" @change="updateUserRole(user, $event.target.value)">
                         <option value="MEMBER">成员</option>
                         <option value="MINISTER">部长</option>
                         <option value="PRESIDENT">会长</option>
@@ -832,12 +887,12 @@
             <div v-if="canManageUsers" class="pagination-bar">
               <button class="ghost-button" :disabled="userPage <= 1 || busy" @click="changeUserPage(-1)">上一页</button>
               <span>第 {{ userPage }} / {{ userTotalPages }} 页，共 {{ userTotal }} 人</span>
-              <select class="page-size-select" v-model.number="userPageSize" @change="loadUsers(1)">
+              <label class="page-size-field"><span>每页</span><select class="page-size-select" v-model.number="userPageSize" aria-label="每页显示人数" @change="loadUsers(1)">
                 <option :value="10">10 条/页</option>
                 <option :value="20">20 条/页</option>
                 <option :value="50">50 条/页</option>
                 <option :value="100">100 条/页</option>
-              </select>
+              </select></label>
               <button class="ghost-button" :disabled="userPage >= userTotalPages || busy" @click="changeUserPage(1)">下一页</button>
             </div>
           </section>
@@ -859,8 +914,8 @@
               </button>
             </div>
             <div class="filters stats-filters">
-              <input v-model="range.from" type="date" @change="statsPreset = 'custom'" />
-              <input v-model="range.to" type="date" @change="statsPreset = 'custom'" />
+              <label class="filter-field" for="statsFrom"><span>开始日期</span><input id="statsFrom" v-model="range.from" name="from" type="date" @change="statsPreset = 'custom'" /></label>
+              <label class="filter-field" for="statsTo"><span>结束日期</span><input id="statsTo" v-model="range.to" name="to" type="date" @change="statsPreset = 'custom'" /></label>
               <button class="ghost-button" @click="loadStats">查询</button>
             </div>
             <div class="stat-grid">
@@ -930,18 +985,21 @@
             v-if="activeTab === 'trainings'"
             :current-user="currentUser"
             @notify="notify($event.message, $event.type)"
+            @dirty-change="setFormDirty('training', $event)"
           />
 
           <SchedulePanel
             v-if="activeTab === 'schedules'"
             :current-user="currentUser"
             @notify="notify($event.message, $event.type)"
+            @dirty-change="setFormDirty('schedule', $event)"
           />
 
           <RepairPanel
             v-if="activeTab === 'repairs'"
             :current-user="currentUser"
             @notify="notify($event.message, $event.type)"
+            @dirty-change="setFormDirty('repair', $event)"
           />
 
           <DataCenterPanel
@@ -980,7 +1038,7 @@
                 </div>
                 <div class="weekday-grid">
                   <label v-for="day in weekdays" :key="day.weekday" :class="{ selected: day.enabled }">
-                    <input v-model="day.enabled" type="checkbox" />
+                    <input v-model="day.enabled" type="checkbox" @change="setFormDirty('settings-weekdays', true)" />
                     <CalendarDays :size="18" />
                     <span>{{ day.weekday_name }}</span>
                   </label>
@@ -1004,9 +1062,9 @@
                     <strong>暂无值班时间段</strong>
                   </div>
                   <article v-for="(period, index) in dutyPeriodDrafts" :key="`${period.startTime}-${period.endTime}-${index}`" class="duty-period-row">
-                    <input v-model="period.startTime" type="time" />
+                    <label :for="`dutyPeriodStart-${index}`"><span>开始</span><input :id="`dutyPeriodStart-${index}`" v-model="period.startTime" name="startTime" type="time" @change="setFormDirty('settings-periods', true)" /></label>
                     <span>至</span>
-                    <input v-model="period.endTime" type="time" />
+                    <label :for="`dutyPeriodEnd-${index}`"><span>结束</span><input :id="`dutyPeriodEnd-${index}`" v-model="period.endTime" name="endTime" type="time" @change="setFormDirty('settings-periods', true)" /></label>
                     <button class="ghost-button danger-button" type="button" @click="removeDutyPeriod(index)">删除</button>
                   </article>
                 </div>
@@ -1024,13 +1082,13 @@
               </div>
             </div>
             <div class="filters log-filters">
-              <input class="log-search" v-model.trim="logFilters.keyword" placeholder="按操作人/学号/原因搜索" @keyup.enter="loadOperationLogs(1)" />
-              <select class="log-action-select" v-model="logFilters.actionType" @change="loadOperationLogs(1)">
+              <label class="filter-field log-search-field" for="logKeyword"><span>关键词</span><input id="logKeyword" class="log-search" v-model.trim="logFilters.keyword" name="keyword" autocomplete="off" placeholder="操作人、学号或原因" @keyup.enter="loadOperationLogs(1)" /></label>
+              <label class="filter-field" for="logAction"><span>操作类型</span><select id="logAction" class="log-action-select" v-model="logFilters.actionType" name="actionType" @change="loadOperationLogs(1)">
                 <option value="">全部操作</option>
                 <option v-for="item in logActionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select>
-              <input v-model="logFilters.from" type="date" />
-              <input v-model="logFilters.to" type="date" />
+              </select></label>
+              <label class="filter-field" for="logFrom"><span>开始日期</span><input id="logFrom" v-model="logFilters.from" name="from" type="date" /></label>
+              <label class="filter-field" for="logTo"><span>结束日期</span><input id="logTo" v-model="logFilters.to" name="to" type="date" /></label>
               <button class="ghost-button" @click="loadOperationLogs(1)">查询</button>
             </div>
             <div class="table-wrap">
@@ -1088,6 +1146,7 @@
             @save-profile="saveProfile"
             @change-password="changePassword"
             @load-my-records="loadMyRecords"
+            @dirty-change="handleProfileDirtyChange"
           />
               </div>
             </div>
@@ -1158,6 +1217,13 @@ import {
   maskStudentNumber
 } from './features/kiosk/kioskFlow.js'
 import { buildTodayIssues } from './features/dashboard/todayIssues.js'
+import {
+  compactQuery,
+  queryDate,
+  queryOneOf,
+  queryPositiveInt,
+  queryText
+} from './features/navigation/queryState.js'
 
 const route = useRoute()
 const appRouter = useRouter()
@@ -1226,10 +1292,14 @@ const showSetupPassword = ref(false)
 const rememberLogin = ref(true)
 const loginVerified = ref(false)
 const loginError = ref(false)
+const requiredPasswordError = ref('')
+const dirtyForms = ref(new Set())
 const profile = reactive({ phone: '', major: '', grade: '', qq: '' })
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const newMember = reactive({ studentNo: '', name: '', phone: '', major: '', grade: '', qq: '' })
 const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
+const newMemberErrors = reactive({ studentNo: '', name: '' })
+const manualRecordErrors = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
 const importInput = ref(null)
 const importFile = ref(null)
 const importResult = ref(null)
@@ -1494,6 +1564,8 @@ const kioskResetTimer = createKioskResetTimer({
 })
 
 onMounted(async () => {
+  removeUnsavedRouteGuard = appRouter.beforeEach(confirmUnsavedRouteChange)
+  window.addEventListener('beforeunload', warnBeforeUnload)
   loadRememberedLoginAccount()
   kioskClockTimer = window.setInterval(() => {
     liveNow.value = new Date()
@@ -1504,6 +1576,8 @@ onMounted(async () => {
   await restoreSession()
   if (setupRequired.value) {
     await appRouter.replace('/login')
+  } else if (currentUser.value?.mustChangePassword && route.name !== 'kiosk') {
+    await appRouter.replace('/password-change')
   } else if (route.name === 'admin-module' && !currentUser.value) {
     pendingAdminTab.value = tabFromRoute(route)
     await appRouter.replace('/login')
@@ -1523,6 +1597,7 @@ let kioskClockTimer = null
 let kioskHealthTimer = null
 let overviewRefreshTimer = null
 let appliedRouteKey = ''
+let removeUnsavedRouteGuard = null
 
 watch(() => route.fullPath, () => {
   void applyRouteLocation()
@@ -1534,6 +1609,8 @@ onBeforeUnmount(() => {
   if (overviewRefreshTimer) window.clearInterval(overviewRefreshTimer)
   if (loginErrorTimer) window.clearTimeout(loginErrorTimer)
   kioskResetTimer.cancel()
+  removeUnsavedRouteGuard?.()
+  window.removeEventListener('beforeunload', warnBeforeUnload)
   document.removeEventListener('visibilitychange', refreshVisibleOverview)
   window.removeEventListener('focus', refreshVisibleOverview)
 })
@@ -1716,6 +1793,10 @@ function openDashboard() {
     void appRouter.push('/login')
     return
   }
+  if (currentUser.value.mustChangePassword) {
+    void appRouter.push('/password-change')
+    return
+  }
   void selectTab(activeTab.value || availableTabs.value[0]?.id || 'profile')
 }
 
@@ -1745,6 +1826,13 @@ async function login() {
     loginForm.password = ''
     showLoginPassword.value = false
     loginVerified.value = false
+    if (res.mustChangePassword) {
+      requiredPasswordError.value = ''
+      notify('请先修改初始密码', 'info')
+      appliedRouteKey = ''
+      await appRouter.replace('/password-change')
+      return
+    }
     notify('已登录后台', 'success')
     const requestedTab = pendingAdminTab.value
     pendingAdminTab.value = null
@@ -1798,7 +1886,8 @@ async function initializeSystem() {
   }
 }
 
-function logout() {
+async function logout() {
+  if (!await confirmDiscardUnsaved()) return
   setToken('')
   currentUser.value = null
   loginForm.password = ''
@@ -1806,7 +1895,7 @@ function logout() {
   loginVerified.value = false
   clearPasswordForm()
   notify('已退出', 'info')
-  void appRouter.replace('/login')
+  await appRouter.replace('/login')
 }
 
 function loadRememberedLoginAccount() {
@@ -1872,6 +1961,10 @@ async function openTodayIssue(issue) {
 }
 
 async function selectTab(tab, options = {}) {
+  if (currentUser.value?.mustChangePassword) {
+    await appRouter.replace('/password-change')
+    return
+  }
   const safeTab = availableTabs.value.some(item => item.id === tab)
     ? tab
     : availableTabs.value[0]?.id || 'profile'
@@ -1892,6 +1985,13 @@ async function applyRouteLocation() {
 
   view.value = 'dashboard'
   if (route.name === 'login') return
+  if (route.name === 'password-change') {
+    if (!currentUser.value) await appRouter.replace('/login')
+    else if (!currentUser.value.mustChangePassword) {
+      await selectTab(availableTabs.value[0]?.id || 'profile', { replace: true })
+    }
+    return
+  }
 
   const tab = tabFromRoute(route)
   if (!tab) return
@@ -1899,15 +1999,62 @@ async function applyRouteLocation() {
     pendingAdminTab.value = tab
     return
   }
+  if (currentUser.value.mustChangePassword) {
+    await appRouter.replace('/password-change')
+    return
+  }
   if (!availableTabs.value.some(item => item.id === tab)) {
     await appRouter.replace(adminModuleLocation(availableTabs.value[0]?.id || 'profile'))
     return
   }
 
+  hydrateTabQuery(tab, route.query)
   const routeKey = `${route.fullPath}|${currentUser.value.id || currentUser.value.studentNo}`
   if (appliedRouteKey === routeKey) return
   appliedRouteKey = routeKey
   await loadTab(tab)
+}
+
+function hydrateTabQuery(tab, query) {
+  const yearStart = `${today.getFullYear()}-01-01`
+  if (tab === 'members') {
+    userQuery.value = queryText(query, 'q', queryText(query, 'keyword'))
+    roleFilter.value = queryOneOf(query, 'role', ['', 'MEMBER', 'MINISTER', 'PRESIDENT', 'ADMIN'])
+    gradeFilter.value = queryText(query, 'grade')
+    userPage.value = queryPositiveInt(query, 'page', 1)
+    userPageSize.value = queryPositiveInt(query, 'size', 20, [10, 20, 50, 100])
+  }
+  if (tab === 'records') {
+    recordFilters.keyword = queryText(query, 'q')
+    recordFilters.status = queryOneOf(query, 'status', ['', ...effectiveStatusOptions.map(item => item.value)])
+    recordFilters.from = queryDate(query, 'from', yearStart)
+    recordFilters.to = queryDate(query, 'to', todayValue)
+  }
+  if (tab === 'stats') {
+    statsPreset.value = queryOneOf(query, 'preset', ['custom', ...statsPresets.map(item => item.id)], 'custom')
+    range.from = queryDate(query, 'from', yearStart)
+    range.to = queryDate(query, 'to', todayValue)
+  }
+  if (tab === 'logs') {
+    logFilters.keyword = queryText(query, 'q')
+    logFilters.actionType = queryText(query, 'action')
+    logFilters.from = queryDate(query, 'from', yearStart)
+    logFilters.to = queryDate(query, 'to', todayValue)
+    logPage.value = queryPositiveInt(query, 'page', 1)
+  }
+  if (tab === 'profile') {
+    myRecordRange.from = queryDate(query, 'from', yearStart)
+    myRecordRange.to = queryDate(query, 'to', todayValue)
+  }
+}
+
+async function syncTabQuery(tab, values) {
+  if (activeTab.value !== tab || route.name !== 'admin-module') return
+  const location = adminModuleLocation(tab, compactQuery(values))
+  const resolved = appRouter.resolve(location)
+  if (resolved.fullPath === route.fullPath) return
+  appliedRouteKey = `${resolved.fullPath}|${currentUser.value?.id || currentUser.value?.studentNo || ''}`
+  await appRouter.replace(location)
 }
 
 async function loadTab(tab) {
@@ -1974,28 +2121,58 @@ async function loadMe() {
 async function saveProfile() {
   await run(async () => {
     await put('/api/me/profile', profile)
+    setFormDirty('profile:profile', false)
     notify('资料已保存', 'success')
   })
 }
 
 async function changePassword() {
-  if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-    return notify('请填写完整密码信息', 'warn')
+  await submitPasswordChange(false)
+}
+
+async function changeRequiredPassword() {
+  await submitPasswordChange(true)
+}
+
+async function submitPasswordChange(requiredChange) {
+  const validationError = passwordChangeValidationError()
+  if (validationError) {
+    if (requiredChange) requiredPasswordError.value = validationError
+    notify(validationError, 'warn')
+    return
   }
-  if (passwordForm.newPassword.length < 6) {
-    return notify('新密码至少 6 位', 'warn')
-  }
-  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    return notify('两次新密码不一致', 'warn')
-  }
-  await run(async () => {
+
+  busy.value = true
+  requiredPasswordError.value = ''
+  try {
+    const account = currentUser.value?.studentNo || loginForm.studentNo
     await post('/api/auth/change-password', {
       oldPassword: passwordForm.oldPassword,
       newPassword: passwordForm.newPassword
     })
+    setToken('')
+    currentUser.value = null
+    clearAllDirtyForms()
     clearPasswordForm()
-    notify('密码已修改', 'success')
-  })
+    loginForm.studentNo = account
+    loginForm.password = ''
+    appliedRouteKey = ''
+    await appRouter.replace('/login')
+    notify('密码已修改，请使用新密码重新登录', 'success')
+  } catch (error) {
+    if (requiredChange) requiredPasswordError.value = error.message
+    notify(error.message, 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+function passwordChangeValidationError() {
+  if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) return '请填写完整密码信息'
+  if (passwordForm.newPassword.length < 6) return '新密码至少 6 位'
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) return '两次新密码不一致'
+  if (passwordForm.oldPassword === passwordForm.newPassword) return '新密码不能与当前密码相同'
+  return ''
 }
 
 function clearPasswordForm() {
@@ -2013,7 +2190,62 @@ async function loadMyRecords() {
     myRecords.value = records
     myTrainingHours.value = Number(training.trainingHours || 0)
     myTrainingCount.value = Number(training.trainingCount || 0)
+    await syncTabQuery('profile', {
+      from: myRecordRange.from,
+      to: myRecordRange.to
+    })
   }, false)
+}
+
+function setFormDirty(source, dirty = true) {
+  const next = new Set(dirtyForms.value)
+  if (dirty) next.add(source)
+  else next.delete(source)
+  dirtyForms.value = next
+}
+
+function handleProfileDirtyChange(event) {
+  if (!event?.form) return
+  setFormDirty(`profile:${event.form}`, Boolean(event.dirty))
+}
+
+function clearAllDirtyForms() {
+  dirtyForms.value = new Set()
+  showCreateAttendanceRecord.value = false
+  showCreateMember.value = false
+  showImportMembers.value = false
+  Object.assign(manualRecord, { studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
+  Object.assign(newMember, { studentNo: '', name: '', phone: '', major: '', grade: '', qq: '' })
+  Object.keys(manualRecordErrors).forEach(key => { manualRecordErrors[key] = '' })
+  newMemberErrors.studentNo = ''
+  newMemberErrors.name = ''
+  importFile.value = null
+  importResult.value = null
+  if (importInput.value) importInput.value.value = ''
+  clearPasswordForm()
+}
+
+async function confirmDiscardUnsaved() {
+  if (dirtyForms.value.size === 0) return true
+  const confirmed = await requestConfirmation({
+    title: '放弃未保存的修改？',
+    message: '当前页面还有未保存的内容，离开后这些修改会丢失。',
+    confirmLabel: '放弃修改',
+    tone: 'danger'
+  })
+  if (confirmed) clearAllDirtyForms()
+  return confirmed
+}
+
+async function confirmUnsavedRouteChange(to, from) {
+  if (to.path === from.path) return true
+  return confirmDiscardUnsaved()
+}
+
+function warnBeforeUnload(event) {
+  if (dirtyForms.value.size === 0) return
+  event.preventDefault()
+  event.returnValue = ''
 }
 
 async function loadPending() {
@@ -2063,17 +2295,18 @@ async function loadAttendanceRecords() {
     if (recordFilters.keyword) params.set('studentNo', recordFilters.keyword)
     if (recordFilters.status) params.set('status', recordFilters.status)
     attendanceRecords.value = await api(`/api/attendance?${params.toString()}`)
+    await syncTabQuery('records', {
+      q: recordFilters.keyword,
+      status: recordFilters.status,
+      from: recordFilters.from,
+      to: recordFilters.to
+    })
   }, false)
 }
 
 async function createAttendanceRecord() {
   if (!canAddAttendanceRecords.value) return notify('只有会长或管理员可以添加签到记录', 'warn')
-  if (!manualRecord.studentNo || !manualRecord.checkInTime || !manualRecord.reason) {
-    return notify('请填写学号、签到时间和补录原因', 'warn')
-  }
-  if (manualRecord.checkOutTime && manualRecord.checkOutTime <= manualRecord.checkInTime) {
-    return notify('签退时间必须晚于签到时间', 'warn')
-  }
+  if (!await validateManualRecordForm()) return
   await run(async () => {
     await post('/api/attendance/manual', {
       studentNo: manualRecord.studentNo,
@@ -2093,6 +2326,41 @@ function clearManualRecordForm() {
   manualRecord.checkInTime = ''
   manualRecord.checkOutTime = ''
   manualRecord.reason = ''
+  Object.keys(manualRecordErrors).forEach(key => { manualRecordErrors[key] = '' })
+  setFormDirty('manual-record', false)
+}
+
+function toggleManualRecordForm() {
+  if (showCreateAttendanceRecord.value) cancelManualRecordForm()
+  else showCreateAttendanceRecord.value = true
+}
+
+function cancelManualRecordForm() {
+  clearManualRecordForm()
+  showCreateAttendanceRecord.value = false
+}
+
+async function validateManualRecordForm() {
+  manualRecordErrors.studentNo = manualRecord.studentNo ? '' : '请填写成员学号'
+  manualRecordErrors.checkInTime = manualRecord.checkInTime ? '' : '请选择签到时间'
+  manualRecordErrors.reason = manualRecord.reason ? '' : '请填写补录原因'
+  manualRecordErrors.checkOutTime = manualRecord.checkOutTime && manualRecord.checkOutTime <= manualRecord.checkInTime
+    ? '签退时间必须晚于签到时间'
+    : ''
+  const firstInvalidId = manualRecordErrors.studentNo
+    ? 'manualStudentNo'
+    : manualRecordErrors.checkInTime
+      ? 'manualCheckIn'
+      : manualRecordErrors.checkOutTime
+        ? 'manualCheckOut'
+        : manualRecordErrors.reason
+          ? 'manualReason'
+          : ''
+  if (!firstInvalidId) return true
+  await nextTick()
+  document.getElementById(firstInvalidId)?.focus()
+  notify(manualRecordErrors.studentNo || manualRecordErrors.checkInTime || manualRecordErrors.checkOutTime || manualRecordErrors.reason, 'warn')
+  return false
 }
 
 async function deleteAttendanceRecord(item) {
@@ -2118,6 +2386,13 @@ async function loadUsers(page = userPage.value) {
     users.value = result.items
     userTotal.value = result.total
     userPage.value = result.page
+    await syncTabQuery('members', {
+      q: userQuery.value,
+      role: roleFilter.value,
+      grade: gradeFilter.value,
+      page: userPage.value,
+      size: userPageSize.value
+    })
   }, false)
 }
 
@@ -2127,9 +2402,7 @@ async function changeUserPage(delta) {
 }
 
 async function createMember() {
-  if (!newMember.studentNo || !newMember.name) {
-    return notify('请填写学号和姓名', 'warn')
-  }
+  if (!await validateNewMemberForm()) return
   await run(async () => {
     await post('/api/users', { ...newMember, role: 'MEMBER' })
     clearNewMemberForm()
@@ -2149,11 +2422,36 @@ function clearNewMemberForm() {
   newMember.major = ''
   newMember.grade = ''
   newMember.qq = ''
+  newMemberErrors.studentNo = ''
+  newMemberErrors.name = ''
+  setFormDirty('new-member', false)
+}
+
+function toggleCreateMemberForm() {
+  if (showCreateMember.value) cancelCreateMember()
+  else showCreateMember.value = true
+}
+
+function cancelCreateMember() {
+  clearNewMemberForm()
+  showCreateMember.value = false
+}
+
+async function validateNewMemberForm() {
+  newMemberErrors.studentNo = newMember.studentNo ? '' : '请填写学号'
+  newMemberErrors.name = newMember.name ? '' : '请填写姓名'
+  const firstInvalidId = newMemberErrors.studentNo ? 'newMemberStudentNo' : newMemberErrors.name ? 'newMemberName' : ''
+  if (!firstInvalidId) return true
+  await nextTick()
+  document.getElementById(firstInvalidId)?.focus()
+  notify(newMemberErrors.studentNo || newMemberErrors.name, 'warn')
+  return false
 }
 
 function pickImportFile(event) {
   importFile.value = event.target.files?.[0] || null
   importResult.value = null
+  setFormDirty('member-import', Boolean(importFile.value))
 }
 
 async function importMembers() {
@@ -2165,6 +2463,7 @@ async function importMembers() {
     const result = await api('/api/users/import', { method: 'POST', body: formData })
     importResult.value = result
     importFile.value = null
+    setFormDirty('member-import', false)
     if (importInput.value) importInput.value.value = ''
     notify(`导入完成：新增 ${result.created}，更新 ${result.updated}，跳过 ${result.skipped}`, result.skipped ? 'warn' : 'success')
     if (!result.errors?.length) showImportMembers.value = false
@@ -2251,6 +2550,11 @@ async function loadStats() {
     ])
     stats.value = summary
     weeklyDetail.value = detail
+    await syncTabQuery('stats', {
+      preset: statsPreset.value,
+      from: range.from,
+      to: range.to
+    })
   }, false)
 }
 
@@ -2370,6 +2674,7 @@ async function saveWeekdays() {
   await run(async () => {
     const enabledWeekdays = weekdays.value.filter(d => d.enabled).map(d => d.weekday)
     await put('/api/settings/weekdays', { enabledWeekdays })
+    setFormDirty('settings-weekdays', false)
     notify('值班星期已保存', 'success')
   })
 }
@@ -2387,10 +2692,12 @@ function addDutyPeriod() {
     startTime: last?.endTime || '',
     endTime: last?.endTime ? nextPeriodEnd(last.endTime) : ''
   })
+  setFormDirty('settings-periods', true)
 }
 
 function removeDutyPeriod(index) {
   dutyPeriodDrafts.value.splice(index, 1)
+  setFormDirty('settings-periods', true)
 }
 
 async function saveDutyPeriods() {
@@ -2400,6 +2707,7 @@ async function saveDutyPeriods() {
     const saved = await put('/api/settings/duty-periods', { periods })
     dutyPeriods.value = normalizeDutyPeriods(saved)
     resetDutyPeriodDrafts()
+    setFormDirty('settings-periods', false)
     await loadPublicSchedules()
     notify('值班时间段已保存', 'success')
   })
@@ -2457,6 +2765,13 @@ async function loadOperationLogs(page = 1) {
     logTotal.value = result.total
     logPage.value = result.page
     selectedLog.value = null
+    await syncTabQuery('logs', {
+      q: logFilters.keyword,
+      action: logFilters.actionType,
+      from: logFilters.from,
+      to: logFilters.to,
+      page: logPage.value
+    })
   }, false)
 }
 

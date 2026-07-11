@@ -25,12 +25,12 @@
     </div>
 
     <div v-if="viewMode === 'active'" class="filters repair-filters">
-      <input v-model.trim="filters.keyword" placeholder="搜索编号、送修人、设备或处理记录" @keyup.enter="loadRepairs" />
-      <select v-model="filters.status" @change="loadRepairs">
+      <label class="filter-field" for="repairKeyword"><span>关键词</span><input id="repairKeyword" v-model.trim="filters.keyword" name="keyword" autocomplete="off" placeholder="编号、送修人、设备或处理记录" @keyup.enter="loadRepairs" /></label>
+      <label class="filter-field" for="repairStatus"><span>状态</span><select id="repairStatus" v-model="filters.status" name="status" @change="loadRepairs">
         <option v-for="item in filterStatusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-      </select>
-      <input v-model="filters.from" type="date" />
-      <input v-model="filters.to" type="date" />
+      </select></label>
+      <label class="filter-field" for="repairFrom"><span>开始日期</span><input id="repairFrom" v-model="filters.from" name="from" type="date" /></label>
+      <label class="filter-field" for="repairTo"><span>结束日期</span><input id="repairTo" v-model="filters.to" name="to" type="date" /></label>
       <button class="ghost-button" :disabled="busy" @click="loadRepairs">查询</button>
     </div>
 
@@ -75,7 +75,7 @@
             <button class="ghost-button" type="button" @click="cancelForm">取消</button>
           </div>
 
-          <form class="repair-form" @submit.prevent="saveRepair">
+          <form class="repair-form" novalidate @input="setDirty(true)" @change="setDirty(true)" @submit.prevent="saveRepair">
             <div class="repair-form-section">
               <h5>送修信息</h5>
               <div class="repair-form-grid">
@@ -87,7 +87,8 @@
                 </label>
                 <label>
                   <span>送修人</span>
-                  <input v-model.trim="form.ownerName" placeholder="姓名" />
+                  <input id="repairOwnerName" v-model.trim="form.ownerName" name="ownerName" autocomplete="name" :aria-invalid="Boolean(formErrors.ownerName)" required />
+                  <small v-if="formErrors.ownerName" class="field-error">{{ formErrors.ownerName }}</small>
                 </label>
                 <label>
                   <span>联系方式</span>
@@ -101,7 +102,8 @@
               <div class="repair-form-grid">
                 <label>
                   <span>设备类型</span>
-                  <input v-model.trim="form.deviceType" placeholder="笔记本、台式机、打印机等" />
+                  <input id="repairDeviceType" v-model.trim="form.deviceType" name="deviceType" placeholder="笔记本、台式机、打印机等" :aria-invalid="Boolean(formErrors.deviceType)" required />
+                  <small v-if="formErrors.deviceType" class="field-error">{{ formErrors.deviceType }}</small>
                 </label>
                 <label>
                   <span>品牌</span>
@@ -141,7 +143,8 @@
                 </label>
                 <label class="wide">
                   <span>故障描述</span>
-                  <textarea v-model.trim="form.faultDescription" rows="3" placeholder="送修时描述的现象、报错或处理诉求"></textarea>
+                  <textarea id="repairFaultDescription" v-model.trim="form.faultDescription" name="faultDescription" rows="3" placeholder="送修时描述的现象、报错或处理诉求" :aria-invalid="Boolean(formErrors.faultDescription)" required></textarea>
+                  <small v-if="formErrors.faultDescription" class="field-error">{{ formErrors.faultDescription }}</small>
                 </label>
                 <label class="wide">
                   <span>处理记录</span>
@@ -170,7 +173,7 @@
             </div>
 
             <div class="repair-form-actions">
-              <button class="primary-action" type="submit" :disabled="busy || !form.ownerName || !form.deviceType || !form.faultDescription">
+              <button class="primary-action" type="submit" :disabled="busy">
                 <Save :size="16" />保存事务
               </button>
               <button class="ghost-button" type="button" @click="cancelForm">取消</button>
@@ -265,7 +268,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { ArrowLeft, Download, FileText, Plus, Printer, RefreshCw, RotateCcw, Save, Trash2, Wrench, X } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
 import { requestConfirmation } from '../shared/confirm.js'
@@ -273,7 +276,7 @@ import { requestConfirmation } from '../shared/confirm.js'
 const props = defineProps({
   currentUser: { type: Object, default: null }
 })
-const emit = defineEmits(['notify'])
+const emit = defineEmits(['notify', 'dirty-change'])
 
 const today = new Date()
 const todayValue = formatLocalDate(today)
@@ -293,6 +296,8 @@ const filters = reactive({
   to: todayValue
 })
 const form = reactive(emptyForm())
+const formErrors = reactive({ ownerName: '', deviceType: '', faultDescription: '' })
+const formDirty = ref(false)
 
 const agreementOptions = [
   { value: 'PERSONAL_DEVICE', label: '维修协议' },
@@ -348,7 +353,8 @@ async function loadRecycleBin(showError = true) {
   }, showError)
 }
 
-function showActiveRepairs() {
+async function showActiveRepairs() {
+  if (!await confirmLocalChanges()) return
   viewMode.value = 'active'
   showForm.value = false
   editingRepairId.value = null
@@ -357,6 +363,7 @@ function showActiveRepairs() {
 
 async function showRecycleBin() {
   if (!canManageRecycle.value) return
+  if (!await confirmLocalChanges()) return
   viewMode.value = 'recycle'
   showForm.value = false
   editingRepairId.value = null
@@ -369,22 +376,27 @@ async function refreshCurrentView() {
   else await loadRepairs()
 }
 
-function selectRepair(item) {
+async function selectRepair(item) {
+  if (!await confirmLocalChanges()) return
   selectedRepair.value = item
   showForm.value = false
   editingRepairId.value = null
 }
 
-function startCreate() {
+async function startCreate() {
   if (!canManageRepairs.value) return notify('没有维修事务管理权限', 'warn')
+  if (!await confirmLocalChanges()) return
   viewMode.value = 'active'
   editingRepairId.value = null
   Object.assign(form, emptyForm())
+  clearFormErrors()
+  setDirty(false)
   showForm.value = true
 }
 
-function startEdit(item) {
+async function startEdit(item) {
   if (!canManageRepairs.value) return notify('没有维修事务管理权限', 'warn')
+  if (!await confirmLocalChanges()) return
   editingRepairId.value = item.id
   Object.assign(form, {
     caseNo: item.caseNo,
@@ -406,6 +418,8 @@ function startEdit(item) {
     handlerName: item.handlerName || '',
     remark: item.remark || ''
   })
+  clearFormErrors()
+  setDirty(false)
   showForm.value = true
 }
 
@@ -413,9 +427,12 @@ function cancelForm() {
   showForm.value = false
   editingRepairId.value = null
   Object.assign(form, emptyForm())
+  clearFormErrors()
+  setDirty(false)
 }
 
 async function saveRepair() {
+  if (!await validateRepairForm()) return
   await run(async () => {
     const payload = {
       agreementType: form.agreementType,
@@ -442,6 +459,7 @@ async function saveRepair() {
     notify('维修事务已保存', 'success')
     showForm.value = false
     editingRepairId.value = null
+    setDirty(false)
     await loadRepairs()
     selectedRepair.value = repairs.value.find(item => item.id === saved.id) || saved
   })
@@ -544,6 +562,45 @@ async function run(fn, showError = true) {
 
 function notify(message, type = 'info') {
   emit('notify', { message, type })
+}
+
+function setDirty(dirty) {
+  formDirty.value = dirty
+  emit('dirty-change', dirty)
+}
+
+async function confirmLocalChanges() {
+  if (!formDirty.value) return true
+  const confirmed = await requestConfirmation({
+    title: '放弃未保存的维修修改？',
+    message: '当前维修表单尚未保存，继续后这些内容会丢失。',
+    confirmLabel: '放弃修改'
+  })
+  if (confirmed) setDirty(false)
+  return confirmed
+}
+
+async function validateRepairForm() {
+  formErrors.ownerName = form.ownerName ? '' : '请填写送修人'
+  formErrors.deviceType = form.deviceType ? '' : '请填写设备类型'
+  formErrors.faultDescription = form.faultDescription ? '' : '请填写故障描述'
+  const firstInvalidId = formErrors.ownerName
+    ? 'repairOwnerName'
+    : formErrors.deviceType
+      ? 'repairDeviceType'
+      : formErrors.faultDescription
+        ? 'repairFaultDescription'
+        : ''
+  if (!firstInvalidId) return true
+  await nextTick()
+  document.getElementById(firstInvalidId)?.focus()
+  return false
+}
+
+function clearFormErrors() {
+  formErrors.ownerName = ''
+  formErrors.deviceType = ''
+  formErrors.faultDescription = ''
 }
 
 function statusText(status) {

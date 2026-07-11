@@ -84,24 +84,24 @@
         <h4><CalendarDays :size="17" />{{ editingId ? '编辑排班' : '新增排班' }}</h4>
         <span>成员每行一个，可写“学号 姓名”或只写姓名；学号存在时自动使用成员表姓名</span>
       </div>
-      <form class="schedule-form-grid" @submit.prevent="saveSchedule">
-        <select v-model.number="form.weekday">
+      <form class="schedule-form-grid" novalidate @input="setDirty('form', true)" @change="setDirty('form', true)" @submit.prevent="saveSchedule">
+        <label for="scheduleWeekday"><span>星期</span><select id="scheduleWeekday" v-model.number="form.weekday" name="weekday">
           <option v-for="day in formWeekdayOptions" :key="day.value" :value="day.value">{{ day.label }}</option>
-        </select>
-        <select v-model="form.periodKey" @change="applySelectedPeriod">
+        </select></label>
+        <label for="schedulePeriod"><span>值班时段</span><select id="schedulePeriod" v-model="form.periodKey" name="period" :aria-invalid="Boolean(formErrors.periodKey)" @change="applySelectedPeriod">
           <option disabled value="">{{ dutyPeriodOptions.length ? '选择值班时段' : '请先设置值班时段' }}</option>
           <option v-for="period in dutyPeriodOptions" :key="period.key" :value="period.key">{{ period.timeText }}</option>
-        </select>
-        <input v-model.trim="form.title" placeholder="标题，例如 日常值班" />
-        <input v-model.trim="form.location" placeholder="地点，可选" />
+        </select><small v-if="formErrors.periodKey" class="field-error">{{ formErrors.periodKey }}</small></label>
+        <label for="scheduleTitle"><span>标题</span><input id="scheduleTitle" v-model.trim="form.title" name="title" autocomplete="off" placeholder="例如：日常值班" :aria-invalid="Boolean(formErrors.title)" required /><small v-if="formErrors.title" class="field-error">{{ formErrors.title }}</small></label>
+        <label for="scheduleLocation"><span>地点</span><input id="scheduleLocation" v-model.trim="form.location" name="location" autocomplete="off" placeholder="可选" /></label>
         <label class="schedule-enabled-toggle">
           <input v-model="form.enabled" type="checkbox" />
           <span>显示在签到页</span>
         </label>
-        <input class="schedule-note-input" v-model.trim="form.note" placeholder="备注，可选" />
-        <textarea v-model="form.assigneeText" rows="5" placeholder="每行一个值班成员&#10;2025000001 张三&#10;李四"></textarea>
+        <label class="schedule-note-input" for="scheduleNote"><span>备注</span><input id="scheduleNote" v-model.trim="form.note" name="note" placeholder="可选" /></label>
+        <label class="schedule-assignees-input" for="scheduleAssignees"><span>值班成员</span><textarea id="scheduleAssignees" v-model="form.assigneeText" name="assignees" rows="5" placeholder="每行一个值班成员&#10;2025000001 张三&#10;李四"></textarea></label>
         <div class="schedule-form-actions">
-          <button class="primary-action" type="submit" :disabled="busy || !form.title || !form.periodKey || !dutyPeriodOptions.length">
+          <button class="primary-action" type="submit" :disabled="busy || !dutyPeriodOptions.length">
             <Save :size="16" />保存排班
           </button>
           <button class="ghost-button" type="button" @click="cancelForm">取消</button>
@@ -170,7 +170,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { AlertTriangle, CalendarDays, Download, FileSearch, FileSpreadsheet, Plus, RefreshCw, Save, Trash2, Upload } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
 import { requestConfirmation } from '../shared/confirm.js'
@@ -178,7 +178,7 @@ import { requestConfirmation } from '../shared/confirm.js'
 const props = defineProps({
   currentUser: { type: Object, default: null }
 })
-const emit = defineEmits(['notify'])
+const emit = defineEmits(['notify', 'dirty-change'])
 
 const schedules = ref([])
 const dutyPeriods = ref([])
@@ -191,6 +191,8 @@ const importInput = ref(null)
 const importFile = ref(null)
 const importPreview = ref(null)
 const form = reactive(emptyForm())
+const formErrors = reactive({ title: '', periodKey: '' })
+const dirtyScopes = ref(new Set())
 
 const weekdayOptions = [
   { value: 1, label: '星期一', enabled: true },
@@ -286,22 +288,26 @@ function unclassifiedPeopleCount(weekday) {
   return assigneeCount(unclassifiedSchedules(weekday))
 }
 
-function startCreate() {
+async function startCreate() {
   if (!dutyPeriodOptions.value.length) {
     notify('请先在值班设置中保存值班时间段', 'warn')
     return
   }
+  if (!await confirmLocalChanges()) return
   editingId.value = null
-  showImport.value = false
+  cancelImport()
   Object.assign(form, emptyForm())
   form.weekday = formWeekdayOptions.value[0]?.value || 1
   form.periodKey = dutyPeriodOptions.value[0]?.key || ''
   applySelectedPeriod()
+  clearFormErrors()
+  setDirty('form', false)
   showForm.value = true
 }
 
-function startEdit(slot) {
-  showImport.value = false
+async function startEdit(slot) {
+  if (!await confirmLocalChanges()) return
+  cancelImport()
   editingId.value = slot.id
   Object.assign(form, {
     weekday: slot.weekday,
@@ -314,17 +320,22 @@ function startEdit(slot) {
     periodKey: periodKeyForSlot(slot),
     assigneeText: slot.assignees.map(person => [person.studentNo, person.name].filter(Boolean).join(' ')).join('\n')
   })
+  clearFormErrors()
+  setDirty('form', false)
   showForm.value = true
 }
 
 function cancelForm() {
   editingId.value = null
   Object.assign(form, emptyForm())
+  clearFormErrors()
+  setDirty('form', false)
   showForm.value = false
 }
 
-function openImportPanel() {
-  showForm.value = false
+async function openImportPanel() {
+  if (!await confirmLocalChanges()) return
+  cancelForm()
   editingId.value = null
   showImport.value = true
 }
@@ -332,12 +343,14 @@ function openImportPanel() {
 function selectImportFile(event) {
   importFile.value = event.target.files?.[0] || null
   importPreview.value = null
+  setDirty('import', Boolean(importFile.value))
 }
 
 function cancelImport() {
   showImport.value = false
   importFile.value = null
   importPreview.value = null
+  setDirty('import', false)
   if (importInput.value) importInput.value.value = ''
 }
 
@@ -373,6 +386,7 @@ async function confirmImport() {
 }
 
 async function saveSchedule() {
+  if (!await validateScheduleForm()) return
   if (!applySelectedPeriod()) {
     notify('请选择已设置的值班时间段', 'warn')
     return
@@ -445,6 +459,43 @@ async function run(fn, showError = true) {
 
 function notify(message, type = 'info') {
   emit('notify', { message, type })
+}
+
+function setDirty(scope, dirty) {
+  const next = new Set(dirtyScopes.value)
+  if (dirty) next.add(scope)
+  else next.delete(scope)
+  dirtyScopes.value = next
+  emit('dirty-change', next.size > 0)
+}
+
+async function confirmLocalChanges() {
+  if (dirtyScopes.value.size === 0) return true
+  const confirmed = await requestConfirmation({
+    title: '放弃未保存的排班修改？',
+    message: '当前表单或导入文件尚未保存，继续后这些内容会丢失。',
+    confirmLabel: '放弃修改'
+  })
+  if (confirmed) {
+    dirtyScopes.value = new Set()
+    emit('dirty-change', false)
+  }
+  return confirmed
+}
+
+async function validateScheduleForm() {
+  formErrors.title = form.title ? '' : '请填写排班标题'
+  formErrors.periodKey = form.periodKey ? '' : '请选择已设置的值班时段'
+  const firstInvalidId = formErrors.periodKey ? 'schedulePeriod' : formErrors.title ? 'scheduleTitle' : ''
+  if (!firstInvalidId) return true
+  await nextTick()
+  document.getElementById(firstInvalidId)?.focus()
+  return false
+}
+
+function clearFormErrors() {
+  formErrors.title = ''
+  formErrors.periodKey = ''
 }
 
 function slotTime(slot) {

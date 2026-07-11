@@ -34,6 +34,15 @@ describe('application router', () => {
     })
   })
 
+  it('provides a dedicated route for required password changes', async () => {
+    const router = createAppRouter(createMemoryHistory())
+
+    await router.push('/password-change')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('password-change')
+  })
+
   it('redirects unknown admin modules to today', async () => {
     const router = createAppRouter(createMemoryHistory())
 

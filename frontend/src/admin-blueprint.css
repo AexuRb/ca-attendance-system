@@ -98,6 +98,10 @@
   animation: blueprint-topbar-in 360ms var(--admin-ease) both;
 }
 
+.dashboard.logged-in-dashboard .dashboard-header.admin-topbar.password-change-topbar {
+  grid-template-columns: minmax(200px, 1fr) auto auto;
+}
+
 .admin-brand-lockup {
   display: flex;
   gap: 11px;
@@ -258,6 +262,113 @@
 .dashboard.logged-in-dashboard .user-chip .ghost-button {
   min-height: 30px;
   padding: 5px 8px;
+}
+
+.required-password-top-state {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-amber);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.required-password-page {
+  display: grid;
+  min-height: calc(100vh - 66px);
+  padding: 34px 18px;
+  place-items: center;
+}
+
+.required-password-panel {
+  width: min(100%, 520px);
+  overflow: hidden;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(31, 82, 120, 0.12);
+  animation: blueprint-section-in 360ms var(--admin-ease) both;
+}
+
+.required-password-panel > header {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  padding: 19px 20px;
+  border-bottom: 1px solid var(--admin-line);
+  background: #f8fcff;
+}
+
+.required-password-panel > header > span {
+  display: grid;
+  flex: 0 0 44px;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--admin-blue);
+  border: 1px solid #bfd9ea;
+  border-radius: 4px;
+  background: var(--admin-blue-soft);
+}
+
+.required-password-panel header p,
+.required-password-panel header h1,
+.required-password-panel header small {
+  margin: 0;
+}
+
+.required-password-panel header p {
+  color: var(--admin-blue);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.required-password-panel header h1 {
+  margin-top: 2px;
+  color: var(--admin-ink);
+  font-size: 21px;
+}
+
+.required-password-panel header small {
+  display: block;
+  margin-top: 4px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.required-password-panel form {
+  display: grid;
+  gap: 8px;
+  padding: 20px;
+}
+
+.required-password-panel form label {
+  margin-top: 4px;
+  color: #4e6c82;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.required-password-panel form input {
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.required-password-panel form .primary-action {
+  justify-content: center;
+  min-height: 42px;
+  margin-top: 8px;
+}
+
+.required-password-error {
+  margin: 3px 0 0;
+  padding: 8px 10px;
+  color: #9d4338;
+  border-left: 3px solid var(--admin-coral);
+  background: #fff5f2;
+  font-size: 12px;
 }
 
 /* Secondary navigation */
@@ -1083,6 +1194,12 @@
   gap: 12px;
 }
 
+.dashboard.logged-in-dashboard .profile-grid,
+.dashboard.logged-in-dashboard.role-member .profile-grid {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) !important;
+  align-items: start;
+}
+
 .dashboard.logged-in-dashboard .training-session-list,
 .dashboard.logged-in-dashboard .repair-case-list,
 .dashboard.logged-in-dashboard .schedule-week-grid {
@@ -1173,6 +1290,101 @@
 }
 
 /* Filters, inputs and buttons */
+.dashboard.logged-in-dashboard .filter-field,
+.dashboard.logged-in-dashboard .file-field,
+.dashboard.logged-in-dashboard .record-create-form > label,
+.dashboard.logged-in-dashboard .create-member-form > label,
+.dashboard.logged-in-dashboard .training-form-grid > label,
+.dashboard.logged-in-dashboard .participant-form-grid > label,
+.dashboard.logged-in-dashboard .schedule-form-grid > label:not(.schedule-enabled-toggle),
+.dashboard.logged-in-dashboard .duty-period-row > label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  align-content: end;
+}
+
+.dashboard.logged-in-dashboard .filter-field > span,
+.dashboard.logged-in-dashboard .file-field > span,
+.dashboard.logged-in-dashboard .record-create-form > label > span,
+.dashboard.logged-in-dashboard .create-member-form > label > span,
+.dashboard.logged-in-dashboard .training-form-grid > label > span,
+.dashboard.logged-in-dashboard .participant-form-grid > label > span,
+.dashboard.logged-in-dashboard .schedule-form-grid > label:not(.schedule-enabled-toggle) > span,
+.dashboard.logged-in-dashboard .duty-period-row > label > span {
+  color: #526f85;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.dashboard.logged-in-dashboard .field-error {
+  color: #a8483b;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.dashboard.logged-in-dashboard [aria-invalid="true"] {
+  border-color: #d88779;
+  background: #fffafa;
+  box-shadow: 0 0 0 3px rgba(193, 94, 69, 0.1);
+}
+
+.dashboard.logged-in-dashboard .record-create-form {
+  grid-template-columns: minmax(150px, 0.8fr) repeat(2, minmax(190px, 1fr)) minmax(210px, 1.1fr) auto auto;
+  align-items: end;
+}
+
+.dashboard.logged-in-dashboard .create-member-form {
+  grid-template-columns: repeat(6, minmax(116px, 1fr)) auto auto;
+  align-items: end;
+}
+
+.dashboard.logged-in-dashboard .training-form-grid,
+.dashboard.logged-in-dashboard .participant-form-grid,
+.dashboard.logged-in-dashboard .schedule-form-grid {
+  align-items: end;
+}
+
+.dashboard.logged-in-dashboard .schedule-form-grid .schedule-assignees-input {
+  grid-column: 1 / -1;
+}
+
+.dashboard.logged-in-dashboard .filters,
+.dashboard.logged-in-dashboard .member-filters,
+.dashboard.logged-in-dashboard .record-filters,
+.dashboard.logged-in-dashboard .stats-filters,
+.dashboard.logged-in-dashboard .log-filters,
+.dashboard.logged-in-dashboard .training-filters,
+.dashboard.logged-in-dashboard .repair-filters {
+  align-items: end;
+}
+
+.dashboard.logged-in-dashboard .filters > button,
+.dashboard.logged-in-dashboard .member-filters > button,
+.dashboard.logged-in-dashboard .record-filters > button,
+.dashboard.logged-in-dashboard .stats-filters > button,
+.dashboard.logged-in-dashboard .log-filters > button,
+.dashboard.logged-in-dashboard .training-filters > button,
+.dashboard.logged-in-dashboard .repair-filters > button {
+  align-self: end;
+  min-height: 37px;
+}
+
+.dashboard.logged-in-dashboard .page-size-field {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+
+.dashboard.logged-in-dashboard .duty-period-row > label {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+}
+
 .dashboard.logged-in-dashboard .filters,
 .dashboard.logged-in-dashboard .member-filters,
 .dashboard.logged-in-dashboard .record-filters,
@@ -2157,6 +2369,14 @@
     min-height: 60px;
   }
 
+  .dashboard.logged-in-dashboard .dashboard-header.admin-topbar.password-change-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dashboard.logged-in-dashboard .password-change-topbar .required-password-top-state {
+    display: none;
+  }
+
   .admin-primary-nav {
     grid-column: 1 / -1;
     order: 3;
@@ -2322,6 +2542,21 @@
 
   .dashboard.logged-in-dashboard .export-preview-error .ghost-button {
     margin-left: 31px;
+  }
+
+  .dashboard.logged-in-dashboard .record-create-form,
+  .dashboard.logged-in-dashboard .create-member-form,
+  .dashboard.logged-in-dashboard .training-form-grid,
+  .dashboard.logged-in-dashboard .participant-form-grid,
+  .dashboard.logged-in-dashboard .schedule-form-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .dashboard.logged-in-dashboard .record-create-form > button,
+  .dashboard.logged-in-dashboard .create-member-form > button,
+  .dashboard.logged-in-dashboard .training-form-actions > button,
+  .dashboard.logged-in-dashboard .schedule-form-actions > button {
+    width: 100%;
   }
 
   .dashboard.logged-in-dashboard .section-head {

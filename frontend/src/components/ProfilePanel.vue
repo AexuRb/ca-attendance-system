@@ -6,26 +6,26 @@
         <div class="subsection-head">
           <h4>个人资料</h4>
         </div>
-        <form class="profile-form" @submit.prevent="$emit('save-profile')">
-          <label><span>手机号</span><input v-model.trim="profile.phone" /></label>
-          <label><span>学院</span><input v-model.trim="profile.major" /></label>
-          <label>
+        <form class="profile-form" @input="$emit('dirty-change', { form: 'profile', dirty: true })" @change="$emit('dirty-change', { form: 'profile', dirty: true })" @submit.prevent="$emit('save-profile')">
+          <label for="profilePhone"><span>手机号</span><input id="profilePhone" v-model.trim="profile.phone" name="phone" inputmode="tel" autocomplete="tel" /></label>
+          <label for="profileMajor"><span>学院</span><input id="profileMajor" v-model.trim="profile.major" name="major" autocomplete="organization" /></label>
+          <label for="profileGrade">
             <span>年级</span>
-            <select v-model="profile.grade">
+            <select id="profileGrade" v-model="profile.grade" name="grade">
               <option value="">未填写</option>
               <option v-for="grade in gradeOptions" :key="grade" :value="grade">{{ grade }}</option>
             </select>
           </label>
-          <label><span>QQ</span><input v-model.trim="profile.qq" /></label>
+          <label for="profileQq"><span>QQ</span><input id="profileQq" v-model.trim="profile.qq" name="qq" inputmode="numeric" autocomplete="off" /></label>
           <button class="primary-action" type="submit"><Save :size="18" /><span>保存资料</span></button>
         </form>
 
         <details class="password-disclosure">
           <summary>修改密码</summary>
-          <form class="profile-form password-form" @submit.prevent="$emit('change-password')">
-            <label><span>原密码</span><input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" /></label>
-            <label><span>新密码</span><input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" /></label>
-            <label><span>确认新密码</span><input v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" /></label>
+          <form class="profile-form password-form" @input="$emit('dirty-change', { form: 'password', dirty: true })" @submit.prevent="$emit('change-password')">
+            <label for="profileOldPassword"><span>原密码</span><input id="profileOldPassword" v-model="passwordForm.oldPassword" name="currentPassword" type="password" autocomplete="current-password" /></label>
+            <label for="profileNewPassword"><span>新密码</span><input id="profileNewPassword" v-model="passwordForm.newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="6" /></label>
+            <label for="profileConfirmPassword"><span>确认新密码</span><input id="profileConfirmPassword" v-model="passwordForm.confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="6" /></label>
             <button class="primary-action" type="submit"><Save :size="18" /><span>修改密码</span></button>
           </form>
         </details>
@@ -37,8 +37,8 @@
           <button class="ghost-button" @click="$emit('load-my-records')"><RefreshCw :size="16" />刷新</button>
         </div>
         <div class="filters">
-          <input v-model="myRecordRange.from" type="date" />
-          <input v-model="myRecordRange.to" type="date" />
+          <label class="filter-field" for="myRecordsFrom"><span>开始日期</span><input id="myRecordsFrom" v-model="myRecordRange.from" name="from" type="date" /></label>
+          <label class="filter-field" for="myRecordsTo"><span>结束日期</span><input id="myRecordsTo" v-model="myRecordRange.to" name="to" type="date" /></label>
           <button class="ghost-button" @click="$emit('load-my-records')">查询</button>
         </div>
         <div class="mini-summary">
@@ -81,7 +81,7 @@ defineProps({
   gradeOptions: { type: Array, default: () => [] }
 })
 
-defineEmits(['save-profile', 'change-password', 'load-my-records'])
+defineEmits(['save-profile', 'change-password', 'load-my-records', 'dirty-change'])
 
 function statusText(status) {
   return {

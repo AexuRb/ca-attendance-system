@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 import zipfile
 from pathlib import Path
 
@@ -242,11 +243,34 @@ def main() -> None:
             raise AssertionError(f"today route mismatch: {page.url}")
 
         click_tab(page, "成员")
-        if not page.url.endswith("/#/admin/members"):
+        if "/#/admin/members" not in page.url:
             raise AssertionError(f"members route mismatch: {page.url}")
+        page.locator("#memberKeyword").fill("初始")
+        page.locator(".member-filters").get_by_role("button", name="搜索").click()
+        page.wait_for_timeout(250)
+        if "q=" not in page.url:
+            raise AssertionError(f"member filter was not stored in URL: {page.url}")
         page.reload(wait_until="networkidle")
         expect(page.get_by_role("heading", name="成员管理")).to_be_visible(timeout=15_000)
+        expect(page.locator("#memberKeyword")).to_have_value("初始")
         page.go_back(wait_until="networkidle")
+        expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
+
+        click_tab(page, "成员")
+        page.locator(".member-action-strip").get_by_role("button", name="新增成员").click()
+        page.locator("#newMemberStudentNo").fill("8800000001")
+        page.locator("#newMemberName").fill("未保存测试")
+        page.locator(".admin-primary-nav button", has_text="值班").click()
+        dirty_dialog = page.get_by_role("dialog")
+        expect(dirty_dialog).to_be_visible(timeout=10_000)
+        dirty_dialog.get_by_role("button", name="取消").click()
+        expect(page.locator("#newMemberName")).to_have_value("未保存测试")
+        if "/#/admin/members" not in page.url:
+            raise AssertionError(f"cancelled dirty navigation changed route: {page.url}")
+        page.locator(".admin-primary-nav button", has_text="值班").click()
+        dirty_dialog = page.get_by_role("dialog")
+        expect(dirty_dialog).to_be_visible(timeout=10_000)
+        dirty_dialog.get_by_role("button", name="放弃修改").click()
         expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
 
         for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
@@ -300,6 +324,42 @@ def main() -> None:
         click_tab(page, "今日")
         assert_no_page_overflow(page, "mobile home")
         page.screenshot(path=str(screenshot_dir / "dashboard-mobile.png"), full_page=True)
+
+        page.set_viewport_size({"width": 1440, "height": 980})
+        forced_student_no = f"88{int(time.time() * 1000) % 10_000_000_000:010d}"
+        create_result = page.evaluate(
+            """async ({ studentNo }) => {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${localStorage.getItem('ca_attendance_token')}`
+                    },
+                    body: JSON.stringify({ studentNo, name: '首次改密测试', role: 'MEMBER' })
+                });
+                return { status: response.status, text: await response.text() };
+            }""",
+            {"studentNo": forced_student_no},
+        )
+        if create_result["status"] != 200:
+            raise AssertionError(f"failed to create forced-password user: {create_result}")
+        page.get_by_title("退出后台").click()
+        expect(page.get_by_role("heading", name="后台身份验证")).to_be_visible(timeout=10_000)
+        page.get_by_placeholder("输入后台账号或学号").fill(forced_student_no)
+        page.get_by_placeholder("输入密码").fill(forced_student_no[-6:])
+        page.get_by_role("button", name="登录后台").click()
+        expect(page.get_by_role("heading", name="设置你的新密码")).to_be_visible(timeout=15_000)
+        if not page.url.endswith("/#/password-change"):
+            raise AssertionError(f"required password route mismatch: {page.url}")
+        page.locator("#requiredOldPassword").fill(forced_student_no[-6:])
+        page.locator("#requiredNewPassword").fill("UiMember-2026")
+        page.locator("#requiredConfirmPassword").fill("UiMember-2026")
+        page.get_by_role("button", name="修改密码并重新登录").click()
+        expect(page.get_by_role("heading", name="后台身份验证")).to_be_visible(timeout=15_000)
+        page.get_by_placeholder("输入后台账号或学号").fill(forced_student_no)
+        page.get_by_placeholder("输入密码").fill("UiMember-2026")
+        page.get_by_role("button", name="登录后台").click()
+        expect(page.get_by_role("heading", name="个人中心")).to_be_visible(timeout=15_000)
         browser.close()
 
         fatal_errors = [
