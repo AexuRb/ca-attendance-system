@@ -2,6 +2,7 @@ package com.ca.attendance.user;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
@@ -37,13 +38,16 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final OperationLogService logs;
     private final BackupService backups;
+    private final TokenService tokens;
 
-    public UserService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder, OperationLogService logs, BackupService backups) {
+    public UserService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder,
+                       OperationLogService logs, BackupService backups, TokenService tokens) {
         this.users = users;
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
         this.logs = logs;
         this.backups = backups;
+        this.tokens = tokens;
     }
 
     public List<UserSummary> search(String keyword, String role, String status, String grade) {
@@ -165,6 +169,7 @@ public class UserService {
                 current.id(),
                 id
         );
+        tokens.revokeUser(id);
         UserSummary after = users.findSummaryById(id).orElseThrow();
         logs.log("UPDATE_USER", "users", id, before, after, request.reason() == null ? "修改成员信息" : request.reason());
         return after;
@@ -186,6 +191,7 @@ public class UserService {
                 SET password_hash = ?, must_change_password = 1, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, passwordEncoder.encode(password), current.id(), id);
+        tokens.revokeUser(id);
         logs.log("RESET_PASSWORD", "users", id, Map.of("studentNo", target.studentNo()), Map.of("mustChangePassword", true),
                 request.reason() == null ? "重置密码" : request.reason());
     }
@@ -211,6 +217,7 @@ public class UserService {
         logs.log("DELETE_USER", "users", id, target, Map.of("deleted", true),
                 "删除成员；删除前自动备份：" + safetyBackup.filename());
         jdbc.update("DELETE FROM users WHERE id = ?", id);
+        tokens.revokeUser(id);
     }
 
     public BulkStatusResult bulkStatus(BulkStatusRequest request) {
@@ -277,6 +284,7 @@ public class UserService {
                     current.id(),
                     id
             );
+            tokens.revokeUser(id);
             updated++;
         }
 

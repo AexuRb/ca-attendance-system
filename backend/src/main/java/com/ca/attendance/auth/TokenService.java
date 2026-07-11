@@ -43,6 +43,10 @@ public class TokenService {
         }
     }
 
+    public void revokeUser(long userId) {
+        tokens.entrySet().removeIf(entry -> entry.getValue().id() == userId);
+    }
+
     public void revokeAll() {
         tokens.clear();
     }

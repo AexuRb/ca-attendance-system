@@ -2,6 +2,7 @@ package com.ca.attendance.user;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
@@ -36,6 +37,8 @@ class UserServiceTest {
     private OperationLogService logs;
     @Mock
     private BackupService backups;
+    @Mock
+    private TokenService tokens;
 
     @BeforeEach
     void setAuthUser() {
@@ -49,7 +52,7 @@ class UserServiceTest {
 
     @Test
     void bulkDisableCreatesSafetyBackupBeforeChangingUsers() {
-        UserService service = new UserService(users, jdbc, passwordEncoder, logs, backups);
+        UserService service = new UserService(users, jdbc, passwordEncoder, logs, backups, tokens);
         BackupService.BackupItem backup = new BackupService.BackupItem("backup_test.zip", 100L, Instant.now());
         UserSummary target = user(2L, "20230002", "李四", Role.MEMBER, "ACTIVE");
 
@@ -65,6 +68,7 @@ class UserServiceTest {
         verify(backups).create();
         verify(jdbc).update(contains("UPDATE users"), eq("DISABLED"), eq("DISABLED"), eq("DISABLED"),
                 eq(1L), eq(1L), eq(2L));
+        verify(tokens).revokeUser(2L);
     }
 
     private UserSummary user(long id, String studentNo, String name, Role role, String status) {
