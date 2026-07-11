@@ -7569,6 +7569,30 @@ tbody tr:hover {
   font-size: 13px;
 }
 
+.repair-view-toggle {
+  position: relative;
+}
+
+.repair-view-toggle.active {
+  color: #a43e47;
+  border-color: #e8bfc3;
+  background: #fff5f6;
+  box-shadow: none;
+}
+
+.repair-recycle-count {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: 999px;
+  color: #a43e47;
+  background: #fbe2e5;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .repair-filters {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(130px, 160px) minmax(135px, 160px) minmax(135px, 160px) auto;
@@ -7645,6 +7669,18 @@ tbody tr:hover {
   border-color: #57aee6;
   background: linear-gradient(135deg, #f0f9ff, #fff);
   box-shadow: 0 12px 28px rgba(56, 139, 205, 0.14);
+}
+
+.repair-case-card.recycled {
+  border-color: #e5d6d8;
+  background: #fffafa;
+  box-shadow: 0 8px 20px rgba(116, 65, 70, 0.07);
+}
+
+.repair-case-card.recycled.active {
+  border-color: #d7a9ae;
+  background: #fff4f5;
+  box-shadow: 0 10px 24px rgba(151, 67, 76, 0.12);
 }
 
 .repair-card-line,
@@ -7876,6 +7912,67 @@ tbody tr:hover {
 
 .repair-empty-state {
   margin-top: 0;
+}
+
+.repair-purge-backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  padding: 20px;
+  place-items: center;
+  background: rgba(17, 39, 57, 0.48);
+  backdrop-filter: blur(5px);
+}
+
+.repair-purge-dialog {
+  display: grid;
+  width: min(480px, 100%);
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid #e6c6c9;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(17, 39, 57, 0.28);
+}
+
+.repair-purge-dialog header,
+.repair-purge-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.repair-purge-dialog h4,
+.repair-purge-dialog p {
+  margin: 0;
+}
+
+.repair-purge-dialog h4 {
+  color: #812f38;
+  font-size: 20px;
+}
+
+.repair-purge-dialog p {
+  color: #4f687b;
+  line-height: 1.65;
+}
+
+.repair-purge-dialog label {
+  display: grid;
+  gap: 8px;
+  color: #405e75;
+  font-size: 13px;
+}
+
+.repair-purge-dialog label strong {
+  color: #812f38;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.repair-purge-actions {
+  justify-content: flex-end;
 }
 
 .status-received {

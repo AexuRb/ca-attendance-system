@@ -217,7 +217,9 @@ CREATE TABLE repair_cases (
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
-  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  deleted_at DATETIME,
+  deleted_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED
 );
 
 CREATE INDEX idx_repair_cases_status_received ON repair_cases (status, received_at);
@@ -225,3 +227,5 @@ CREATE INDEX idx_repair_cases_owner ON repair_cases (owner_name, owner_phone);
 CREATE INDEX idx_repair_cases_handler ON repair_cases (handler_user_id);
 CREATE INDEX idx_repair_cases_created_by ON repair_cases (created_by);
 CREATE INDEX idx_repair_cases_updated_by ON repair_cases (updated_by);
+CREATE INDEX idx_repair_cases_deleted_at ON repair_cases (deleted_at);
+CREATE INDEX idx_repair_cases_deleted_by ON repair_cases (deleted_by);

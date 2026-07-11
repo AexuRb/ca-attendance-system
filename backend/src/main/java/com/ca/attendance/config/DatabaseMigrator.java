@@ -16,7 +16,7 @@ import java.sql.Statement;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class DatabaseMigrator implements CommandLineRunner {
-    private static final int CURRENT_VERSION = 1;
+    private static final int CURRENT_VERSION = 2;
     private final DataSource dataSource;
 
     public DatabaseMigrator(DataSource dataSource) {
@@ -32,18 +32,30 @@ public class DatabaseMigrator implements CommandLineRunner {
             }
             if (version < 1) {
                 migrateToVersionOne(connection);
+                version = 1;
+            }
+            if (version < 2) {
+                migrateToVersionTwo(connection);
             }
             verifyIntegrity(connection);
         }
     }
 
     private void migrateToVersionOne(Connection connection) throws SQLException {
+        migrate(connection, "db/sqlite/V1__initial_schema.sql", 1);
+    }
+
+    private void migrateToVersionTwo(Connection connection) throws SQLException {
+        migrate(connection, "db/sqlite/V2__repair_recycle_bin.sql", 2);
+    }
+
+    private void migrate(Connection connection, String resource, int version) throws SQLException {
         boolean originalAutoCommit = connection.getAutoCommit();
         connection.setAutoCommit(false);
         try {
-            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/sqlite/V1__initial_schema.sql"));
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource(resource));
             try (Statement statement = connection.createStatement()) {
-                statement.execute("PRAGMA user_version = 1");
+                statement.execute("PRAGMA user_version = " + version);
             }
             connection.commit();
         } catch (RuntimeException | SQLException ex) {

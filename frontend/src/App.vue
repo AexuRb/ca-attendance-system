@@ -1280,6 +1280,9 @@ const logActionOptions = [
   { value: 'UPDATE_DUTY_PERIODS', label: '调整值班时间段' },
   { value: 'CREATE_REPAIR_CASE', label: '新增维修事务' },
   { value: 'UPDATE_REPAIR_CASE', label: '修改维修事务' },
+  { value: 'DELETE_REPAIR_CASE', label: '删除维修事务' },
+  { value: 'RESTORE_REPAIR_CASE', label: '恢复维修事务' },
+  { value: 'PURGE_REPAIR_CASE', label: '永久删除维修事务' },
   { value: 'UPDATE_DUTY_WEEKDAYS', label: '调整值班星期' },
   { value: 'MANUAL_UPDATE_ATTENDANCE', label: '手动修改记录' },
   { value: 'RESTORE_BACKUP', label: '恢复备份' }

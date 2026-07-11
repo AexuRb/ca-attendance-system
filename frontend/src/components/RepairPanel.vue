@@ -3,16 +3,28 @@
     <div class="section-head">
       <div>
         <h3>维修事务</h3>
-        <span>本机记录接修、处理和协议确认</span>
+        <span>{{ viewMode === 'recycle' ? '恢复误删事务，或在自动备份后永久删除' : '本机记录接修、处理和协议确认' }}</span>
       </div>
       <div class="section-actions">
-        <button v-if="canExportRepairs" class="ghost-button" :disabled="busy" @click="exportRepairs"><Download :size="16" />导出</button>
-        <button class="ghost-button" :disabled="busy" @click="startCreate"><Plus :size="16" />新事务</button>
-        <button class="ghost-button" :disabled="busy" @click="loadRepairs"><RefreshCw :size="16" />刷新</button>
+        <button v-if="viewMode === 'active' && canExportRepairs" class="ghost-button" :disabled="busy" @click="exportRepairs"><Download :size="16" />导出</button>
+        <button v-if="viewMode === 'active'" class="ghost-button" :disabled="busy" @click="startCreate"><Plus :size="16" />新事务</button>
+        <button
+          v-if="canManageRecycle"
+          class="ghost-button repair-view-toggle"
+          :class="{ active: viewMode === 'recycle' }"
+          :disabled="busy"
+          @click="viewMode === 'recycle' ? showActiveRepairs() : showRecycleBin()"
+        >
+          <ArrowLeft v-if="viewMode === 'recycle'" :size="16" />
+          <Trash2 v-else :size="16" />
+          {{ viewMode === 'recycle' ? '返回事务' : '回收站' }}
+          <small v-if="viewMode === 'active' && recycledRepairs.length" class="repair-recycle-count">{{ recycledRepairs.length }}</small>
+        </button>
+        <button class="ghost-button" :disabled="busy" @click="refreshCurrentView"><RefreshCw :size="16" />刷新</button>
       </div>
     </div>
 
-    <div class="filters repair-filters">
+    <div v-if="viewMode === 'active'" class="filters repair-filters">
       <input v-model.trim="filters.keyword" placeholder="搜索编号、送修人、设备或处理记录" @keyup.enter="loadRepairs" />
       <select v-model="filters.status" @change="loadRepairs">
         <option v-for="item in filterStatusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
@@ -22,7 +34,7 @@
       <button class="ghost-button" :disabled="busy" @click="loadRepairs">查询</button>
     </div>
 
-    <div class="repair-summary-strip">
+    <div v-if="viewMode === 'active'" class="repair-summary-strip">
       <div><span>当前列表</span><strong>{{ repairs.length }}</strong></div>
       <div><span>进行中</span><strong>{{ openCount }}</strong></div>
       <div><span>已完成</span><strong>{{ completedCount }}</strong></div>
@@ -32,10 +44,10 @@
     <div class="repair-layout" :class="{ 'form-open': showForm }">
       <aside class="repair-case-list">
         <button
-          v-for="item in repairs"
+          v-for="item in visibleRepairs"
           :key="item.id"
           class="repair-case-card"
-          :class="{ active: selectedRepair?.id === item.id && !showForm }"
+          :class="{ active: selectedRepair?.id === item.id && !showForm, recycled: viewMode === 'recycle' }"
           @click="selectRepair(item)"
         >
           <div class="repair-card-line">
@@ -45,11 +57,11 @@
           <strong>{{ item.ownerName }} · {{ item.deviceType }}</strong>
           <small>{{ deviceText(item) }}</small>
           <div class="repair-card-meta">
-            <span>{{ timeText(item.receivedAt) }}</span>
-            <span>{{ item.handlerName || '未填处理人' }}</span>
+            <span>{{ viewMode === 'recycle' ? `删除于 ${timeText(item.deletedAt)}` : timeText(item.receivedAt) }}</span>
+            <span>{{ viewMode === 'recycle' ? item.deletedByName || '未知操作人' : item.handlerName || '未填处理人' }}</span>
           </div>
         </button>
-        <div v-if="repairs.length === 0" class="empty repair-empty">暂无维修事务</div>
+        <div v-if="visibleRepairs.length === 0" class="empty repair-empty">{{ viewMode === 'recycle' ? '回收站为空' : '暂无维修事务' }}</div>
       </aside>
 
       <section class="repair-detail-panel">
@@ -169,27 +181,33 @@
         <template v-else-if="selectedRepair">
           <div class="participant-panel-head repair-panel-head">
             <div>
-              <p class="eyebrow">{{ agreementText(selectedRepair.agreementType) }}</p>
+              <p class="eyebrow">{{ viewMode === 'recycle' ? 'Recycle Bin' : agreementText(selectedRepair.agreementType) }}</p>
               <h4>{{ selectedRepair.ownerName }} · {{ selectedRepair.deviceType }}</h4>
-              <span>{{ selectedRepair.caseNo }} · {{ timeText(selectedRepair.receivedAt) }}</span>
+              <span>{{ selectedRepair.caseNo }} · {{ viewMode === 'recycle' ? `删除于 ${timeText(selectedRepair.deletedAt)}` : timeText(selectedRepair.receivedAt) }}</span>
             </div>
-            <div class="section-actions">
+            <div v-if="viewMode === 'active'" class="section-actions">
               <button class="ghost-button" :disabled="busy" @click="printAgreement(selectedRepair)"><Printer :size="16" />协议</button>
               <button class="ghost-button" :disabled="busy" @click="startEdit(selectedRepair)">编辑</button>
+              <button v-if="canDeleteRepairs" class="ghost-button danger-button" :disabled="busy" @click="deleteRepair(selectedRepair)"><Trash2 :size="16" />删除</button>
               <button class="ghost-button" :disabled="busy" @click="startCreate"><Plus :size="16" />新事务</button>
+            </div>
+            <div v-else class="section-actions">
+              <button class="ghost-button" :disabled="busy" @click="restoreRepair(selectedRepair)"><RotateCcw :size="16" />恢复</button>
+              <button class="ghost-button danger-button" :disabled="busy" @click="openPurgeDialog(selectedRepair)"><Trash2 :size="16" />永久删除</button>
             </div>
           </div>
 
           <div class="repair-focus-line">
             <span class="status-pill" :class="statusClass(selectedRepair.status)">{{ statusText(selectedRepair.status) }}</span>
             <strong>{{ deviceText(selectedRepair) }}</strong>
-            <small>{{ selectedRepair.handlerName || '未填写处理人' }}</small>
+            <small>{{ viewMode === 'recycle' ? `由 ${selectedRepair.deletedByName || '未知操作人'} 删除` : selectedRepair.handlerName || '未填写处理人' }}</small>
           </div>
 
           <div class="repair-detail-grid">
             <div><span>联系方式</span><strong>{{ selectedRepair.ownerPhone || '-' }}</strong></div>
             <div><span>随附物品</span><strong>{{ selectedRepair.accessories || '-' }}</strong></div>
             <div><span>完成时间</span><strong>{{ timeText(selectedRepair.completedAt) }}</strong></div>
+            <div v-if="viewMode === 'recycle'"><span>删除时间</span><strong>{{ timeText(selectedRepair.deletedAt) }}</strong></div>
           </div>
 
           <div class="repair-text-grid">
@@ -214,9 +232,32 @@
 
         <div v-else class="empty-state repair-empty-state">
           <Wrench :size="30" />
-          <strong>还没有维修事务</strong>
-          <span>新增一条事务后，可以打印协议、导出 Excel，并随完整备份一起归档。</span>
-          <button class="primary-action" @click="startCreate"><Plus :size="16" />新事务</button>
+          <strong>{{ viewMode === 'recycle' ? '回收站为空' : '还没有维修事务' }}</strong>
+          <span v-if="viewMode === 'active'">新增一条事务后，可以打印协议、导出 Excel，并随完整备份一起归档。</span>
+          <button v-if="viewMode === 'active'" class="primary-action" @click="startCreate"><Plus :size="16" />新事务</button>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="purgeTarget" class="repair-purge-backdrop" role="presentation" @click.self="closePurgeDialog">
+      <section class="repair-purge-dialog" role="dialog" aria-modal="true" aria-labelledby="purgeRepairTitle">
+        <header>
+          <div>
+            <p class="eyebrow">Permanent Delete</p>
+            <h4 id="purgeRepairTitle">永久删除维修事务</h4>
+          </div>
+          <button class="ghost-button" type="button" title="关闭" aria-label="关闭" :disabled="busy" @click="closePurgeDialog"><X :size="18" /></button>
+        </header>
+        <p>系统会先自动生成完整备份。永久删除后，只能从备份文件恢复。</p>
+        <label>
+          <span>输入维修编号 <strong>{{ purgeTarget.caseNo }}</strong> 继续</span>
+          <input v-model.trim="purgeConfirmation" autocomplete="off" :placeholder="purgeTarget.caseNo" @keyup.enter="purgeRepair" />
+        </label>
+        <div class="repair-purge-actions">
+          <button class="ghost-button" type="button" :disabled="busy" @click="closePurgeDialog">取消</button>
+          <button class="ghost-button danger-button" type="button" :disabled="busy || purgeConfirmation !== purgeTarget.caseNo" @click="purgeRepair">
+            <Trash2 :size="16" />永久删除
+          </button>
         </div>
       </section>
     </div>
@@ -225,8 +266,8 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Download, FileText, Plus, Printer, RefreshCw, Save, Wrench } from '@lucide/vue'
-import { api, post, put } from '../api.js'
+import { ArrowLeft, Download, FileText, Plus, Printer, RefreshCw, RotateCcw, Save, Trash2, Wrench, X } from '@lucide/vue'
+import { api, del, post, put } from '../api.js'
 
 const props = defineProps({
   currentUser: { type: Object, default: null }
@@ -237,9 +278,13 @@ const today = new Date()
 const todayValue = formatLocalDate(today)
 const busy = ref(false)
 const repairs = ref([])
+const recycledRepairs = ref([])
 const selectedRepair = ref(null)
 const showForm = ref(false)
 const editingRepairId = ref(null)
+const viewMode = ref('active')
+const purgeTarget = ref(null)
+const purgeConfirmation = ref('')
 const filters = reactive({
   keyword: '',
   status: '',
@@ -266,11 +311,17 @@ const filterStatusOptions = [
 
 const canManageRepairs = computed(() => ['MINISTER', 'PRESIDENT', 'ADMIN'].includes(props.currentUser?.role))
 const canExportRepairs = computed(() => ['PRESIDENT', 'ADMIN'].includes(props.currentUser?.role))
+const canDeleteRepairs = computed(() => ['PRESIDENT', 'ADMIN'].includes(props.currentUser?.role))
+const canManageRecycle = computed(() => props.currentUser?.role === 'ADMIN')
+const visibleRepairs = computed(() => viewMode.value === 'recycle' ? recycledRepairs.value : repairs.value)
 const openCount = computed(() => repairs.value.filter(item => normalizeStatus(item.status) === 'REPAIRING').length)
 const completedCount = computed(() => repairs.value.filter(item => normalizeStatus(item.status) === 'COMPLETED').length)
 const canceledCount = computed(() => repairs.value.filter(item => normalizeStatus(item.status) === 'CANCELED').length)
 
-onMounted(loadRepairs)
+onMounted(async () => {
+  await loadRepairs()
+  if (canManageRecycle.value) await loadRecycleBin(false)
+})
 
 async function loadRepairs() {
   await run(async () => {
@@ -280,8 +331,41 @@ async function loadRepairs() {
     if (filters.from) params.set('from', filters.from)
     if (filters.to) params.set('to', filters.to)
     repairs.value = await api(`/api/repairs?${params.toString()}`)
-    selectedRepair.value = repairs.value.find(item => item.id === selectedRepair.value?.id) || repairs.value[0] || null
+    if (viewMode.value === 'active') {
+      selectedRepair.value = repairs.value.find(item => item.id === selectedRepair.value?.id) || repairs.value[0] || null
+    }
   }, false)
+}
+
+async function loadRecycleBin(showError = true) {
+  if (!canManageRecycle.value) return
+  await run(async () => {
+    recycledRepairs.value = await api('/api/repairs/recycle-bin')
+    if (viewMode.value === 'recycle') {
+      selectedRepair.value = recycledRepairs.value.find(item => item.id === selectedRepair.value?.id) || recycledRepairs.value[0] || null
+    }
+  }, showError)
+}
+
+function showActiveRepairs() {
+  viewMode.value = 'active'
+  showForm.value = false
+  editingRepairId.value = null
+  selectedRepair.value = repairs.value[0] || null
+}
+
+async function showRecycleBin() {
+  if (!canManageRecycle.value) return
+  viewMode.value = 'recycle'
+  showForm.value = false
+  editingRepairId.value = null
+  selectedRepair.value = recycledRepairs.value[0] || null
+  await loadRecycleBin()
+}
+
+async function refreshCurrentView() {
+  if (viewMode.value === 'recycle') await loadRecycleBin()
+  else await loadRepairs()
 }
 
 function selectRepair(item) {
@@ -292,6 +376,7 @@ function selectRepair(item) {
 
 function startCreate() {
   if (!canManageRepairs.value) return notify('没有维修事务管理权限', 'warn')
+  viewMode.value = 'active'
   editingRepairId.value = null
   Object.assign(form, emptyForm())
   showForm.value = true
@@ -372,6 +457,55 @@ async function exportRepairs() {
     const blob = await api(`/api/repairs/export?${params.toString()}`)
     downloadBlob(blob, `维修事务_${filters.from || '开始'}_${filters.to || '结束'}.xlsx`)
     notify('维修事务已导出', 'success')
+  })
+}
+
+async function deleteRepair(item) {
+  if (!canDeleteRepairs.value) return notify('只有会长或管理员可以删除维修事务', 'warn')
+  if (!window.confirm(`确认将维修事务 ${item.caseNo} 移入回收站？`)) return
+  await run(async () => {
+    await del(`/api/repairs/${item.id}`)
+    selectedRepair.value = null
+    notify('维修事务已移入回收站', 'success')
+    await loadRepairs()
+    if (canManageRecycle.value) await loadRecycleBin(false)
+  })
+}
+
+async function restoreRepair(item) {
+  if (!canManageRecycle.value) return notify('只有管理员可以恢复维修事务', 'warn')
+  if (!window.confirm(`确认恢复维修事务 ${item.caseNo}？`)) return
+  await run(async () => {
+    await post(`/api/repairs/${item.id}/restore`)
+    selectedRepair.value = null
+    notify('维修事务已恢复', 'success')
+    await loadRecycleBin(false)
+    await loadRepairs()
+  })
+}
+
+function openPurgeDialog(item) {
+  if (!canManageRecycle.value) return notify('只有管理员可以永久删除维修事务', 'warn')
+  purgeTarget.value = item
+  purgeConfirmation.value = ''
+}
+
+function closePurgeDialog() {
+  if (busy.value) return
+  purgeTarget.value = null
+  purgeConfirmation.value = ''
+}
+
+async function purgeRepair() {
+  const target = purgeTarget.value
+  if (!target || purgeConfirmation.value !== target.caseNo) return
+  await run(async () => {
+    const result = await post(`/api/repairs/${target.id}/purge`, { caseNo: purgeConfirmation.value })
+    purgeTarget.value = null
+    purgeConfirmation.value = ''
+    selectedRepair.value = null
+    await loadRecycleBin(false)
+    notify(`已永久删除，安全备份：${result.safetyBackup.filename}`, 'success')
   })
 }
 

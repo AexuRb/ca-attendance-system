@@ -5,6 +5,7 @@ import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
+import com.ca.attendance.maintenance.BackupService;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -20,6 +21,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +34,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -121,6 +124,7 @@ public class RepairCaseService {
 
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
+    private final BackupService backups;
 
     private final RowMapper<RepairCaseItem> mapper = (rs, rowNum) -> new RepairCaseItem(
             rs.getLong("id"),
@@ -147,13 +151,16 @@ public class RepairCaseService {
             rs.getString("remark"),
             rs.getString("created_by_name"),
             rs.getString("updated_by_name"),
+            rs.getString("deleted_by_name"),
             localDateTime(rs, "created_at"),
-            localDateTime(rs, "updated_at")
+            localDateTime(rs, "updated_at"),
+            localDateTime(rs, "deleted_at")
     );
 
-    public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs) {
+    public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs, BackupService backups) {
         this.jdbc = jdbc;
         this.logs = logs;
+        this.backups = backups;
     }
 
     public List<RepairCaseItem> list(String keyword, String status, LocalDate from, LocalDate to) {
@@ -168,7 +175,8 @@ public class RepairCaseService {
         args.add(Timestamp.valueOf(start.atStartOfDay()));
         args.add(Timestamp.valueOf(end.plusDays(1).atStartOfDay()));
         StringBuilder where = new StringBuilder("""
-                WHERE r.received_at >= ?
+                WHERE r.deleted_at IS NULL
+                  AND r.received_at >= ?
                   AND r.received_at < ?
                 """);
 
@@ -312,14 +320,89 @@ public class RepairCaseService {
         return new AgreementFile(filename, agreementHtml(item).getBytes(StandardCharsets.UTF_8));
     }
 
+    public List<RepairCaseItem> recycleBin() {
+        requireAdmin(AuthContext.current());
+        return jdbc.query("""
+                SELECT r.*,
+                       cb.name AS created_by_name,
+                       ub.name AS updated_by_name,
+                       db.name AS deleted_by_name
+                FROM repair_cases r
+                LEFT JOIN users cb ON cb.id = r.created_by
+                LEFT JOIN users ub ON ub.id = r.updated_by
+                LEFT JOIN users db ON db.id = r.deleted_by
+                WHERE r.deleted_at IS NOT NULL
+                ORDER BY r.deleted_at DESC, r.id DESC
+                """, mapper);
+    }
+
+    @Transactional
+    public RepairCaseItem moveToRecycleBin(long id) {
+        AuthUser current = AuthContext.current();
+        requireRepairDeleter(current);
+        RepairCaseItem before = findCase(id).orElseThrow(() -> ApiException.notFound("维修事务不存在"));
+        jdbc.update("""
+                UPDATE repair_cases
+                SET deleted_at = datetime('now', 'localtime'), deleted_by = ?,
+                    updated_by = ?, updated_at = datetime('now', 'localtime')
+                WHERE id = ? AND deleted_at IS NULL
+                """, current.id(), current.id(), id);
+        RepairCaseItem after = findDeletedCase(id).orElseThrow();
+        logs.log("DELETE_REPAIR_CASE", "repair_cases", id, before, after, "维修事务移入回收站");
+        return after;
+    }
+
+    @Transactional
+    public RepairCaseItem restore(long id) {
+        AuthUser current = AuthContext.current();
+        requireAdmin(current);
+        RepairCaseItem before = findDeletedCase(id).orElseThrow(() -> ApiException.notFound("回收站中不存在该维修事务"));
+        jdbc.update("""
+                UPDATE repair_cases
+                SET deleted_at = NULL, deleted_by = NULL,
+                    updated_by = ?, updated_at = datetime('now', 'localtime')
+                WHERE id = ? AND deleted_at IS NOT NULL
+                """, current.id(), id);
+        RepairCaseItem after = findCase(id).orElseThrow();
+        logs.log("RESTORE_REPAIR_CASE", "repair_cases", id, before, after, "从回收站恢复维修事务");
+        return after;
+    }
+
+    @Transactional
+    public PurgeResult purge(long id, String confirmedCaseNo) {
+        AuthUser current = AuthContext.current();
+        requireAdmin(current);
+        RepairCaseItem before = findDeletedCase(id).orElseThrow(() -> ApiException.notFound("回收站中不存在该维修事务"));
+        if (confirmedCaseNo == null || !before.caseNo().equals(confirmedCaseNo.trim())) {
+            throw ApiException.badRequest("维修编号不匹配，未执行永久删除");
+        }
+
+        BackupService.BackupItem safetyBackup = backups.createSystemBackup(
+                "永久删除维修事务前自动备份：" + before.caseNo()
+        );
+        jdbc.update("DELETE FROM repair_cases WHERE id = ? AND deleted_at IS NOT NULL", id);
+        PurgeResult result = new PurgeResult(before.caseNo(), safetyBackup);
+        logs.log(
+                "PURGE_REPAIR_CASE",
+                "repair_cases",
+                id,
+                before,
+                Map.of("caseNo", before.caseNo(), "safetyBackup", safetyBackup.filename()),
+                "永久删除维修事务，安全备份：" + safetyBackup.filename()
+        );
+        return result;
+    }
+
     private List<RepairCaseItem> queryCases(String where, Object... args) {
         return jdbc.query("""
                 SELECT r.*,
                        cb.name AS created_by_name,
-                       ub.name AS updated_by_name
+                       ub.name AS updated_by_name,
+                       db.name AS deleted_by_name
                 FROM repair_cases r
                 LEFT JOIN users cb ON cb.id = r.created_by
                 LEFT JOIN users ub ON ub.id = r.updated_by
+                LEFT JOIN users db ON db.id = r.deleted_by
                 """ + where + """
 
                 ORDER BY
@@ -342,7 +425,11 @@ public class RepairCaseService {
     }
 
     private Optional<RepairCaseItem> findCase(long id) {
-        return queryCases("WHERE r.id = ?", id).stream().findFirst();
+        return queryCases("WHERE r.id = ? AND r.deleted_at IS NULL", id).stream().findFirst();
+    }
+
+    private Optional<RepairCaseItem> findDeletedCase(long id) {
+        return queryCases("WHERE r.id = ? AND r.deleted_at IS NOT NULL", id).stream().findFirst();
     }
 
     private RepairValues repairValues(RepairCaseRequest request, RepairCaseItem fallback, AuthUser current) {
@@ -867,6 +954,18 @@ public class RepairCaseService {
         }
     }
 
+    private void requireRepairDeleter(AuthUser current) {
+        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
+            throw ApiException.forbidden("只有会长或管理员可以删除维修事务");
+        }
+    }
+
+    private void requireAdmin(AuthUser current) {
+        if (current.role() != Role.ADMIN) {
+            throw ApiException.forbidden("只有管理员可以管理维修回收站");
+        }
+    }
+
     private byte[] workbookBytes(WorkbookWriter writer) {
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             writer.write(wb);
@@ -1075,6 +1174,9 @@ public class RepairCaseService {
     }
 
     public record AgreementFile(String filename, byte[] bytes) {
+    }
+
+    public record PurgeResult(String caseNo, BackupService.BackupItem safetyBackup) {
     }
 
     private record RepairValues(

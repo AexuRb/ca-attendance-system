@@ -5,6 +5,7 @@ import com.ca.attendance.attendance.AttendanceRepository;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
+import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
@@ -23,8 +24,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -32,6 +35,8 @@ import javax.sql.DataSource;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.Statement;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
@@ -42,6 +47,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SQLiteDatabaseIntegrationTest {
@@ -85,16 +92,55 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(1, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(2, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM pragma_foreign_key_check", Integer.class));
         assertEquals(7, jdbc.queryForObject("SELECT COUNT(*) FROM duty_weekday_settings", Integer.class));
+        assertEquals(2, jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM pragma_table_info('repair_cases')
+                WHERE name IN ('deleted_at', 'deleted_by')
+                """, Integer.class));
         String createdAt = jdbc.queryForObject("SELECT created_at FROM users WHERE id = ?", String.class, adminId);
         LocalDateTime localCreatedAt = LocalDateTime.parse(createdAt.replace('T', ' '),
                 java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         assertTrue(Duration.between(localCreatedAt, LocalDateTime.now()).abs().toMinutes() < 2);
+    }
+
+    @Test
+    void migratesVersionOneRepairRowsWithoutDataLoss() throws Exception {
+        StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v1").toString());
+        try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
+            try (Connection connection = legacyDataSource.getConnection()) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/sqlite/V1__initial_schema.sql"));
+                try (Statement statement = connection.createStatement()) {
+                    statement.execute("PRAGMA user_version = 1");
+                }
+            }
+
+            JdbcTemplate legacyJdbc = new JdbcTemplate(legacyDataSource);
+            legacyJdbc.update("""
+                    INSERT INTO repair_cases (
+                      case_no, agreement_type, owner_name, device_type, fault_description, status, received_at
+                    )
+                    VALUES ('JXWX-LEGACY-0001', 'PERSONAL_DEVICE', '旧版送修人', '笔记本电脑', '旧版故障', 'REPAIRING', datetime('now', 'localtime'))
+                    """);
+
+            new DatabaseMigrator(legacyDataSource).run();
+
+            assertEquals(2, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(1, legacyJdbc.queryForObject(
+                    "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
+                    Integer.class
+            ));
+            assertEquals(2, legacyJdbc.queryForObject("""
+                    SELECT COUNT(*)
+                    FROM pragma_table_info('repair_cases')
+                    WHERE name IN ('deleted_at', 'deleted_by')
+                    """, Integer.class));
+        }
     }
 
     @Test
@@ -162,7 +208,7 @@ class SQLiteDatabaseIntegrationTest {
                 "SELECT start_time FROM training_sessions WHERE id = ?", String.class, session.id()));
         assertEquals(1, trainings.list("离线系统培训", null, today, today).size());
 
-        RepairCaseService repairs = new RepairCaseService(jdbc, logs);
+        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backupService());
         RepairCaseItem repair = repairs.create(new RepairCaseService.RepairCaseRequest(
                 "PERSONAL_DEVICE",
                 "送修同学",
@@ -189,16 +235,65 @@ class SQLiteDatabaseIntegrationTest {
     }
 
     @Test
+    void protectsRepairRecycleBinAndBacksUpPermanentDeletion() {
+        OperationLogService logs = new OperationLogService(jdbc, objectMapper);
+        BackupService backups = backupService();
+        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backups);
+        LocalDateTime receivedAt = LocalDateTime.now();
+        RepairCaseItem repair = repairs.create(new RepairCaseService.RepairCaseRequest(
+                "PERSONAL_DEVICE", "回收站测试", "13800000001", null,
+                "笔记本电脑", "测试品牌", "测试型号", null, "电源适配器",
+                "无法开机", null, true, true, true, "REPAIRING",
+                receivedAt, null, "管理员", null
+        ));
+
+        long ministerId = requiredId(jdbc.queryForObject("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES ('minister', '测试部长', 'test-hash', 'MINISTER', 'ACTIVE', 0)
+                RETURNING id
+                """, Long.class));
+        long presidentId = requiredId(jdbc.queryForObject("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES ('president', '测试会长', 'test-hash', 'PRESIDENT', 'ACTIVE', 0)
+                RETURNING id
+                """, Long.class));
+
+        AuthContext.set(new AuthUser(ministerId, "minister", "测试部长", Role.MINISTER, Instant.now().plusSeconds(3600)));
+        assertThrows(ApiException.class, () -> repairs.moveToRecycleBin(repair.id()));
+
+        AuthContext.set(new AuthUser(presidentId, "president", "测试会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
+        RepairCaseItem deleted = repairs.moveToRecycleBin(repair.id());
+        assertNotNull(deleted.deletedAt());
+        assertEquals("测试会长", deleted.deletedByName());
+        assertEquals(0, repairs.list(null, "ALL", receivedAt.toLocalDate(), receivedAt.toLocalDate()).size());
+        assertThrows(ApiException.class, repairs::recycleBin);
+
+        AuthContext.set(new AuthUser(adminId, "admin", "管理员", Role.ADMIN, Instant.now().plusSeconds(3600)));
+        assertEquals(1, repairs.recycleBin().size());
+        RepairCaseItem restored = repairs.restore(repair.id());
+        assertNull(restored.deletedAt());
+        assertEquals(1, repairs.list(null, "ALL", receivedAt.toLocalDate(), receivedAt.toLocalDate()).size());
+
+        repairs.moveToRecycleBin(repair.id());
+        assertThrows(ApiException.class, () -> repairs.purge(repair.id(), "WRONG-CASE-NO"));
+        assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM repair_cases WHERE id = ?", Integer.class, repair.id()));
+
+        RepairCaseService.PurgeResult result = repairs.purge(repair.id(), repair.caseNo());
+        assertEquals(repair.caseNo(), result.caseNo());
+        assertTrue(Files.isRegularFile(tempDirectory.resolve("backups").resolve("app").resolve(result.safetyBackup().filename())));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM repair_cases WHERE id = ?", Integer.class, repair.id()));
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'PURGE_REPAIR_CASE' AND target_id = ?",
+                Integer.class,
+                repair.id()
+        ));
+    }
+
+    @Test
     void createsAndRestoresPortableBackupOnSQLite() throws Exception {
         StoragePaths storagePaths = new StoragePaths(tempDirectory.toString());
         TransactionTemplate transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
-        BackupService backups = new BackupService(
-                jdbc,
-                objectMapper,
-                transactions,
-                new TokenService(12),
-                storagePaths
-        );
+        BackupService backups = new BackupService(jdbc, objectMapper, transactions, new TokenService(12), storagePaths);
 
         LocalDate backupDate = LocalDate.now();
         jdbc.update("""
@@ -237,5 +332,11 @@ class SQLiteDatabaseIntegrationTest {
     private long requiredId(Long id) {
         assertNotNull(id);
         return id;
+    }
+
+    private BackupService backupService() {
+        StoragePaths storagePaths = new StoragePaths(tempDirectory.toString());
+        TransactionTemplate transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+        return new BackupService(jdbc, objectMapper, transactions, new TokenService(12), storagePaths);
     }
 }

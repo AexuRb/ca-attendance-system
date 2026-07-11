@@ -117,6 +117,10 @@ Authorization: Bearer <token>
 | `PUT/DELETE` | `/api/schedules/{id}` | 修改或归档排班 |
 | `GET/POST` | `/api/repairs` | 部长及以上查询、新增维修事务 |
 | `PUT` | `/api/repairs/{id}` | 修改维修事务 |
+| `DELETE` | `/api/repairs/{id}` | 会长或管理员移入维修回收站 |
+| `GET` | `/api/repairs/recycle-bin` | 管理员查看维修回收站 |
+| `POST` | `/api/repairs/{id}/restore` | 管理员恢复维修事务 |
+| `POST` | `/api/repairs/{id}/purge` | 管理员确认编号、自动备份后永久删除 |
 | `GET` | `/api/repairs/export` | 会长或管理员导出维修事务 |
 | `GET` | `/api/repairs/{id}/agreement` | 打开可打印协议 |
 

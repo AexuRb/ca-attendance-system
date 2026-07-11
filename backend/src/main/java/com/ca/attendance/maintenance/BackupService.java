@@ -107,7 +107,7 @@ public class BackupService {
                     "device_brand", "device_model", "device_serial", "accessories", "fault_description",
                     "service_description", "data_backup_confirmed", "risk_acknowledged", "privacy_acknowledged",
                     "status", "received_at", "completed_at", "handler_user_id", "handler_name_snapshot",
-                    "remark", "created_by", "updated_by", "created_at", "updated_at"
+                    "remark", "created_by", "updated_by", "created_at", "updated_at", "deleted_at", "deleted_by"
             )),
             Map.entry("attendance_records", Set.of(
                     "id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "duty_weekday", "is_duty_day",
@@ -153,7 +153,7 @@ public class BackupService {
             Map.entry("training_participants", Set.of("created_at", "updated_at")),
             Map.entry("duty_schedule_slots", Set.of("created_at", "updated_at")),
             Map.entry("duty_schedule_assignees", Set.of("created_at")),
-            Map.entry("repair_cases", Set.of("received_at", "completed_at", "created_at", "updated_at")),
+            Map.entry("repair_cases", Set.of("received_at", "completed_at", "created_at", "updated_at", "deleted_at")),
             Map.entry("attendance_records", Set.of(
                     "check_in_time", "check_out_time", "check_in_reviewed_at", "check_out_reviewed_at",
                     "created_at", "updated_at"
@@ -195,7 +195,7 @@ public class BackupService {
     }
 
     public BackupItem createSystemBackup(String reason) {
-        return createBackup("LOCAL_SYSTEM", "本机恢复工具", reason);
+        return createBackup("LOCAL_SYSTEM", "本机系统", reason);
     }
 
     private BackupItem createBackup(String operatorStudentNo, String operatorName, String reason) {
@@ -582,7 +582,7 @@ public class BackupService {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("system", "计算机协会本地管理系统");
         metadata.put("database", "SQLite");
-        metadata.put("schemaVersion", 1);
+        metadata.put("schemaVersion", 2);
         metadata.put("createdAt", LocalDateTime.now());
         metadata.put("operatorStudentNo", operatorStudentNo);
         metadata.put("operatorName", operatorName);

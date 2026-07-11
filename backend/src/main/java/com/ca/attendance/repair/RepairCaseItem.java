@@ -27,7 +27,9 @@ public record RepairCaseItem(
         String remark,
         String createdByName,
         String updatedByName,
+        String deletedByName,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        LocalDateTime deletedAt
 ) {
 }

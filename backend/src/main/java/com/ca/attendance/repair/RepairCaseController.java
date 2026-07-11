@@ -5,6 +5,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +46,26 @@ public class RepairCaseController {
         return repairs.update(id, request);
     }
 
+    @DeleteMapping("/{id}")
+    public RepairCaseItem delete(@PathVariable long id) {
+        return repairs.moveToRecycleBin(id);
+    }
+
+    @GetMapping("/recycle-bin")
+    public List<RepairCaseItem> recycleBin() {
+        return repairs.recycleBin();
+    }
+
+    @PostMapping("/{id}/restore")
+    public RepairCaseItem restore(@PathVariable long id) {
+        return repairs.restore(id);
+    }
+
+    @PostMapping("/{id}/purge")
+    public RepairCaseService.PurgeResult purge(@PathVariable long id, @RequestBody PurgeRequest request) {
+        return repairs.purge(id, request.caseNo());
+    }
+
     @GetMapping("/export")
     public ResponseEntity<byte[]> export(@RequestParam(required = false) String keyword,
                                          @RequestParam(required = false) String status,
@@ -70,5 +91,8 @@ public class RepairCaseController {
                         .toString())
                 .contentType(MediaType.parseMediaType("text/html;charset=UTF-8"))
                 .body(file.bytes());
+    }
+
+    public record PurgeRequest(String caseNo) {
     }
 }

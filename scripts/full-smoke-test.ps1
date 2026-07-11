@@ -469,15 +469,29 @@ try {
     $repairExport = New-TempPath "repairs.xlsx"
     Invoke-Download "/api/repairs/export?status=ALL&from=$today&to=$today" $repairExport | Out-Null
     Assert-Xlsx $repairExport
-    Add-Result "维修创建/更新/协议/导出" "case=$($repair.caseNo)"
+    Invoke-Json DELETE "/api/repairs/$($repair.id)" | Out-Null
+    $repairAfterDelete = @(Invoke-Json GET "/api/repairs?keyword=$suffix&status=ALL&from=$today&to=$today")
+    Assert-True ($repairAfterDelete.Count -eq 0) "软删除后的维修事务仍出现在普通列表"
+    $repairRecycle = @(Invoke-Json GET "/api/repairs/recycle-bin")
+    Assert-True (@($repairRecycle | Where-Object { $_.id -eq $repair.id }).Count -eq 1) "维修回收站未找到软删除事务"
+    Invoke-Json POST "/api/repairs/$($repair.id)/restore" @{} | Out-Null
+    Add-Result "维修创建/更新/协议/导出/回收站恢复" "case=$($repair.caseNo)"
 
     $ministerLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $ministerNo; password = (Get-DefaultPassword $ministerNo) } -Token $null
     Invoke-Json GET "/api/repairs?status=ALL" -Token $ministerLogin.token | Out-Null
+    Invoke-Json DELETE "/api/repairs/$($repair.id)" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
+    Invoke-Json GET "/api/repairs/recycle-bin" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/trainings" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Download "/api/repairs/export?status=ALL" (New-TempPath "minister-repair-export.xlsx") -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/logs" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json POST "/api/maintenance/backups" @{} -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
-    Add-Result "部长权限边界" "维修可看，培训/维修导出/日志/备份不可用"
+    Add-Result "部长权限边界" "维修可看，维修删除/回收站/培训/维修导出/日志/备份不可用"
+
+    Invoke-Json DELETE "/api/repairs/$($repair.id)" | Out-Null
+    $purgeResult = Invoke-Json POST "/api/repairs/$($repair.id)/purge" @{ caseNo = $repair.caseNo }
+    Remember-Backup $purgeResult.safetyBackup
+    Assert-True ($purgeResult.caseNo -eq $repair.caseNo) "维修永久删除返回编号不匹配"
+    Add-Result "维修永久删除前自动备份" $purgeResult.safetyBackup.filename
 
     $maintenance = Invoke-Json GET "/api/maintenance/summary"
     Assert-True ($maintenance.datasets.Count -ge 1) "维护摘要没有数据集"
