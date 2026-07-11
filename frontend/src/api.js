@@ -1,5 +1,14 @@
 const TOKEN_KEY = 'ca_attendance_token'
 
+export class ApiNetworkError extends Error {
+  constructor(cause) {
+    super('本机服务暂时无法连接，系统会自动重试')
+    this.name = 'ApiNetworkError'
+    this.isNetworkError = true
+    this.cause = cause
+  }
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || ''
 }
@@ -16,7 +25,12 @@ export async function api(path, options = {}) {
     ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
     ...(options.headers || {})
   }
-  const res = await fetch(path, { ...options, headers })
+  let res
+  try {
+    res = await fetch(path, { ...options, headers })
+  } catch (error) {
+    throw new ApiNetworkError(error)
+  }
   if (!res.ok) {
     let message = `请求失败：${res.status}`
     try {

@@ -24,6 +24,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,6 +41,8 @@ class AttendanceServiceTest {
     private OperationLogService logs;
     @Mock
     private BackupService backups;
+    @Mock
+    private PublicSubmissionRepository submissions;
 
     @AfterEach
     void clearAuthContext() {
@@ -48,7 +51,7 @@ class AttendanceServiceTest {
 
     @Test
     void submitPublicCreatesCheckInAndMarksRecordIncomplete() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups);
+        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
         UserSummary member = user(1L, "20230001", "张三", Role.MEMBER);
 
         when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
@@ -59,16 +62,19 @@ class AttendanceServiceTest {
                 eq(true), eq(true), any(Timestamp.class), eq("PENDING"), eq("INCOMPLETE"))).thenReturn(10L);
         when(records.findById(10L)).thenReturn(Optional.of(record(10L, null, "PENDING", "NOT_SUBMITTED")));
 
-        AttendanceService.SubmitResponse response = service.submitPublic("20230001");
+        when(submissions.findByRequestId("kiosk-check-in-001")).thenReturn(Optional.empty());
+
+        AttendanceService.SubmitResponse response = service.submitPublic("20230001", "kiosk-check-in-001");
 
         assertThat(response.action()).isEqualTo("CHECK_IN");
         assertThat(response.status()).isEqualTo("PENDING");
         verify(records).updateEffective(10L, 0, 0, "INCOMPLETE");
+        verify(submissions).save(any(PublicSubmissionRepository.Receipt.class));
     }
 
     @Test
     void recomputeApprovedCheckoutRoundsValidHours() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups);
+        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
         LocalDateTime checkIn = LocalDateTime.of(2026, 6, 30, 8, 0);
         LocalDateTime checkOut = LocalDateTime.of(2026, 6, 30, 10, 34);
         when(records.findById(20L)).thenReturn(Optional.of(record(20L, checkIn, checkOut, "APPROVED", "APPROVED")));
@@ -80,7 +86,7 @@ class AttendanceServiceTest {
 
     @Test
     void presidentCanDeleteAttendanceRecordWithSafetyBackup() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups);
+        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
         AuthContext.set(new AuthUser(2L, "president", "会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
         AttendanceRecord existing = record(30L, null, "APPROVED", "NOT_SUBMITTED");
         when(records.findById(30L)).thenReturn(Optional.of(existing));
@@ -94,7 +100,7 @@ class AttendanceServiceTest {
 
     @Test
     void submitOutsideConfiguredPeriodKeepsRecordButMarksItIneligible() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups);
+        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
         UserSummary member = user(1L, "20230001", "张三", Role.MEMBER);
         when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
         when(periods.contains(any())).thenReturn(false);
@@ -110,6 +116,31 @@ class AttendanceServiceTest {
 
         assertThat(response.message()).contains("不在值班时段");
         verify(records).updateEffective(40L, 0, 0, "INVALID");
+    }
+
+    @Test
+    void repeatedPublicSubmissionReturnsTheOriginalReceiptWithoutTogglingAttendance() {
+        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        LocalDateTime submittedAt = LocalDateTime.of(2026, 7, 11, 14, 30);
+        when(submissions.findByRequestId("kiosk-retry-001")).thenReturn(Optional.of(
+                new PublicSubmissionRepository.Receipt(
+                        "kiosk-retry-001",
+                        "20230001",
+                        88L,
+                        "CHECK_IN",
+                        "张三",
+                        submittedAt,
+                        "PENDING",
+                        "签到已提交，等待审核"
+                )
+        ));
+
+        AttendanceService.SubmitResponse response = service.submitPublic("20230001", "kiosk-retry-001");
+
+        assertThat(response.recordId()).isEqualTo(88L);
+        assertThat(response.action()).isEqualTo("CHECK_IN");
+        assertThat(response.submittedAt()).isEqualTo(submittedAt);
+        verifyNoInteractions(users, records, weekdays, periods);
     }
 
     private UserSummary user(long id, String studentNo, String name, Role role) {

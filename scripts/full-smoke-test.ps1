@@ -291,6 +291,20 @@ try {
     $login = Invoke-Json POST "/api/auth/login" @{ studentNo = $AdminStudentNo; password = $AdminPassword } -Token $null
     Assert-True ([bool]$login.token) "管理员登录没有返回 token"
     $script:AdminToken = $login.token
+    $script:EffectiveAdminPassword = $AdminPassword
+    if ($login.mustChangePassword -eq $true) {
+        $script:EffectiveAdminPassword = "SmokeAdmin-2026"
+        Invoke-Json POST "/api/auth/change-password" @{
+            oldPassword = $AdminPassword
+            newPassword = $script:EffectiveAdminPassword
+        } | Out-Null
+        $login = Invoke-Json POST "/api/auth/login" @{
+            studentNo = $AdminStudentNo
+            password = $script:EffectiveAdminPassword
+        } -Token $null
+        $script:AdminToken = $login.token
+        Add-Result "初始管理员改密" "已满足高权限操作要求"
+    }
     Add-Result "管理员登录" "$($login.name) / $($login.role)"
 
     $health = Invoke-Json GET "/api/health" -Token $null
@@ -348,8 +362,9 @@ try {
     Add-Result "成员查询/更新/重置/批量状态" "pageTotal=$($page.total)"
 
     $memberLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $memberNo; password = (Get-DefaultPassword $memberNo) } -Token $null
-    Invoke-Json PUT "/api/me/profile" @{ phone = "13100000000"; major = "个人资料烟测"; grade = "2026级"; qq = "30000" } -Token $memberLogin.token | Out-Null
     Invoke-Json POST "/api/auth/change-password" @{ oldPassword = (Get-DefaultPassword $memberNo); newPassword = "Smoke$suffix" } -Token $memberLogin.token | Out-Null
+    $memberLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $memberNo; password = "Smoke$suffix" } -Token $null
+    Invoke-Json PUT "/api/me/profile" @{ phone = "13100000000"; major = "个人资料烟测"; grade = "2026级"; qq = "30000" } -Token $memberLogin.token | Out-Null
     Invoke-Json POST "/api/auth/logout" @{} -Token $memberLogin.token | Out-Null
     Add-Result "个人资料/改密/退出登录"
 
@@ -395,8 +410,11 @@ try {
     $lookup = Invoke-Json GET "/api/public/attendance/lookup/$memberNo" -Token $null
     Assert-True $lookup.exists "公共查找临时成员失败"
     Invoke-Json GET "/api/public/attendance/lookup?query=$memberName" -Token $null | Out-Null
-    $checkIn = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo } -Token $null
-    $checkOut = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo } -Token $null
+    $checkInRequestId = "smoke-$suffix-check-in"
+    $checkIn = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo; requestId = $checkInRequestId } -Token $null
+    $checkInRetry = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo; requestId = $checkInRequestId } -Token $null
+    Assert-True ($checkInRetry.recordId -eq $checkIn.recordId -and $checkInRetry.action -eq "CHECK_IN") "重复签到请求未返回原始结果"
+    $checkOut = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo; requestId = "smoke-$suffix-check-out" } -Token $null
     Assert-True ($checkIn.recordId -eq $checkOut.recordId) "签到签退记录 ID 不一致"
     $today = Get-Date -Format "yyyy-MM-dd"
     Invoke-Json GET "/api/attendance/open?from=$today&to=$today" | Out-Null
@@ -532,6 +550,11 @@ try {
     Add-Result "维修创建/更新/协议/导出/回收站恢复" "case=$($repair.caseNo)"
 
     $ministerLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $ministerNo; password = (Get-DefaultPassword $ministerNo) } -Token $null
+    Invoke-Json POST "/api/auth/change-password" @{
+        oldPassword = (Get-DefaultPassword $ministerNo)
+        newPassword = "Minister$suffix"
+    } -Token $ministerLogin.token | Out-Null
+    $ministerLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $ministerNo; password = "Minister$suffix" } -Token $null
     Invoke-Json GET "/api/repairs?status=ALL" -Token $ministerLogin.token | Out-Null
     Invoke-Json DELETE "/api/repairs/$($repair.id)" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/repairs/recycle-bin" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
@@ -585,7 +608,7 @@ try {
         $restoreResult = Invoke-Upload "/api/maintenance/backups/restore" $baselinePath
         Remember-Backup $restoreResult.safetyBackup
         Assert-True ($restoreResult.totalRows -gt 0) "恢复备份没有恢复任何行"
-        $loginAfterRestore = Invoke-Json POST "/api/auth/login" @{ studentNo = $AdminStudentNo; password = $AdminPassword } -Token $null
+        $loginAfterRestore = Invoke-Json POST "/api/auth/login" @{ studentNo = $AdminStudentNo; password = $script:EffectiveAdminPassword } -Token $null
         $script:AdminToken = $loginAfterRestore.token
         $restoredSearch = @(Invoke-Json GET "/api/users?keyword=$suffix")
         Assert-True ($restoredSearch.Count -eq 0) "恢复基线后仍能查到烟测用户"

@@ -12,6 +12,7 @@ import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.Duration;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class AttendanceService {
@@ -28,15 +30,18 @@ public class AttendanceService {
     private final DutyPeriodService periods;
     private final OperationLogService logs;
     private final BackupService backups;
+    private final PublicSubmissionRepository submissions;
 
     public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays,
-                             DutyPeriodService periods, OperationLogService logs, BackupService backups) {
+                             DutyPeriodService periods, OperationLogService logs, BackupService backups,
+                             PublicSubmissionRepository submissions) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
         this.periods = periods;
         this.logs = logs;
         this.backups = backups;
+        this.submissions = submissions;
     }
 
     public PublicLookupResponse lookup(String studentNo) {
@@ -88,12 +93,28 @@ public class AttendanceService {
     }
 
     public SubmitResponse submitPublic(String studentNo) {
+        return submitPublic(studentNo, UUID.randomUUID().toString());
+    }
+
+    @Transactional
+    public SubmitResponse submitPublic(String studentNo, String requestId) {
+        String normalizedStudentNo = studentNo == null ? "" : studentNo.trim();
+        String normalizedRequestId = normalizeRequestId(requestId);
+        var previous = submissions.findByRequestId(normalizedRequestId);
+        if (previous.isPresent()) {
+            PublicSubmissionRepository.Receipt receipt = previous.get();
+            if (!receipt.studentNo().equals(normalizedStudentNo)) {
+                throw ApiException.conflict("该提交编号已用于其他成员，请重新查询后再试");
+            }
+            return responseFromReceipt(receipt);
+        }
+
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
         boolean withinDutyPeriod = periods.contains(now.toLocalTime());
-        UserSummary user = users.findActiveByStudentNo(studentNo)
+        UserSummary user = users.findActiveByStudentNo(normalizedStudentNo)
                 .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
         boolean autoApproved = user.role() == Role.PRESIDENT || user.role() == Role.ADMIN;
         String pendingOrAuto = autoApproved ? ReviewStatus.AUTO_APPROVED.name() : ReviewStatus.PENDING.name();
@@ -113,15 +134,54 @@ public class AttendanceService {
                     "INCOMPLETE"
             );
             recompute(id);
-            return new SubmitResponse(id, "CHECK_IN", user.studentNo(), user.name(), now, pendingOrAuto,
+            SubmitResponse response = new SubmitResponse(id, "CHECK_IN", user.studentNo(), user.name(), now, pendingOrAuto,
                     submissionMessage("签到", dutyDay, withinDutyPeriod));
+            saveSubmissionReceipt(normalizedRequestId, response);
+            return response;
         }
 
         AttendanceRecord record = open.get();
         records.updateCheckOut(record.id(), Timestamp.valueOf(now), pendingOrAuto);
         recompute(record.id());
-        return new SubmitResponse(record.id(), "CHECK_OUT", user.studentNo(), user.name(), now, pendingOrAuto,
+        SubmitResponse response = new SubmitResponse(record.id(), "CHECK_OUT", user.studentNo(), user.name(), now, pendingOrAuto,
                 submissionMessage("签退", record.dutyDay(), record.withinDutyPeriod()));
+        saveSubmissionReceipt(normalizedRequestId, response);
+        return response;
+    }
+
+    private String normalizeRequestId(String requestId) {
+        String normalized = requestId == null || requestId.isBlank()
+                ? UUID.randomUUID().toString()
+                : requestId.trim();
+        if (!normalized.matches("[A-Za-z0-9_-]{8,80}")) {
+            throw ApiException.badRequest("提交编号格式不正确，请重新查询后再试");
+        }
+        return normalized;
+    }
+
+    private void saveSubmissionReceipt(String requestId, SubmitResponse response) {
+        submissions.save(new PublicSubmissionRepository.Receipt(
+                requestId,
+                response.studentNo(),
+                response.recordId(),
+                response.action(),
+                response.name(),
+                response.submittedAt(),
+                response.status(),
+                response.message()
+        ));
+    }
+
+    private SubmitResponse responseFromReceipt(PublicSubmissionRepository.Receipt receipt) {
+        return new SubmitResponse(
+                receipt.recordId(),
+                receipt.action(),
+                receipt.studentNo(),
+                receipt.name(),
+                receipt.submittedAt(),
+                receipt.reviewStatus(),
+                receipt.message()
+        );
     }
 
     public List<AttendanceRecord> pending() {

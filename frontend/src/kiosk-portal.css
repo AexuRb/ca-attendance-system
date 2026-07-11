@@ -408,6 +408,54 @@
   animation: kiosk-result-in 260ms var(--kiosk-ease) both;
 }
 
+.kiosk-inline-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 11px 13px;
+  color: #874d3d;
+  border: 1px solid #efc7bc;
+  border-radius: 5px;
+  background: #fff8f5;
+}
+
+.kiosk-inline-notice.offline {
+  color: #7d5d23;
+  border-color: #ead39d;
+  background: #fffbef;
+}
+
+.kiosk-inline-notice > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.kiosk-inline-notice strong {
+  font-size: 13px;
+}
+
+.kiosk-inline-notice span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.kiosk-inline-notice button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 11px;
+  color: #6e531f;
+  border: 1px solid #d8b96c;
+  border-radius: 4px;
+  background: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+
 .kiosk-result-heading {
   display: flex;
   gap: 14px;
@@ -444,6 +492,7 @@
 
 .kiosk-choice-box .candidate-card {
   display: grid;
+  align-content: center;
   gap: 4px;
   min-width: 0;
   min-height: 88px;
@@ -521,6 +570,14 @@
   color: var(--kiosk-red);
 }
 
+.kiosk-lookup-help {
+  display: grid;
+  gap: 3px;
+  margin-top: 9px;
+  color: #6f5960;
+  font-size: 12px;
+}
+
 .kiosk-confirm-box .status-pills {
   display: flex;
   flex-wrap: wrap;
@@ -576,6 +633,7 @@
 }
 
 .kiosk-success-state {
+  position: relative;
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr) 150px;
   gap: 22px;
@@ -588,6 +646,7 @@
   border-radius: 6px;
   background: rgba(241, 252, 249, 0.96);
   box-shadow: 0 12px 26px rgba(22, 139, 131, 0.08);
+  overflow: hidden;
 }
 
 .kiosk-success-ring {
@@ -633,6 +692,24 @@
 .kiosk-success-state > div span {
   color: #5b7f79;
   font-size: 13px;
+}
+
+.kiosk-reset-countdown {
+  margin-top: 5px;
+  color: #4a776f;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.kiosk-reset-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--kiosk-teal);
+  transform-origin: left center;
+  animation: kiosk-reset-progress 4s linear both;
 }
 
 .kiosk-next-button {
@@ -933,6 +1010,11 @@
   50% { opacity: 0.8; transform: scale(1.08); }
 }
 
+@keyframes kiosk-reset-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
 @keyframes kiosk-health-pulse {
   0%, 100% { box-shadow: 0 0 0 4px rgba(22, 139, 131, 0.09); }
   50% { box-shadow: 0 0 0 8px rgba(22, 139, 131, 0.14); }
@@ -1066,6 +1148,15 @@
   .kiosk-choice-box,
   .kiosk-confirm-box {
     padding: 12px;
+  }
+
+  .kiosk-inline-notice {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .kiosk-inline-notice button {
+    grid-column: 1 / -1;
+    justify-content: center;
   }
 
   .kiosk-track-grid {

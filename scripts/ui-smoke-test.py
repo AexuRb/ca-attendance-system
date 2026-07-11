@@ -102,6 +102,58 @@ def main() -> None:
         expect(page.get_by_text("今日部长排班", exact=True)).to_be_visible(timeout=10_000)
 
         lookup_input = page.locator("#studentNo")
+        expect(lookup_input).to_be_focused(timeout=10_000)
+
+        lookup_attempts = {"count": 0}
+
+        def retry_lookup(route):
+            lookup_attempts["count"] += 1
+            if lookup_attempts["count"] == 1:
+                route.abort()
+                return
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=(
+                    '{"exists":false,"dutyDay":true,"withinDutyPeriod":true,'
+                    '"studentNo":null,"name":null,"action":null,'
+                    '"message":"未找到该学号或姓名，或账号已停用","matches":[]}'
+                ),
+            )
+
+        page.route("**/api/public/attendance/lookup**", retry_lookup)
+        lookup_input.fill("断线保留测试")
+        page.locator(".lookup-form button[type='submit']").click()
+        expect(page.get_by_text("本机服务连接中断", exact=True)).to_be_visible(timeout=10_000)
+        expect(lookup_input).to_have_value("断线保留测试")
+        expect(page.get_by_text("仍无法查询时，请联系管理员确认账号是否停用。", exact=True)).to_be_visible(timeout=8_000)
+        if lookup_attempts["count"] < 2:
+            raise AssertionError("offline lookup was not retried automatically")
+        page.unroute("**/api/public/attendance/lookup**")
+
+        page.route(
+            "**/api/public/attendance/lookup**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=(
+                    '{"exists":false,"dutyDay":true,"withinDutyPeriod":true,'
+                    '"studentNo":null,"name":null,"action":null,'
+                    '"message":"找到多位同名成员，请选择自己的学号",'
+                    '"matches":['
+                    '{"studentNo":"1004231224","name":"同名测试","grade":"2025级","major":"计算机学院"},'
+                    '{"studentNo":"1004998877","name":"同名测试","grade":"2024级","major":"计算机学院"}'
+                    ']}'
+                ),
+            ),
+        )
+        lookup_input.fill("同名测试")
+        page.locator(".lookup-form button[type='submit']").click()
+        expect(page.get_by_text("学号尾号 1224", exact=True)).to_be_visible(timeout=10_000)
+        expect(page.get_by_text("学号尾号 8877", exact=True)).to_be_visible(timeout=10_000)
+        expect(page.get_by_text("1004231224", exact=True)).to_have_count(0)
+        page.unroute("**/api/public/attendance/lookup**")
+
         lookup_input.fill(args.admin_student_no)
         page.locator(".lookup-form button[type='submit']").click()
         expect(page.get_by_text("查询结果")).to_be_visible(timeout=10_000)
@@ -118,8 +170,17 @@ def main() -> None:
         page.locator(".kiosk-confirm-button").click()
         expect(page.get_by_role("button", name="下一位")).to_be_visible(timeout=10_000)
         page.screenshot(path=str(screenshot_dir / "kiosk-success.png"), full_page=True)
+        expect(lookup_input).to_be_visible(timeout=6_000)
+        expect(lookup_input).to_be_focused(timeout=2_000)
+
+        lookup_input.fill(args.admin_student_no)
+        page.locator(".lookup-form button[type='submit']").click()
+        expect(page.get_by_text("查询结果")).to_be_visible(timeout=10_000)
+        page.locator(".kiosk-confirm-button").click()
+        expect(page.get_by_role("button", name="下一位")).to_be_visible(timeout=10_000)
         page.get_by_role("button", name="下一位").click()
         expect(lookup_input).to_be_visible(timeout=10_000)
+        expect(lookup_input).to_be_focused(timeout=2_000)
         page.unroute("**/api/public/attendance/submit")
 
         page.set_viewport_size({"width": 390, "height": 844})

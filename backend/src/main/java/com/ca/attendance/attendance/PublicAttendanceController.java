@@ -25,9 +25,9 @@ public class PublicAttendanceController {
 
     @PostMapping("/submit")
     public AttendanceService.SubmitResponse submit(@Valid @RequestBody SubmitRequest request) {
-        return attendance.submitPublic(request.studentNo());
+        return attendance.submitPublic(request.studentNo(), request.requestId());
     }
 
-    public record SubmitRequest(@NotBlank String studentNo) {
+    public record SubmitRequest(@NotBlank String studentNo, String requestId) {
     }
 }

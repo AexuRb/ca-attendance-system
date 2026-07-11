@@ -52,7 +52,7 @@
           </div>
           <div class="kiosk-portal-tools">
             <span class="kiosk-health" :class="{ online: healthOk }">
-              <i aria-hidden="true"></i>{{ healthOk ? '服务正常' : '服务未连接' }}
+              <i aria-hidden="true"></i>{{ healthOk ? '服务正常' : kioskPendingAction ? '服务重连中' : '服务未连接' }}
             </span>
             <button class="kiosk-admin-button" type="button" title="进入后台" aria-label="进入后台" @click="openDashboard">
               <LayoutDashboard :size="19" />
@@ -70,17 +70,19 @@
               <span v-if="!attendanceSuccess">{{ kioskCurrentPeriodText }}</span>
             </div>
 
-            <Transition name="kiosk-state" mode="out-in">
+            <Transition name="kiosk-state" mode="out-in" @after-enter="handleKioskStateEntered">
               <div v-if="attendanceSuccess" key="success" class="kiosk-success-state">
                 <span class="kiosk-success-ring"><CheckCircle2 :size="48" /></span>
                 <div>
                   <p>{{ attendanceSuccess.actionLabel }}完成</p>
                   <strong>{{ attendanceSuccess.name }}</strong>
                   <span>{{ attendanceSuccess.message }}</span>
+                  <small class="kiosk-reset-countdown">{{ kioskResetSeconds }} 秒后自动清除</small>
                 </div>
                 <button class="kiosk-next-button" type="button" @click="resetKiosk">
                   <ScanLine :size="19" />下一位
                 </button>
+                <span class="kiosk-reset-progress" aria-hidden="true"></span>
               </div>
 
               <div v-else key="lookup" class="kiosk-lookup-stage">
@@ -88,7 +90,16 @@
                   <label for="studentNo">学号或姓名</label>
                   <div class="input-row">
                     <ScanLine class="kiosk-input-icon" :size="22" aria-hidden="true" />
-                    <input id="studentNo" v-model.trim="studentNo" autocomplete="off" placeholder="输入学号或姓名" />
+                    <input
+                      id="studentNo"
+                      ref="kioskInputRef"
+                      v-model.trim="studentNo"
+                      name="memberQuery"
+                      autocomplete="off"
+                      spellcheck="false"
+                      placeholder="输入学号或姓名…"
+                      :aria-describedby="kioskInlineError ? 'kioskInlineError' : undefined"
+                    />
                     <button type="submit" class="kiosk-search-button" :disabled="busy">
                       <Search :size="20" />
                       <span>查询</span>
@@ -96,6 +107,18 @@
                     <span v-if="busy" class="kiosk-search-scan" aria-hidden="true"></span>
                   </div>
                 </form>
+
+                <div v-if="kioskPendingAction || kioskInlineError" class="kiosk-inline-notice" :class="{ offline: kioskPendingAction }" role="status" aria-live="polite">
+                  <WifiOff v-if="kioskPendingAction" :size="20" aria-hidden="true" />
+                  <AlertTriangle v-else :size="20" aria-hidden="true" />
+                  <div>
+                    <strong>{{ kioskPendingAction ? '本机服务连接中断' : '暂时无法完成查询' }}</strong>
+                    <span id="kioskInlineError">{{ kioskPendingAction ? kioskPendingAction.message : kioskInlineError }}</span>
+                  </div>
+                  <button v-if="kioskPendingAction" type="button" :disabled="busy" @click="retryPendingKioskAction">
+                    <RefreshCw :size="16" aria-hidden="true" />立即重试
+                  </button>
+                </div>
 
                 <div v-if="lookupCandidates.length" class="candidate-zone kiosk-choice-box">
                   <div class="kiosk-result-heading">
@@ -115,8 +138,7 @@
                       @click="selectLookupCandidate(candidate)"
                     >
                       <strong>{{ candidate.name }}</strong>
-                      <span class="mono">{{ candidate.studentNo }}</span>
-                      <small>{{ [candidate.grade, candidate.major].filter(Boolean).join(' · ') || '未填写年级/学院' }}</small>
+                      <span class="mono">学号尾号 {{ maskStudentNumber(candidate.studentNo) }}</span>
                     </button>
                   </div>
                 </div>
@@ -127,6 +149,10 @@
                       <p class="eyebrow">查询结果</p>
                       <h2>{{ lookupResult.name || '未找到成员' }}</h2>
                       <p>{{ lookupResult.message }}</p>
+                      <div v-if="!lookupResult.exists" class="kiosk-lookup-help">
+                        <span>请检查学号或姓名是否输入正确。</span>
+                        <span>仍无法查询时，请联系管理员确认账号是否停用。</span>
+                      </div>
                     </div>
                     <div class="status-pills">
                       <span v-if="lookupResult.exists">{{ lookupResult.action === 'CHECK_OUT' ? '本次签退' : '本次签到' }}</span>
@@ -1082,9 +1108,10 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  AlertTriangle,
   BadgeCheck,
   CalendarDays,
   CheckCircle2,
@@ -1115,6 +1142,7 @@ import {
   UserPlus,
   UserRound,
   UsersRound,
+  WifiOff,
   Wrench,
   X
 } from '@lucide/vue'
@@ -1127,6 +1155,11 @@ import SchedulePanel from './components/SchedulePanel.vue'
 import TrainingPanel from './components/TrainingPanel.vue'
 import ActionConfirmDialog from './shared/ActionConfirmDialog.vue'
 import { requestConfirmation, requestTextInput } from './shared/confirm.js'
+import {
+  createKioskRequestId,
+  createKioskResetTimer,
+  maskStudentNumber
+} from './features/kiosk/kioskFlow.js'
 
 const route = useRoute()
 const appRouter = useRouter()
@@ -1137,6 +1170,10 @@ const pendingAdminTab = ref(null)
 const healthOk = ref(false)
 const busy = ref(false)
 const studentNo = ref('')
+const kioskInputRef = ref(null)
+const kioskInlineError = ref('')
+const kioskPendingAction = ref(null)
+const kioskResetSeconds = ref(4)
 const lookupResult = ref(null)
 const attendanceSuccess = ref(null)
 const liveNow = ref(new Date())
@@ -1533,6 +1570,13 @@ const logFilters = reactive({
   to: todayValue
 })
 
+const kioskResetTimer = createKioskResetTimer({
+  onTick: seconds => {
+    kioskResetSeconds.value = seconds
+  },
+  onReset: () => resetKiosk()
+})
+
 onMounted(async () => {
   loadRememberedLoginAccount()
   kioskClockTimer = window.setInterval(() => {
@@ -1552,12 +1596,15 @@ onMounted(async () => {
   } else {
     await applyRouteLocation()
   }
+  if (view.value === 'kiosk') await focusKioskInput()
   overviewRefreshTimer = window.setInterval(refreshVisibleOverview, 30_000)
+  kioskHealthTimer = window.setInterval(checkHealth, 5_000)
   document.addEventListener('visibilitychange', refreshVisibleOverview)
   window.addEventListener('focus', refreshVisibleOverview)
 })
 
 let kioskClockTimer = null
+let kioskHealthTimer = null
 let overviewRefreshTimer = null
 let appliedRouteKey = ''
 
@@ -1567,8 +1614,10 @@ watch(() => route.fullPath, () => {
 
 onBeforeUnmount(() => {
   if (kioskClockTimer) window.clearInterval(kioskClockTimer)
+  if (kioskHealthTimer) window.clearInterval(kioskHealthTimer)
   if (overviewRefreshTimer) window.clearInterval(overviewRefreshTimer)
   if (loginErrorTimer) window.clearTimeout(loginErrorTimer)
+  kioskResetTimer.cancel()
   document.removeEventListener('visibilitychange', refreshVisibleOverview)
   window.removeEventListener('focus', refreshVisibleOverview)
 })
@@ -1585,9 +1634,13 @@ function refreshVisibleOverview() {
 }
 
 async function checkHealth() {
+  const wasOffline = !healthOk.value
   try {
     await api('/api/health')
     healthOk.value = true
+    if ((wasOffline || kioskPendingAction.value) && kioskPendingAction.value && !busy.value) {
+      await retryPendingKioskAction()
+    }
   } catch {
     healthOk.value = false
   }
@@ -1628,45 +1681,121 @@ async function loadPublicSchedules() {
   }, false)
 }
 
-async function lookupMember() {
-  if (!studentNo.value) return notify('请输入学号或姓名', 'warn')
+async function lookupMember(retryAction = null) {
+  const query = retryAction?.type === 'lookup' ? retryAction.query : studentNo.value.trim()
+  if (!query) {
+    kioskInlineError.value = '请输入学号或姓名后再查询。'
+    await focusKioskInput()
+    return
+  }
+
   attendanceSuccess.value = null
-  await run(async () => {
-    lookupResult.value = await api(`/api/public/attendance/lookup?query=${encodeURIComponent(studentNo.value)}`)
-  })
+  kioskResetTimer.cancel()
+  kioskInlineError.value = ''
+  busy.value = true
+  try {
+    lookupResult.value = await api(`/api/public/attendance/lookup?query=${encodeURIComponent(query)}`)
+    studentNo.value = query
+    healthOk.value = true
+    if (kioskPendingAction.value?.type === 'lookup') kioskPendingAction.value = null
+  } catch (error) {
+    handleKioskFailure(error, {
+      type: 'lookup',
+      query,
+      message: '输入内容已保留，连接恢复后会自动重新查询。'
+    })
+    await focusKioskInput()
+  } finally {
+    busy.value = false
+  }
 }
 
 async function selectLookupCandidate(candidate) {
   studentNo.value = candidate.studentNo
+  kioskInlineError.value = ''
   await lookupMember()
 }
 
-async function submitAttendance() {
-  await run(async () => {
-    const result = lookupResult.value
-    const submitStudentNo = lookupResult.value?.studentNo || studentNo.value
-    if (!submitStudentNo) {
-      notify('请先查询并确认成员', 'warn')
-      return
-    }
-    const res = await post('/api/public/attendance/submit', { studentNo: submitStudentNo })
+async function submitAttendance(retryAction = null) {
+  const pending = retryAction?.type === 'submit' ? retryAction : null
+  const result = pending?.lookupResult || lookupResult.value
+  const submitStudentNo = pending?.studentNo || lookupResult.value?.studentNo || studentNo.value
+  if (!submitStudentNo) {
+    kioskInlineError.value = '请先查询并确认成员。'
+    await focusKioskInput()
+    return
+  }
+
+  const requestId = pending?.requestId || createKioskRequestId()
+  kioskInlineError.value = ''
+  busy.value = true
+  try {
+    const res = await post('/api/public/attendance/submit', { studentNo: submitStudentNo, requestId })
+    healthOk.value = true
+    kioskPendingAction.value = null
     attendanceSuccess.value = {
-      name: result?.name || submitStudentNo,
-      actionLabel: result?.action === 'CHECK_OUT' ? '签退' : '签到',
+      name: res.name || result?.name || submitStudentNo,
+      actionLabel: res.action === 'CHECK_OUT' ? '签退' : '签到',
       message: res.message
     }
     lookupResult.value = null
     studentNo.value = ''
-  })
+    kioskResetTimer.start()
+  } catch (error) {
+    handleKioskFailure(error, {
+      type: 'submit',
+      studentNo: submitStudentNo,
+      requestId,
+      lookupResult: result ? { ...result } : null,
+      message: '确认信息已保留，连接恢复后会使用同一提交编号安全重试。'
+    })
+  } finally {
+    busy.value = false
+  }
 }
 
 function resetKiosk() {
+  kioskResetTimer.cancel()
   attendanceSuccess.value = null
   lookupResult.value = null
   studentNo.value = ''
+  kioskInlineError.value = ''
+  kioskPendingAction.value = null
+  kioskResetSeconds.value = 4
+  void focusKioskInput()
+}
+
+function handleKioskFailure(error, retryAction) {
+  if (error?.isNetworkError) {
+    healthOk.value = false
+    kioskInlineError.value = ''
+    kioskPendingAction.value = retryAction
+    return
+  }
+  kioskPendingAction.value = null
+  kioskInlineError.value = `${error?.message || '请求失败'} 请重新查询；问题仍存在时请联系管理员。`
+}
+
+async function retryPendingKioskAction() {
+  const pending = kioskPendingAction.value
+  if (!pending || busy.value) return
+  if (pending.type === 'submit') await submitAttendance(pending)
+  else await lookupMember(pending)
+}
+
+async function focusKioskInput() {
+  await nextTick()
+  if (view.value === 'kiosk' && !attendanceSuccess.value) {
+    kioskInputRef.value?.focus()
+  }
+}
+
+function handleKioskStateEntered() {
+  if (!attendanceSuccess.value) void focusKioskInput()
 }
 
 function openDashboard() {
+  resetKiosk()
   if (!currentUser.value) {
     void appRouter.push('/login')
     return
@@ -1822,6 +1951,7 @@ async function selectTab(tab, options = {}) {
 async function applyRouteLocation() {
   if (route.name === 'kiosk') {
     view.value = 'kiosk'
+    await focusKioskInput()
     return
   }
 

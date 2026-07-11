@@ -104,7 +104,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(3, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(4, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
@@ -119,6 +119,11 @@ class SQLiteDatabaseIntegrationTest {
                 SELECT COUNT(*)
                 FROM pragma_table_info('attendance_records')
                 WHERE name = 'within_duty_period'
+                """, Integer.class));
+        assertEquals(1, jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'public_attendance_submissions'
                 """, Integer.class));
         String createdAt = jdbc.queryForObject("SELECT created_at FROM users WHERE id = ?", String.class, adminId);
         LocalDateTime localCreatedAt = LocalDateTime.parse(createdAt.replace('T', ' '),
@@ -147,7 +152,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(3, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(4, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(1, legacyJdbc.queryForObject(
                     "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
                     Integer.class
@@ -161,6 +166,11 @@ class SQLiteDatabaseIntegrationTest {
                     SELECT COUNT(*)
                     FROM pragma_table_info('attendance_records')
                     WHERE name = 'within_duty_period'
+                    """, Integer.class));
+            assertEquals(1, legacyJdbc.queryForObject("""
+                    SELECT COUNT(*)
+                    FROM sqlite_master
+                    WHERE type = 'table' AND name = 'public_attendance_submissions'
                     """, Integer.class));
         }
     }
