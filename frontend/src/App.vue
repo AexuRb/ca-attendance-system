@@ -699,89 +699,11 @@
             @dirty-change="setFormDirty('members', $event)"
           />
 
-          <section v-if="activeTab === 'stats'" class="work-section tab-stats">
-            <div class="section-head">
-              <h3>统计与导出</h3>
-              <button v-if="canExport" class="ghost-button" @click="exportExcel"><Download :size="16" />导出</button>
-            </div>
-            <div class="range-presets" aria-label="快捷时间范围">
-              <button
-                v-for="preset in statsPresets"
-                :key="preset.id"
-                class="ghost-button"
-                :class="{ active: statsPreset === preset.id }"
-                @click="applyStatsPreset(preset.id)"
-              >
-                {{ preset.label }}
-              </button>
-            </div>
-            <div class="filters stats-filters">
-              <label class="filter-field" for="statsFrom"><span>开始日期</span><input id="statsFrom" v-model="range.from" name="from" type="date" @change="statsPreset = 'custom'" /></label>
-              <label class="filter-field" for="statsTo"><span>结束日期</span><input id="statsTo" v-model="range.to" name="to" type="date" @change="statsPreset = 'custom'" /></label>
-              <button class="ghost-button" @click="loadStats">查询</button>
-            </div>
-            <div class="stat-grid">
-              <div><span>总人数</span><strong>{{ stats.length }}</strong></div>
-              <div><span>总时长</span><strong>{{ formatHours(totalHours) }}</strong></div>
-              <div><span>总次数</span><strong>{{ totalCount }}</strong></div>
-            </div>
-            <div v-if="statsPreset === 'week'" class="weekly-detail-panel">
-              <div class="subsection-head">
-                <h4><CalendarDays :size="17" />本周值班日明细</h4>
-                <span>{{ range.from }} 至 {{ range.to }}</span>
-              </div>
-              <div class="table-wrap weekly-matrix-wrap">
-                <table class="weekly-matrix-table">
-                  <thead>
-                    <tr>
-                      <th>值班人员</th>
-                      <th v-for="day in weeklyDetail.days" :key="day.dutyDate">
-                        <span class="matrix-day-title">{{ day.weekdayName }}</span>
-                        <small>{{ day.dutyDate }}</small>
-                      </th>
-                      <th v-if="weeklyDetail.days.length === 0">暂无值班日</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="user in weeklyDetail.users" :key="user.userId">
-                      <td class="matrix-person-cell">
-                        <strong>{{ user.name }}</strong>
-                        <span>{{ user.studentNo }}</span>
-                      </td>
-                      <td
-                        v-for="day in weeklyDetail.days"
-                        :key="`${day.dutyDate}-${user.userId}`"
-                        class="matrix-hour"
-                        :class="{ filled: weeklyCell(day.dutyDate, user.userId) > 0 }"
-                      >
-                        {{ formatHours(weeklyCell(day.dutyDate, user.userId)) }} h
-                      </td>
-                      <td v-if="weeklyDetail.days.length === 0" class="matrix-hour">0 h</td>
-                    </tr>
-                    <tr v-if="weeklyDetail.users.length === 0">
-                      <td :colspan="Math.max(2, weeklyDetail.days.length + 1)" class="empty">本周暂无值班人员</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>排行</th><th>姓名</th><th>学号</th><th>年级</th><th>次数</th><th>总时长</th></tr></thead>
-                <tbody>
-                  <tr v-for="(row, index) in stats" :key="row.userId">
-                    <td class="mono">{{ index + 1 }}</td>
-                    <td>{{ row.name }}</td>
-                    <td class="mono">{{ row.studentNo }}</td>
-                    <td>{{ row.grade || '-' }}</td>
-                    <td>{{ row.dutyCount }}</td>
-                    <td>{{ formatHours(row.totalHours) }} h</td>
-                  </tr>
-                  <tr v-if="stats.length === 0"><td colspan="6" class="empty">暂无有效统计</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <StatsPanel
+            v-if="activeTab === 'stats'"
+            :current-user="currentUser"
+            @notify="notify($event.message, $event.type)"
+          />
 
           <TrainingPanel
             v-if="activeTab === 'trainings'"
@@ -1008,6 +930,7 @@ import MembersPanel from './components/MembersPanel.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
 import RepairPanel from './components/RepairPanel.vue'
 import SchedulePanel from './components/SchedulePanel.vue'
+import StatsPanel from './components/StatsPanel.vue'
 import TrainingPanel from './components/TrainingPanel.vue'
 import ActionConfirmDialog from './shared/ActionConfirmDialog.vue'
 import { requestConfirmation, requestTextInput } from './shared/confirm.js'
@@ -1020,7 +943,6 @@ import { buildTodayIssues } from './features/dashboard/todayIssues.js'
 import {
   compactQuery,
   queryDate,
-  queryOneOf,
   queryPositiveInt,
   queryText
 } from './features/navigation/queryState.js'
@@ -1049,19 +971,12 @@ const weekSchedule = ref([])
 const dutyPeriods = ref([])
 const publicDutyWeekdays = ref([])
 const dutyPeriodDrafts = ref([])
-const stats = ref([])
-const weeklyDetail = ref(emptyWeeklyDetail())
-const statsPreset = ref('custom')
 const myRecords = ref([])
 const myTrainingHours = ref(0)
 const myTrainingCount = ref(0)
 const weekdays = ref([])
 const today = new Date()
 const todayValue = formatLocalDate(today)
-const range = reactive({
-  from: `${today.getFullYear()}-01-01`,
-  to: todayValue
-})
 const myRecordRange = reactive({
   from: `${today.getFullYear()}-01-01`,
   to: todayValue
@@ -1177,12 +1092,6 @@ const logActionOptions = [
   { value: 'RESTORE_BACKUP', label: '恢复备份' }
 ]
 
-const statsPresets = [
-  { id: 'week', label: '本周' },
-  { id: 'month', label: '本月' },
-  { id: 'schoolYear', label: '本学年' }
-]
-
 const availableTabs = computed(() => currentUser.value ? tabs.filter(t => t.roles.includes(currentUser.value.role)) : [])
 const activeTabInfo = computed(() => availableTabs.value.find(tab => tab.id === activeTab.value) || availableTabs.value[0] || tabs[0])
 const activeTabDescription = computed(() => adminTabDescriptions[activeTabInfo.value?.id] || '管理当前模块的数据和操作。')
@@ -1199,7 +1108,6 @@ const activeAdminGroup = computed(() => (
   adminNavGroups.value.find(group => group.tabs.some(tab => tab.id === activeTab.value)) || adminNavGroups.value[0]
 ))
 const activeAdminGroupTabs = computed(() => activeAdminGroup.value?.tabs || [])
-const canExport = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canViewLogs = computed(() => currentUser.value?.role === 'ADMIN')
 const canBackupData = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canUseDataCenter = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
@@ -1212,8 +1120,6 @@ const setupFormReady = computed(() => (
   setupForm.password === setupForm.confirmPassword
 ))
 const lookupCandidates = computed(() => lookupResult.value?.matches || [])
-const totalHours = computed(() => stats.value.reduce((sum, row) => sum + Number(row.totalHours || 0), 0))
-const totalCount = computed(() => stats.value.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0))
 const myRecordHours = computed(() => myRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0) + Number(myTrainingHours.value || 0))
 const myRecordCount = computed(() => myRecords.value.length + Number(myTrainingCount.value || 0))
 const profileGradeOptions = Array.from({ length: 2057 - 2007 + 1 }, (_, index) => `${2007 + index}级`)
@@ -1776,11 +1682,6 @@ async function applyRouteLocation() {
 
 function hydrateTabQuery(tab, query) {
   const yearStart = `${today.getFullYear()}-01-01`
-  if (tab === 'stats') {
-    statsPreset.value = queryOneOf(query, 'preset', ['custom', ...statsPresets.map(item => item.id)], 'custom')
-    range.from = queryDate(query, 'from', yearStart)
-    range.to = queryDate(query, 'to', todayValue)
-  }
   if (tab === 'logs') {
     logFilters.keyword = queryText(query, 'q')
     logFilters.actionType = queryText(query, 'action')
@@ -1807,7 +1708,6 @@ async function loadTab(tab) {
   activeTab.value = tab
   if (tab === 'overview') await loadOverview()
   if (tab === 'reviews') await loadPending()
-  if (tab === 'stats') await loadStats()
   if (tab === 'data') await loadDataCenter()
   if (tab === 'settings') await loadDutySettings()
   if (tab === 'logs') await loadOperationLogs(1)
@@ -2010,57 +1910,6 @@ async function bulkReview(part) {
     notify(`批量审核完成：通过 ${result.reviewed} 项，跳过 ${result.skipped} 条`, result.errors?.length ? 'warn' : 'success')
     await loadPending()
     await loadOverview()
-  })
-}
-
-async function loadStats() {
-  await run(async () => {
-    const summaryUrl = `/api/stats/summary?from=${range.from}&to=${range.to}`
-    const weeklyDetailUrl = `/api/stats/weekly-detail?from=${range.from}&to=${range.to}`
-    const [summary, detail] = await Promise.all([
-      api(summaryUrl),
-      statsPreset.value === 'week' ? api(weeklyDetailUrl) : Promise.resolve(emptyWeeklyDetail())
-    ])
-    stats.value = summary
-    weeklyDetail.value = detail
-    await syncTabQuery('stats', {
-      preset: statsPreset.value,
-      from: range.from,
-      to: range.to
-    })
-  }, false)
-}
-
-function emptyWeeklyDetail() {
-  return { days: [], users: [], cells: {} }
-}
-
-function weeklyCell(dutyDate, userId) {
-  return Number(weeklyDetail.value.cells?.[dutyDate]?.[String(userId)] || 0)
-}
-
-async function applyStatsPreset(preset) {
-  const now = new Date()
-  const from = new Date(now)
-  if (preset === 'week') {
-    const weekday = now.getDay() || 7
-    from.setDate(now.getDate() - weekday + 1)
-  } else if (preset === 'month') {
-    from.setDate(1)
-  } else if (preset === 'schoolYear') {
-    const startYear = now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1
-    from.setFullYear(startYear, 8, 1)
-  }
-  statsPreset.value = preset
-  range.from = formatLocalDate(from)
-  range.to = formatLocalDate(now)
-  await loadStats()
-}
-
-async function exportExcel() {
-  await run(async () => {
-    const blob = await api(`/api/stats/export?from=${range.from}&to=${range.to}`)
-    downloadBlob(blob, `值班记录_${range.from}_${range.to}.xlsx`)
   })
 }
 

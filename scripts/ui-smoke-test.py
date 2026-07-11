@@ -293,6 +293,29 @@ def main() -> None:
         expect(page.locator("#manualStudentNo")).to_have_value(args.admin_student_no)
         page.locator(".record-create-form").get_by_role("button", name="取消", exact=True).click()
 
+        click_tab(page, "统计")
+        expect(page.get_by_role("heading", name="统计与导出")).to_be_visible(timeout=10_000)
+        stats_from = page.locator("#statsFrom").input_value()
+        stats_to = page.locator("#statsTo").input_value()
+        page.locator(".stats-filters").get_by_role("button", name="查询").click()
+        page.wait_for_timeout(250)
+        if "from=" not in page.url or "to=" not in page.url:
+            raise AssertionError(f"stats range was not stored in URL: {page.url}")
+        page.reload(wait_until="networkidle")
+        expect(page.get_by_role("heading", name="统计与导出")).to_be_visible(timeout=15_000)
+        expect(page.locator("#statsFrom")).to_have_value(stats_from)
+        expect(page.locator("#statsTo")).to_have_value(stats_to)
+        page.get_by_role("button", name="本周", exact=True).click()
+        expect(page.get_by_role("heading", name="本周值班日明细")).to_be_visible(timeout=10_000)
+        page.wait_for_function("() => window.location.href.includes('preset=week')", timeout=10_000)
+        if "preset=week" not in page.url:
+            raise AssertionError(f"stats preset was not stored in URL: {page.url}")
+        with page.expect_download(timeout=15_000) as download_info:
+            page.get_by_role("button", name="导出", exact=True).click()
+        download_path = download_info.value.path()
+        if not download_path or not zipfile.is_zipfile(download_path):
+            raise AssertionError("stats export did not produce a valid xlsx file")
+
         for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
             click_tab(page, label)
             assert_no_page_overflow(page, label)
