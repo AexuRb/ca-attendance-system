@@ -743,58 +743,12 @@
             @notify="notify($event.message, $event.type)"
           />
 
-          <section v-if="activeTab === 'settings'" class="work-section tab-settings">
-            <div class="section-head">
-              <div>
-                <h3>值班设置</h3>
-                <span>控制签到台显示的值班星期和值班时间段</span>
-              </div>
-            </div>
-
-            <div class="settings-stack">
-              <section class="settings-card">
-                <div class="settings-card-head">
-                  <div>
-                    <h4>值班星期</h4>
-                    <span>关闭某天后，当天记录仍可测试提交，但不会计入有效值班</span>
-                  </div>
-                  <button class="ghost-button" @click="saveWeekdays"><Save :size="16" />保存星期</button>
-                </div>
-                <div class="weekday-grid">
-                  <label v-for="day in weekdays" :key="day.weekday" :class="{ selected: day.enabled }">
-                    <input v-model="day.enabled" type="checkbox" @change="setFormDirty('settings-weekdays', true)" />
-                    <CalendarDays :size="18" />
-                    <span>{{ day.weekday_name }}</span>
-                  </label>
-                </div>
-              </section>
-
-              <section class="settings-card">
-                <div class="settings-card-head">
-                  <div>
-                    <h4>值班时间段</h4>
-                    <span>签到台会按后台保存的值班时间段统计部长人数</span>
-                  </div>
-                  <div class="settings-card-actions">
-                    <button class="ghost-button" @click="addDutyPeriod"><Plus :size="16" />新增时间段</button>
-                    <button class="ghost-button" @click="saveDutyPeriods"><Save :size="16" />保存时间段</button>
-                  </div>
-                </div>
-                <div class="duty-period-list">
-                  <div v-if="dutyPeriodDrafts.length === 0" class="duty-period-empty">
-                    <Clock3 :size="18" />
-                    <strong>暂无值班时间段</strong>
-                  </div>
-                  <article v-for="(period, index) in dutyPeriodDrafts" :key="`${period.startTime}-${period.endTime}-${index}`" class="duty-period-row">
-                    <label :for="`dutyPeriodStart-${index}`"><span>开始</span><input :id="`dutyPeriodStart-${index}`" v-model="period.startTime" name="startTime" type="time" @change="setFormDirty('settings-periods', true)" /></label>
-                    <span>至</span>
-                    <label :for="`dutyPeriodEnd-${index}`"><span>结束</span><input :id="`dutyPeriodEnd-${index}`" v-model="period.endTime" name="endTime" type="time" @change="setFormDirty('settings-periods', true)" /></label>
-                    <button class="ghost-button danger-button" type="button" @click="removeDutyPeriod(index)">删除</button>
-                  </article>
-                </div>
-              </section>
-            </div>
-          </section>
+          <SettingsPanel
+            v-if="activeTab === 'settings'"
+            @notify="notify($event.message, $event.type)"
+            @dirty-change="setFormDirty('settings', $event)"
+            @updated="loadPublicSchedules"
+          />
 
           <section v-if="activeTab === 'logs'" class="work-section tab-logs">
             <div class="section-head">
@@ -930,6 +884,7 @@ import MembersPanel from './components/MembersPanel.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
 import RepairPanel from './components/RepairPanel.vue'
 import SchedulePanel from './components/SchedulePanel.vue'
+import SettingsPanel from './components/SettingsPanel.vue'
 import StatsPanel from './components/StatsPanel.vue'
 import TrainingPanel from './components/TrainingPanel.vue'
 import ActionConfirmDialog from './shared/ActionConfirmDialog.vue'
@@ -940,6 +895,7 @@ import {
   maskStudentNumber
 } from './features/kiosk/kioskFlow.js'
 import { buildTodayIssues } from './features/dashboard/todayIssues.js'
+import { normalizeDutyPeriods, shortTime, timeToMinutes } from './features/schedule/dutyPeriods.js'
 import {
   compactQuery,
   queryDate,
@@ -970,11 +926,9 @@ const todaySchedule = ref([])
 const weekSchedule = ref([])
 const dutyPeriods = ref([])
 const publicDutyWeekdays = ref([])
-const dutyPeriodDrafts = ref([])
 const myRecords = ref([])
 const myTrainingHours = ref(0)
 const myTrainingCount = ref(0)
-const weekdays = ref([])
 const today = new Date()
 const todayValue = formatLocalDate(today)
 const myRecordRange = reactive({
@@ -1709,7 +1663,6 @@ async function loadTab(tab) {
   if (tab === 'overview') await loadOverview()
   if (tab === 'reviews') await loadPending()
   if (tab === 'data') await loadDataCenter()
-  if (tab === 'settings') await loadDutySettings()
   if (tab === 'logs') await loadOperationLogs(1)
   if (tab === 'profile') {
     await loadMe()
@@ -1974,105 +1927,6 @@ async function restoreBackup() {
   })
 }
 
-async function loadWeekdays() {
-  await run(async () => {
-    weekdays.value = await api('/api/settings/weekdays')
-  }, false)
-}
-
-async function loadDutySettings() {
-  await run(async () => {
-    const [days, periods] = await Promise.all([
-      api('/api/settings/weekdays'),
-      api('/api/settings/duty-periods')
-    ])
-    weekdays.value = days
-    dutyPeriods.value = normalizeDutyPeriods(periods)
-    resetDutyPeriodDrafts()
-  }, false)
-}
-
-async function saveWeekdays() {
-  await run(async () => {
-    const enabledWeekdays = weekdays.value.filter(d => d.enabled).map(d => d.weekday)
-    await put('/api/settings/weekdays', { enabledWeekdays })
-    setFormDirty('settings-weekdays', false)
-    notify('值班星期已保存', 'success')
-  })
-}
-
-function resetDutyPeriodDrafts() {
-  dutyPeriodDrafts.value = dutyPeriodsForDisplay().map(period => ({
-    startTime: period.startTime,
-    endTime: period.endTime
-  }))
-}
-
-function addDutyPeriod() {
-  const last = dutyPeriodDrafts.value.at(-1)
-  dutyPeriodDrafts.value.push({
-    startTime: last?.endTime || '',
-    endTime: last?.endTime ? nextPeriodEnd(last.endTime) : ''
-  })
-  setFormDirty('settings-periods', true)
-}
-
-function removeDutyPeriod(index) {
-  dutyPeriodDrafts.value.splice(index, 1)
-  setFormDirty('settings-periods', true)
-}
-
-async function saveDutyPeriods() {
-  const periods = dutyPeriodDraftsForSave()
-  if (!periods) return
-  await run(async () => {
-    const saved = await put('/api/settings/duty-periods', { periods })
-    dutyPeriods.value = normalizeDutyPeriods(saved)
-    resetDutyPeriodDrafts()
-    setFormDirty('settings-periods', false)
-    await loadPublicSchedules()
-    notify('值班时间段已保存', 'success')
-  })
-}
-
-function dutyPeriodDraftsForSave() {
-  const periods = []
-  for (const [index, draft] of dutyPeriodDrafts.value.entries()) {
-    const startTime = shortTime(draft.startTime)
-    const endTime = shortTime(draft.endTime)
-    if (!startTime && !endTime) continue
-    if (!startTime || !endTime) {
-      notify(`第 ${index + 1} 个时间段未填写完整`, 'warn')
-      return null
-    }
-    const start = timeToMinutes(startTime)
-    const end = timeToMinutes(endTime)
-    if (start == null || end == null) {
-      notify(`第 ${index + 1} 个时间段格式不正确`, 'warn')
-      return null
-    }
-    if (end <= start) {
-      notify(`第 ${index + 1} 个时间段结束时间必须晚于开始时间`, 'warn')
-      return null
-    }
-    periods.push({ startTime, endTime })
-  }
-  if (periods.length === 0) {
-    notify('请至少填写一个值班时间段', 'warn')
-    return null
-  }
-  return periods
-}
-
-function nextPeriodEnd(startTime) {
-  const start = timeToMinutes(startTime)
-  if (start == null) return ''
-  const end = Math.min(start + 120, 23 * 60 + 59)
-  const hour = String(Math.floor(end / 60)).padStart(2, '0')
-  const minute = String(end % 60).padStart(2, '0')
-  return `${hour}:${minute}`
-}
-
 async function loadOperationLogs(page = 1) {
   await run(async () => {
     const params = new URLSearchParams()
@@ -2311,28 +2165,6 @@ function periodTime(period) {
 
 function periodKey(period) {
   return `${shortTime(period.startTime)}-${shortTime(period.endTime)}`
-}
-
-function normalizeDutyPeriods(items) {
-  return (items || [])
-    .map((item, index) => ({
-      sortOrder: Number(item.sortOrder ?? index),
-      startTime: shortTime(item.startTime),
-      endTime: shortTime(item.endTime)
-    }))
-    .filter(item => item.startTime && item.endTime)
-    .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime) || timeToMinutes(a.endTime) - timeToMinutes(b.endTime))
-}
-
-function timeToMinutes(value) {
-  if (!value) return null
-  const [hour, minute] = String(value).split(':').map(part => Number(part))
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null
-  return hour * 60 + minute
-}
-
-function shortTime(value) {
-  return value ? String(value).slice(0, 5) : ''
 }
 
 function shortWeekdayName(value) {

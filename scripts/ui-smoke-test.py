@@ -316,6 +316,28 @@ def main() -> None:
         if not download_path or not zipfile.is_zipfile(download_path):
             raise AssertionError("stats export did not produce a valid xlsx file")
 
+        click_tab(page, "设置")
+        expect(page.get_by_role("heading", name="值班设置")).to_be_visible(timeout=10_000)
+        if page.locator(".duty-period-row").count() == 0:
+            page.get_by_role("button", name="新增时间段").click()
+        first_period = page.locator(".duty-period-row").first
+        first_period.locator("input[name='startTime']").fill("14:00")
+        first_period.locator("input[name='endTime']").fill("16:00")
+        page.get_by_role("button", name="保存时间段").click()
+        expect(page.get_by_text("值班时间段已保存", exact=True)).to_be_visible(timeout=10_000)
+        first_period = page.locator(".duty-period-row").first
+        first_period.locator("input[name='startTime']").fill("14:01")
+        page.locator(".admin-primary-nav button", has_text="值班").click()
+        dirty_dialog = page.get_by_role("dialog")
+        expect(dirty_dialog).to_be_visible(timeout=10_000)
+        dirty_dialog.get_by_role("button", name="取消").click()
+        expect(first_period.locator("input[name='startTime']")).to_have_value("14:01")
+        page.locator(".admin-primary-nav button", has_text="值班").click()
+        dirty_dialog = page.get_by_role("dialog")
+        expect(dirty_dialog).to_be_visible(timeout=10_000)
+        dirty_dialog.get_by_role("button", name="放弃修改").click()
+        expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
+
         for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
             click_tab(page, label)
             assert_no_page_overflow(page, label)
