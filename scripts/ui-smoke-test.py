@@ -338,6 +338,29 @@ def main() -> None:
         dirty_dialog.get_by_role("button", name="放弃修改").click()
         expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
 
+        click_tab(page, "日志")
+        expect(page.get_by_role("heading", name="操作日志")).to_be_visible(timeout=10_000)
+        page.locator("#logKeyword").fill(args.admin_student_no)
+        page.locator(".log-filters").get_by_role("button", name="查询").click()
+        page.wait_for_timeout(250)
+        if "q=" not in page.url:
+            raise AssertionError(f"log filter was not stored in URL: {page.url}")
+        page.reload(wait_until="networkidle")
+        expect(page.get_by_role("heading", name="操作日志")).to_be_visible(timeout=15_000)
+        expect(page.locator("#logKeyword")).to_have_value(args.admin_student_no)
+        if page.locator(".log-table .actions button").count() > 0:
+            page.locator(".log-table .actions button").first.click()
+            expect(page.locator(".log-detail-panel")).to_be_visible(timeout=10_000)
+        with page.expect_download(timeout=15_000) as download_info:
+            page.get_by_role("button", name="导出日志", exact=True).click()
+        download_path = download_info.value.path()
+        if not download_path or not zipfile.is_zipfile(download_path):
+            raise AssertionError("log export did not produce a valid xlsx file")
+        page.get_by_role("button", name="清空日志", exact=True).click()
+        clear_log_dialog = page.get_by_role("dialog")
+        expect(clear_log_dialog).to_be_visible(timeout=10_000)
+        clear_log_dialog.get_by_role("button", name="取消").click()
+
         for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
             click_tab(page, label)
             assert_no_page_overflow(page, label)

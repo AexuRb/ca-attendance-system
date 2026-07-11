@@ -750,67 +750,7 @@
             @updated="loadPublicSchedules"
           />
 
-          <section v-if="activeTab === 'logs'" class="work-section tab-logs">
-            <div class="section-head">
-              <h3>操作日志</h3>
-              <div class="section-actions">
-                <button class="ghost-button" @click="exportOperationLogs"><Download :size="16" />导出日志</button>
-                <button class="ghost-button danger-button" @click="clearOperationLogs"><Trash2 :size="16" />清空日志</button>
-                <button class="ghost-button" @click="loadOperationLogs(logPage)"><RefreshCw :size="16" />刷新</button>
-              </div>
-            </div>
-            <div class="filters log-filters">
-              <label class="filter-field log-search-field" for="logKeyword"><span>关键词</span><input id="logKeyword" class="log-search" v-model.trim="logFilters.keyword" name="keyword" autocomplete="off" placeholder="操作人、学号或原因" @keyup.enter="loadOperationLogs(1)" /></label>
-              <label class="filter-field" for="logAction"><span>操作类型</span><select id="logAction" class="log-action-select" v-model="logFilters.actionType" name="actionType" @change="loadOperationLogs(1)">
-                <option value="">全部操作</option>
-                <option v-for="item in logActionOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select></label>
-              <label class="filter-field" for="logFrom"><span>开始日期</span><input id="logFrom" v-model="logFilters.from" name="from" type="date" /></label>
-              <label class="filter-field" for="logTo"><span>结束日期</span><input id="logTo" v-model="logFilters.to" name="to" type="date" /></label>
-              <button class="ghost-button" @click="loadOperationLogs(1)">查询</button>
-            </div>
-            <div class="table-wrap">
-              <table class="log-table">
-                <thead>
-                  <tr><th>时间</th><th>操作人</th><th>操作</th><th>对象</th><th>原因</th><th>详情</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in operationLogs" :key="item.id">
-                    <td class="mono">{{ timeText(item.createdAt) }}</td>
-                    <td>{{ operatorText(item) }}</td>
-                    <td>{{ logActionLabel(item.actionType) }}</td>
-                    <td class="mono">{{ targetText(item) }}</td>
-                    <td class="log-reason">{{ item.reason || '-' }}</td>
-                    <td class="actions">
-                      <button @click="selectedLog = selectedLog?.id === item.id ? null : item">详情</button>
-                    </td>
-                  </tr>
-                  <tr v-if="operationLogs.length === 0"><td colspan="6" class="empty">暂无操作日志</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="pagination-bar">
-              <button class="ghost-button" :disabled="logPage <= 1 || busy" @click="changeOperationLogPage(-1)">上一页</button>
-              <span>第 {{ logPage }} / {{ logTotalPages }} 页，共 {{ logTotal }} 条</span>
-              <button class="ghost-button" :disabled="logPage >= logTotalPages || busy" @click="changeOperationLogPage(1)">下一页</button>
-            </div>
-            <div v-if="selectedLog" class="log-detail-panel">
-              <div class="subsection-head">
-                <h4>{{ logActionLabel(selectedLog.actionType) }} · {{ timeText(selectedLog.createdAt) }}</h4>
-                <button class="ghost-button" @click="selectedLog = null">收起</button>
-              </div>
-              <div class="log-detail-grid">
-                <div>
-                  <h5>修改前</h5>
-                  <pre>{{ prettyLogData(selectedLog.beforeData) }}</pre>
-                </div>
-                <div>
-                  <h5>修改后</h5>
-                  <pre>{{ prettyLogData(selectedLog.afterData) }}</pre>
-                </div>
-              </div>
-            </div>
-          </section>
+          <LogsPanel v-if="activeTab === 'logs'" :current-user="currentUser" @notify="notify($event.message, $event.type)" />
 
           <ProfilePanel
             v-if="activeTab === 'profile'"
@@ -852,7 +792,6 @@ import {
   ClipboardList,
   Clock3,
   Database,
-  Download,
   Eye,
   EyeOff,
   Gauge,
@@ -869,7 +808,6 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
-  Trash2,
   UserRound,
   UsersRound,
   WifiOff,
@@ -880,6 +818,7 @@ import { api, del, getToken, post, put, setToken } from './api.js'
 import { adminModuleLocation, tabFromRoute } from './app/router.js'
 import AttendanceRecordsPanel from './components/AttendanceRecordsPanel.vue'
 import DataCenterPanel from './components/DataCenterPanel.vue'
+import LogsPanel from './components/LogsPanel.vue'
 import MembersPanel from './components/MembersPanel.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
 import RepairPanel from './components/RepairPanel.vue'
@@ -896,12 +835,7 @@ import {
 } from './features/kiosk/kioskFlow.js'
 import { buildTodayIssues } from './features/dashboard/todayIssues.js'
 import { normalizeDutyPeriods, shortTime, timeToMinutes } from './features/schedule/dutyPeriods.js'
-import {
-  compactQuery,
-  queryDate,
-  queryPositiveInt,
-  queryText
-} from './features/navigation/queryState.js'
+import { compactQuery, queryDate } from './features/navigation/queryState.js'
 
 const route = useRoute()
 const appRouter = useRouter()
@@ -948,12 +882,8 @@ const dirtyForms = ref(new Set())
 const profile = reactive({ phone: '', major: '', grade: '', qq: '' })
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const restoreFile = ref(null)
-const operationLogs = ref([])
 const backups = ref([])
 const dataCenterSummary = ref(null)
-const logTotal = ref(0)
-const logPage = ref(1)
-const selectedLog = ref(null)
 const overview = reactive({
   pendingCount: 0,
   totalHours: 0,
@@ -971,7 +901,6 @@ const overview = reactive({
   }
 })
 const toast = reactive({ message: '', type: 'info' })
-const logPageSize = 20
 const loginAccountStorageKey = 'ca-attendance-remembered-account'
 let loginErrorTimer = null
 
@@ -1012,40 +941,6 @@ const adminNavBlueprint = [
   { id: 'system', label: '系统', icon: SlidersHorizontal, tabs: ['data', 'settings', 'logs'] }
 ]
 
-const logActionOptions = [
-  { value: 'INITIALIZE_SYSTEM', label: '初始化系统' },
-  { value: 'CREATE_USER', label: '新增成员' },
-  { value: 'IMPORT_USERS', label: '批量导入成员' },
-  { value: 'UPDATE_USER', label: '修改成员信息' },
-  { value: 'RESET_PASSWORD', label: '重置密码' },
-  { value: 'DELETE_USER', label: '删除成员' },
-  { value: 'BULK_UPDATE_USER_STATUS', label: '批量启停账号' },
-  { value: 'REVIEW_ATTENDANCE', label: '审核签到记录' },
-  { value: 'MANUAL_CREATE_ATTENDANCE', label: '新增签到记录' },
-  { value: 'DELETE_ATTENDANCE_RECORD', label: '删除签到记录' },
-  { value: 'CREATE_TRAINING', label: '新增培训' },
-  { value: 'UPDATE_TRAINING', label: '修改培训' },
-  { value: 'ARCHIVE_TRAINING', label: '归档培训' },
-  { value: 'CREATE_TRAINING_PARTICIPANT', label: '新增培训参与记录' },
-  { value: 'UPDATE_TRAINING_PARTICIPANT', label: '修改培训参与记录' },
-  { value: 'DELETE_TRAINING_PARTICIPANT', label: '删除培训参与记录' },
-  { value: 'IMPORT_TRAINING_PARTICIPANTS', label: '导入培训名单' },
-  { value: 'CREATE_DUTY_SCHEDULE', label: '新增排班' },
-  { value: 'UPDATE_DUTY_SCHEDULE', label: '修改排班' },
-  { value: 'ARCHIVE_DUTY_SCHEDULE', label: '归档排班' },
-  { value: 'IMPORT_DUTY_SCHEDULES', label: '批量导入排班' },
-  { value: 'UPDATE_DUTY_PERIODS', label: '调整值班时间段' },
-  { value: 'CREATE_REPAIR_CASE', label: '新增维修事务' },
-  { value: 'UPDATE_REPAIR_CASE', label: '修改维修事务' },
-  { value: 'DELETE_REPAIR_CASE', label: '删除维修事务' },
-  { value: 'RESTORE_REPAIR_CASE', label: '恢复维修事务' },
-  { value: 'PURGE_REPAIR_CASE', label: '永久删除维修事务' },
-  { value: 'UPDATE_DUTY_WEEKDAYS', label: '调整值班星期' },
-  { value: 'MANUAL_UPDATE_ATTENDANCE', label: '手动修改记录' },
-  { value: 'EXPORT_CUSTOM_DATA', label: '自定义导出数据' },
-  { value: 'RESTORE_BACKUP', label: '恢复备份' }
-]
-
 const availableTabs = computed(() => currentUser.value ? tabs.filter(t => t.roles.includes(currentUser.value.role)) : [])
 const activeTabInfo = computed(() => availableTabs.value.find(tab => tab.id === activeTab.value) || availableTabs.value[0] || tabs[0])
 const activeTabDescription = computed(() => adminTabDescriptions[activeTabInfo.value?.id] || '管理当前模块的数据和操作。')
@@ -1062,7 +957,6 @@ const activeAdminGroup = computed(() => (
   adminNavGroups.value.find(group => group.tabs.some(tab => tab.id === activeTab.value)) || adminNavGroups.value[0]
 ))
 const activeAdminGroupTabs = computed(() => activeAdminGroup.value?.tabs || [])
-const canViewLogs = computed(() => currentUser.value?.role === 'ADMIN')
 const canBackupData = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canUseDataCenter = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canDeleteBackups = computed(() => currentUser.value?.role === 'ADMIN')
@@ -1077,7 +971,6 @@ const lookupCandidates = computed(() => lookupResult.value?.matches || [])
 const myRecordHours = computed(() => myRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0) + Number(myTrainingHours.value || 0))
 const myRecordCount = computed(() => myRecords.value.length + Number(myTrainingCount.value || 0))
 const profileGradeOptions = Array.from({ length: 2057 - 2007 + 1 }, (_, index) => `${2007 + index}级`)
-const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / logPageSize)))
 const todayText = computed(() => today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }))
 const weekdayText = computed(() => today.toLocaleDateString('zh-CN', { weekday: 'long' }))
 const kioskDateText = computed(() => liveNow.value.toLocaleDateString('zh-CN', {
@@ -1168,12 +1061,6 @@ const kioskWeekSummary = computed(() => {
   })
 })
 const dashboardRoleClass = computed(() => currentUser.value ? `role-${String(currentUser.value.role).toLowerCase()}` : '')
-const logFilters = reactive({
-  keyword: '',
-  actionType: '',
-  from: `${today.getFullYear()}-01-01`,
-  to: todayValue
-})
 
 const kioskResetTimer = createKioskResetTimer({
   onTick: seconds => {
@@ -1636,13 +1523,6 @@ async function applyRouteLocation() {
 
 function hydrateTabQuery(tab, query) {
   const yearStart = `${today.getFullYear()}-01-01`
-  if (tab === 'logs') {
-    logFilters.keyword = queryText(query, 'q')
-    logFilters.actionType = queryText(query, 'action')
-    logFilters.from = queryDate(query, 'from', yearStart)
-    logFilters.to = queryDate(query, 'to', todayValue)
-    logPage.value = queryPositiveInt(query, 'page', 1)
-  }
   if (tab === 'profile') {
     myRecordRange.from = queryDate(query, 'from', yearStart)
     myRecordRange.to = queryDate(query, 'to', todayValue)
@@ -1663,7 +1543,6 @@ async function loadTab(tab) {
   if (tab === 'overview') await loadOverview()
   if (tab === 'reviews') await loadPending()
   if (tab === 'data') await loadDataCenter()
-  if (tab === 'logs') await loadOperationLogs(1)
   if (tab === 'profile') {
     await loadMe()
     await loadMyRecords()
@@ -1927,61 +1806,6 @@ async function restoreBackup() {
   })
 }
 
-async function loadOperationLogs(page = 1) {
-  await run(async () => {
-    const params = new URLSearchParams()
-    params.set('page', String(page))
-    params.set('pageSize', String(logPageSize))
-    if (logFilters.keyword) params.set('keyword', logFilters.keyword)
-    if (logFilters.actionType) params.set('actionType', logFilters.actionType)
-    if (logFilters.from) params.set('from', logFilters.from)
-    if (logFilters.to) params.set('to', logFilters.to)
-    const result = await api(`/api/logs?${params.toString()}`)
-    operationLogs.value = result.items
-    logTotal.value = result.total
-    logPage.value = result.page
-    selectedLog.value = null
-    await syncTabQuery('logs', {
-      q: logFilters.keyword,
-      action: logFilters.actionType,
-      from: logFilters.from,
-      to: logFilters.to,
-      page: logPage.value
-    })
-  }, false)
-}
-
-async function exportOperationLogs() {
-  await run(async () => {
-    const params = new URLSearchParams()
-    if (logFilters.keyword) params.set('keyword', logFilters.keyword)
-    if (logFilters.actionType) params.set('actionType', logFilters.actionType)
-    if (logFilters.from) params.set('from', logFilters.from)
-    if (logFilters.to) params.set('to', logFilters.to)
-    const blob = await api(`/api/logs/export?${params.toString()}`)
-    downloadBlob(blob, `操作日志_${logFilters.from || '开始'}_${logFilters.to || '结束'}.xlsx`)
-  })
-}
-
-async function clearOperationLogs() {
-  if (!canViewLogs.value) return notify('只有管理员可以清空操作日志', 'warn')
-  if (!await dangerConfirm('确认清空全部操作日志？建议先导出日志留档。该操作不可恢复。', '清空日志')) return
-  await run(async () => {
-    const result = await del('/api/logs')
-    operationLogs.value = []
-    logTotal.value = 0
-    logPage.value = 1
-    selectedLog.value = null
-    const backupText = result?.safetyBackup ? `，清空前备份：${result.safetyBackup.filename}` : ''
-    notify(`已清空 ${result?.deleted || 0} 条日志${backupText}`, 'success')
-  })
-}
-
-async function changeOperationLogPage(delta) {
-  const next = Math.min(Math.max(1, logPage.value + delta), logTotalPages.value)
-  if (next !== logPage.value) await loadOperationLogs(next)
-}
-
 async function run(fn, showError = true) {
   busy.value = true
   try {
@@ -2004,28 +1828,6 @@ function notify(message, type = 'info') {
 
 function roleLabel(role) {
   return { MEMBER: '成员', MINISTER: '部长', PRESIDENT: '会长', ADMIN: '管理员' }[role] || role
-}
-
-function logActionLabel(action) {
-  return logActionOptions.find(item => item.value === action)?.label || action
-}
-
-function operatorText(item) {
-  if (!item.operatorName && !item.operatorStudentNo) return '-'
-  return item.operatorStudentNo ? `${item.operatorName || '-'}（${item.operatorStudentNo}）` : item.operatorName
-}
-
-function targetText(item) {
-  return item.targetId ? `${item.targetType}#${item.targetId}` : (item.targetType || '-')
-}
-
-function prettyLogData(value) {
-  if (!value) return '-'
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2)
-  } catch {
-    return String(value)
-  }
 }
 
 function downloadBlob(blob, filename) {
