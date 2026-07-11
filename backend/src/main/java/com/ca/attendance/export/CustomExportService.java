@@ -36,6 +36,7 @@ import java.util.Set;
 @Service
 public class CustomExportService {
     private static final int MAX_ROWS = 50_000;
+    private static final int PREVIEW_ROWS = 12;
     private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
     private static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final List<SourceDefinition> SOURCES = List.of(
@@ -68,6 +69,56 @@ public class CustomExportService {
     public ExportFile export(ExportRequest request) {
         AuthUser current = AuthContext.current();
         requireExporter(current);
+        PreparedExport prepared = prepare(request, current);
+        List<Map<String, Object>> rows = queryRows(prepared);
+
+        String filename = filename(request.filename(), prepared.source().label());
+        byte[] bytes = workbookBytes(workbook -> writeWorkbook(
+                workbook,
+                prepared.source(),
+                prepared.fields(),
+                prepared.filters(),
+                rows
+        ));
+        logs.log(
+                "EXPORT_CUSTOM_DATA",
+                "custom_exports",
+                null,
+                null,
+                Map.of(
+                        "source", prepared.source().id(),
+                        "fields", prepared.fields().stream().map(FieldOption::id).toList(),
+                        "filters", prepared.filters(),
+                        "rows", rows.size(),
+                        "filename", filename
+                ),
+                "自定义导出 " + prepared.source().label()
+        );
+        return new ExportFile(filename, bytes, rows.size());
+    }
+
+    public ExportPreview preview(ExportRequest request) {
+        AuthUser current = AuthContext.current();
+        requireExporter(current);
+        PreparedExport prepared = prepare(request, current);
+        List<Map<String, Object>> rows = queryRows(prepared);
+        List<Map<String, Object>> previewRows = rows.stream()
+                .limit(PREVIEW_ROWS)
+                .map(row -> previewRow(row, prepared.fields()))
+                .toList();
+
+        return new ExportPreview(
+                prepared.source().id(),
+                prepared.source().label(),
+                prepared.fields(),
+                prepared.filters(),
+                rows.size(),
+                rows.size() > previewRows.size(),
+                previewRows
+        );
+    }
+
+    private PreparedExport prepare(ExportRequest request, AuthUser current) {
         if (request == null) {
             throw ApiException.badRequest("导出配置不能为空");
         }
@@ -81,28 +132,21 @@ public class CustomExportService {
 
         List<FieldOption> selectedFields = validateFields(source, request.fields());
         Map<String, String> filters = validateFilters(source, request.filters());
-        List<Map<String, Object>> rows = query(source.id(), filters);
+        return new PreparedExport(source, selectedFields, filters);
+    }
+
+    private List<Map<String, Object>> queryRows(PreparedExport prepared) {
+        List<Map<String, Object>> rows = query(prepared.source().id(), prepared.filters());
         if (rows.size() > MAX_ROWS) {
             throw ApiException.badRequest("导出结果超过 " + MAX_ROWS + " 行，请缩小筛选范围");
         }
+        return rows;
+    }
 
-        String filename = filename(request.filename(), source.label());
-        byte[] bytes = workbookBytes(workbook -> writeWorkbook(workbook, source, selectedFields, filters, rows));
-        logs.log(
-                "EXPORT_CUSTOM_DATA",
-                "custom_exports",
-                null,
-                null,
-                Map.of(
-                        "source", source.id(),
-                        "fields", selectedFields.stream().map(FieldOption::id).toList(),
-                        "filters", filters,
-                        "rows", rows.size(),
-                        "filename", filename
-                ),
-                "自定义导出 " + source.label()
-        );
-        return new ExportFile(filename, bytes, rows.size());
+    private Map<String, Object> previewRow(Map<String, Object> row, List<FieldOption> fields) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        fields.forEach(field -> result.put(field.id(), row.get(field.id())));
+        return result;
     }
 
     private List<FieldOption> validateFields(SourceDefinition source, List<String> requested) {
@@ -628,6 +672,24 @@ public class CustomExportService {
     }
 
     public record ExportFile(String filename, byte[] bytes, int rowCount) {
+    }
+
+    public record ExportPreview(
+            String source,
+            String sourceLabel,
+            List<FieldOption> fields,
+            Map<String, String> filters,
+            int totalRows,
+            boolean truncated,
+            List<Map<String, Object>> rows
+    ) {
+    }
+
+    private record PreparedExport(
+            SourceDefinition source,
+            List<FieldOption> fields,
+            Map<String, String> filters
+    ) {
     }
 
     private record SourceDefinition(

@@ -599,6 +599,10 @@ public class StatsService {
         return value == null ? 0 : value.intValue();
     }
 
+    private int number(String sql) {
+        return number(sql, new Object[0]);
+    }
+
     private int number(Object value) {
         return value instanceof Number number ? number.intValue() : 0;
     }

@@ -1,5 +1,6 @@
 import argparse
 import os
+import zipfile
 from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -260,9 +261,27 @@ def main() -> None:
 
         click_tab(page, "数据")
         expect(page.get_by_role("heading", name="数据中心")).to_be_visible(timeout=10_000)
+        expect(page.get_by_role("tab", name="自定义导出")).to_have_attribute("aria-selected", "true")
+        page.get_by_role("tab", name="导入模板").click()
         expect(page.get_by_text("培训导入模板")).to_be_visible(timeout=10_000)
+        page.get_by_role("tab", name="自定义导出").click()
         expect(page.locator("#exportSectionTitle")).to_have_text("自定义 Excel 导出", timeout=10_000)
-        expect(page.get_by_text("导出字段", exact=True)).to_be_visible(timeout=10_000)
+        expect(page.get_by_role("button", name="选择数据源")).to_have_attribute("aria-current", "step")
+        page.get_by_role("button", name="下一步").click()
+        expect(page.get_by_role("heading", name="设置筛选范围")).to_be_visible(timeout=10_000)
+        page.get_by_role("button", name="下一步").click()
+        expect(page.get_by_role("heading", name="选择字段与顺序")).to_be_visible(timeout=10_000)
+        page.get_by_role("button", name="生成预览").click()
+        expect(page.get_by_role("heading", name="预览真实数据")).to_be_visible(timeout=10_000)
+        expect(page.locator(".export-preview-summary")).to_be_visible(timeout=15_000)
+        page.screenshot(path=str(screenshot_dir / "dashboard-data-preview.png"), full_page=True)
+        page.get_by_role("button", name="确认并继续").click()
+        expect(page.get_by_role("heading", name="确认并导出")).to_be_visible(timeout=10_000)
+        with page.expect_download(timeout=15_000) as download_info:
+            page.get_by_role("button", name="导出 成员 Excel").click()
+        download_path = download_info.value.path()
+        if not download_path or not zipfile.is_zipfile(download_path):
+            raise AssertionError("custom export did not produce a valid xlsx file")
         page.get_by_role("tab", name="备份与恢复").click()
         expect(page.get_by_role("heading", name="完整系统备份")).to_be_visible(timeout=10_000)
 
@@ -275,6 +294,9 @@ def main() -> None:
 
         page.screenshot(path=str(screenshot_dir / "dashboard.png"), full_page=True)
         page.set_viewport_size({"width": 390, "height": 844})
+        click_tab(page, "数据")
+        assert_no_page_overflow(page, "mobile data center")
+        page.screenshot(path=str(screenshot_dir / "dashboard-data-mobile.png"), full_page=True)
         click_tab(page, "今日")
         assert_no_page_overflow(page, "mobile home")
         page.screenshot(path=str(screenshot_dir / "dashboard-mobile.png"), full_page=True)

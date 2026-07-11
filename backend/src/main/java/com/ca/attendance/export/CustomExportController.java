@@ -26,6 +26,11 @@ public class CustomExportController {
         return exports.options();
     }
 
+    @PostMapping("/preview")
+    public CustomExportService.ExportPreview preview(@RequestBody CustomExportService.ExportRequest request) {
+        return exports.preview(request);
+    }
+
     @PostMapping("/excel")
     public ResponseEntity<byte[]> export(@RequestBody CustomExportService.ExportRequest request) {
         CustomExportService.ExportFile file = exports.export(request);

@@ -564,6 +564,9 @@ try {
     Invoke-Download "/api/repairs/export?status=ALL" (New-TempPath "minister-repair-export.xlsx") -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/logs" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/exports/options" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
+    Invoke-Json POST "/api/exports/preview" @{
+        source = "members"; fields = @("name"); filters = @{}; filename = ""
+    } -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json POST "/api/maintenance/backups" @{} -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Add-Result "部长权限边界" "维修可看，维修删除/回收站/培训/导出/日志/备份不可用"
 
@@ -586,6 +589,15 @@ try {
 
     $customOptions = Invoke-Json GET "/api/exports/options"
     Assert-True ($customOptions.sources.Count -ge 6) "管理员自定义导出数据源不完整"
+    $customPreview = Invoke-Json POST "/api/exports/preview" @{
+        source = "members"
+        fields = @("name", "studentNo", "role", "status")
+        filters = @{ keyword = $suffix }
+        filename = ""
+    }
+    Assert-True ($customPreview.totalRows -ge 2) "自定义导出预览未返回测试成员"
+    Assert-True ($customPreview.fields.Count -eq 4) "自定义导出预览字段数量不正确"
+    Assert-True ($customPreview.rows.Count -ge 2) "自定义导出预览样例为空"
     $customExport = New-TempPath "custom-members.xlsx"
     Invoke-JsonDownload "/api/exports/excel" $customExport @{
         source = "members"
@@ -594,7 +606,7 @@ try {
         filename = "烟测成员清单"
     } | Out-Null
     Assert-Xlsx $customExport
-    Add-Result "自定义 Excel 导出" "sources=$($customOptions.sources.Count)"
+    Add-Result "自定义 Excel 预览与导出" "sources=$($customOptions.sources.Count), rows=$($customPreview.totalRows)"
 
     $logs = Invoke-Json GET "/api/logs?page=1&pageSize=5"
     Assert-True ($logs.total -ge 1) "操作日志没有记录"

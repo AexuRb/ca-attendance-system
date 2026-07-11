@@ -24,12 +24,22 @@
       <button
         type="button"
         role="tab"
-        :aria-selected="activeArea === 'transfer'"
-        :class="{ active: activeArea === 'transfer' }"
-        @click="activeArea = 'transfer'"
+        :aria-selected="activeArea === 'export'"
+        :class="{ active: activeArea === 'export' }"
+        @click="activeArea = 'export'"
+      >
+        <FileSpreadsheet :size="17" />
+        <span>自定义导出</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="activeArea === 'templates'"
+        :class="{ active: activeArea === 'templates' }"
+        @click="activeArea = 'templates'"
       >
         <Download :size="17" />
-        <span>导入与导出</span>
+        <span>导入模板</span>
       </button>
       <button
         type="button"
@@ -45,7 +55,7 @@
     </div>
 
     <Transition name="data-pane" mode="out-in">
-      <div v-if="activeArea === 'transfer'" key="transfer" class="data-center-pane">
+      <div v-if="activeArea === 'templates'" key="templates" class="data-center-pane">
         <section class="data-section-block" aria-labelledby="templateSectionTitle">
           <div class="subsection-head">
             <div>
@@ -94,71 +104,191 @@
             </article>
           </div>
         </section>
+      </div>
 
+      <div v-else-if="activeArea === 'export'" key="export" class="data-center-pane">
         <section class="data-section-block" aria-labelledby="exportSectionTitle">
           <div class="subsection-head">
             <div>
               <h4 id="exportSectionTitle">自定义 Excel 导出</h4>
-              <span>选择一个数据源，并决定筛选范围、字段和列顺序</span>
+              <span>按步骤选择数据、检查内容，再生成最终文件</span>
             </div>
           </div>
-          <div v-if="selectedExportSource" class="custom-export-builder">
-            <div class="custom-export-config">
-              <label class="custom-export-source">
-                <span>数据源</span>
-                <select v-model="selectedExportSourceId" @change="initializeExportSource">
-                  <option v-for="source in exportOptions" :key="source.id" :value="source.id">{{ source.label }}</option>
-                </select>
-              </label>
+          <div v-if="selectedExportSource" class="custom-export-wizard">
+            <ol class="export-stepper" aria-label="自定义导出步骤">
+              <li v-for="step in exportSteps" :key="step.id" :class="{ active: activeExportStep === step.id, complete: furthestExportStep > step.id && activeExportStep !== step.id }">
+                <button
+                  type="button"
+                  :disabled="!canVisitExportStep(step.id)"
+                  :aria-current="activeExportStep === step.id ? 'step' : undefined"
+                  @click="goToExportStep(step.id)"
+                >
+                  <span><Check v-if="activeExportStep > step.id" :size="14" /><template v-else>{{ step.id }}</template></span>
+                  <strong>{{ step.label }}</strong>
+                </button>
+              </li>
+            </ol>
 
-              <div v-if="selectedExportSource.filters.length" class="custom-export-filters">
-                <label v-for="filter in selectedExportSource.filters" :key="filter.id">
-                  <span>{{ filter.label }}</span>
-                  <select v-if="filter.type === 'select'" v-model="exportFilters[filter.id]">
-                    <option value="">全部</option>
-                    <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
-                  </select>
-                  <input v-else v-model.trim="exportFilters[filter.id]" :type="filter.type" :placeholder="filter.type === 'text' ? filter.label : ''" />
-                </label>
-              </div>
-
-              <label class="custom-export-filename">
-                <span>文件名</span>
-                <div>
-                  <input v-model.trim="exportFilename" maxlength="80" />
-                  <small>.xlsx</small>
+            <Transition name="export-step" mode="out-in">
+              <section v-if="activeExportStep === 1" key="source" class="export-step-panel" aria-labelledby="exportStepSource">
+                <header class="export-step-heading">
+                  <span>01</span>
+                  <div><h5 id="exportStepSource">选择数据源</h5><p>每次导出一种业务数据，后续字段会随数据源变化。</p></div>
+                </header>
+                <div class="export-source-grid">
+                  <button
+                    v-for="source in exportOptions"
+                    :key="source.id"
+                    type="button"
+                    :class="{ active: selectedExportSourceId === source.id }"
+                    :aria-pressed="selectedExportSourceId === source.id"
+                    @click="selectExportSource(source.id)"
+                  >
+                    <span><component :is="exportSourceIcon(source.id)" :size="20" /></span>
+                    <strong>{{ source.label }}</strong>
+                    <small>{{ source.fields.length }} 个可选字段</small>
+                    <Check v-if="selectedExportSourceId === source.id" :size="17" />
+                  </button>
                 </div>
-              </label>
-            </div>
+              </section>
 
-            <div class="custom-export-fields">
-              <div class="custom-export-fields-head">
-                <div>
-                  <strong>导出字段</strong>
-                  <span>已选 {{ selectedExportFieldCount }} / {{ exportFields.length }} 列</span>
-                </div>
-                <button class="ghost-button" type="button" @click="resetExportFields"><RotateCcw :size="15" />恢复默认</button>
-              </div>
-              <div class="custom-export-field-list">
-                <div v-for="(field, index) in exportFields" :key="field.id" class="custom-export-field-row" :class="{ selected: field.selected }">
-                  <label>
-                    <input v-model="field.selected" type="checkbox" />
-                    <span>{{ field.label }}</span>
+              <section v-else-if="activeExportStep === 2" key="filters" class="export-step-panel" aria-labelledby="exportStepFilters">
+                <header class="export-step-heading">
+                  <span>02</span>
+                  <div><h5 id="exportStepFilters">设置筛选范围</h5><p>留空表示不限制该条件，日期范围包含开始日和结束日。</p></div>
+                </header>
+                <div v-if="selectedExportSource.filters.length" class="custom-export-filters export-filter-grid">
+                  <label v-for="filter in selectedExportSource.filters" :key="filter.id" :for="`export-filter-${filter.id}`">
+                    <span>{{ filter.label }}</span>
+                    <select
+                      v-if="filter.type === 'select'"
+                      :id="`export-filter-${filter.id}`"
+                      v-model="exportFilters[filter.id]"
+                      :name="filter.id"
+                      @change="invalidateExportPreview"
+                    >
+                      <option value="">全部</option>
+                      <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    </select>
+                    <input
+                      v-else
+                      :id="`export-filter-${filter.id}`"
+                      v-model.trim="exportFilters[filter.id]"
+                      :name="filter.id"
+                      :type="filter.type"
+                      :placeholder="filter.type === 'text' ? `输入${filter.label}` : ''"
+                      @input="invalidateExportPreview"
+                    />
                   </label>
-                  <div>
-                    <button type="button" title="上移" :aria-label="`${field.label}上移`" :disabled="index === 0" @click="moveExportField(index, -1)"><ArrowUp :size="15" /></button>
-                    <button type="button" title="下移" :aria-label="`${field.label}下移`" :disabled="index === exportFields.length - 1" @click="moveExportField(index, 1)"><ArrowDown :size="15" /></button>
+                </div>
+                <div v-else class="export-no-filters">
+                  <Check :size="19" />
+                  <div><strong>此数据源无需筛选</strong><span>将预览当前全部 {{ selectedExportSource.label }} 数据。</span></div>
+                </div>
+              </section>
+
+              <section v-else-if="activeExportStep === 3" key="fields" class="export-step-panel" aria-labelledby="exportStepFields">
+                <header class="export-step-heading export-fields-heading">
+                  <span>03</span>
+                  <div><h5 id="exportStepFields">选择字段与顺序</h5><p>Excel 列顺序与下方顺序一致，至少保留一列。</p></div>
+                  <button class="ghost-button" type="button" @click="resetExportFields"><RotateCcw :size="15" />恢复默认</button>
+                </header>
+                <div class="custom-export-fields-head">
+                  <strong>已选 {{ selectedExportFieldCount }} / {{ exportFields.length }} 列</strong>
+                  <span>使用箭头调整列顺序</span>
+                </div>
+                <div class="custom-export-field-list export-field-grid">
+                  <div v-for="(field, index) in exportFields" :key="field.id" class="custom-export-field-row" :class="{ selected: field.selected }">
+                    <label :for="`export-field-${field.id}`">
+                      <input :id="`export-field-${field.id}`" v-model="field.selected" type="checkbox" @change="invalidateExportPreview" />
+                      <span>{{ field.label }}</span>
+                    </label>
+                    <div>
+                      <button type="button" title="上移" :aria-label="`${field.label}上移`" :disabled="index === 0" @click="moveExportField(index, -1)"><ArrowUp :size="15" /></button>
+                      <button type="button" title="下移" :aria-label="`${field.label}下移`" :disabled="index === exportFields.length - 1" @click="moveExportField(index, 1)"><ArrowDown :size="15" /></button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </section>
 
-            <div class="custom-export-actions">
-              <span>将生成 {{ selectedExportFieldCount }} 列的 {{ selectedExportSource.label }} 表格</span>
-              <button class="primary-action" type="button" :disabled="busy || localBusy || selectedExportFieldCount === 0" @click="exportCustomExcel">
-                <FileSpreadsheet :size="17" />导出 Excel
+              <section v-else-if="activeExportStep === 4" key="preview" class="export-step-panel export-preview-panel" aria-labelledby="exportStepPreview">
+                <header class="export-step-heading export-preview-heading">
+                  <span>04</span>
+                  <div><h5 id="exportStepPreview">预览真实数据</h5><p>最多展示前 12 行，导出时仍会包含筛选后的全部数据。</p></div>
+                  <button class="ghost-button" type="button" :disabled="previewLoading" @click="loadExportPreview"><RefreshCw :size="15" />重新预览</button>
+                </header>
+
+                <div v-if="previewLoading" class="export-preview-loading" role="status">
+                  <RefreshCw :size="20" />正在读取预览数据
+                </div>
+                <div v-else-if="previewError" class="export-preview-error" role="alert">
+                  <AlertTriangle :size="20" />
+                  <div><strong>暂时无法生成预览</strong><span>{{ previewError }}</span></div>
+                  <button class="ghost-button" type="button" @click="loadExportPreview">重试</button>
+                </div>
+                <template v-else-if="exportPreview">
+                  <div class="export-preview-summary">
+                    <span>{{ selectedExportSource.label }}</span>
+                    <strong>{{ exportPreview.totalRows }} 行</strong>
+                    <small>{{ selectedExportFieldCount }} 列</small>
+                  </div>
+                  <div class="table-wrap export-preview-table-wrap">
+                    <table class="export-preview-table">
+                      <thead><tr><th v-for="field in exportPreview.fields" :key="field.id">{{ field.label }}</th></tr></thead>
+                      <tbody>
+                        <tr v-for="(row, rowIndex) in exportPreview.rows" :key="rowIndex">
+                          <td v-for="field in exportPreview.fields" :key="field.id" :title="previewValue(row[field.id])">{{ previewValue(row[field.id]) }}</td>
+                        </tr>
+                        <tr v-if="exportPreview.rows.length === 0"><td :colspan="exportPreview.fields.length" class="empty">当前筛选范围内没有数据</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p v-if="exportPreview.truncated" class="export-preview-note">这里只展示前 12 行，Excel 将包含全部 {{ exportPreview.totalRows }} 行。</p>
+                </template>
+                <div v-else class="export-preview-empty">
+                  <FileSpreadsheet :size="24" /><strong>尚未生成预览</strong><button class="ghost-button" type="button" @click="loadExportPreview">开始预览</button>
+                </div>
+              </section>
+
+              <section v-else key="export" class="export-step-panel export-finish-panel" aria-labelledby="exportStepFinish">
+                <header class="export-step-heading">
+                  <span>05</span>
+                  <div><h5 id="exportStepFinish">确认并导出</h5><p>确认文件名后生成 Excel，文件会保存到浏览器下载位置。</p></div>
+                </header>
+                <div class="export-final-summary">
+                  <div><span>数据源</span><strong>{{ selectedExportSource.label }}</strong></div>
+                  <div><span>数据量</span><strong>{{ exportPreview?.totalRows || 0 }} 行</strong></div>
+                  <div><span>字段</span><strong>{{ selectedExportFieldCount }} 列</strong></div>
+                </div>
+                <label class="custom-export-filename" for="customExportFilename">
+                  <span>文件名</span>
+                  <div>
+                    <input id="customExportFilename" v-model.trim="exportFilename" name="filename" maxlength="80" />
+                    <small>.xlsx</small>
+                  </div>
+                </label>
+                <button class="primary-action export-final-button" type="button" :disabled="busy || localBusy || !exportPreview" @click="exportCustomExcel">
+                  <FileSpreadsheet :size="18" />导出 {{ selectedExportSource.label }} Excel
+                </button>
+              </section>
+            </Transition>
+
+            <footer class="export-wizard-footer">
+              <button v-if="activeExportStep > 1" class="ghost-button" type="button" @click="goToExportStep(activeExportStep - 1)">
+                <ArrowLeft :size="16" />上一步
               </button>
-            </div>
+              <span>第 {{ activeExportStep }} / {{ exportSteps.length }} 步</span>
+              <button
+                v-if="activeExportStep < exportSteps.length"
+                class="primary-action"
+                type="button"
+                :disabled="!canAdvanceCurrentStep || previewLoading"
+                @click="advanceExportStep"
+              >
+                {{ activeExportStep === 3 ? '生成预览' : activeExportStep === 4 ? '确认并继续' : '下一步' }}
+                <ArrowRight :size="16" />
+              </button>
+            </footer>
           </div>
           <div v-else class="empty custom-export-empty">正在读取导出配置</div>
         </section>
@@ -249,22 +379,35 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
+  AlertTriangle,
   ArrowDown,
+  ArrowLeft,
+  ArrowRight,
   ArrowUp,
   Archive,
   CalendarDays,
+  Check,
+  ClipboardList,
   Download,
   FileSpreadsheet,
   GraduationCap,
+  History,
   RefreshCw,
   RotateCcw,
   Save,
   ShieldCheck,
   Trash2,
   Upload,
-  UsersRound
+  UsersRound,
+  Wrench
 } from '@lucide/vue'
 import { api } from '../api.js'
+import {
+  canAdvanceExportStep,
+  exportPreviewValue,
+  exportSteps,
+  selectedExportFieldIds
+} from '../features/export/exportWizard.js'
 
 const props = defineProps({
   summary: { type: Object, default: null },
@@ -287,7 +430,7 @@ const emit = defineEmits([
 
 const today = new Date()
 const todayValue = formatLocalDate(today)
-const activeArea = ref('transfer')
+const activeArea = ref('export')
 const restoreInput = ref(null)
 const localBusy = ref(false)
 const exportOptions = ref([])
@@ -295,6 +438,11 @@ const selectedExportSourceId = ref('')
 const exportFields = ref([])
 const exportFilters = reactive({})
 const exportFilename = ref('')
+const activeExportStep = ref(1)
+const furthestExportStep = ref(1)
+const exportPreview = ref(null)
+const previewLoading = ref(false)
+const previewError = ref('')
 
 const metrics = computed(() => props.summary?.datasets || [])
 const backupOverview = computed(() => props.summary?.backups || {})
@@ -303,6 +451,11 @@ const selectedExportSource = computed(() => (
   exportOptions.value.find(source => source.id === selectedExportSourceId.value) || null
 ))
 const selectedExportFieldCount = computed(() => exportFields.value.filter(field => field.selected).length)
+const canAdvanceCurrentStep = computed(() => canAdvanceExportStep(activeExportStep.value, {
+  sourceSelected: Boolean(selectedExportSource.value),
+  selectedFieldCount: selectedExportFieldCount.value,
+  previewReady: Boolean(exportPreview.value)
+}))
 
 onMounted(loadExportOptions)
 
@@ -338,11 +491,21 @@ function initializeExportSource() {
   Object.keys(exportFilters).forEach(key => delete exportFilters[key])
   for (const filter of source?.filters || []) exportFilters[filter.id] = filter.defaultValue || ''
   exportFilename.value = source ? `${source.label}_${todayValue}` : ''
+  activeExportStep.value = 1
+  furthestExportStep.value = 1
+  invalidateExportPreview()
+}
+
+function selectExportSource(sourceId) {
+  if (selectedExportSourceId.value === sourceId) return
+  selectedExportSourceId.value = sourceId
+  initializeExportSource()
 }
 
 function resetExportFields() {
   exportFields.value = (selectedExportSource.value?.fields || [])
     .map(field => ({ ...field, selected: Boolean(field.defaultSelected) }))
+  invalidateExportPreview()
 }
 
 function moveExportField(index, offset) {
@@ -352,11 +515,75 @@ function moveExportField(index, offset) {
   const [field] = next.splice(index, 1)
   next.splice(target, 0, field)
   exportFields.value = next
+  invalidateExportPreview()
+}
+
+function invalidateExportPreview() {
+  exportPreview.value = null
+  previewError.value = ''
+  furthestExportStep.value = Math.min(furthestExportStep.value, 4)
+  if (activeExportStep.value > 4) activeExportStep.value = 4
+}
+
+function canVisitExportStep(step) {
+  return step <= furthestExportStep.value
+}
+
+function goToExportStep(step) {
+  if (!canVisitExportStep(step)) return
+  activeExportStep.value = step
+}
+
+async function advanceExportStep() {
+  if (!canAdvanceCurrentStep.value) return
+  if (activeExportStep.value === 3) {
+    activeExportStep.value = 4
+    furthestExportStep.value = Math.max(furthestExportStep.value, 4)
+    await loadExportPreview()
+    return
+  }
+  activeExportStep.value += 1
+  furthestExportStep.value = Math.max(furthestExportStep.value, activeExportStep.value)
+}
+
+async function loadExportPreview() {
+  const source = selectedExportSource.value
+  const fields = selectedExportFieldIds(exportFields.value)
+  if (!source || !fields.length) return
+  previewLoading.value = true
+  previewError.value = ''
+  try {
+    exportPreview.value = await api('/api/exports/preview', {
+      method: 'POST',
+      body: JSON.stringify({
+        source: source.id,
+        fields,
+        filters: { ...exportFilters },
+        filename: ''
+      })
+    })
+  } catch (error) {
+    exportPreview.value = null
+    previewError.value = error.message
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+function exportSourceIcon(sourceId) {
+  return {
+    members: UsersRound,
+    attendance: ClipboardList,
+    training: GraduationCap,
+    schedule: CalendarDays,
+    repairs: Wrench,
+    logs: History
+  }[sourceId] || FileSpreadsheet
 }
 
 async function exportCustomExcel() {
   const source = selectedExportSource.value
-  const fields = exportFields.value.filter(field => field.selected).map(field => field.id)
+  const fields = selectedExportFieldIds(exportFields.value)
   if (!source || !fields.length) return
   localBusy.value = true
   try {
@@ -377,6 +604,8 @@ async function exportCustomExcel() {
     localBusy.value = false
   }
 }
+
+const previewValue = exportPreviewValue
 
 async function exportFile(path, filename, message) {
   localBusy.value = true
