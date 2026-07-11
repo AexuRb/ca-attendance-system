@@ -117,6 +117,40 @@ function Invoke-Download {
     return Get-Item -LiteralPath $OutFile
 }
 
+function Invoke-JsonDownload {
+    param(
+        [string]$Path,
+        [string]$OutFile,
+        $Body,
+        [string]$Token = $script:AdminToken,
+        [int[]]$ExpectedStatus = @(200)
+    )
+    $headers = @{}
+    if ($Token) { $headers["Authorization"] = "Bearer $Token" }
+    $params = @{
+        Uri = "$BaseUrl$Path"
+        Method = "POST"
+        Headers = $headers
+        ContentType = "application/json; charset=utf-8"
+        Body = (ConvertTo-JsonBody $Body)
+        OutFile = $OutFile
+        PassThru = $true
+        ErrorAction = "Stop"
+    }
+    try {
+        $response = Invoke-WebRequest @params
+    } catch {
+        $status = [int]$_.Exception.Response.StatusCode
+        if ($ExpectedStatus -contains $status) { return $null }
+        $bodyText = Read-ErrorBody $_.Exception
+        throw "POST $Path 下载返回 $status：$bodyText"
+    }
+    if (-not ($ExpectedStatus -contains [int]$response.StatusCode)) {
+        throw "POST $Path 下载期望状态 $($ExpectedStatus -join ',')，实际 $($response.StatusCode)"
+    }
+    return Get-Item -LiteralPath $OutFile
+}
+
 function Invoke-Upload {
     param(
         [string]$Path,
@@ -344,7 +378,19 @@ try {
     $blankSchedulePreview = Invoke-Upload "/api/schedules/import/preview" $scheduleTemplate
     Assert-True ($blankSchedulePreview.valid -eq $false) "空白排班模板不应通过导入校验"
     Assert-True ($blankSchedulePreview.issues.Count -ge 1) "空白排班模板预览没有返回校验问题"
-    Add-Result "排班模板/导入预览" "issues=$($blankSchedulePreview.issues.Count)"
+    $weekdayNames = @("", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日")
+    $importPeriod = @($periods)[0]
+    $importPeriodText = "$(([string]$importPeriod.startTime).Substring(0, 5))-$(([string]$importPeriod.endTime).Substring(0, 5))"
+    $scheduleImportFile = New-TempPath "schedule-import-valid.xlsx"
+    New-SimpleXlsx -Path $scheduleImportFile -Rows @(
+        @("星期", "值班时段", "学号", "姓名"),
+        @($weekdayNames[[int]$enabledWeekdays[0]], $importPeriodText, $ministerNo, $ministerName)
+    ) | Out-Null
+    $validSchedulePreview = Invoke-Upload "/api/schedules/import/preview" $scheduleImportFile
+    Assert-True ($validSchedulePreview.valid -eq $true) "合法排班文件未通过预览"
+    $scheduleImportResult = Invoke-Upload "/api/schedules/import" $scheduleImportFile
+    Assert-True ($scheduleImportResult.assignedMembers -eq 1) "排班导入人数不正确"
+    Add-Result "排班模板/预览/确认导入" "groups=$($scheduleImportResult.replacedGroups)"
 
     $lookup = Invoke-Json GET "/api/public/attendance/lookup/$memberNo" -Token $null
     Assert-True $lookup.exists "公共查找临时成员失败"
@@ -492,8 +538,9 @@ try {
     Invoke-Json GET "/api/trainings" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Download "/api/repairs/export?status=ALL" (New-TempPath "minister-repair-export.xlsx") -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/logs" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
+    Invoke-Json GET "/api/exports/options" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json POST "/api/maintenance/backups" @{} -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
-    Add-Result "部长权限边界" "维修可看，维修删除/回收站/培训/维修导出/日志/备份不可用"
+    Add-Result "部长权限边界" "维修可看，维修删除/回收站/培训/导出/日志/备份不可用"
 
     Invoke-Json DELETE "/api/repairs/$($repair.id)" | Out-Null
     $purgeResult = Invoke-Json POST "/api/repairs/$($repair.id)/purge" @{ caseNo = $repair.caseNo }
@@ -511,6 +558,18 @@ try {
     Invoke-Download "/api/maintenance/backups/$($backupAgain.filename)" $backupAgainPath | Out-Null
     Assert-ZipBackup $backupAgainPath
     Add-Result "数据中心摘要/备份列表/备份下载" $backupAgain.filename
+
+    $customOptions = Invoke-Json GET "/api/exports/options"
+    Assert-True ($customOptions.sources.Count -ge 6) "管理员自定义导出数据源不完整"
+    $customExport = New-TempPath "custom-members.xlsx"
+    Invoke-JsonDownload "/api/exports/excel" $customExport @{
+        source = "members"
+        fields = @("name", "studentNo", "role", "status")
+        filters = @{ keyword = $suffix }
+        filename = "烟测成员清单"
+    } | Out-Null
+    Assert-Xlsx $customExport
+    Add-Result "自定义 Excel 导出" "sources=$($customOptions.sources.Count)"
 
     $logs = Invoke-Json GET "/api/logs?page=1&pageSize=5"
     Assert-True ($logs.total -ge 1) "操作日志没有记录"

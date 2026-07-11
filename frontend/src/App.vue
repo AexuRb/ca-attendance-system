@@ -930,7 +930,6 @@
             :restore-file="restoreFile"
             :can-delete-backups="canDeleteBackups"
             :can-restore-backups="canRestoreBackups"
-            :can-view-logs="canViewLogs"
             @refresh="loadDataCenter"
             @create-backup="createBackup"
             @download-backup="downloadBackup"
@@ -1286,6 +1285,7 @@ const logActionOptions = [
   { value: 'PURGE_REPAIR_CASE', label: '永久删除维修事务' },
   { value: 'UPDATE_DUTY_WEEKDAYS', label: '调整值班星期' },
   { value: 'MANUAL_UPDATE_ATTENDANCE', label: '手动修改记录' },
+  { value: 'EXPORT_CUSTOM_DATA', label: '自定义导出数据' },
   { value: 'RESTORE_BACKUP', label: '恢复备份' }
 ]
 

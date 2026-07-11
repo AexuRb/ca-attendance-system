@@ -126,6 +126,8 @@ Authorization: Bearer <token>
 | `POST` | `/api/repairs/{id}/purge` | 管理员确认编号、自动备份后永久删除 |
 | `GET` | `/api/repairs/export` | 会长或管理员导出维修事务 |
 | `GET` | `/api/repairs/{id}/agreement` | 打开可打印协议 |
+| `GET` | `/api/exports/options` | 获取当前角色可用的数据源、筛选项和字段 |
+| `POST` | `/api/exports/excel` | 按单一数据源、字段顺序和筛选条件导出 Excel |
 
 设置、日志与维护：
 

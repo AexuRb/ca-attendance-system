@@ -8559,6 +8559,193 @@ tbody tr:hover {
   gap: 12px;
 }
 
+.custom-export-builder {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.78fr) minmax(340px, 1.22fr);
+  border: 1px solid #d7e6f2;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(38, 97, 148, 0.08);
+}
+
+.custom-export-config,
+.custom-export-fields {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+  padding: 16px;
+  align-content: start;
+}
+
+.custom-export-config {
+  border-right: 1px solid #d7e6f2;
+  background: #f8fcff;
+}
+
+.custom-export-source,
+.custom-export-filters label,
+.custom-export-filename {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.custom-export-source > span,
+.custom-export-filters label > span,
+.custom-export-filename > span {
+  color: #607b92;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.custom-export-source select {
+  color: #17304b;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.custom-export-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.custom-export-filename > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid #c9dfef;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.custom-export-filename input {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.custom-export-filename small {
+  padding: 0 12px;
+  color: #6d8496;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 12px;
+}
+
+.custom-export-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.custom-export-fields-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.custom-export-fields-head strong {
+  color: #17304b;
+}
+
+.custom-export-fields-head span {
+  color: #607b92;
+  font-size: 12px;
+}
+
+.custom-export-fields-head .ghost-button {
+  min-height: 34px;
+  padding: 0 10px;
+}
+
+.custom-export-field-list {
+  display: grid;
+  gap: 6px;
+  max-height: 340px;
+  overflow: auto;
+  padding-right: 3px;
+}
+
+.custom-export-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 42px;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 7px 5px 10px;
+  border: 1px solid #e0ebf4;
+  border-radius: 6px;
+  background: #fbfdff;
+}
+
+.custom-export-field-row.selected {
+  border-color: #bedbef;
+  background: #f0f9ff;
+}
+
+.custom-export-field-row > label {
+  display: flex;
+  min-width: 0;
+  gap: 9px;
+  align-items: center;
+  color: #365c78;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.custom-export-field-row input[type="checkbox"] {
+  width: 17px;
+  min-height: 17px;
+  flex: 0 0 17px;
+}
+
+.custom-export-field-row > div {
+  display: flex;
+  gap: 4px;
+}
+
+.custom-export-field-row button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  color: #416984;
+  border: 1px solid #d4e5f1;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.custom-export-field-row button:hover:not(:disabled) {
+  color: #1769a6;
+  border-color: #8fc1e4;
+  background: #eef8ff;
+}
+
+.custom-export-field-row button:disabled {
+  opacity: 0.35;
+}
+
+.custom-export-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-top: 1px solid #d7e6f2;
+}
+
+.custom-export-actions > span {
+  color: #607b92;
+  font-size: 13px;
+}
+
+.custom-export-empty {
+  min-height: 180px;
+}
+
 .data-backup-layout {
   grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.28fr);
   align-items: start;
@@ -8729,6 +8916,19 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .data-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .custom-export-builder {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-export-config {
+    border-right: 0;
+    border-bottom: 1px solid #d7e6f2;
+  }
+
 }
 
 @media (max-width: 700px) {
@@ -8746,6 +8946,16 @@ tbody tr:hover {
   .data-template-grid,
   .data-export-board {
     grid-template-columns: 1fr;
+  }
+
+  .custom-export-filters {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-export-fields-head,
+  .custom-export-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .data-range-row {

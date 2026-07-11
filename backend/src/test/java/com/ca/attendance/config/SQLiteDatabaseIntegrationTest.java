@@ -7,6 +7,7 @@ import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
+import com.ca.attendance.export.CustomExportService;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.repair.RepairCaseItem;
@@ -24,6 +25,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,8 +39,9 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
-import java.math.BigDecimal;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -49,7 +52,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -375,6 +380,66 @@ class SQLiteDatabaseIntegrationTest {
                 "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'IMPORT_DUTY_SCHEDULES'",
                 Integer.class
         ));
+    }
+
+    @Test
+    void customExportsUseRoleScopedSourcesAndRequestedFieldOrder() throws Exception {
+        OperationLogService logs = new OperationLogService(jdbc, objectMapper);
+        CustomExportService exports = new CustomExportService(jdbc, logs);
+        long presidentId = requiredId(jdbc.queryForObject("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES ('20249999', '导出测试会长', 'test-hash', 'PRESIDENT', 'ACTIVE', 0)
+                RETURNING id
+                """, Long.class));
+
+        AuthContext.set(new AuthUser(presidentId, "20249999", "导出测试会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
+        CustomExportService.ExportOptions presidentOptions = exports.options();
+        assertFalse(presidentOptions.sources().stream().anyMatch(source -> "logs".equals(source.id())));
+        assertThrows(ApiException.class, () -> exports.export(new CustomExportService.ExportRequest(
+                "logs", List.of("createdAt"), Map.of(), "日志"
+        )));
+
+        AuthContext.set(new AuthUser(adminId, "admin", "管理员", Role.ADMIN, Instant.now().plusSeconds(3600)));
+        CustomExportService.ExportOptions adminOptions = exports.options();
+        assertEquals(6, adminOptions.sources().size());
+        for (CustomExportService.SourceOption source : adminOptions.sources()) {
+            List<String> fields = source.fields().stream()
+                    .filter(CustomExportService.FieldOption::defaultSelected)
+                    .map(CustomExportService.FieldOption::id)
+                    .toList();
+            Map<String, String> filters = new LinkedHashMap<>();
+            source.filters().stream()
+                    .filter(filter -> !filter.defaultValue().isBlank())
+                    .forEach(filter -> filters.put(filter.id(), filter.defaultValue()));
+            CustomExportService.ExportFile file = exports.export(new CustomExportService.ExportRequest(
+                    source.id(), fields, filters, source.label()
+            ));
+            assertTrue(file.bytes().length > 1000);
+            assertEquals("PK", new String(file.bytes(), 0, 2, java.nio.charset.StandardCharsets.US_ASCII));
+        }
+
+        CustomExportService.ExportFile members = exports.export(new CustomExportService.ExportRequest(
+                "members",
+                List.of("name", "studentNo"),
+                Map.of("keyword", "测试成员"),
+                "成员/自定义清单.xlsx"
+        ));
+        assertEquals("成员_自定义清单.xlsx", members.filename());
+        assertEquals(1, members.rowCount());
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(members.bytes()))) {
+            Sheet sheet = workbook.getSheetAt(0);
+            assertEquals("姓名", sheet.getRow(3).getCell(0).getStringCellValue());
+            assertEquals("学号", sheet.getRow(3).getCell(1).getStringCellValue());
+            assertEquals("测试成员", sheet.getRow(4).getCell(0).getStringCellValue());
+            assertEquals("20240001", sheet.getRow(4).getCell(1).getStringCellValue());
+        }
+        assertThrows(ApiException.class, () -> exports.export(new CustomExportService.ExportRequest(
+                "members", List.of("passwordHash"), Map.of(), "非法字段"
+        )));
+        assertTrue(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'EXPORT_CUSTOM_DATA'",
+                Integer.class
+        ) >= 7);
     }
 
     @Test

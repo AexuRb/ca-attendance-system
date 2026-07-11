@@ -98,79 +98,69 @@
         <section class="data-section-block" aria-labelledby="exportSectionTitle">
           <div class="subsection-head">
             <div>
-              <h4 id="exportSectionTitle">快速导出</h4>
-              <span>按日期范围生成本地 Excel 文件</span>
+              <h4 id="exportSectionTitle">自定义 Excel 导出</h4>
+              <span>选择一个数据源，并决定筛选范围、字段和列顺序</span>
             </div>
           </div>
-          <div class="data-export-board">
-            <article class="data-tool-card wide">
-              <div class="tool-card-head">
-                <ClipboardList :size="20" />
-                <div>
-                  <h4>值班统计</h4>
-                  <span>签到、签退、有效状态和计入时长</span>
-                </div>
-              </div>
-              <div class="data-range-row">
-                <input v-model="exportRange.from" type="date" aria-label="值班统计开始日期" />
-                <input v-model="exportRange.to" type="date" aria-label="值班统计结束日期" />
-                <button class="ghost-button data-export-button" :disabled="busy || localBusy" @click="exportAttendance">
-                  <Download :size="16" />导出
-                </button>
-              </div>
-            </article>
+          <div v-if="selectedExportSource" class="custom-export-builder">
+            <div class="custom-export-config">
+              <label class="custom-export-source">
+                <span>数据源</span>
+                <select v-model="selectedExportSourceId" @change="initializeExportSource">
+                  <option v-for="source in exportOptions" :key="source.id" :value="source.id">{{ source.label }}</option>
+                </select>
+              </label>
 
-            <article class="data-tool-card wide">
-              <div class="tool-card-head">
-                <GraduationCap :size="20" />
-                <div>
-                  <h4>培训统计</h4>
-                  <span>培训场次、参与名单和计入时长</span>
-                </div>
+              <div v-if="selectedExportSource.filters.length" class="custom-export-filters">
+                <label v-for="filter in selectedExportSource.filters" :key="filter.id">
+                  <span>{{ filter.label }}</span>
+                  <select v-if="filter.type === 'select'" v-model="exportFilters[filter.id]">
+                    <option value="">全部</option>
+                    <option v-for="option in filter.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+                  </select>
+                  <input v-else v-model.trim="exportFilters[filter.id]" :type="filter.type" :placeholder="filter.type === 'text' ? filter.label : ''" />
+                </label>
               </div>
-              <div class="data-range-row">
-                <input v-model="exportRange.from" type="date" aria-label="培训统计开始日期" />
-                <input v-model="exportRange.to" type="date" aria-label="培训统计结束日期" />
-                <button class="ghost-button data-export-button" :disabled="busy || localBusy" @click="exportTrainings">
-                  <Download :size="16" />导出
-                </button>
-              </div>
-            </article>
 
-            <article class="data-tool-card wide">
-              <div class="tool-card-head">
-                <Wrench :size="20" />
+              <label class="custom-export-filename">
+                <span>文件名</span>
                 <div>
-                  <h4>维修事务</h4>
-                  <span>接修信息、处理记录和协议确认情况</span>
+                  <input v-model.trim="exportFilename" maxlength="80" />
+                  <small>.xlsx</small>
                 </div>
-              </div>
-              <div class="data-range-row">
-                <input v-model="exportRange.from" type="date" aria-label="维修事务开始日期" />
-                <input v-model="exportRange.to" type="date" aria-label="维修事务结束日期" />
-                <button class="ghost-button data-export-button" :disabled="busy || localBusy" @click="exportRepairs">
-                  <Download :size="16" />导出
-                </button>
-              </div>
-            </article>
+              </label>
+            </div>
 
-            <article v-if="canViewLogs" class="data-tool-card wide sensitive">
-              <div class="tool-card-head">
-                <History :size="20" />
+            <div class="custom-export-fields">
+              <div class="custom-export-fields-head">
                 <div>
-                  <h4>操作日志</h4>
-                  <span>用于关键操作核对，仅管理员可导出</span>
+                  <strong>导出字段</strong>
+                  <span>已选 {{ selectedExportFieldCount }} / {{ exportFields.length }} 列</span>
+                </div>
+                <button class="ghost-button" type="button" @click="resetExportFields"><RotateCcw :size="15" />恢复默认</button>
+              </div>
+              <div class="custom-export-field-list">
+                <div v-for="(field, index) in exportFields" :key="field.id" class="custom-export-field-row" :class="{ selected: field.selected }">
+                  <label>
+                    <input v-model="field.selected" type="checkbox" />
+                    <span>{{ field.label }}</span>
+                  </label>
+                  <div>
+                    <button type="button" title="上移" :aria-label="`${field.label}上移`" :disabled="index === 0" @click="moveExportField(index, -1)"><ArrowUp :size="15" /></button>
+                    <button type="button" title="下移" :aria-label="`${field.label}下移`" :disabled="index === exportFields.length - 1" @click="moveExportField(index, 1)"><ArrowDown :size="15" /></button>
+                  </div>
                 </div>
               </div>
-              <div class="data-range-row">
-                <input v-model="logRange.from" type="date" aria-label="操作日志开始日期" />
-                <input v-model="logRange.to" type="date" aria-label="操作日志结束日期" />
-                <button class="ghost-button data-export-button" :disabled="busy || localBusy" @click="exportLogs">
-                  <Download :size="16" />导出
-                </button>
-              </div>
-            </article>
+            </div>
+
+            <div class="custom-export-actions">
+              <span>将生成 {{ selectedExportFieldCount }} 列的 {{ selectedExportSource.label }} 表格</span>
+              <button class="primary-action" type="button" :disabled="busy || localBusy || selectedExportFieldCount === 0" @click="exportCustomExcel">
+                <FileSpreadsheet :size="17" />导出 Excel
+              </button>
+            </div>
           </div>
+          <div v-else class="empty custom-export-empty">正在读取导出配置</div>
         </section>
       </div>
 
@@ -257,21 +247,22 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
+  ArrowDown,
+  ArrowUp,
   Archive,
   CalendarDays,
-  ClipboardList,
   Download,
+  FileSpreadsheet,
   GraduationCap,
-  History,
   RefreshCw,
+  RotateCcw,
   Save,
   ShieldCheck,
   Trash2,
   Upload,
-  UsersRound,
-  Wrench
+  UsersRound
 } from '@lucide/vue'
 import { api } from '../api.js'
 
@@ -281,8 +272,7 @@ const props = defineProps({
   busy: { type: Boolean, default: false },
   restoreFile: { type: Object, default: null },
   canDeleteBackups: { type: Boolean, default: false },
-  canRestoreBackups: { type: Boolean, default: false },
-  canViewLogs: { type: Boolean, default: false }
+  canRestoreBackups: { type: Boolean, default: false }
 })
 
 const emit = defineEmits([
@@ -298,34 +288,27 @@ const emit = defineEmits([
 const today = new Date()
 const todayValue = formatLocalDate(today)
 const activeArea = ref('transfer')
-const exportRange = reactive({ from: `${today.getFullYear()}-01-01`, to: todayValue })
-const logRange = reactive({ from: `${today.getFullYear()}-01-01`, to: todayValue })
 const restoreInput = ref(null)
 const localBusy = ref(false)
+const exportOptions = ref([])
+const selectedExportSourceId = ref('')
+const exportFields = ref([])
+const exportFilters = reactive({})
+const exportFilename = ref('')
 
 const metrics = computed(() => props.summary?.datasets || [])
 const backupOverview = computed(() => props.summary?.backups || {})
 const latestBackup = computed(() => props.backups[0] || null)
+const selectedExportSource = computed(() => (
+  exportOptions.value.find(source => source.id === selectedExportSourceId.value) || null
+))
+const selectedExportFieldCount = computed(() => exportFields.value.filter(field => field.selected).length)
+
+onMounted(loadExportOptions)
 
 watch(() => props.restoreFile, value => {
   if (!value && restoreInput.value) restoreInput.value.value = ''
 })
-
-async function exportAttendance() {
-  await exportFile(
-    `/api/stats/export?${rangeParams(exportRange)}`,
-    `值班记录_${exportRange.from}_${exportRange.to}.xlsx`,
-    '值班统计已导出'
-  )
-}
-
-async function exportTrainings() {
-  await exportFile(
-    `/api/trainings/export?${rangeParams(exportRange)}`,
-    `培训统计_${exportRange.from}_${exportRange.to}.xlsx`,
-    '培训统计已导出'
-  )
-}
 
 async function downloadTrainingTemplate() {
   await exportFile('/api/trainings/import-template', '培训名单导入模板.xlsx', '培训导入模板已下载')
@@ -335,21 +318,64 @@ async function downloadScheduleTemplate() {
   await exportFile('/api/schedules/import-template', '部长排班导入模板.xlsx', '排班导入模板已下载')
 }
 
-async function exportRepairs() {
-  await exportFile(
-    `/api/repairs/export?${rangeParams(exportRange)}`,
-    `维修事务_${exportRange.from}_${exportRange.to}.xlsx`,
-    '维修事务已导出'
-  )
+async function loadExportOptions() {
+  localBusy.value = true
+  try {
+    const result = await api('/api/exports/options')
+    exportOptions.value = result.sources || []
+    selectedExportSourceId.value = exportOptions.value[0]?.id || ''
+    initializeExportSource()
+  } catch (error) {
+    emit('notify', { message: error.message, type: 'error' })
+  } finally {
+    localBusy.value = false
+  }
 }
 
-async function exportLogs() {
-  if (!props.canViewLogs) return emit('notify', { message: '只有管理员可以导出操作日志', type: 'warn' })
-  await exportFile(
-    `/api/logs/export?${rangeParams(logRange)}`,
-    `操作日志_${logRange.from}_${logRange.to}.xlsx`,
-    '操作日志已导出'
-  )
+function initializeExportSource() {
+  const source = selectedExportSource.value
+  exportFields.value = (source?.fields || []).map(field => ({ ...field, selected: Boolean(field.defaultSelected) }))
+  Object.keys(exportFilters).forEach(key => delete exportFilters[key])
+  for (const filter of source?.filters || []) exportFilters[filter.id] = filter.defaultValue || ''
+  exportFilename.value = source ? `${source.label}_${todayValue}` : ''
+}
+
+function resetExportFields() {
+  exportFields.value = (selectedExportSource.value?.fields || [])
+    .map(field => ({ ...field, selected: Boolean(field.defaultSelected) }))
+}
+
+function moveExportField(index, offset) {
+  const target = index + offset
+  if (target < 0 || target >= exportFields.value.length) return
+  const next = exportFields.value.slice()
+  const [field] = next.splice(index, 1)
+  next.splice(target, 0, field)
+  exportFields.value = next
+}
+
+async function exportCustomExcel() {
+  const source = selectedExportSource.value
+  const fields = exportFields.value.filter(field => field.selected).map(field => field.id)
+  if (!source || !fields.length) return
+  localBusy.value = true
+  try {
+    const blob = await api('/api/exports/excel', {
+      method: 'POST',
+      body: JSON.stringify({
+        source: source.id,
+        fields,
+        filters: { ...exportFilters },
+        filename: exportFilename.value
+      })
+    })
+    downloadBlob(blob, exportDownloadFilename(source.label))
+    emit('notify', { message: `${source.label}已导出`, type: 'success' })
+  } catch (error) {
+    emit('notify', { message: error.message, type: 'error' })
+  } finally {
+    localBusy.value = false
+  }
 }
 
 async function exportFile(path, filename, message) {
@@ -365,13 +391,6 @@ async function exportFile(path, filename, message) {
   }
 }
 
-function rangeParams(range) {
-  const params = new URLSearchParams()
-  params.set('from', range.from)
-  params.set('to', range.to)
-  return params.toString()
-}
-
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -379,6 +398,12 @@ function downloadBlob(blob, filename) {
   anchor.download = filename
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+function exportDownloadFilename(sourceLabel) {
+  let filename = String(exportFilename.value || '').trim().replace(/\.xlsx$/i, '')
+  filename = filename.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 80)
+  return `${filename || `${sourceLabel}_${todayValue}`}.xlsx`
 }
 
 function bytesText(value) {
