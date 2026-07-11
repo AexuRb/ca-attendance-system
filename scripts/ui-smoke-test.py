@@ -91,7 +91,7 @@ def main() -> None:
             page.locator("#setupPassword").fill(args.admin_password)
             page.locator("#setupPasswordConfirm").fill(args.admin_password)
             page.get_by_role("button", name="完成初始化").click()
-            expect(page.get_by_text("今日工作台")).to_be_visible(timeout=15_000)
+            expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
             page.get_by_title("退出后台").click()
             page.get_by_role("button", name="返回签到台").click()
 
@@ -176,7 +176,7 @@ def main() -> None:
         for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
             click_tab(page, label)
             assert_no_page_overflow(page, label)
-            if label in {"成员", "培训", "排班", "数据", "设置"}:
+            if label in {"成员", "个人", "培训", "排班", "数据", "设置"}:
                 page.screenshot(path=str(screenshot_dir / f"dashboard-{label}.png"), full_page=True)
 
         click_tab(page, "培训")
@@ -186,11 +186,17 @@ def main() -> None:
         click_tab(page, "数据")
         expect(page.get_by_role("heading", name="数据中心")).to_be_visible(timeout=10_000)
         expect(page.get_by_text("培训导入模板")).to_be_visible(timeout=10_000)
+        expect(page.locator("#exportSectionTitle")).to_have_text("自定义 Excel 导出", timeout=10_000)
+        expect(page.get_by_text("导出字段", exact=True)).to_be_visible(timeout=10_000)
         page.get_by_role("tab", name="备份与恢复").click()
         expect(page.get_by_role("heading", name="完整系统备份")).to_be_visible(timeout=10_000)
 
+        click_tab(page, "排班")
+        expect(page.get_by_role("button", name="批量导入")).to_be_visible(timeout=10_000)
+
         click_tab(page, "维修")
         expect(page.get_by_role("heading", name="维修事务")).to_be_visible(timeout=10_000)
+        expect(page.get_by_role("button", name="回收站")).to_be_visible(timeout=10_000)
 
         page.screenshot(path=str(screenshot_dir / "dashboard.png"), full_page=True)
         page.set_viewport_size({"width": 390, "height": 844})

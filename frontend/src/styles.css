@@ -6700,6 +6700,12 @@ tbody tr:hover {
   grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
 }
 
+@media (min-width: 761px) {
+  .dashboard.logged-in-dashboard.role-member .profile-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  }
+}
+
 .dashboard.logged-in-dashboard .log-detail-panel {
   border-top-color: #d6e7f5;
 }

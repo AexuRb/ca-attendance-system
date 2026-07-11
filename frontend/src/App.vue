@@ -1202,7 +1202,6 @@ const overview = reactive({
   totalHours: 0,
   totalCount: 0,
   dutyDays: [],
-  topRows: [],
   dashboard: {
     todayRecordCount: 0,
     todayOpenCount: 0,
@@ -1479,38 +1478,6 @@ const roleDashboard = computed(() => {
     subtitle: '协会值班管理',
     icon: Gauge
   }
-})
-const roleMetrics = computed(() => {
-  const role = currentUser.value?.role
-  if (role === 'MEMBER') {
-    return [
-      { label: '我的记录', value: myRecordCount.value },
-      { label: '有效时长', value: `${formatHours(myRecordHours.value)} h` },
-      { label: '年级', value: profile.grade || '-' }
-    ]
-  }
-  if (role === 'MINISTER') {
-    return [
-      { label: '待审核', value: overview.pendingCount },
-      { label: '今日记录', value: overview.dashboard.todayRecordCount },
-      { label: '本周时长', value: `${formatHours(overview.dashboard.weekValidHours)} h` }
-    ]
-  }
-  if (role === 'PRESIDENT') {
-    return [
-      { label: '今日未签退', value: overview.dashboard.todayOpenCount },
-      { label: '今日待审核', value: overview.dashboard.todayPendingCount },
-      { label: '本年时长', value: `${formatHours(overview.dashboard.yearValidHours)} h` }
-    ]
-  }
-  if (role === 'ADMIN') {
-    return [
-      { label: '今日记录', value: overview.dashboard.todayRecordCount },
-      { label: '待审核', value: overview.pendingCount },
-      { label: '未签退', value: overview.dashboard.todayOpenCount }
-    ]
-  }
-  return []
 })
 const roleActions = computed(() => {
   const role = currentUser.value?.role
@@ -1842,7 +1809,6 @@ async function loadOverview() {
     overview.totalHours = summary.reduce((sum, row) => sum + Number(row.totalHours || 0), 0)
     overview.totalCount = summary.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0)
     overview.dutyDays = dutyDays.filter(day => day.enabled).map(day => day.weekday_name)
-    overview.topRows = summary.slice(0, 5)
     Object.assign(overview.dashboard, dashboard)
     openRecords.value = open
     todayRecords.value = records
