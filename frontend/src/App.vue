@@ -937,23 +937,7 @@
             @delete-backup="deleteBackup"
             @select-restore-file="selectRestoreFile"
             @restore-backup="restoreBackup"
-            @open-tab="selectTab"
             @notify="notify($event.message, $event.type)"
-          />
-
-          <MaintenancePanel
-            v-if="activeTab === 'maintenance'"
-            :backups="backups"
-            :busy="busy"
-            :restore-file="restoreFile"
-            :can-delete-backups="canDeleteBackups"
-            :can-restore-backups="canRestoreBackups"
-            @load-backups="loadBackups"
-            @create-backup="createBackup"
-            @download-backup="downloadBackup"
-            @delete-backup="deleteBackup"
-            @select-restore-file="selectRestoreFile"
-            @restore-backup="restoreBackup"
           />
 
           <section v-if="activeTab === 'settings'" class="work-section tab-settings">
@@ -1135,7 +1119,6 @@ import {
 } from '@lucide/vue'
 import { api, del, post, put, setToken } from './api.js'
 import DataCenterPanel from './components/DataCenterPanel.vue'
-import MaintenancePanel from './components/MaintenancePanel.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
 import RepairPanel from './components/RepairPanel.vue'
 import SchedulePanel from './components/SchedulePanel.vue'
@@ -1246,7 +1229,6 @@ const tabs = [
   { id: 'schedules', label: '排班', icon: CalendarDays, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'repairs', label: '维修', icon: Wrench, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
   { id: 'data', label: '数据', icon: Database, roles: ['PRESIDENT', 'ADMIN'] },
-  { id: 'maintenance', label: '维护', icon: Save, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'settings', label: '设置', icon: SlidersHorizontal, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'logs', label: '日志', icon: History, roles: ['ADMIN'] },
   { id: 'profile', label: '个人', icon: UserRound, roles: ['MEMBER', 'MINISTER', 'PRESIDENT', 'ADMIN'] }
@@ -1261,8 +1243,7 @@ const adminTabDescriptions = {
   trainings: '管理培训场次、参与名单和计入值班时长的培训记录。',
   schedules: '按已设置的值班时间段安排部长值班。',
   repairs: '登记维修工单，预览协议并跟踪处理状态。',
-  data: '集中下载模板、导出统计和进行交接备份。',
-  maintenance: '查看备份状态，执行备份、恢复和数据维护。',
+  data: '集中完成模板下载、统计导出、备份恢复和换届交接。',
   settings: '配置值班星期和值班时间段。',
   logs: '查看后台关键操作记录，用于追溯和交接。',
   profile: '维护个人资料、密码和自己的值班记录。'
@@ -1272,7 +1253,7 @@ const adminNavBlueprint = [
   { id: 'duty', label: '值班', icon: Gauge, tabs: ['overview', 'reviews', 'records', 'stats', 'schedules'] },
   { id: 'people', label: '人员', icon: UsersRound, tabs: ['members', 'profile'] },
   { id: 'affairs', label: '事务', icon: Wrench, tabs: ['trainings', 'repairs'] },
-  { id: 'system', label: '系统', icon: SlidersHorizontal, tabs: ['data', 'maintenance', 'settings', 'logs'] }
+  { id: 'system', label: '系统', icon: SlidersHorizontal, tabs: ['data', 'settings', 'logs'] }
 ]
 
 const logActionOptions = [
@@ -1559,8 +1540,7 @@ const roleActions = computed(() => {
       { label: '排班', tab: 'schedules', icon: CalendarDays },
       { label: '维修', tab: 'repairs', icon: Wrench },
       { label: '数据中心', tab: 'data', icon: Database },
-      { label: '日志', tab: 'logs', icon: History },
-      { label: '维护', tab: 'maintenance', icon: Save }
+      { label: '日志', tab: 'logs', icon: History }
     ]
   }[role] || []
   const allowed = new Set(availableTabs.value.map(tab => tab.id))
@@ -1824,7 +1804,6 @@ async function selectTab(tab) {
   }
   if (tab === 'stats') await loadStats()
   if (tab === 'data') await loadDataCenter()
-  if (tab === 'maintenance') await loadBackups()
   if (tab === 'settings') await loadDutySettings()
   if (tab === 'logs') await loadOperationLogs(1)
   if (tab === 'profile') {
@@ -2190,13 +2169,6 @@ async function exportExcel() {
   })
 }
 
-async function loadBackups() {
-  if (!canBackupData.value) return
-  await run(async () => {
-    backups.value = await api('/api/maintenance/backups')
-  }, false)
-}
-
 async function loadDataCenter() {
   if (!canUseDataCenter.value) return
   await run(async () => {
@@ -2214,8 +2186,7 @@ async function createBackup() {
   await run(async () => {
     await post('/api/maintenance/backups')
     notify('备份已生成', 'success')
-    if (activeTab.value === 'data') await loadDataCenter()
-    else await loadBackups()
+    await loadDataCenter()
   })
 }
 
@@ -2232,8 +2203,7 @@ async function deleteBackup(item) {
   await run(async () => {
     await del(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
     notify('备份已删除', 'success')
-    if (activeTab.value === 'data') await loadDataCenter()
-    else await loadBackups()
+    await loadDataCenter()
   })
 }
 
