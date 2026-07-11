@@ -767,135 +767,12 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'members'" class="work-section tab-members">
-            <div class="section-head">
-              <h3>成员管理</h3>
-              <button v-if="canManageUsers" class="ghost-button" @click="loadUsers"><RefreshCw :size="16" />刷新</button>
-            </div>
-            <div class="member-action-strip">
-              <button class="ghost-button" :class="{ active: showCreateMember }" @click="toggleCreateMemberForm">
-                <UserPlus :size="17" />
-                <span>新增成员</span>
-              </button>
-              <button v-if="canImportMembers" class="ghost-button" :class="{ active: showImportMembers }" @click="showImportMembers = !showImportMembers">
-                <Upload :size="17" />
-                <span>批量导入</span>
-              </button>
-            </div>
-            <div v-if="showCreateMember" class="inline-form-block member-action-panel">
-              <div class="subsection-head">
-                <h4>新增成员</h4>
-              </div>
-              <form class="create-member-form" novalidate @input="setFormDirty('new-member', true)" @change="setFormDirty('new-member', true)" @submit.prevent="createMember">
-                <label for="newMemberStudentNo"><span>学号</span><input id="newMemberStudentNo" v-model.trim="newMember.studentNo" name="studentNo" inputmode="numeric" autocomplete="off" :aria-invalid="Boolean(newMemberErrors.studentNo)" required /><small v-if="newMemberErrors.studentNo" class="field-error">{{ newMemberErrors.studentNo }}</small></label>
-                <label for="newMemberName"><span>姓名</span><input id="newMemberName" v-model.trim="newMember.name" name="name" autocomplete="name" :aria-invalid="Boolean(newMemberErrors.name)" required /><small v-if="newMemberErrors.name" class="field-error">{{ newMemberErrors.name }}</small></label>
-                <label for="newMemberPhone"><span>手机号</span><input id="newMemberPhone" v-model.trim="newMember.phone" name="phone" inputmode="tel" autocomplete="tel" /></label>
-                <label for="newMemberMajor"><span>学院</span><input id="newMemberMajor" v-model.trim="newMember.major" name="major" autocomplete="organization" /></label>
-                <label for="newMemberGrade"><span>年级</span><select id="newMemberGrade" v-model="newMember.grade" name="grade">
-                  <option value="">年级</option>
-                  <option v-for="grade in profileGradeOptions" :key="grade" :value="grade">{{ grade }}</option>
-                </select></label>
-                <label for="newMemberQq"><span>QQ</span><input id="newMemberQq" v-model.trim="newMember.qq" name="qq" inputmode="numeric" autocomplete="off" /></label>
-                <button class="primary-action" type="submit" :disabled="busy">
-                  <UserPlus :size="18" />
-                  <span>新增成员</span>
-                </button>
-                <button class="ghost-button" type="button" @click="cancelCreateMember">取消</button>
-              </form>
-            </div>
-            <div v-if="canImportMembers && showImportMembers" class="inline-form-block import-members-block member-action-panel">
-              <div class="subsection-head">
-                <h4>批量导入成员</h4>
-              </div>
-              <form class="import-member-form" @submit.prevent="importMembers">
-                <label class="file-field" for="memberImportFile"><span>Excel 文件</span><input id="memberImportFile" ref="importInput" class="file-input" name="memberImportFile" type="file" accept=".xlsx,.xls" @change="pickImportFile" /></label>
-                <button class="primary-action" type="submit" :disabled="busy || !importFile">
-                  <Upload :size="18" />
-                  <span>导入成员</span>
-                </button>
-                <a class="ghost-button template-download" href="/templates/member-import-template.xlsx" download="成员批量导入模板.xlsx">
-                  <Download :size="16" />
-                  <span>下载模板</span>
-                </a>
-              </form>
-              <p v-if="importResult" class="import-result">
-                新增 {{ importResult.created }}，更新 {{ importResult.updated }}，跳过 {{ importResult.skipped }}
-              </p>
-              <ul v-if="importResult?.errors?.length" class="import-errors">
-                <li v-for="item in importResult.errors" :key="item">{{ item }}</li>
-              </ul>
-            </div>
-            <div v-if="canManageUsers" class="filters member-filters">
-              <label class="filter-field member-search-field" for="memberKeyword"><span>关键词</span><input id="memberKeyword" class="member-search" v-model.trim="userQuery" name="keyword" autocomplete="off" placeholder="姓名、学号、手机号或学院" @keyup.enter="loadUsers(1)" /></label>
-              <label class="filter-field" for="memberRole"><span>职位</span><select id="memberRole" class="role-select" v-model="roleFilter" name="role" @change="loadUsers(1)">
-                <option value="">全部职位</option>
-                <option value="MEMBER">成员</option>
-                <option value="MINISTER">部长</option>
-                <option value="PRESIDENT">会长</option>
-                <option value="ADMIN">管理员</option>
-              </select></label>
-              <label class="filter-field" for="memberGrade"><span>年级</span><select id="memberGrade" class="grade-select" v-model="gradeFilter" name="grade" @change="loadUsers(1)">
-                <option value="">全部年级</option>
-                <option v-for="grade in gradeOptions" :key="grade" :value="grade">{{ grade }}</option>
-              </select></label>
-              <button class="ghost-button" @click="loadUsers(1)">搜索</button>
-              <div class="bulk-actions">
-                <button class="ghost-button bulk-enable-button" :disabled="busy || userTotal === 0" @click="bulkUpdateUserStatus('ACTIVE')">
-                  <Power :size="16" />
-                  <span>全部启用</span>
-                </button>
-                <button class="ghost-button bulk-disable-button" :disabled="busy || userTotal === 0" @click="bulkUpdateUserStatus('DISABLED')">
-                  <PowerOff :size="16" />
-                  <span>全部停用</span>
-                </button>
-              </div>
-            </div>
-            <div v-if="canManageUsers" class="table-wrap member-table-wrap">
-              <table class="member-table">
-                <thead>
-                  <tr><th>姓名</th><th>学号</th><th>状态</th><th>手机号</th><th>学院</th><th>年级</th><th>操作</th><th>角色</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="user in users" :key="user.id">
-                    <td>{{ user.name }}</td>
-                    <td class="mono">{{ user.studentNo }}</td>
-                    <td>
-                      <span class="user-status" :class="{ disabled: user.status !== 'ACTIVE' }">
-                        {{ user.status === 'ACTIVE' ? '启用' : '停用' }}
-                      </span>
-                    </td>
-                    <td>{{ user.phone || '-' }}</td>
-                    <td>{{ user.major || '-' }}</td>
-                    <td>{{ user.grade || '-' }}</td>
-                    <td class="actions actions-cell">
-                      <button :disabled="!canEditUser(user)" @click="toggleUser(user)">{{ user.status === 'ACTIVE' ? '停用' : '启用' }}</button>
-                      <button :disabled="!canEditUser(user)" @click="resetPassword(user)">重置密码</button>
-                      <button v-if="currentUser.role === 'ADMIN'" class="danger" :disabled="!canDeleteUser(user)" @click="deleteUser(user)">删除</button>
-                    </td>
-                    <td class="role-cell">
-                      <select :value="user.role" :aria-label="`修改 ${user.name} 的角色`" :disabled="!canEditUser(user)" @change="updateUserRole(user, $event.target.value)">
-                        <option value="MEMBER">成员</option>
-                        <option value="MINISTER">部长</option>
-                        <option value="PRESIDENT">会长</option>
-                        <option value="ADMIN" :disabled="currentUser.role !== 'ADMIN'">管理员</option>
-                      </select>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div v-if="canManageUsers" class="pagination-bar">
-              <button class="ghost-button" :disabled="userPage <= 1 || busy" @click="changeUserPage(-1)">上一页</button>
-              <span>第 {{ userPage }} / {{ userTotalPages }} 页，共 {{ userTotal }} 人</span>
-              <label class="page-size-field"><span>每页</span><select class="page-size-select" v-model.number="userPageSize" aria-label="每页显示人数" @change="loadUsers(1)">
-                <option :value="10">10 条/页</option>
-                <option :value="20">20 条/页</option>
-                <option :value="50">50 条/页</option>
-                <option :value="100">100 条/页</option>
-              </select></label>
-              <button class="ghost-button" :disabled="userPage >= userTotalPages || busy" @click="changeUserPage(1)">下一页</button>
-            </div>
-          </section>
+          <MembersPanel
+            v-if="activeTab === 'members'"
+            :current-user="currentUser"
+            @notify="notify($event.message, $event.type)"
+            @dirty-change="setFormDirty('members', $event)"
+          />
 
           <section v-if="activeTab === 'stats'" class="work-section tab-stats">
             <div class="section-head">
@@ -1185,7 +1062,6 @@ import {
   ListChecks,
   LogIn,
   Power,
-  PowerOff,
   Plus,
   RefreshCw,
   Save,
@@ -1194,8 +1070,6 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
-  Upload,
-  UserPlus,
   UserRound,
   UsersRound,
   WifiOff,
@@ -1205,6 +1079,7 @@ import {
 import { api, del, getToken, post, put, setToken } from './api.js'
 import { adminModuleLocation, tabFromRoute } from './app/router.js'
 import DataCenterPanel from './components/DataCenterPanel.vue'
+import MembersPanel from './components/MembersPanel.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
 import RepairPanel from './components/RepairPanel.vue'
 import SchedulePanel from './components/SchedulePanel.vue'
@@ -1250,16 +1125,6 @@ const weekSchedule = ref([])
 const dutyPeriods = ref([])
 const publicDutyWeekdays = ref([])
 const dutyPeriodDrafts = ref([])
-const users = ref([])
-const userTotal = ref(0)
-const userPage = ref(1)
-const userPageSize = ref(20)
-const userQuery = ref('')
-const roleFilter = ref('')
-const gradeFilter = ref('')
-const gradeOptions = ref([])
-const showCreateMember = ref(false)
-const showImportMembers = ref(false)
 const showCreateAttendanceRecord = ref(false)
 const stats = ref([])
 const weeklyDetail = ref(emptyWeeklyDetail())
@@ -1296,13 +1161,8 @@ const requiredPasswordError = ref('')
 const dirtyForms = ref(new Set())
 const profile = reactive({ phone: '', major: '', grade: '', qq: '' })
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
-const newMember = reactive({ studentNo: '', name: '', phone: '', major: '', grade: '', qq: '' })
 const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
-const newMemberErrors = reactive({ studentNo: '', name: '' })
 const manualRecordErrors = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
-const importInput = ref(null)
-const importFile = ref(null)
-const importResult = ref(null)
 const restoreFile = ref(null)
 const operationLogs = ref([])
 const backups = ref([])
@@ -1432,8 +1292,6 @@ const activeAdminGroup = computed(() => (
 ))
 const activeAdminGroupTabs = computed(() => activeAdminGroup.value?.tabs || [])
 const canExport = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
-const canManageUsers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
-const canImportMembers = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canAddAttendanceRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canDeleteAttendanceRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canViewLogs = computed(() => currentUser.value?.role === 'ADMIN')
@@ -1457,7 +1315,6 @@ const attendanceRecordPendingCount = computed(() => attendanceRecords.value.filt
 const myRecordHours = computed(() => myRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0) + Number(myTrainingHours.value || 0))
 const myRecordCount = computed(() => myRecords.value.length + Number(myTrainingCount.value || 0))
 const profileGradeOptions = Array.from({ length: 2057 - 2007 + 1 }, (_, index) => `${2007 + index}级`)
-const userTotalPages = computed(() => Math.max(1, Math.ceil(userTotal.value / userPageSize.value)))
 const logTotalPages = computed(() => Math.max(1, Math.ceil(logTotal.value / logPageSize)))
 const todayText = computed(() => today.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' }))
 const weekdayText = computed(() => today.toLocaleDateString('zh-CN', { weekday: 'long' }))
@@ -2017,13 +1874,6 @@ async function applyRouteLocation() {
 
 function hydrateTabQuery(tab, query) {
   const yearStart = `${today.getFullYear()}-01-01`
-  if (tab === 'members') {
-    userQuery.value = queryText(query, 'q', queryText(query, 'keyword'))
-    roleFilter.value = queryOneOf(query, 'role', ['', 'MEMBER', 'MINISTER', 'PRESIDENT', 'ADMIN'])
-    gradeFilter.value = queryText(query, 'grade')
-    userPage.value = queryPositiveInt(query, 'page', 1)
-    userPageSize.value = queryPositiveInt(query, 'size', 20, [10, 20, 50, 100])
-  }
   if (tab === 'records') {
     recordFilters.keyword = queryText(query, 'q')
     recordFilters.status = queryOneOf(query, 'status', ['', ...effectiveStatusOptions.map(item => item.value)])
@@ -2062,14 +1912,6 @@ async function loadTab(tab) {
   if (tab === 'overview') await loadOverview()
   if (tab === 'reviews') await loadPending()
   if (tab === 'records') await loadAttendanceRecords()
-  if (tab === 'members') {
-    if (canManageUsers.value) {
-      await loadGradeOptions()
-      await loadUsers(1)
-    } else {
-      users.value = []
-    }
-  }
   if (tab === 'stats') await loadStats()
   if (tab === 'data') await loadDataCenter()
   if (tab === 'settings') await loadDutySettings()
@@ -2212,16 +2054,8 @@ function handleProfileDirtyChange(event) {
 function clearAllDirtyForms() {
   dirtyForms.value = new Set()
   showCreateAttendanceRecord.value = false
-  showCreateMember.value = false
-  showImportMembers.value = false
   Object.assign(manualRecord, { studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
-  Object.assign(newMember, { studentNo: '', name: '', phone: '', major: '', grade: '', qq: '' })
   Object.keys(manualRecordErrors).forEach(key => { manualRecordErrors[key] = '' })
-  newMemberErrors.studentNo = ''
-  newMemberErrors.name = ''
-  importFile.value = null
-  importResult.value = null
-  if (importInput.value) importInput.value.value = ''
   clearPasswordForm()
 }
 
@@ -2371,172 +2205,6 @@ async function deleteAttendanceRecord(item) {
     await del(`/api/attendance/${item.id}`)
     notify('签到记录已删除，删除前已自动备份', 'success')
     await loadAttendanceRecords()
-  })
-}
-
-async function loadUsers(page = userPage.value) {
-  await run(async () => {
-    const params = new URLSearchParams()
-    params.set('page', String(page))
-    params.set('pageSize', String(userPageSize.value))
-    if (userQuery.value) params.set('keyword', userQuery.value)
-    if (roleFilter.value) params.set('role', roleFilter.value)
-    if (gradeFilter.value) params.set('grade', gradeFilter.value)
-    const result = await api(`/api/users/page?${params.toString()}`)
-    users.value = result.items
-    userTotal.value = result.total
-    userPage.value = result.page
-    await syncTabQuery('members', {
-      q: userQuery.value,
-      role: roleFilter.value,
-      grade: gradeFilter.value,
-      page: userPage.value,
-      size: userPageSize.value
-    })
-  }, false)
-}
-
-async function changeUserPage(delta) {
-  const next = Math.min(Math.max(1, userPage.value + delta), userTotalPages.value)
-  if (next !== userPage.value) await loadUsers(next)
-}
-
-async function createMember() {
-  if (!await validateNewMemberForm()) return
-  await run(async () => {
-    await post('/api/users', { ...newMember, role: 'MEMBER' })
-    clearNewMemberForm()
-    showCreateMember.value = false
-    notify('成员已新增，初始密码为学号后六位', 'success')
-    if (canManageUsers.value) {
-      await loadGradeOptions()
-      await loadUsers(1)
-    }
-  })
-}
-
-function clearNewMemberForm() {
-  newMember.studentNo = ''
-  newMember.name = ''
-  newMember.phone = ''
-  newMember.major = ''
-  newMember.grade = ''
-  newMember.qq = ''
-  newMemberErrors.studentNo = ''
-  newMemberErrors.name = ''
-  setFormDirty('new-member', false)
-}
-
-function toggleCreateMemberForm() {
-  if (showCreateMember.value) cancelCreateMember()
-  else showCreateMember.value = true
-}
-
-function cancelCreateMember() {
-  clearNewMemberForm()
-  showCreateMember.value = false
-}
-
-async function validateNewMemberForm() {
-  newMemberErrors.studentNo = newMember.studentNo ? '' : '请填写学号'
-  newMemberErrors.name = newMember.name ? '' : '请填写姓名'
-  const firstInvalidId = newMemberErrors.studentNo ? 'newMemberStudentNo' : newMemberErrors.name ? 'newMemberName' : ''
-  if (!firstInvalidId) return true
-  await nextTick()
-  document.getElementById(firstInvalidId)?.focus()
-  notify(newMemberErrors.studentNo || newMemberErrors.name, 'warn')
-  return false
-}
-
-function pickImportFile(event) {
-  importFile.value = event.target.files?.[0] || null
-  importResult.value = null
-  setFormDirty('member-import', Boolean(importFile.value))
-}
-
-async function importMembers() {
-  if (!canImportMembers.value) return notify('只有会长或管理员可以批量导入成员', 'warn')
-  if (!importFile.value) return notify('请选择 Excel 文件', 'warn')
-  const formData = new FormData()
-  formData.append('file', importFile.value)
-  await run(async () => {
-    const result = await api('/api/users/import', { method: 'POST', body: formData })
-    importResult.value = result
-    importFile.value = null
-    setFormDirty('member-import', false)
-    if (importInput.value) importInput.value.value = ''
-    notify(`导入完成：新增 ${result.created}，更新 ${result.updated}，跳过 ${result.skipped}`, result.skipped ? 'warn' : 'success')
-    if (!result.errors?.length) showImportMembers.value = false
-    await loadGradeOptions()
-    await loadUsers(1)
-  })
-}
-
-async function loadGradeOptions() {
-  await run(async () => {
-    gradeOptions.value = await api('/api/users/grades')
-  }, false)
-}
-
-async function updateUserRole(user, role) {
-  if (!canEditUser(user)) return notify('只有管理员可以修改管理员账号', 'warn')
-  await run(async () => {
-    await put(`/api/users/${user.id}`, { ...user, role, reason: '前端调整角色' })
-    notify('角色已更新', 'success')
-    await loadUsers()
-  })
-}
-
-async function toggleUser(user) {
-  if (!canEditUser(user)) return notify('只有管理员可以修改管理员账号', 'warn')
-  await run(async () => {
-    await put(`/api/users/${user.id}`, {
-      ...user,
-      status: user.status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE',
-      reason: user.status === 'ACTIVE' ? '停用账号' : '启用账号'
-    })
-    notify('账号状态已更新', 'success')
-    await loadUsers()
-  })
-}
-
-async function bulkUpdateUserStatus(status) {
-  if (!canManageUsers.value) return notify('无权管理成员', 'warn')
-  if (userTotal.value === 0) return notify('筛选后列表暂无成员', 'warn')
-  const label = status === 'ACTIVE' ? '启用' : '停用'
-  if (!await dangerConfirm(`确认将当前筛选结果中的 ${userTotal.value} 个账号全部${label}？`, label)) return
-  await run(async () => {
-    const result = await put('/api/users/bulk-status', {
-      keyword: userQuery.value,
-      role: roleFilter.value,
-      grade: gradeFilter.value,
-      status,
-      reason: `批量${label}筛选后成员`
-    })
-    const backupText = result.safetyBackup ? `，操作前备份：${result.safetyBackup.filename}` : ''
-    notify(`批量${label}完成：更新 ${result.updated}，无变化 ${result.unchanged}，跳过 ${result.skipped}${backupText}`,
-      result.skipped ? 'warn' : 'success')
-    await loadUsers()
-  })
-}
-
-async function resetPassword(user) {
-  if (!canEditUser(user)) return notify('只有管理员可以修改管理员账号', 'warn')
-  if (!await dangerConfirm(`确认重置 ${user.name} 的密码为学号后六位？`, '重置')) return
-  await run(async () => {
-    await post(`/api/users/${user.id}/reset-password`, { reason: '前端重置密码' })
-    notify('密码已重置', 'success')
-  })
-}
-
-async function deleteUser(user) {
-  if (!canDeleteUser(user)) return notify('不能删除当前登录账号', 'warn')
-  if (!await dangerConfirm(`确认删除 ${user.name}（${user.studentNo}）？删除后无法恢复。已有值班记录的成员请改为停用账号。`, '删除')) return
-  await run(async () => {
-    await del(`/api/users/${user.id}`)
-    notify('成员已删除，删除前已自动备份', 'success')
-    await loadGradeOptions()
-    await loadUsers()
   })
 }
 
@@ -2868,14 +2536,6 @@ function dangerConfirm(message, phrase = '确认') {
     confirmLabel: phrase,
     requiredText: phrase
   })
-}
-
-function canEditUser(user) {
-  return currentUser.value?.role === 'ADMIN' || user.role !== 'ADMIN'
-}
-
-function canDeleteUser(user) {
-  return currentUser.value?.role === 'ADMIN' && user.id !== currentUser.value?.id
 }
 
 function statusText(status) {
