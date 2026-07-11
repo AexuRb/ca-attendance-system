@@ -7,6 +7,7 @@ import com.ca.attendance.common.Role;
 import com.ca.attendance.common.ReviewStatus;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
+import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
@@ -24,13 +25,16 @@ public class AttendanceService {
     private final UserRepository users;
     private final AttendanceRepository records;
     private final DutyWeekdayService weekdays;
+    private final DutyPeriodService periods;
     private final OperationLogService logs;
     private final BackupService backups;
 
-    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays, OperationLogService logs, BackupService backups) {
+    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays,
+                             DutyPeriodService periods, OperationLogService logs, BackupService backups) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
+        this.periods = periods;
         this.logs = logs;
         this.backups = backups;
     }
@@ -39,46 +43,48 @@ public class AttendanceService {
         LocalDate today = LocalDate.now();
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
+        boolean withinDutyPeriod = periods.contains(java.time.LocalTime.now());
         UserSummary user = users.findActiveByStudentNo(studentNo).orElse(null);
         if (user == null) {
-            return new PublicLookupResponse(false, dutyDay, null, null, null, "学号不存在或账号已停用", List.of());
+            return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, "学号不存在或账号已停用", List.of());
         }
-        return lookupResponse(user, today, dutyDay);
+        return lookupResponse(user, today, dutyDay, withinDutyPeriod);
     }
 
     public PublicLookupResponse lookupByInput(String input) {
         LocalDate today = LocalDate.now();
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
+        boolean withinDutyPeriod = periods.contains(java.time.LocalTime.now());
         String keyword = input == null ? "" : input.trim();
         if (keyword.isBlank()) {
-            return new PublicLookupResponse(false, dutyDay, null, null, null, "请输入学号或姓名", List.of());
+            return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, "请输入学号或姓名", List.of());
         }
 
         var byStudentNo = users.findActiveByStudentNo(keyword);
         if (byStudentNo.isPresent()) {
-            return lookupResponse(byStudentNo.get(), today, dutyDay);
+            return lookupResponse(byStudentNo.get(), today, dutyDay, withinDutyPeriod);
         }
 
         List<UserSummary> sameNameUsers = users.findActiveByName(keyword);
         if (sameNameUsers.isEmpty()) {
-            return new PublicLookupResponse(false, dutyDay, null, null, null, "未找到该学号或姓名，或账号已停用", List.of());
+            return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, "未找到该学号或姓名，或账号已停用", List.of());
         }
         if (sameNameUsers.size() == 1) {
-            return lookupResponse(sameNameUsers.get(0), today, dutyDay);
+            return lookupResponse(sameNameUsers.get(0), today, dutyDay, withinDutyPeriod);
         }
 
         List<PublicMemberOption> matches = sameNameUsers.stream()
                 .map(user -> new PublicMemberOption(user.studentNo(), user.name(), user.grade(), user.major()))
                 .toList();
         String message = dutyDay ? "找到多位同名成员，请选择自己的学号" : "今日非值班日，也可选择成员测试签到签退";
-        return new PublicLookupResponse(false, dutyDay, null, null, null, message, matches);
+        return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, message, matches);
     }
 
-    private PublicLookupResponse lookupResponse(UserSummary user, LocalDate today, boolean dutyDay) {
+    private PublicLookupResponse lookupResponse(UserSummary user, LocalDate today, boolean dutyDay, boolean withinDutyPeriod) {
         String action = records.findOpenToday(user.id(), today).isPresent() ? "CHECK_OUT" : "CHECK_IN";
         String message = dutyDay ? "请确认姓名后提交" : "今日非值班日，可测试签到签退";
-        return new PublicLookupResponse(true, dutyDay, user.studentNo(), user.name(), action, message, List.of());
+        return new PublicLookupResponse(true, dutyDay, withinDutyPeriod, user.studentNo(), user.name(), action, message, List.of());
     }
 
     public SubmitResponse submitPublic(String studentNo) {
@@ -86,6 +92,7 @@ public class AttendanceService {
         LocalDate today = now.toLocalDate();
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
+        boolean withinDutyPeriod = periods.contains(now.toLocalTime());
         UserSummary user = users.findActiveByStudentNo(studentNo)
                 .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
         boolean autoApproved = user.role() == Role.PRESIDENT || user.role() == Role.ADMIN;
@@ -99,19 +106,22 @@ public class AttendanceService {
                     user.name(),
                     today,
                     weekday,
-                    true,
+                    dutyDay,
+                    withinDutyPeriod,
                     Timestamp.valueOf(now),
                     pendingOrAuto,
                     "INCOMPLETE"
             );
             recompute(id);
-            return new SubmitResponse(id, "CHECK_IN", user.studentNo(), user.name(), now, pendingOrAuto, "签到提交成功");
+            return new SubmitResponse(id, "CHECK_IN", user.studentNo(), user.name(), now, pendingOrAuto,
+                    submissionMessage("签到", dutyDay, withinDutyPeriod));
         }
 
         AttendanceRecord record = open.get();
         records.updateCheckOut(record.id(), Timestamp.valueOf(now), pendingOrAuto);
         recompute(record.id());
-        return new SubmitResponse(record.id(), "CHECK_OUT", user.studentNo(), user.name(), now, pendingOrAuto, "签退提交成功");
+        return new SubmitResponse(record.id(), "CHECK_OUT", user.studentNo(), user.name(), now, pendingOrAuto,
+                submissionMessage("签退", record.dutyDay(), record.withinDutyPeriod()));
     }
 
     public List<AttendanceRecord> pending() {
@@ -309,7 +319,8 @@ public class AttendanceService {
         AttendanceRecord record = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
         if (ReviewStatus.REJECTED.name().equals(record.checkInStatus())
                 || ReviewStatus.REJECTED.name().equals(record.checkOutStatus())
-                || !record.dutyDay()) {
+                || !record.dutyDay()
+                || !record.withinDutyPeriod()) {
             records.updateEffective(id, 0, 0, "INVALID");
             return;
         }
@@ -335,6 +346,16 @@ public class AttendanceService {
 
     private boolean approved(String status) {
         return ReviewStatus.APPROVED.name().equals(status) || ReviewStatus.AUTO_APPROVED.name().equals(status);
+    }
+
+    private String submissionMessage(String action, boolean dutyDay, boolean withinDutyPeriod) {
+        if (!dutyDay) {
+            return action + "已提交；今日不是值班日，记录默认不计入有效时长";
+        }
+        if (!withinDutyPeriod) {
+            return action + "已提交；当前不在值班时段，记录默认不计入有效时长";
+        }
+        return action + "提交成功";
     }
 
     private String reviewReason(String part, String status, String reason) {
@@ -365,6 +386,7 @@ public class AttendanceService {
     public record PublicLookupResponse(
             boolean exists,
             boolean dutyDay,
+            boolean withinDutyPeriod,
             String studentNo,
             String name,
             String action,

@@ -28,6 +28,7 @@ public class AttendanceRepository {
             localDate(rs, "duty_date"),
             rs.getInt("duty_weekday"),
             rs.getBoolean("is_duty_day"),
+            rs.getBoolean("within_duty_period"),
             localDateTime(rs, "check_in_time"),
             localDateTime(rs, "check_out_time"),
             rs.getString("check_in_status"),
@@ -122,16 +123,17 @@ public class AttendanceRepository {
     }
 
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
-                              boolean isDutyDay, Timestamp checkInTime, String checkInStatus,
+                              boolean isDutyDay, boolean withinDutyPeriod, Timestamp checkInTime, String checkInStatus,
                               String effectiveStatus) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
-                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day,
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
                   check_in_time, check_in_status, check_out_status, effective_status, source
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
                 RETURNING id
-                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, isDutyDay, checkInTime, checkInStatus, effectiveStatus);
+                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, isDutyDay,
+                withinDutyPeriod, checkInTime, checkInStatus, effectiveStatus);
         return id == null ? 0 : id;
     }
 
@@ -140,11 +142,11 @@ public class AttendanceRepository {
                              String checkOutStatus, String reason, long operatorId) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
-                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day,
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
                   check_in_time, check_out_time, check_in_status, check_out_status, effective_status,
                   source, manual_reason, created_by, updated_by
                 )
-                VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
                 RETURNING id
                 """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, checkInTime, checkOutTime,
                 checkInStatus, checkOutStatus, reason, operatorId, operatorId);

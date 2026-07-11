@@ -111,6 +111,7 @@ public class BackupService {
             )),
             Map.entry("attendance_records", Set.of(
                     "id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "duty_weekday", "is_duty_day",
+                    "within_duty_period",
                     "check_in_time", "check_out_time", "check_in_status", "check_out_status", "check_in_reviewed_by",
                     "check_out_reviewed_by", "check_in_reviewed_at", "check_out_reviewed_at", "check_in_reject_reason",
                     "check_out_reject_reason", "duration_minutes", "valid_hours", "effective_status", "source",

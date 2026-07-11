@@ -11,6 +11,7 @@ public record AttendanceRecord(
         LocalDate dutyDate,
         int dutyWeekday,
         boolean dutyDay,
+        boolean withinDutyPeriod,
         LocalDateTime checkInTime,
         LocalDateTime checkOutTime,
         String checkInStatus,

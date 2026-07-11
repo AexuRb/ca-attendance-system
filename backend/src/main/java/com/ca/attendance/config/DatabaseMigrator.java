@@ -16,7 +16,7 @@ import java.sql.Statement;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class DatabaseMigrator implements CommandLineRunner {
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 3;
     private final DataSource dataSource;
 
     public DatabaseMigrator(DataSource dataSource) {
@@ -36,6 +36,10 @@ public class DatabaseMigrator implements CommandLineRunner {
             }
             if (version < 2) {
                 migrateToVersionTwo(connection);
+                version = 2;
+            }
+            if (version < 3) {
+                migrateToVersionThree(connection);
             }
             verifyIntegrity(connection);
         }
@@ -47,6 +51,10 @@ public class DatabaseMigrator implements CommandLineRunner {
 
     private void migrateToVersionTwo(Connection connection) throws SQLException {
         migrate(connection, "db/sqlite/V2__repair_recycle_bin.sql", 2);
+    }
+
+    private void migrateToVersionThree(Connection connection) throws SQLException {
+        migrate(connection, "db/sqlite/V3__attendance_duty_period.sql", 3);
     }
 
     private void migrate(Connection connection, String resource, int version) throws SQLException {

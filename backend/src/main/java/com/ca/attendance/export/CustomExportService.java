@@ -218,6 +218,7 @@ public class CustomExportService {
                        a.duration_minutes AS durationMinutes,
                        a.valid_hours AS validHours,
                        CASE a.is_duty_day WHEN 1 THEN '是' ELSE '否' END AS dutyDay,
+                       CASE a.within_duty_period WHEN 1 THEN '是' ELSE '否' END AS withinDutyPeriod,
                        CASE a.source WHEN 'PUBLIC' THEN '签到台' WHEN 'ADMIN_MANUAL' THEN '后台补录' ELSE a.source END AS source,
                        a.manual_reason AS reason
                 FROM attendance_records a
@@ -509,7 +510,8 @@ public class CustomExportService {
                 field("checkOutTime", "签退时间", true), field("checkInStatus", "签到审核", false),
                 field("checkOutStatus", "签退审核", false), field("effectiveStatus", "有效状态", true),
                 field("durationMinutes", "实际分钟", false), field("validHours", "有效时长", true),
-                field("dutyDay", "是否值班日", false), field("source", "记录来源", false),
+                field("dutyDay", "是否值班日", false), field("withinDutyPeriod", "是否值班时段", false),
+                field("source", "记录来源", false),
                 field("reason", "补录原因", false)
         ), List.of(
                 dateFilter("from", "开始日期", startOfYear()), dateFilter("to", "结束日期", LocalDate.now().toString()),

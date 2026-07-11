@@ -55,6 +55,7 @@ CREATE TABLE attendance_records (
   duty_date DATE NOT NULL,
   duty_weekday INTEGER NOT NULL CHECK (duty_weekday BETWEEN 1 AND 7),
   is_duty_day INTEGER NOT NULL DEFAULT 1 CHECK (is_duty_day IN (0, 1)),
+  within_duty_period INTEGER NOT NULL DEFAULT 1 CHECK (within_duty_period IN (0, 1)),
   check_in_time DATETIME NOT NULL,
   check_out_time DATETIME,
   check_in_status TEXT NOT NULL DEFAULT 'PENDING' CHECK (check_in_status IN ('NOT_SUBMITTED', 'PENDING', 'APPROVED', 'REJECTED', 'AUTO_APPROVED')),

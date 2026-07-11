@@ -76,6 +76,17 @@ public class DutyPeriodService {
         }
     }
 
+    public boolean contains(LocalTime time) {
+        if (time == null) {
+            return false;
+        }
+        return list().stream().anyMatch(period -> {
+            LocalTime start = LocalTime.parse(period.startTime());
+            LocalTime end = LocalTime.parse(period.endTime());
+            return !time.isBefore(start) && time.isBefore(end);
+        });
+    }
+
     public void requireManager() {
         if (!AuthContext.current().role().atLeastManager()) {
             throw ApiException.forbidden("无权查看该数据");
