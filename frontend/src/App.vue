@@ -685,87 +685,12 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'records'" class="work-section tab-records">
-            <div class="section-head">
-              <h3>签到记录</h3>
-              <div class="section-actions">
-                <button v-if="canAddAttendanceRecords" class="ghost-button" :class="{ active: showCreateAttendanceRecord }" @click="toggleManualRecordForm">
-                  <ClipboardCheck :size="16" />新增记录
-                </button>
-                <button class="ghost-button" @click="loadAttendanceRecords"><RefreshCw :size="16" />刷新</button>
-              </div>
-            </div>
-            <div v-if="showCreateAttendanceRecord" class="inline-form-block record-action-panel">
-              <div class="subsection-head">
-                <h4>新增签到记录</h4>
-                <span>会长和管理员可补录，新增后自动计算有效时长</span>
-              </div>
-              <form class="record-create-form" novalidate @input="setFormDirty('manual-record', true)" @change="setFormDirty('manual-record', true)" @submit.prevent="createAttendanceRecord">
-                <label for="manualStudentNo"><span>成员学号</span><input id="manualStudentNo" v-model.trim="manualRecord.studentNo" name="studentNo" inputmode="numeric" autocomplete="off" :aria-invalid="Boolean(manualRecordErrors.studentNo)" required /><small v-if="manualRecordErrors.studentNo" class="field-error">{{ manualRecordErrors.studentNo }}</small></label>
-                <label for="manualCheckIn"><span>签到时间</span><input id="manualCheckIn" v-model="manualRecord.checkInTime" name="checkInTime" type="datetime-local" :aria-invalid="Boolean(manualRecordErrors.checkInTime)" required /><small v-if="manualRecordErrors.checkInTime" class="field-error">{{ manualRecordErrors.checkInTime }}</small></label>
-                <label for="manualCheckOut"><span>签退时间</span><input id="manualCheckOut" v-model="manualRecord.checkOutTime" name="checkOutTime" type="datetime-local" /></label>
-                <label for="manualReason"><span>补录原因</span><input id="manualReason" v-model.trim="manualRecord.reason" name="reason" autocomplete="off" :aria-invalid="Boolean(manualRecordErrors.reason)" required /><small v-if="manualRecordErrors.reason" class="field-error">{{ manualRecordErrors.reason }}</small></label>
-                <button class="primary-action" type="submit" :disabled="busy">
-                  <ClipboardCheck :size="18" />
-                  <span>添加记录</span>
-                </button>
-                <button class="ghost-button" type="button" @click="cancelManualRecordForm">取消</button>
-              </form>
-            </div>
-            <div class="filters record-filters">
-              <label class="filter-field" for="recordKeyword"><span>关键词</span><input id="recordKeyword" v-model.trim="recordFilters.keyword" name="keyword" autocomplete="off" placeholder="学号或姓名" @keyup.enter="loadAttendanceRecords" /></label>
-              <label class="filter-field" for="recordStatus"><span>状态</span><select id="recordStatus" v-model="recordFilters.status" name="status">
-                <option value="">全部状态</option>
-                <option v-for="item in effectiveStatusOptions" :key="item.value" :value="item.value">{{ item.label }}</option>
-              </select></label>
-              <label class="filter-field" for="recordFrom"><span>开始日期</span><input id="recordFrom" v-model="recordFilters.from" name="from" type="date" /></label>
-              <label class="filter-field" for="recordTo"><span>结束日期</span><input id="recordTo" v-model="recordFilters.to" name="to" type="date" /></label>
-              <button class="ghost-button" @click="loadAttendanceRecords">查询</button>
-            </div>
-            <div class="record-summary-strip">
-              <div><span>记录数</span><strong>{{ attendanceRecords.length }}</strong></div>
-              <div><span>有效时长</span><strong>{{ formatHours(attendanceRecordHours) }} h</strong></div>
-              <div><span>待审核项</span><strong>{{ attendanceRecordPendingCount }}</strong></div>
-            </div>
-            <div class="table-wrap records-table-wrap">
-              <table class="records-table">
-                <thead>
-                  <tr>
-                    <th class="record-action-column">操作</th>
-                    <th>日期</th>
-                    <th>姓名</th>
-                    <th>学号</th>
-                    <th>签到</th>
-                    <th>签退</th>
-                    <th>签到审核</th>
-                    <th>签退审核</th>
-                    <th>状态</th>
-                    <th>有效时长</th>
-                    <th>来源</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in attendanceRecords" :key="item.id">
-                    <td class="actions record-action-column">
-                      <button v-if="canDeleteAttendanceRecords" class="danger" @click="deleteAttendanceRecord(item)"><Trash2 :size="14" />删除</button>
-                      <span v-else class="muted-cell">-</span>
-                    </td>
-                    <td>{{ item.dutyDate }}</td>
-                    <td>{{ item.name }}</td>
-                    <td class="mono">{{ item.studentNo }}</td>
-                    <td>{{ timeText(item.checkInTime) }}</td>
-                    <td>{{ timeText(item.checkOutTime) }}</td>
-                    <td>{{ statusText(item.checkInStatus) }}</td>
-                    <td>{{ statusText(item.checkOutStatus) }}</td>
-                    <td><span class="status-badge" :class="item.effectiveStatus?.toLowerCase()">{{ effectiveStatusText(item.effectiveStatus) }}</span></td>
-                    <td>{{ item.validHours }} h</td>
-                    <td>{{ sourceText(item.source) }}</td>
-                  </tr>
-                  <tr v-if="attendanceRecords.length === 0"><td colspan="11" class="empty">暂无签到记录</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
+          <AttendanceRecordsPanel
+            v-if="activeTab === 'records'"
+            :current-user="currentUser"
+            @notify="notify($event.message, $event.type)"
+            @dirty-change="setFormDirty('manual-record', $event)"
+          />
 
           <MembersPanel
             v-if="activeTab === 'members'"
@@ -1048,7 +973,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
-  ClipboardCheck,
   ClipboardList,
   Clock3,
   Database,
@@ -1078,6 +1002,7 @@ import {
 } from '@lucide/vue'
 import { api, del, getToken, post, put, setToken } from './api.js'
 import { adminModuleLocation, tabFromRoute } from './app/router.js'
+import AttendanceRecordsPanel from './components/AttendanceRecordsPanel.vue'
 import DataCenterPanel from './components/DataCenterPanel.vue'
 import MembersPanel from './components/MembersPanel.vue'
 import ProfilePanel from './components/ProfilePanel.vue'
@@ -1118,14 +1043,12 @@ const attendanceSuccess = ref(null)
 const liveNow = ref(new Date())
 const currentUser = ref(null)
 const pendingRecords = ref([])
-const attendanceRecords = ref([])
 const todayRecords = ref([])
 const todaySchedule = ref([])
 const weekSchedule = ref([])
 const dutyPeriods = ref([])
 const publicDutyWeekdays = ref([])
 const dutyPeriodDrafts = ref([])
-const showCreateAttendanceRecord = ref(false)
 const stats = ref([])
 const weeklyDetail = ref(emptyWeeklyDetail())
 const statsPreset = ref('custom')
@@ -1136,12 +1059,6 @@ const weekdays = ref([])
 const today = new Date()
 const todayValue = formatLocalDate(today)
 const range = reactive({
-  from: `${today.getFullYear()}-01-01`,
-  to: todayValue
-})
-const recordFilters = reactive({
-  keyword: '',
-  status: '',
   from: `${today.getFullYear()}-01-01`,
   to: todayValue
 })
@@ -1161,8 +1078,6 @@ const requiredPasswordError = ref('')
 const dirtyForms = ref(new Set())
 const profile = reactive({ phone: '', major: '', grade: '', qq: '' })
 const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
-const manualRecord = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
-const manualRecordErrors = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
 const restoreFile = ref(null)
 const operationLogs = ref([])
 const backups = ref([])
@@ -1262,13 +1177,6 @@ const logActionOptions = [
   { value: 'RESTORE_BACKUP', label: '恢复备份' }
 ]
 
-const effectiveStatusOptions = [
-  { value: 'VALID', label: '有效' },
-  { value: 'PENDING', label: '待审核' },
-  { value: 'INCOMPLETE', label: '未签退' },
-  { value: 'INVALID', label: '无效' }
-]
-
 const statsPresets = [
   { id: 'week', label: '本周' },
   { id: 'month', label: '本月' },
@@ -1292,8 +1200,6 @@ const activeAdminGroup = computed(() => (
 ))
 const activeAdminGroupTabs = computed(() => activeAdminGroup.value?.tabs || [])
 const canExport = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
-const canAddAttendanceRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
-const canDeleteAttendanceRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canViewLogs = computed(() => currentUser.value?.role === 'ADMIN')
 const canBackupData = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
 const canUseDataCenter = computed(() => ['PRESIDENT', 'ADMIN'].includes(currentUser.value?.role))
@@ -1308,10 +1214,6 @@ const setupFormReady = computed(() => (
 const lookupCandidates = computed(() => lookupResult.value?.matches || [])
 const totalHours = computed(() => stats.value.reduce((sum, row) => sum + Number(row.totalHours || 0), 0))
 const totalCount = computed(() => stats.value.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0))
-const attendanceRecordHours = computed(() => attendanceRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0))
-const attendanceRecordPendingCount = computed(() => attendanceRecords.value.filter(row =>
-  row.checkInStatus === 'PENDING' || row.checkOutStatus === 'PENDING'
-).length)
 const myRecordHours = computed(() => myRecords.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0) + Number(myTrainingHours.value || 0))
 const myRecordCount = computed(() => myRecords.value.length + Number(myTrainingCount.value || 0))
 const profileGradeOptions = Array.from({ length: 2057 - 2007 + 1 }, (_, index) => `${2007 + index}级`)
@@ -1874,12 +1776,6 @@ async function applyRouteLocation() {
 
 function hydrateTabQuery(tab, query) {
   const yearStart = `${today.getFullYear()}-01-01`
-  if (tab === 'records') {
-    recordFilters.keyword = queryText(query, 'q')
-    recordFilters.status = queryOneOf(query, 'status', ['', ...effectiveStatusOptions.map(item => item.value)])
-    recordFilters.from = queryDate(query, 'from', yearStart)
-    recordFilters.to = queryDate(query, 'to', todayValue)
-  }
   if (tab === 'stats') {
     statsPreset.value = queryOneOf(query, 'preset', ['custom', ...statsPresets.map(item => item.id)], 'custom')
     range.from = queryDate(query, 'from', yearStart)
@@ -1911,7 +1807,6 @@ async function loadTab(tab) {
   activeTab.value = tab
   if (tab === 'overview') await loadOverview()
   if (tab === 'reviews') await loadPending()
-  if (tab === 'records') await loadAttendanceRecords()
   if (tab === 'stats') await loadStats()
   if (tab === 'data') await loadDataCenter()
   if (tab === 'settings') await loadDutySettings()
@@ -2053,9 +1948,6 @@ function handleProfileDirtyChange(event) {
 
 function clearAllDirtyForms() {
   dirtyForms.value = new Set()
-  showCreateAttendanceRecord.value = false
-  Object.assign(manualRecord, { studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
-  Object.keys(manualRecordErrors).forEach(key => { manualRecordErrors[key] = '' })
   clearPasswordForm()
 }
 
@@ -2118,93 +2010,6 @@ async function bulkReview(part) {
     notify(`批量审核完成：通过 ${result.reviewed} 项，跳过 ${result.skipped} 条`, result.errors?.length ? 'warn' : 'success')
     await loadPending()
     await loadOverview()
-  })
-}
-
-async function loadAttendanceRecords() {
-  await run(async () => {
-    const params = new URLSearchParams()
-    params.set('from', recordFilters.from || `${today.getFullYear()}-01-01`)
-    params.set('to', recordFilters.to || todayValue)
-    if (recordFilters.keyword) params.set('studentNo', recordFilters.keyword)
-    if (recordFilters.status) params.set('status', recordFilters.status)
-    attendanceRecords.value = await api(`/api/attendance?${params.toString()}`)
-    await syncTabQuery('records', {
-      q: recordFilters.keyword,
-      status: recordFilters.status,
-      from: recordFilters.from,
-      to: recordFilters.to
-    })
-  }, false)
-}
-
-async function createAttendanceRecord() {
-  if (!canAddAttendanceRecords.value) return notify('只有会长或管理员可以添加签到记录', 'warn')
-  if (!await validateManualRecordForm()) return
-  await run(async () => {
-    await post('/api/attendance/manual', {
-      studentNo: manualRecord.studentNo,
-      checkInTime: manualRecord.checkInTime,
-      checkOutTime: manualRecord.checkOutTime || null,
-      reason: manualRecord.reason
-    })
-    clearManualRecordForm()
-    showCreateAttendanceRecord.value = false
-    notify('签到记录已添加', 'success')
-    await loadAttendanceRecords()
-  })
-}
-
-function clearManualRecordForm() {
-  manualRecord.studentNo = ''
-  manualRecord.checkInTime = ''
-  manualRecord.checkOutTime = ''
-  manualRecord.reason = ''
-  Object.keys(manualRecordErrors).forEach(key => { manualRecordErrors[key] = '' })
-  setFormDirty('manual-record', false)
-}
-
-function toggleManualRecordForm() {
-  if (showCreateAttendanceRecord.value) cancelManualRecordForm()
-  else showCreateAttendanceRecord.value = true
-}
-
-function cancelManualRecordForm() {
-  clearManualRecordForm()
-  showCreateAttendanceRecord.value = false
-}
-
-async function validateManualRecordForm() {
-  manualRecordErrors.studentNo = manualRecord.studentNo ? '' : '请填写成员学号'
-  manualRecordErrors.checkInTime = manualRecord.checkInTime ? '' : '请选择签到时间'
-  manualRecordErrors.reason = manualRecord.reason ? '' : '请填写补录原因'
-  manualRecordErrors.checkOutTime = manualRecord.checkOutTime && manualRecord.checkOutTime <= manualRecord.checkInTime
-    ? '签退时间必须晚于签到时间'
-    : ''
-  const firstInvalidId = manualRecordErrors.studentNo
-    ? 'manualStudentNo'
-    : manualRecordErrors.checkInTime
-      ? 'manualCheckIn'
-      : manualRecordErrors.checkOutTime
-        ? 'manualCheckOut'
-        : manualRecordErrors.reason
-          ? 'manualReason'
-          : ''
-  if (!firstInvalidId) return true
-  await nextTick()
-  document.getElementById(firstInvalidId)?.focus()
-  notify(manualRecordErrors.studentNo || manualRecordErrors.checkInTime || manualRecordErrors.checkOutTime || manualRecordErrors.reason, 'warn')
-  return false
-}
-
-async function deleteAttendanceRecord(item) {
-  if (!canDeleteAttendanceRecords.value) return notify('只有会长或管理员可以删除签到记录', 'warn')
-  const timeLabel = item.checkInTime ? timeText(item.checkInTime) : item.dutyDate
-  if (!await dangerConfirm(`确认删除 ${item.name}（${item.studentNo}）在 ${timeLabel} 的签到记录？删除后无法恢复。`, '删除')) return
-  await run(async () => {
-    await del(`/api/attendance/${item.id}`)
-    notify('签到记录已删除，删除前已自动备份', 'success')
-    await loadAttendanceRecords()
   })
 }
 

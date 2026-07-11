@@ -273,6 +273,26 @@ def main() -> None:
         dirty_dialog.get_by_role("button", name="放弃修改").click()
         expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
 
+        click_tab(page, "记录")
+        expect(page.get_by_role("heading", name="签到记录")).to_be_visible(timeout=10_000)
+        expect(page.get_by_role("button", name="新增记录")).to_be_visible(timeout=10_000)
+        page.locator("#recordKeyword").fill(args.admin_student_no)
+        page.locator(".record-filters").get_by_role("button", name="查询").click()
+        page.wait_for_timeout(250)
+        if "q=" not in page.url:
+            raise AssertionError(f"record filter was not stored in URL: {page.url}")
+        page.reload(wait_until="networkidle")
+        expect(page.get_by_role("heading", name="签到记录")).to_be_visible(timeout=15_000)
+        expect(page.locator("#recordKeyword")).to_have_value(args.admin_student_no)
+        page.get_by_role("button", name="新增记录").click()
+        page.locator("#manualStudentNo").fill(args.admin_student_no)
+        page.locator(".admin-primary-nav button", has_text="人员").click()
+        dirty_dialog = page.get_by_role("dialog")
+        expect(dirty_dialog).to_be_visible(timeout=10_000)
+        dirty_dialog.get_by_role("button", name="取消").click()
+        expect(page.locator("#manualStudentNo")).to_have_value(args.admin_student_no)
+        page.locator(".record-create-form").get_by_role("button", name="取消", exact=True).click()
+
         for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
             click_tab(page, label)
             assert_no_page_overflow(page, label)
