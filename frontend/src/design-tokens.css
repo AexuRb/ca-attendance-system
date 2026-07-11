@@ -1,0 +1,28 @@
+:root {
+  color: #17304b;
+  background: #f4faff;
+  --ink: #17304b;
+  --muted: #64798d;
+  --soft: #8aa0b4;
+  --line: #d6e7f5;
+  --panel: rgba(255, 255, 255, 0.9);
+  --wash: #f6fbff;
+  --blue: #4a9ee8;
+  --blueprint: #266caa;
+  --teal: #6bbfd9;
+  --green: #1d9f87;
+  --code: #2a8bd6;
+  --amber: #c9902d;
+  --red: #c95454;
+  --shadow: rgba(64, 128, 184, 0.13);
+  --hard-shadow: rgba(64, 128, 184, 0.2);
+}
+
+body {
+  color: var(--ink);
+  background:
+    linear-gradient(rgba(74, 158, 232, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 158, 232, 0.06) 1px, transparent 1px),
+    linear-gradient(135deg, #ecf8ff 0%, #fbfdff 46%, #eef8ff 100%);
+  background-size: 26px 26px, 26px 26px, 100% 100%;
+}
