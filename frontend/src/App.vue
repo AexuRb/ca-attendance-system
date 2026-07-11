@@ -1277,6 +1277,7 @@ const logActionOptions = [
   { value: 'CREATE_DUTY_SCHEDULE', label: '新增排班' },
   { value: 'UPDATE_DUTY_SCHEDULE', label: '修改排班' },
   { value: 'ARCHIVE_DUTY_SCHEDULE', label: '归档排班' },
+  { value: 'IMPORT_DUTY_SCHEDULES', label: '批量导入排班' },
   { value: 'UPDATE_DUTY_PERIODS', label: '调整值班时间段' },
   { value: 'CREATE_REPAIR_CASE', label: '新增维修事务' },
   { value: 'UPDATE_REPAIR_CASE', label: '修改维修事务' },

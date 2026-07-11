@@ -338,6 +338,14 @@ try {
     }
     Add-Result "值班星期/时段设置" "enabled=$($enabledWeekdays -join ','), periods=$(@($periods).Count)"
 
+    $scheduleTemplate = New-TempPath "schedule-import-template.xlsx"
+    Invoke-Download "/api/schedules/import-template" $scheduleTemplate | Out-Null
+    Assert-Xlsx $scheduleTemplate
+    $blankSchedulePreview = Invoke-Upload "/api/schedules/import/preview" $scheduleTemplate
+    Assert-True ($blankSchedulePreview.valid -eq $false) "空白排班模板不应通过导入校验"
+    Assert-True ($blankSchedulePreview.issues.Count -ge 1) "空白排班模板预览没有返回校验问题"
+    Add-Result "排班模板/导入预览" "issues=$($blankSchedulePreview.issues.Count)"
+
     $lookup = Invoke-Json GET "/api/public/attendance/lookup/$memberNo" -Token $null
     Assert-True $lookup.exists "公共查找临时成员失败"
     Invoke-Json GET "/api/public/attendance/lookup?query=$memberName" -Token $null | Out-Null

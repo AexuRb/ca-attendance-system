@@ -11,6 +11,7 @@ import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.repair.RepairCaseItem;
 import com.ca.attendance.repair.RepairCaseService;
+import com.ca.attendance.schedule.DutyScheduleImportService;
 import com.ca.attendance.schedule.DutyScheduleService;
 import com.ca.attendance.schedule.DutyScheduleSlotItem;
 import com.ca.attendance.settings.DutyPeriodService;
@@ -20,6 +21,10 @@ import com.ca.attendance.training.TrainingSessionItem;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +38,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
 import java.math.BigDecimal;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -46,6 +52,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -290,6 +297,87 @@ class SQLiteDatabaseIntegrationTest {
     }
 
     @Test
+    void previewsAndAtomicallyReplacesOnlyImportedScheduleGroups() throws Exception {
+        OperationLogService logs = new OperationLogService(jdbc, objectMapper);
+        DutyPeriodService periods = new DutyPeriodService(jdbc, objectMapper, logs);
+        periods.update(List.of(
+                new DutyPeriodService.DutyPeriodRequest("14:00", "16:00"),
+                new DutyPeriodService.DutyPeriodRequest("16:00", "18:00")
+        ));
+        DutyScheduleService schedules = new DutyScheduleService(jdbc, logs, periods);
+        DutyScheduleImportService imports = new DutyScheduleImportService(jdbc, logs, periods);
+
+        jdbc.update("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES
+                  ('20241001', '部长甲', 'test-hash', 'MINISTER', 'ACTIVE', 0),
+                  ('20241002', '部长乙', 'test-hash', 'MINISTER', 'ACTIVE', 0),
+                  ('20241003', '普通成员', 'test-hash', 'MEMBER', 'ACTIVE', 0)
+                """);
+        long importMinisterId = requiredId(jdbc.queryForObject(
+                "SELECT id FROM users WHERE student_no = '20241001'", Long.class));
+        AuthContext.set(new AuthUser(importMinisterId, "20241001", "部长甲", Role.MINISTER, Instant.now().plusSeconds(3600)));
+        assertThrows(ApiException.class, imports::exportTemplate);
+        AuthContext.set(new AuthUser(adminId, "admin", "管理员", Role.ADMIN, Instant.now().plusSeconds(3600)));
+
+        DutyScheduleSlotItem mondayPrimary = schedules.create(new DutyScheduleService.SlotRequest(
+                1, LocalTime.of(14, 0), LocalTime.of(16, 0), "原周一排班", null, null, true,
+                List.of(new DutyScheduleService.AssigneeRequest("20241001", null))
+        ));
+        schedules.create(new DutyScheduleService.SlotRequest(
+                1, LocalTime.of(14, 0), LocalTime.of(16, 0), "重复周一排班", null, null, true,
+                List.of(new DutyScheduleService.AssigneeRequest("20241001", null))
+        ));
+        DutyScheduleSlotItem preservedTuesday = schedules.create(new DutyScheduleService.SlotRequest(
+                2, LocalTime.of(16, 0), LocalTime.of(18, 0), "保留周二排班", null, null, true,
+                List.of(new DutyScheduleService.AssigneeRequest("20241001", null))
+        ));
+
+        MockMultipartFile invalidFile = scheduleImportFile("invalid-schedule.xlsx", List.<String[]>of(
+                new String[]{"星期一", "14:00-16:00", "20241002", "部长乙"},
+                new String[]{"星期二", "16:00-18:00", "20241003", "普通成员"}
+        ));
+        DutyScheduleImportService.ImportPreview invalidPreview = imports.preview(invalidFile);
+        assertFalse(invalidPreview.valid());
+        assertTrue(invalidPreview.issues().stream().anyMatch(issue -> issue.message().contains("部长、会长或管理员")));
+        assertThrows(ApiException.class, () -> imports.importSchedules(invalidFile));
+        assertEquals(3, jdbc.queryForObject("SELECT COUNT(*) FROM duty_schedule_slots WHERE status = 'ACTIVE'", Integer.class));
+
+        DutyScheduleImportService.ExportFile template = imports.exportTemplate();
+        assertTrue(template.bytes().length > 1000);
+        assertEquals("PK", new String(template.bytes(), 0, 2, java.nio.charset.StandardCharsets.US_ASCII));
+
+        MockMultipartFile validFile = scheduleImportFile("valid-schedule.xlsx", List.<String[]>of(
+                new String[]{"星期一", "14:00-16:00", "20241001", "部长甲"},
+                new String[]{"星期一", "14:00-16:00", "20241002", ""}
+        ));
+        DutyScheduleImportService.ImportPreview preview = imports.preview(validFile);
+        assertTrue(preview.valid());
+        assertEquals(1, preview.groupCount());
+        assertEquals(2, preview.memberCount());
+
+        DutyScheduleImportService.ImportResult result = imports.importSchedules(validFile);
+        assertEquals(1, result.replacedGroups());
+        assertEquals(2, result.assignedMembers());
+        assertEquals(1, result.archivedDuplicateSlots());
+
+        List<DutyScheduleSlotItem> activeSchedules = schedules.list();
+        List<DutyScheduleSlotItem> mondaySlots = activeSchedules.stream()
+                .filter(item -> item.weekday() == 1 && LocalTime.of(14, 0).equals(item.startTime()))
+                .toList();
+        assertEquals(1, mondaySlots.size());
+        assertEquals(mondayPrimary.id(), mondaySlots.getFirst().id());
+        assertEquals(List.of("20241001", "20241002"), mondaySlots.getFirst().assignees().stream()
+                .map(DutyScheduleSlotItem.AssigneeItem::studentNo)
+                .toList());
+        assertTrue(activeSchedules.stream().anyMatch(item -> item.id() == preservedTuesday.id()));
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'IMPORT_DUTY_SCHEDULES'",
+                Integer.class
+        ));
+    }
+
+    @Test
     void createsAndRestoresPortableBackupOnSQLite() throws Exception {
         StoragePaths storagePaths = new StoragePaths(tempDirectory.toString());
         TransactionTemplate transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
@@ -338,5 +426,25 @@ class SQLiteDatabaseIntegrationTest {
         StoragePaths storagePaths = new StoragePaths(tempDirectory.toString());
         TransactionTemplate transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         return new BackupService(jdbc, objectMapper, transactions, new TokenService(12), storagePaths);
+    }
+
+    private MockMultipartFile scheduleImportFile(String filename, List<String[]> rows) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("排班导入");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("星期");
+            header.createCell(1).setCellValue("值班时段");
+            header.createCell(2).setCellValue("学号");
+            header.createCell(3).setCellValue("姓名");
+            for (int index = 0; index < rows.size(); index++) {
+                Row row = sheet.createRow(index + 1);
+                String[] values = rows.get(index);
+                for (int column = 0; column < values.length; column++) {
+                    row.createCell(column).setCellValue(values[column]);
+                }
+            }
+            workbook.write(output);
+            return new MockMultipartFile("file", filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", output.toByteArray());
+        }
     }
 }

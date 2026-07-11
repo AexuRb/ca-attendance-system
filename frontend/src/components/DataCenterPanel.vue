@@ -79,6 +79,19 @@
                 <Download :size="16" />下载模板
               </button>
             </article>
+
+            <article class="data-tool-card">
+              <div class="tool-card-head">
+                <CalendarDays :size="20" />
+                <div>
+                  <h4>排班导入模板</h4>
+                  <span>按当前值班星期和时段生成可填写表格</span>
+                </div>
+              </div>
+              <button class="ghost-button" :disabled="busy || localBusy" @click="downloadScheduleTemplate">
+                <Download :size="16" />下载模板
+              </button>
+            </article>
           </div>
         </section>
 
@@ -247,6 +260,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import {
   Archive,
+  CalendarDays,
   ClipboardList,
   Download,
   GraduationCap,
@@ -315,6 +329,10 @@ async function exportTrainings() {
 
 async function downloadTrainingTemplate() {
   await exportFile('/api/trainings/import-template', '培训名单导入模板.xlsx', '培训导入模板已下载')
+}
+
+async function downloadScheduleTemplate() {
+  await exportFile('/api/schedules/import-template', '部长排班导入模板.xlsx', '排班导入模板已下载')
 }
 
 async function exportRepairs() {

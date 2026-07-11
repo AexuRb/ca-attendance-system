@@ -6,6 +6,12 @@
         <span>维护公开签到页显示的每周值班安排</span>
       </div>
       <div class="section-actions">
+        <button v-if="canManageSchedules" class="ghost-button" :disabled="busy" @click="downloadImportTemplate">
+          <Download :size="16" />模板
+        </button>
+        <button v-if="canManageSchedules" class="ghost-button" :disabled="busy" @click="openImportPanel">
+          <Upload :size="16" />批量导入
+        </button>
         <button
           v-if="canManageSchedules"
           class="ghost-button"
@@ -16,6 +22,60 @@
           <Plus :size="16" />新排班
         </button>
         <button class="ghost-button" @click="loadSchedules"><RefreshCw :size="16" />刷新</button>
+      </div>
+    </div>
+
+    <div v-if="canManageSchedules && showImport" class="inline-form-block schedule-import-panel">
+      <div class="subsection-head">
+        <div>
+          <h4><FileSpreadsheet :size="17" />批量导入排班</h4>
+          <span>先预览校验，再覆盖文件中出现的星期和时段</span>
+        </div>
+        <button class="ghost-button" type="button" :disabled="busy" @click="cancelImport">关闭</button>
+      </div>
+
+      <div class="schedule-import-controls">
+        <label class="schedule-import-file">
+          <span>Excel 文件</span>
+          <input ref="importInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" @change="selectImportFile" />
+        </label>
+        <button class="primary-action" type="button" :disabled="busy || !importFile" @click="previewImport">
+          <FileSearch :size="16" />校验预览
+        </button>
+      </div>
+
+      <div v-if="importPreview" class="schedule-import-result" :class="{ invalid: !importPreview.valid }">
+        <div class="schedule-import-summary">
+          <div><span>分组</span><strong>{{ importPreview.groupCount }}</strong></div>
+          <div><span>人员</span><strong>{{ importPreview.memberCount }}</strong></div>
+          <div><span>校验</span><strong>{{ importPreview.valid ? '通过' : `${importPreview.issues.length} 处错误` }}</strong></div>
+        </div>
+
+        <div v-if="importPreview.issues.length" class="schedule-import-issues" role="alert">
+          <div v-for="(issue, index) in importPreview.issues" :key="`${issue.row}-${issue.field}-${index}`">
+            <AlertTriangle :size="15" />
+            <span>{{ issue.row ? `第 ${issue.row} 行` : '文件' }}：{{ issue.message }}</span>
+          </div>
+        </div>
+
+        <div v-if="importPreview.groups.length" class="schedule-import-groups">
+          <article v-for="group in importPreview.groups" :key="`${group.weekday}-${group.startTime}-${group.endTime}`">
+            <header>
+              <strong>{{ group.weekdayName }} · {{ group.startTime }}-{{ group.endTime }}</strong>
+              <span>{{ group.members.length }} 人</span>
+            </header>
+            <div>
+              <span v-for="member in group.members" :key="member.studentNo">{{ member.name }} <small>{{ member.studentNo }}</small></span>
+            </div>
+          </article>
+        </div>
+
+        <div class="schedule-import-actions">
+          <button class="ghost-button" type="button" :disabled="busy" @click="cancelImport">取消</button>
+          <button class="primary-action" type="button" :disabled="busy || !importPreview.valid" @click="confirmImport">
+            <Upload :size="16" />确认导入
+          </button>
+        </div>
       </div>
     </div>
 
@@ -111,7 +171,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { CalendarDays, Plus, RefreshCw, Save, Trash2 } from '@lucide/vue'
+import { AlertTriangle, CalendarDays, Download, FileSearch, FileSpreadsheet, Plus, RefreshCw, Save, Trash2, Upload } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
 
 const props = defineProps({
@@ -124,7 +184,11 @@ const dutyPeriods = ref([])
 const dutyWeekdays = ref([])
 const busy = ref(false)
 const showForm = ref(false)
+const showImport = ref(false)
 const editingId = ref(null)
+const importInput = ref(null)
+const importFile = ref(null)
+const importPreview = ref(null)
 const form = reactive(emptyForm())
 
 const weekdayOptions = [
@@ -227,6 +291,7 @@ function startCreate() {
     return
   }
   editingId.value = null
+  showImport.value = false
   Object.assign(form, emptyForm())
   form.weekday = formWeekdayOptions.value[0]?.value || 1
   form.periodKey = dutyPeriodOptions.value[0]?.key || ''
@@ -235,6 +300,7 @@ function startCreate() {
 }
 
 function startEdit(slot) {
+  showImport.value = false
   editingId.value = slot.id
   Object.assign(form, {
     weekday: slot.weekday,
@@ -254,6 +320,55 @@ function cancelForm() {
   editingId.value = null
   Object.assign(form, emptyForm())
   showForm.value = false
+}
+
+function openImportPanel() {
+  showForm.value = false
+  editingId.value = null
+  showImport.value = true
+}
+
+function selectImportFile(event) {
+  importFile.value = event.target.files?.[0] || null
+  importPreview.value = null
+}
+
+function cancelImport() {
+  showImport.value = false
+  importFile.value = null
+  importPreview.value = null
+  if (importInput.value) importInput.value.value = ''
+}
+
+async function downloadImportTemplate() {
+  await run(async () => {
+    const blob = await api('/api/schedules/import-template')
+    downloadBlob(blob, '部长排班导入模板.xlsx')
+    notify('排班导入模板已下载', 'success')
+  })
+}
+
+async function previewImport() {
+  if (!importFile.value) return notify('请选择排班 Excel 文件', 'warn')
+  await run(async () => {
+    const formData = new FormData()
+    formData.append('file', importFile.value)
+    importPreview.value = await api('/api/schedules/import/preview', { method: 'POST', body: formData })
+    if (importPreview.value.valid) notify('文件校验通过，可以确认导入', 'success')
+    else notify(`发现 ${importPreview.value.issues.length} 处错误，未写入排班`, 'warn')
+  })
+}
+
+async function confirmImport() {
+  if (!importFile.value || !importPreview.value?.valid) return
+  await run(async () => {
+    const formData = new FormData()
+    formData.append('file', importFile.value)
+    const result = await api('/api/schedules/import', { method: 'POST', body: formData })
+    notify(`已导入 ${result.replacedGroups} 个时段、${result.assignedMembers} 人`, 'success')
+    cancelImport()
+    await loadScheduleData()
+  })
 }
 
 async function saveSchedule() {
@@ -301,6 +416,15 @@ function parseAssignees(text) {
       }
       return { studentNo: '', name: line }
     })
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 async function run(fn, showError = true) {
