@@ -136,10 +136,10 @@ Authorization: Bearer <token>
 
 ## 桌面控制接口
 
-`/api/desktop/reset-admin` 和 `/api/desktop/shutdown` 只供 Electron 主进程使用。两者同时要求：
+`/api/desktop/shutdown` 只供 Electron 主进程使用，并同时要求：
 
 - 请求来源为本机回环地址。
 - 携带桌面进程启动时随机生成的控制令牌。
 - 控制令牌不写入数据库、配置文件或前端页面。
 
-管理员密码恢复会先创建系统备份、记录操作日志并注销现有令牌。普通浏览器不能使用这组接口。
+普通浏览器不能使用该接口。

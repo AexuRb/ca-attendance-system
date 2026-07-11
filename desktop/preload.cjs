@@ -1,6 +1,5 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopAPI', Object.freeze({
-  isDesktop: true,
-  resetAdminPassword: request => ipcRenderer.invoke('desktop:reset-admin', request)
+  isDesktop: true
 }));

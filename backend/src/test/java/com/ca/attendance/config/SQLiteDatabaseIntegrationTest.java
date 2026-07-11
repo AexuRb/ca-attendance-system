@@ -6,7 +6,6 @@ import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.Role;
-import com.ca.attendance.desktop.DesktopControlService;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.repair.RepairCaseItem;
@@ -27,8 +26,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
@@ -46,8 +43,6 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
 
 class SQLiteDatabaseIntegrationTest {
     @TempDir
@@ -237,41 +232,6 @@ class SQLiteDatabaseIntegrationTest {
         assertEquals("09:00:00", jdbc.queryForObject(
                 "SELECT start_time FROM training_sessions WHERE title = '备份恢复培训'", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA integrity_check", String.class));
-    }
-
-    @Test
-    void desktopRecoveryRequiresTokenAndCreatesSafetyBackup() {
-        StoragePaths storagePaths = new StoragePaths(tempDirectory.toString());
-        TransactionTemplate transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
-        TokenService tokens = new TokenService(12);
-        BackupService backups = new BackupService(jdbc, objectMapper, transactions, tokens, storagePaths);
-        BCryptPasswordEncoder passwords = new BCryptPasswordEncoder();
-        DesktopControlService controls = new DesktopControlService(
-                jdbc,
-                passwords,
-                tokens,
-                backups,
-                mock(ConfigurableApplicationContext.class),
-                "desktop-secret"
-        );
-
-        assertThrows(RuntimeException.class, () -> controls.resetAdministrator("wrong", "admin", "87654321"));
-        DesktopControlService.RecoveryResult result = controls.resetAdministrator(
-                "desktop-secret",
-                "admin",
-                "87654321"
-        );
-
-        String passwordHash = jdbc.queryForObject(
-                "SELECT password_hash FROM users WHERE student_no = 'admin'",
-                String.class
-        );
-        assertTrue(passwords.matches("87654321", passwordHash));
-        assertTrue(Files.isRegularFile(storagePaths.backupDirectory().resolve(result.safetyBackup())));
-        assertEquals(1, jdbc.queryForObject(
-                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'RECOVER_ADMIN_PASSWORD'",
-                Integer.class
-        ));
     }
 
     private long requiredId(Long id) {

@@ -7,33 +7,28 @@
           <h4>个人资料</h4>
         </div>
         <form class="profile-form" @submit.prevent="$emit('save-profile')">
-          <label>手机号</label>
-          <input v-model.trim="profile.phone" />
-          <label>学院</label>
-          <input v-model.trim="profile.major" />
-          <label>年级</label>
-          <select v-model="profile.grade">
-            <option value="">未填写</option>
-            <option v-for="grade in gradeOptions" :key="grade" :value="grade">{{ grade }}</option>
-          </select>
-          <label>QQ</label>
-          <input v-model.trim="profile.qq" />
+          <label><span>手机号</span><input v-model.trim="profile.phone" /></label>
+          <label><span>学院</span><input v-model.trim="profile.major" /></label>
+          <label>
+            <span>年级</span>
+            <select v-model="profile.grade">
+              <option value="">未填写</option>
+              <option v-for="grade in gradeOptions" :key="grade" :value="grade">{{ grade }}</option>
+            </select>
+          </label>
+          <label><span>QQ</span><input v-model.trim="profile.qq" /></label>
           <button class="primary-action" type="submit"><Save :size="18" /><span>保存资料</span></button>
         </form>
 
-        <div class="profile-divider"></div>
-        <div class="subsection-head">
-          <h4>修改密码</h4>
-        </div>
-        <form class="profile-form password-form" @submit.prevent="$emit('change-password')">
-          <label>原密码</label>
-          <input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" />
-          <label>新密码</label>
-          <input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" />
-          <label>确认新密码</label>
-          <input v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" />
-          <button class="primary-action" type="submit"><Save :size="18" /><span>修改密码</span></button>
-        </form>
+        <details class="password-disclosure">
+          <summary>修改密码</summary>
+          <form class="profile-form password-form" @submit.prevent="$emit('change-password')">
+            <label><span>原密码</span><input v-model="passwordForm.oldPassword" type="password" autocomplete="current-password" /></label>
+            <label><span>新密码</span><input v-model="passwordForm.newPassword" type="password" autocomplete="new-password" /></label>
+            <label><span>确认新密码</span><input v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" /></label>
+            <button class="primary-action" type="submit"><Save :size="18" /><span>修改密码</span></button>
+          </form>
+        </details>
       </div>
 
       <div class="records-card">

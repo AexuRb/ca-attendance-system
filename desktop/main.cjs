@@ -2,7 +2,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, session, Tray } = require('electron');
+const { app, BrowserWindow, dialog, Menu, nativeImage, session, Tray } = require('electron');
 const {
   APP_ORIGIN,
   backendLocations,
@@ -208,7 +208,7 @@ function startBackend() {
     env: {
       ...process.env,
       APP_ROOT: appRoot,
-      APP_RECOVERY_TOKEN: controlToken,
+      APP_DESKTOP_CONTROL_TOKEN: controlToken,
       SPRING_MAIN_BANNER_MODE: 'off'
     }
   });
@@ -273,27 +273,6 @@ async function stopBackend() {
     await waitForChildExit(3000);
   }
 }
-
-function assertTrustedSender(event) {
-  const senderUrl = event.senderFrame?.url || '';
-  try {
-    if (new URL(senderUrl).origin !== APP_ORIGIN) {
-      throw new Error('不受信任的桌面请求来源');
-    }
-  } catch {
-    throw new Error('不受信任的桌面请求来源');
-  }
-}
-
-ipcMain.handle('desktop:reset-admin', async (event, request) => {
-  assertTrustedSender(event);
-  const account = typeof request?.account === 'string' ? request.account.trim() : '';
-  const newPassword = typeof request?.newPassword === 'string' ? request.newPassword : '';
-  if (!/^[A-Za-z0-9_-]{4,32}$/.test(account) || newPassword.length < 6 || newPassword.length > 64) {
-    throw new Error('账号或新密码格式不正确');
-  }
-  return postDesktopControl('/api/desktop/reset-admin', controlToken, { account, newPassword });
-});
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) {

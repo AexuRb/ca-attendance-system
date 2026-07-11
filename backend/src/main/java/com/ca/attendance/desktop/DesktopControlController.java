@@ -2,13 +2,8 @@ package com.ca.attendance.desktop;
 
 import com.ca.attendance.common.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,15 +18,6 @@ public class DesktopControlController {
 
     public DesktopControlController(DesktopControlService controls) {
         this.controls = controls;
-    }
-
-    @PostMapping("/reset-admin")
-    public DesktopControlService.RecoveryResult resetAdministrator(
-            @RequestHeader(TOKEN_HEADER) String token,
-            @Valid @RequestBody ResetAdministratorRequest request,
-            HttpServletRequest servletRequest) {
-        requireLoopback(servletRequest);
-        return controls.resetAdministrator(token, request.account(), request.newPassword());
     }
 
     @PostMapping("/shutdown")
@@ -52,14 +38,5 @@ public class DesktopControlController {
         } catch (Exception ex) {
             throw ApiException.forbidden("无法确认本机访问来源");
         }
-    }
-
-    public record ResetAdministratorRequest(
-            @NotBlank
-            @Size(min = 4, max = 32)
-            @Pattern(regexp = "[A-Za-z0-9_-]+")
-            String account,
-            @NotBlank @Size(min = 6, max = 64) String newPassword
-    ) {
     }
 }

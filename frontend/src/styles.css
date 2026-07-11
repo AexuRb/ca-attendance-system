@@ -2646,7 +2646,8 @@ textarea:focus {
 }
 
 .role-member .profile-grid {
-  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.82fr);
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  align-items: start;
 }
 
 .role-member .records-card {
@@ -2663,11 +2664,55 @@ textarea:focus {
 }
 
 .profile-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   margin-top: 16px;
+}
+
+.profile-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #536d81;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.profile-form label input,
+.profile-form label select {
+  width: 100%;
+}
+
+.profile-form > .primary-action {
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
 .password-form {
   margin-top: 14px;
+}
+
+.password-form label {
+  grid-column: 1 / -1;
+}
+
+.password-disclosure {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #d7e8f5;
+}
+
+.password-disclosure summary {
+  color: #315a78;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.role-member .records-card .table-wrap {
+  min-height: 360px;
+  max-height: calc(100vh - 360px);
 }
 
 .profile-divider {
@@ -5110,7 +5155,7 @@ tbody tr:hover {
 }
 
 .role-member .profile-grid {
-  grid-template-columns: minmax(0, 1.06fr) minmax(340px, 0.94fr);
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
 }
 
 .profile-divider {
