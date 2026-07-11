@@ -6,6 +6,8 @@ const assert = require('node:assert/strict');
 const {
   ensureStorageLayout,
   isAttendanceHealth,
+  restoreApplicationWindow,
+  shouldHideWindowOnClose,
   resolveAppRoot
 } = require('../runtime.cjs');
 
@@ -60,4 +62,34 @@ test('recognizes only this application with SQLite health metadata', () => {
     statusCode: 200,
     body: { status: 'ok', application: 'another-service' }
   }), false);
+});
+
+test('hides a normal close but allows an intentional application quit', () => {
+  assert.equal(shouldHideWindowOnClose({ allowQuit: false, shuttingDown: false }), true);
+  assert.equal(shouldHideWindowOnClose({ allowQuit: true, shuttingDown: false }), false);
+  assert.equal(shouldHideWindowOnClose({ allowQuit: false, shuttingDown: true }), false);
+});
+
+test('restores and focuses a hidden or minimized application window', () => {
+  const calls = [];
+  const window = {
+    isDestroyed: () => false,
+    isMinimized: () => true,
+    isVisible: () => false,
+    restore: () => calls.push('restore'),
+    show: () => calls.push('show'),
+    focus: () => calls.push('focus')
+  };
+
+  assert.equal(restoreApplicationWindow(window), true);
+  assert.deepEqual(calls, ['restore', 'show', 'focus']);
+});
+
+test('does not try to restore a destroyed application window', () => {
+  const window = {
+    isDestroyed: () => true
+  };
+
+  assert.equal(restoreApplicationWindow(window), false);
+  assert.equal(restoreApplicationWindow(null), false);
 });

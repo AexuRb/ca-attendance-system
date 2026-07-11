@@ -2,14 +2,16 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { app, BrowserWindow, dialog, ipcMain, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, session, Tray } = require('electron');
 const {
   APP_ORIGIN,
   backendLocations,
   ensureStorageLayout,
   postDesktopControl,
   probeApplication,
+  restoreApplicationWindow,
   resolveAppRoot,
+  shouldHideWindowOnClose,
   waitForApplication
 } = require('./runtime.cjs');
 
@@ -20,6 +22,9 @@ let backendLog = null;
 let desktopLog = null;
 let mainWindow = null;
 let splashWindow = null;
+let tray = null;
+let trayNoticeShown = false;
+let serviceReady = false;
 let shuttingDown = false;
 let allowQuit = false;
 
@@ -47,6 +52,75 @@ function createSplashWindow() {
   });
   splashWindow.loadFile(path.join(__dirname, 'splash.html'));
   splashWindow.once('ready-to-show', () => splashWindow?.show());
+}
+
+function showApplicationWindow() {
+  if (restoreApplicationWindow(mainWindow)) {
+    return;
+  }
+  if (serviceReady && !shuttingDown) {
+    createMainWindow();
+    return;
+  }
+  restoreApplicationWindow(splashWindow);
+}
+
+function showTrayNotice() {
+  if (trayNoticeShown || !tray || process.platform !== 'win32') {
+    return;
+  }
+  trayNoticeShown = true;
+  tray.displayBalloon({
+    iconType: 'info',
+    title: '计算机协会管理系统仍在运行',
+    content: '点击托盘图标可重新打开；需要结束服务时请选择“完全退出”。',
+    noSound: true
+  });
+}
+
+function createTray() {
+  if (tray && !tray.isDestroyed()) {
+    return;
+  }
+  const icon = nativeImage
+    .createFromPath(path.join(__dirname, 'assets', 'app-icon.png'))
+    .resize({ width: 32, height: 32 });
+  tray = new Tray(icon);
+  tray.setToolTip('计算机协会管理系统');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '打开管理系统', click: showApplicationWindow },
+    { type: 'separator' },
+    { label: '完全退出', click: () => app.quit() }
+  ]));
+  tray.on('click', showApplicationWindow);
+}
+
+function scheduleSmokeTest() {
+  const traySmokeMs = Number(process.env.CA_ATTENDANCE_SMOKE_TRAY_MS || 0);
+  if (traySmokeMs >= 1000) {
+    setTimeout(() => {
+      mainWindow?.close();
+      setTimeout(() => {
+        const hidden = Boolean(mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible());
+        const trayAlive = Boolean(tray && !tray.isDestroyed());
+        showApplicationWindow();
+        setTimeout(() => {
+          const restored = Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible());
+          const passed = hidden && trayAlive && restored;
+          writeDesktopLog(`tray smoke-test hidden=${hidden} tray=${trayAlive} restored=${restored}`);
+          process.exitCode = passed ? 0 : 1;
+          app.quit();
+        }, 250);
+      }, 250);
+    }, traySmokeMs);
+    return;
+  }
+
+  const smokeExitMs = Number(process.env.CA_ATTENDANCE_SMOKE_EXIT_MS || 0);
+  if (smokeExitMs >= 1000) {
+    writeDesktopLog(`scheduled smoke-test exit in ${smokeExitMs}ms`);
+    setTimeout(() => app.quit(), smokeExitMs);
+  }
 }
 
 function createMainWindow() {
@@ -87,16 +161,22 @@ function createMainWindow() {
     splashWindow?.close();
     splashWindow = null;
     mainWindow?.show();
-    const smokeExitMs = Number(process.env.CA_ATTENDANCE_SMOKE_EXIT_MS || 0);
-    if (smokeExitMs >= 1000) {
-      writeDesktopLog(`scheduled smoke-test exit in ${smokeExitMs}ms`);
-      setTimeout(() => app.quit(), smokeExitMs);
+    scheduleSmokeTest();
+  });
+  mainWindow.on('close', event => {
+    if (!shouldHideWindowOnClose({ allowQuit, shuttingDown })) {
+      return;
     }
+    event.preventDefault();
+    mainWindow?.hide();
+    writeDesktopLog('main window hidden to tray');
+    showTrayNotice();
   });
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
   mainWindow.loadURL(APP_ORIGIN);
+  createTray();
 }
 
 function startBackend() {
@@ -138,6 +218,7 @@ function startBackend() {
   backendChild.once('error', error => writeDesktopLog(`backend spawn error: ${error.message}`));
   backendChild.once('exit', (code, signal) => {
     writeDesktopLog(`backend exited code=${code ?? 'null'} signal=${signal ?? 'null'}`);
+    serviceReady = false;
     backendChild = null;
     backendLog?.end();
     backendLog = null;
@@ -219,12 +300,7 @@ if (!hasSingleInstanceLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) {
-        mainWindow.restore();
-      }
-      mainWindow.focus();
-    }
+    showApplicationWindow();
   });
 
   app.whenReady().then(async () => {
@@ -252,6 +328,7 @@ if (!hasSingleInstanceLock) {
 
     startBackend();
     await waitForApplication();
+    serviceReady = true;
     createMainWindow();
   }).catch(error => {
     writeDesktopLog(`startup failed: ${error.stack || error.message}`);
@@ -262,14 +339,19 @@ if (!hasSingleInstanceLock) {
   });
 }
 
-app.on('window-all-closed', () => app.quit());
+app.on('window-all-closed', () => {
+  // Keep the local service available while the application lives in the tray.
+});
 app.on('before-quit', event => {
   if (allowQuit) {
     return;
   }
   event.preventDefault();
+  shuttingDown = true;
   stopBackend().finally(() => {
     allowQuit = true;
+    tray?.destroy();
+    tray = null;
     desktopLog?.end();
     app.quit();
   });

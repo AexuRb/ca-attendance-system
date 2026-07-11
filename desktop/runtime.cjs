@@ -28,6 +28,24 @@ function ensureStorageLayout(appRoot) {
   return Object.fromEntries(directories.map(directory => [directory, path.join(appRoot, directory)]));
 }
 
+function shouldHideWindowOnClose({ allowQuit = false, shuttingDown = false } = {}) {
+  return !allowQuit && !shuttingDown;
+}
+
+function restoreApplicationWindow(window) {
+  if (!window || window.isDestroyed()) {
+    return false;
+  }
+  if (window.isMinimized()) {
+    window.restore();
+  }
+  if (!window.isVisible()) {
+    window.show();
+  }
+  window.focus();
+  return true;
+}
+
 function backendLocations({ isPackaged, resourcesPath, moduleDirectory }) {
   if (isPackaged) {
     return {
@@ -147,6 +165,8 @@ module.exports = {
   isAttendanceHealth,
   postDesktopControl,
   probeApplication,
+  restoreApplicationWindow,
   resolveAppRoot,
+  shouldHideWindowOnClose,
   waitForApplication
 };
