@@ -24,6 +24,7 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "credential-store.cjs",
       "runtime.cjs",
       "splash.html",
       "THIRD-PARTY-NOTICES.txt",

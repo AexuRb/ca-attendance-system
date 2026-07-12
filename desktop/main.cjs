@@ -2,7 +2,8 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { app, BrowserWindow, dialog, Menu, nativeImage, session, Tray } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, session, Tray } = require('electron');
+const { createCredentialStore } = require('./credential-store.cjs');
 const {
   APP_ORIGIN,
   backendLocations,
@@ -27,6 +28,33 @@ let trayNoticeShown = false;
 let serviceReady = false;
 let shuttingDown = false;
 let allowQuit = false;
+let credentialStore = null;
+
+function assertTrustedRenderer(event) {
+  const sourceUrl = event.senderFrame?.url || event.sender?.getURL?.() || '';
+  try {
+    if (new URL(sourceUrl).origin === APP_ORIGIN) return;
+  } catch {
+    // Fall through to the generic rejection below.
+  }
+  throw new Error('拒绝来自非本机应用页面的请求');
+}
+
+function registerCredentialIpc() {
+  credentialStore = createCredentialStore({ rootDirectory: appRoot, safeStorage });
+  ipcMain.handle('ca-attendance:credentials:load', event => {
+    assertTrustedRenderer(event);
+    return credentialStore.load();
+  });
+  ipcMain.handle('ca-attendance:credentials:save', (event, credentials) => {
+    assertTrustedRenderer(event);
+    return credentialStore.save(credentials);
+  });
+  ipcMain.handle('ca-attendance:credentials:clear', event => {
+    assertTrustedRenderer(event);
+    return credentialStore.clear();
+  });
+}
 
 function writeDesktopLog(message) {
   const line = `[${new Date().toISOString()}] ${message}\n`;
@@ -291,6 +319,7 @@ if (!hasSingleInstanceLock) {
       override: process.env.CA_ATTENDANCE_ROOT
     });
     ensureStorageLayout(appRoot);
+    registerCredentialIpc();
     desktopLog = fs.createWriteStream(path.join(appRoot, 'logs', 'desktop.log'), { flags: 'a' });
     writeDesktopLog(`desktop starting version=${app.getVersion()} root=${appRoot}`);
 

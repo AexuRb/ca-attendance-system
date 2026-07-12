@@ -37,8 +37,11 @@ const issueDefinitions = [
   }
 ]
 
-export function buildTodayIssues(counts = {}) {
+export function buildTodayIssues(counts = {}, options = {}) {
+  const includeSchedule = options.includeSchedule !== false
+
   return issueDefinitions
+    .filter(definition => includeSchedule || definition.id !== 'schedule')
     .map(definition => ({
       ...definition,
       count: normalizeCount(counts[definition.countKey])

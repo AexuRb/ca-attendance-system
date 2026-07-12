@@ -6,7 +6,7 @@
         <span>统一管理模板、导出文件、系统备份和数据恢复</span>
       </div>
       <div class="section-actions">
-        <button class="ghost-button" :disabled="busy || localBusy" @click="$emit('refresh')">
+        <button class="ghost-button" :disabled="busy || localBusy" @click="loadDataCenter">
           <RefreshCw :size="16" />刷新数据
         </button>
       </div>
@@ -310,10 +310,10 @@
               <small>{{ latestBackup ? `${timeText(latestBackup.createdAt)} · ${bytesText(latestBackup.size)}` : '建议现在生成首个备份' }}</small>
             </div>
             <div class="data-button-row">
-              <button class="primary-action" :disabled="busy || localBusy" @click="$emit('create-backup')">
+              <button class="primary-action" :disabled="busy || localBusy" @click="createBackup">
                 <Save :size="16" />生成备份
               </button>
-              <button class="ghost-button" :disabled="!latestBackup || busy || localBusy" @click="$emit('download-backup', latestBackup)">
+              <button class="ghost-button" :disabled="!latestBackup || busy || localBusy" @click="downloadBackup(latestBackup)">
                 <Download :size="16" />下载最新
               </button>
             </div>
@@ -332,11 +332,11 @@
               <span>{{ restoreFile ? bytesText(restoreFile.size) : '请选择系统生成的 backup_*.zip' }}</span>
             </div>
             <div class="data-button-row">
-              <input ref="restoreInput" type="file" accept=".zip,application/zip" hidden @change="$emit('select-restore-file', $event)" />
+              <input ref="restoreInput" type="file" accept=".zip,application/zip" hidden @change="selectRestoreFile" />
               <button class="ghost-button" type="button" @click="restoreInput?.click()">
                 <Upload :size="16" />选择文件
               </button>
-              <button class="ghost-button danger-button" type="button" :disabled="!restoreFile || busy || localBusy" @click="$emit('restore-backup')">
+              <button class="ghost-button danger-button" type="button" :disabled="!restoreFile || busy || localBusy" @click="restoreBackup">
                 <RefreshCw :size="16" />恢复数据
               </button>
             </div>
@@ -362,8 +362,8 @@
                   <td>{{ timeText(item.createdAt) }}</td>
                   <td>{{ bytesText(item.size) }}</td>
                   <td class="actions">
-                    <button @click="$emit('download-backup', item)"><Download :size="14" />下载</button>
-                    <button v-if="canDeleteBackups" class="danger" @click="$emit('delete-backup', item)"><Trash2 :size="14" />删除</button>
+                    <button @click="downloadBackup(item)"><Download :size="14" />下载</button>
+                    <button v-if="canDeleteBackups" class="danger" @click="deleteBackup(item)"><Trash2 :size="14" />删除</button>
                   </td>
                 </tr>
                 <tr v-if="backups.length === 0"><td colspan="4" class="empty">暂无备份文件</td></tr>
@@ -401,7 +401,8 @@ import {
   UsersRound,
   Wrench
 } from '@lucide/vue'
-import { api } from '../api.js'
+import { api, del, post } from '../api.js'
+import { requestConfirmation } from '../shared/confirm.js'
 import {
   canAdvanceExportStep,
   exportPreviewValue,
@@ -410,29 +411,24 @@ import {
 } from '../features/export/exportWizard.js'
 
 const props = defineProps({
-  summary: { type: Object, default: null },
-  backups: { type: Array, default: () => [] },
-  busy: { type: Boolean, default: false },
-  restoreFile: { type: Object, default: null },
-  canDeleteBackups: { type: Boolean, default: false },
-  canRestoreBackups: { type: Boolean, default: false }
+  currentUser: { type: Object, required: true }
 })
 
 const emit = defineEmits([
-  'refresh',
-  'create-backup',
-  'download-backup',
-  'delete-backup',
-  'select-restore-file',
-  'restore-backup',
-  'notify'
+  'notify',
+  'session-invalidated'
 ])
 
 const today = new Date()
 const todayValue = formatLocalDate(today)
 const activeArea = ref('export')
 const restoreInput = ref(null)
+const maintenanceOperations = ref(0)
+const busy = computed(() => maintenanceOperations.value > 0)
 const localBusy = ref(false)
+const summary = ref(null)
+const backups = ref([])
+const restoreFile = ref(null)
 const exportOptions = ref([])
 const selectedExportSourceId = ref('')
 const exportFields = ref([])
@@ -444,9 +440,11 @@ const exportPreview = ref(null)
 const previewLoading = ref(false)
 const previewError = ref('')
 
-const metrics = computed(() => props.summary?.datasets || [])
-const backupOverview = computed(() => props.summary?.backups || {})
-const latestBackup = computed(() => props.backups[0] || null)
+const metrics = computed(() => summary.value?.datasets || [])
+const backupOverview = computed(() => summary.value?.backups || {})
+const latestBackup = computed(() => backups.value[0] || null)
+const canDeleteBackups = computed(() => props.currentUser?.role === 'ADMIN')
+const canRestoreBackups = computed(() => props.currentUser?.role === 'ADMIN')
 const selectedExportSource = computed(() => (
   exportOptions.value.find(source => source.id === selectedExportSourceId.value) || null
 ))
@@ -458,10 +456,105 @@ const canAdvanceCurrentStep = computed(() => canAdvanceExportStep(activeExportSt
 }))
 
 onMounted(loadExportOptions)
+onMounted(loadDataCenter)
 
-watch(() => props.restoreFile, value => {
+watch(restoreFile, value => {
   if (!value && restoreInput.value) restoreInput.value.value = ''
 })
+
+async function loadDataCenter() {
+  await runMaintenance(async () => {
+    const [nextSummary, items] = await Promise.all([
+      api('/api/maintenance/summary'),
+      api('/api/maintenance/backups')
+    ])
+    summary.value = nextSummary
+    backups.value = items
+  }, false)
+}
+
+async function createBackup() {
+  if (!['PRESIDENT', 'ADMIN'].includes(props.currentUser?.role)) {
+    emit('notify', { message: '只有会长或管理员可以备份数据', type: 'warn' })
+    return
+  }
+  await runMaintenance(async () => {
+    await post('/api/maintenance/backups')
+    emit('notify', { message: '备份已生成', type: 'success' })
+    await loadDataCenter()
+  })
+}
+
+async function downloadBackup(item) {
+  if (!item?.filename) return
+  await runMaintenance(async () => {
+    const blob = await api(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
+    downloadBlob(blob, item.filename)
+  })
+}
+
+async function deleteBackup(item) {
+  if (!canDeleteBackups.value) {
+    emit('notify', { message: '只有管理员可以删除备份', type: 'warn' })
+    return
+  }
+  const confirmed = await requestConfirmation({
+    title: '删除备份',
+    message: `确认删除备份 ${item.filename}？删除后无法恢复。`,
+    confirmLabel: '删除',
+    requiredText: '删除',
+    tone: 'danger'
+  })
+  if (!confirmed) return
+  await runMaintenance(async () => {
+    await del(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`)
+    emit('notify', { message: '备份已删除', type: 'success' })
+    await loadDataCenter()
+  })
+}
+
+function selectRestoreFile(event) {
+  restoreFile.value = event.target.files?.[0] || null
+}
+
+async function restoreBackup() {
+  if (!canRestoreBackups.value) {
+    emit('notify', { message: '只有管理员可以恢复备份', type: 'warn' })
+    return
+  }
+  if (!restoreFile.value) {
+    emit('notify', { message: '请选择备份 zip 文件', type: 'warn' })
+    return
+  }
+  const confirmed = await requestConfirmation({
+    title: '恢复系统备份',
+    message: '恢复会覆盖当前成员、签到记录、日志和值班星期。系统会先自动备份当前数据，恢复成功后需要重新登录。',
+    confirmLabel: '恢复',
+    requiredText: '恢复',
+    tone: 'danger'
+  })
+  if (!confirmed) return
+
+  const formData = new FormData()
+  formData.append('file', restoreFile.value)
+  await runMaintenance(async () => {
+    const result = await api('/api/maintenance/backups/restore', { method: 'POST', body: formData })
+    restoreFile.value = null
+    backups.value = []
+    emit('session-invalidated', `恢复完成，恢复前备份：${result.safetyBackup.filename}`)
+  })
+}
+
+async function runMaintenance(action, showError = true) {
+  maintenanceOperations.value += 1
+  try {
+    await action()
+  } catch (error) {
+    if (showError) emit('notify', { message: error.message, type: 'error' })
+  } finally {
+    maintenanceOperations.value = Math.max(0, maintenanceOperations.value - 1)
+  }
+}
 
 async function downloadTrainingTemplate() {
   await exportFile('/api/trainings/import-template', '培训名单导入模板.xlsx', '培训导入模板已下载')

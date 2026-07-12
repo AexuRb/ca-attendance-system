@@ -1082,15 +1082,6 @@ textarea:focus {
   margin-top: 16px;
 }
 
-.role-member .profile-grid {
-  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
-  align-items: start;
-}
-
-.role-member .records-card {
-  order: -1;
-}
-
 .profile-card,
 .records-card {
   min-width: 0;
@@ -1145,11 +1136,6 @@ textarea:focus {
   cursor: pointer;
   font-size: 13px;
   font-weight: 800;
-}
-
-.role-member .records-card .table-wrap {
-  min-height: 360px;
-  max-height: calc(100vh - 360px);
 }
 
 .profile-divider {
@@ -2003,8 +1989,7 @@ tbody tr:hover {
   }
 
   .role-command-metrics,
-  .role-quick-actions,
-  .role-member .profile-grid {
+  .role-quick-actions {
     grid-template-columns: 1fr;
   }
 
@@ -2546,12 +2531,6 @@ tbody tr:hover {
 
 .dashboard.logged-in-dashboard .profile-grid {
   grid-template-columns: minmax(260px, 330px) minmax(0, 1fr);
-}
-
-@media (min-width: 761px) {
-  .dashboard.logged-in-dashboard.role-member .profile-grid {
-    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
-  }
 }
 
 .dashboard.logged-in-dashboard .log-detail-panel {

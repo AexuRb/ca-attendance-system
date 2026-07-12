@@ -1194,8 +1194,7 @@
   gap: 12px;
 }
 
-.dashboard.logged-in-dashboard .profile-grid,
-.dashboard.logged-in-dashboard.role-member .profile-grid {
+.dashboard.logged-in-dashboard .profile-grid {
   grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) !important;
   align-items: start;
 }

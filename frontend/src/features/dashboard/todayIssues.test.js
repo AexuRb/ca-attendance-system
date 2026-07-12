@@ -19,4 +19,17 @@ describe('today issue summary', () => {
     expect(buildTodayIssues()).toEqual([])
     expect(buildTodayIssues({ pendingCount: -1, openCount: 'invalid' })).toEqual([])
   })
+
+  it('hides schedule gaps when the current role cannot manage schedules', () => {
+    expect(buildTodayIssues({
+      pendingCount: 1,
+      openCount: 2,
+      missingScheduleCount: 3,
+      ongoingRepairCount: 4
+    }, { includeSchedule: false })).toMatchObject([
+      { id: 'pending', count: 1 },
+      { id: 'open', count: 2 },
+      { id: 'repairs', count: 4 }
+    ])
+  })
 })
