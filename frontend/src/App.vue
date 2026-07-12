@@ -89,13 +89,19 @@
               <KeyRound :size="17" />首次登录需要修改密码
             </div>
 
-            <div class="user-chip">
-              <span class="admin-user-avatar"><UserRound :size="17" /></span>
-              <span>{{ currentUser.name }} · {{ roleLabel(currentUser.role) }}</span>
-              <button class="ghost-button" type="button" title="退出后台" @click="logout">
-                <Power :size="15" />
-                <span>退出</span>
+            <div class="admin-user-actions">
+              <button class="credits-trigger admin-credits-trigger" type="button" title="鸣谢" aria-label="打开鸣谢" @click="creditsOpen = true">
+                <Sparkles :size="16" aria-hidden="true" />
+                <span>鸣谢</span>
               </button>
+              <div class="user-chip">
+                <span class="admin-user-avatar"><UserRound :size="17" /></span>
+                <span>{{ currentUser.name }} · {{ roleLabel(currentUser.role) }}</span>
+                <button class="ghost-button" type="button" title="退出后台" @click="logout">
+                  <Power :size="15" />
+                  <span>退出</span>
+                </button>
+              </div>
             </div>
           </template>
           <template v-else>
@@ -114,6 +120,10 @@
               <span class="login-health" :class="{ online: healthOk }">
                 <i aria-hidden="true"></i>{{ healthOk ? '服务正常' : '服务未连接' }}
               </span>
+              <button class="credits-trigger login-credits-trigger" type="button" title="鸣谢" aria-label="打开鸣谢" @click="creditsOpen = true">
+                <Sparkles :size="17" aria-hidden="true" />
+                <span>鸣谢</span>
+              </button>
               <button type="button" title="返回签到台" aria-label="返回签到台" @click="returnToKiosk">
                 <ScanLine :size="19" />
               </button>
@@ -273,6 +283,7 @@
         <div v-if="toast.message" class="toast" :class="toast.type" role="status" aria-live="polite">{{ toast.message }}</div>
       </Transition>
       <ActionConfirmDialog />
+      <CreditsDialog :open="creditsOpen" @close="creditsOpen = false" />
     </main>
   </div>
 </template>
@@ -286,8 +297,8 @@ import {
   LayoutDashboard,
   Power,
   ScanLine,
-  UserRound,
-  X
+  Sparkles,
+  UserRound
 } from '@lucide/vue'
 import { api, getToken, post, setToken } from './api.js'
 import { adminModuleLocation, tabFromRoute } from './app/router.js'
@@ -300,6 +311,7 @@ import {
 } from './features/navigation/adminNavigation.js'
 import AttendanceRecordsPanel from './components/AttendanceRecordsPanel.vue'
 import AuthView from './components/AuthView.vue'
+import CreditsDialog from './components/CreditsDialog.vue'
 import DataCenterPanel from './components/DataCenterPanel.vue'
 import KioskView from './components/KioskView.vue'
 import LogsPanel from './components/LogsPanel.vue'
@@ -334,6 +346,7 @@ const view = ref('kiosk')
 const activeTab = ref('overview')
 const pendingAdminTab = ref(null)
 const healthOk = ref(false)
+const creditsOpen = ref(false)
 const busy = ref(false)
 const liveNow = ref(new Date())
 const currentUser = ref(null)

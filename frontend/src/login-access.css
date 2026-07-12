@@ -191,6 +191,20 @@
     transform 150ms var(--login-ease);
 }
 
+.login-topbar-tools > button.login-credits-trigger {
+  display: inline-flex;
+  gap: 7px;
+  width: auto;
+  min-width: 38px;
+  padding: 0 11px;
+  color: #315e7d;
+}
+
+.login-credits-trigger span {
+  font-size: 12px;
+  font-weight: 680;
+}
+
 .login-topbar-tools > button:hover {
   color: var(--login-blue);
   border-color: #8dbfdf;
@@ -900,6 +914,16 @@
 
   .login-topbar-brand small,
   .login-health {
+    display: none;
+  }
+
+  .login-topbar-tools > button.login-credits-trigger {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .login-credits-trigger span {
     display: none;
   }
 

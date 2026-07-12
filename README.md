@@ -37,8 +37,8 @@
 
 Release 提供两种无需额外环境的离线包：
 
-- `CA-Attendance-System-Setup-2.0.0.exe`：安装版，默认安装到 `C:\CAAttendance\app`。
-- `CA-Attendance-System-Portable-2.0.0.zip`：便携版，解压后运行根目录的 `启动管理系统.bat`。
+- `CA-Attendance-System-Setup-2.1.0.exe`：安装版，默认安装到 `C:\CAAttendance\app`。
+- `CA-Attendance-System-Portable-2.1.0.zip`：便携版，解压后运行根目录的 `启动管理系统.bat`。
 
 首次启动会自动创建 SQLite 数据库，并要求现场创建首位管理员，不预置公开账号或密码。应用运行期间也可以在同一台电脑的浏览器访问 `http://127.0.0.1:8080`。点击桌面窗口右上角关闭按钮后，系统会继续在 Windows 托盘运行；需要停止本机服务时，从托盘菜单选择“完全退出”。
 

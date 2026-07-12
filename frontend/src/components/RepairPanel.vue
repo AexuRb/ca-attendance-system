@@ -189,7 +189,7 @@
               <span>{{ selectedRepair.caseNo }} · {{ viewMode === 'recycle' ? `删除于 ${timeText(selectedRepair.deletedAt)}` : timeText(selectedRepair.receivedAt) }}</span>
             </div>
             <div v-if="viewMode === 'active'" class="section-actions">
-              <button class="ghost-button" :disabled="busy" @click="printAgreement(selectedRepair)"><Printer :size="16" />协议</button>
+              <button class="ghost-button" type="button" data-action="preview-agreement" :disabled="busy" @click="openAgreementPreview(selectedRepair)"><Printer :size="16" />预览协议</button>
               <button class="ghost-button" :disabled="busy" @click="startEdit(selectedRepair)">编辑</button>
               <button v-if="canDeleteRepairs" class="ghost-button danger-button" :disabled="busy" @click="deleteRepair(selectedRepair)"><Trash2 :size="16" />删除</button>
               <button class="ghost-button" :disabled="busy" @click="startCreate"><Plus :size="16" />新事务</button>
@@ -236,7 +236,7 @@
         <div v-else class="empty-state repair-empty-state">
           <Wrench :size="30" />
           <strong>{{ viewMode === 'recycle' ? '回收站为空' : '还没有维修事务' }}</strong>
-          <span v-if="viewMode === 'active'">新增一条事务后，可以打印协议、导出 Excel，并随完整备份一起归档。</span>
+          <span v-if="viewMode === 'active'">新增一条事务后，可以预览并打印协议、导出 Excel，并随完整备份一起归档。</span>
           <button v-if="viewMode === 'active'" class="primary-action" @click="startCreate"><Plus :size="16" />新事务</button>
         </div>
       </section>
@@ -264,6 +264,18 @@
         </div>
       </section>
     </div>
+
+    <AgreementPreviewDialog
+      :open="agreementPreview.open"
+      :title="agreementPreview.title"
+      :case-no="agreementPreview.caseNo"
+      :html="agreementPreview.html"
+      :loading="agreementPreview.loading"
+      :error="agreementPreview.error"
+      @close="closeAgreementPreview"
+      @retry="retryAgreementPreview"
+      @print-error="notify($event, 'error')"
+    />
   </section>
 </template>
 
@@ -271,7 +283,9 @@
 import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { ArrowLeft, Download, FileText, Plus, Printer, RefreshCw, RotateCcw, Save, Trash2, Wrench, X } from '@lucide/vue'
 import { api, del, post, put } from '../api.js'
+import { agreementPreviewFromBlob } from '../features/repairs/agreementPreview.js'
 import { requestConfirmation } from '../shared/confirm.js'
+import AgreementPreviewDialog from './AgreementPreviewDialog.vue'
 
 const props = defineProps({
   currentUser: { type: Object, default: null }
@@ -284,6 +298,15 @@ const busy = ref(false)
 const repairs = ref([])
 const recycledRepairs = ref([])
 const selectedRepair = ref(null)
+const agreementPreview = reactive({
+  open: false,
+  loading: false,
+  error: '',
+  html: '',
+  title: '维修协议预览',
+  caseNo: '',
+  item: null
+})
 const showForm = ref(false)
 const editingRepairId = ref(null)
 const viewMode = ref('active')
@@ -537,16 +560,32 @@ async function purgeRepair() {
   })
 }
 
-async function printAgreement(item) {
-  await run(async () => {
+async function openAgreementPreview(item) {
+  if (!item?.id) return
+  agreementPreview.open = true
+  agreementPreview.loading = true
+  agreementPreview.error = ''
+  agreementPreview.html = ''
+  agreementPreview.title = `${agreementText(item.agreementType)}预览`
+  agreementPreview.caseNo = item.caseNo || ''
+  agreementPreview.item = item
+  try {
     const blob = await api(`/api/repairs/${item.id}/agreement`)
-    const url = URL.createObjectURL(blob)
-    const opened = window.open(url, '_blank')
-    if (!opened) {
-      notify('浏览器阻止了协议窗口', 'warn')
-    }
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000)
-  })
+    const preview = await agreementPreviewFromBlob(blob)
+    agreementPreview.html = preview.html
+  } catch (error) {
+    agreementPreview.error = error.message || '协议预览加载失败'
+  } finally {
+    agreementPreview.loading = false
+  }
+}
+
+function closeAgreementPreview() {
+  agreementPreview.open = false
+}
+
+function retryAgreementPreview() {
+  if (agreementPreview.item) void openAgreementPreview(agreementPreview.item)
 }
 
 async function run(fn, showError = true) {
