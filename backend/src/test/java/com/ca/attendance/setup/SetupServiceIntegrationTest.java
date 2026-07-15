@@ -1,13 +1,17 @@
 package com.ca.attendance.setup;
 
+import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.auth.AuthService;
+import com.ca.attendance.auth.RemoteLoginAttemptGuard;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.config.DatabaseMigrator;
 import com.ca.attendance.config.SQLiteDataSourceConfiguration;
 import com.ca.attendance.config.StoragePaths;
+import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.user.UserRepository;
 import com.zaxxer.hikari.HikariDataSource;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +47,11 @@ class SetupServiceIntegrationTest {
 
         PasswordEncoder passwords = new BCryptPasswordEncoder();
         TokenService tokens = new TokenService(12);
-        AuthService auth = new AuthService(new UserRepository(jdbc), jdbc, passwords, tokens);
+        AuthService auth = new AuthService(
+                new UserRepository(jdbc), jdbc, passwords, tokens,
+                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(),
+                new OperationLogService(jdbc, new ObjectMapper())
+        );
         setup = new SetupService(
                 jdbc,
                 passwords,

@@ -18,6 +18,7 @@ mvn spring-boot:run
 
 ```text
 地址：http://127.0.0.1:8080
+远程管理连接器：http://127.0.0.1:8081
 根目录：当前工作目录
 数据库：data/attendance.db
 备份：backups/app
@@ -31,6 +32,8 @@ mvn spring-boot:run
 ```
 
 启动时 `DatabaseMigrator` 会按照 `PRAGMA user_version` 创建或升级结构，并执行 SQLite `quick_check` 与外键检查。首次空库通过 `/api/setup/initialize` 创建首位管理员。
+
+两个端口都只绑定回环地址。`8080` 是完整的本机签到台和后台；`8081` 是供内网穿透使用的受限后台入口，只接受会长和管理员账号。可通过 `APP_REMOTE_PORT` 修改远程连接器端口，源码启动脚本会同时检查两个端口是否可用。
 
 ## 构建与测试
 
@@ -61,6 +64,8 @@ POST /api/auth/login
 Authorization: Bearer <token>
 ```
 
+远程入口会在登录和每次鉴权时再次检查角色。成员或部长即使持有从本机取得的有效令牌，也不能通过远程端口调用接口。远程登录连续失败 5 次后，同一来源与账号组合会被限制 10 分钟，成功和失败事件均写入操作日志。
+
 ## 主要接口
 
 公开与初始化：
@@ -68,12 +73,15 @@ Authorization: Bearer <token>
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/api/health` | 服务、应用身份和 SQLite 健康检查 |
+| `GET` | `/api/access/context` | 返回当前入口是本机模式还是远程管理模式 |
 | `GET` | `/api/setup/status` | 查询是否需要首次初始化 |
 | `POST` | `/api/setup/initialize` | 仅空库、仅本机创建首位管理员 |
 | `GET` | `/api/public/attendance/lookup/{keyword}` | 按学号或姓名查询签到人 |
 | `POST` | `/api/public/attendance/submit` | 提交签到或签退 |
 | `GET` | `/api/public/schedules/today` | 今日部长排班 |
 | `GET` | `/api/public/schedules/week` | 本周排班概览 |
+
+上表中的初始化、公开签到和公开排班只在 `8080` 保持免登录。`8081` 始终禁止初始化、签到查询与提交、桌面控制；排班数据必须由会长或管理员登录后才能读取。
 
 登录与个人：
 
@@ -96,11 +104,11 @@ Authorization: Bearer <token>
 | `POST` | `/api/attendance/{id}/review` | 审核单条记录 |
 | `POST` | `/api/attendance/reviews/bulk` | 批量通过待审核记录 |
 | `POST` | `/api/attendance/manual` | 会长或管理员补录记录 |
-| `PUT` | `/api/attendance/{id}/manual` | 管理员修改记录 |
-| `DELETE` | `/api/attendance/{id}` | 会长或管理员删除并自动备份 |
+| `PUT` | `/api/attendance/{id}/manual` | 部长修改本周成员或部长记录；会长、管理员不受周限制 |
+| `DELETE` | `/api/attendance/{id}` | 部长删除本周成员或部长记录；会长、管理员不受周限制；删除前自动备份 |
 | `GET` | `/api/stats/dashboard` | 后台概览统计 |
 | `GET` | `/api/stats/summary` | 值班时长汇总 |
-| `GET` | `/api/stats/export` | 会长或管理员导出统计 |
+| `GET` | `/api/stats/export` | 部长及以上导出标准统计 |
 
 成员、培训、排班与维修：
 

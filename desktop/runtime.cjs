@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const APP_HOST = '127.0.0.1';
 const APP_PORT = 8080;
+const REMOTE_ADMIN_PORT = 8081;
 const APP_ORIGIN = `http://${APP_HOST}:${APP_PORT}`;
 const HEALTH_PATH = '/api/health';
 
@@ -160,6 +161,7 @@ module.exports = {
   APP_HOST,
   APP_ORIGIN,
   APP_PORT,
+  REMOTE_ADMIN_PORT,
   backendLocations,
   ensureStorageLayout,
   isAttendanceHealth,

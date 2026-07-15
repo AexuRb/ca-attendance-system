@@ -15,7 +15,7 @@ public enum Role {
     }
 
     public boolean canExport() {
-        return this == PRESIDENT || this == ADMIN;
+        return this == MINISTER || this == PRESIDENT || this == ADMIN;
     }
 
     public boolean canSetDutyWeekdays() {

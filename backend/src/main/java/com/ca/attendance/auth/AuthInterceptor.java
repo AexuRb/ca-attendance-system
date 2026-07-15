@@ -1,5 +1,6 @@
 package com.ca.attendance.auth;
 
+import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
@@ -12,10 +13,12 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
     private final TokenService tokenService;
     private final UserRepository users;
+    private final RemoteAccessPolicy remoteAccess;
 
-    public AuthInterceptor(TokenService tokenService, UserRepository users) {
+    public AuthInterceptor(TokenService tokenService, UserRepository users, RemoteAccessPolicy remoteAccess) {
         this.tokenService = tokenService;
         this.users = users;
+        this.remoteAccess = remoteAccess;
     }
 
     @Override
@@ -24,8 +27,19 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
         String path = request.getRequestURI();
-        if (path.startsWith("/api/public/") || path.startsWith("/api/setup/") || path.startsWith("/api/desktop/")
-                || path.equals("/api/auth/login") || path.equals("/api/health")) {
+        boolean remote = remoteAccess.isRemote(request);
+        if (remote && (path.startsWith("/api/public/attendance/")
+                || path.equals("/api/setup/initialize")
+                || path.startsWith("/api/desktop/"))) {
+            throw ApiException.forbidden(path.startsWith("/api/public/attendance/")
+                    ? "签到台仅限主机本地使用"
+                    : "该操作仅限主机本地执行");
+        }
+        if (path.equals("/api/auth/login") || path.equals("/api/health") || path.equals("/api/access/context")) {
+            return true;
+        }
+        if (!remote && (path.startsWith("/api/public/") || path.startsWith("/api/setup/")
+                || path.startsWith("/api/desktop/"))) {
             return true;
         }
         String token = extractToken(request);
@@ -37,6 +51,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (!"ACTIVE".equals(current.status())) {
             tokenService.revoke(token);
             throw ApiException.forbidden("账号已停用，请联系管理员");
+        }
+        if (remote && !remoteAccess.roleAllowed(current.role())) {
+            throw ApiException.forbidden("远程后台仅允许会长或管理员登录");
         }
         if (current.mustChangePassword() && !passwordChangeAllowed(path)) {
             throw ApiException.forbidden("请先修改初始密码");

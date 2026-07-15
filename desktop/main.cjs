@@ -6,6 +6,7 @@ const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, ses
 const { createCredentialStore } = require('./credential-store.cjs');
 const {
   APP_ORIGIN,
+  REMOTE_ADMIN_PORT,
   backendLocations,
   ensureStorageLayout,
   postDesktopControl,
@@ -227,7 +228,8 @@ function startBackend() {
     '-jar',
     locations.jar,
     '--server.address=127.0.0.1',
-    '--server.port=8080'
+    '--server.port=8080',
+    `--app.remote.port=${REMOTE_ADMIN_PORT}`
   ];
   backendChild = spawn(locations.java, args, {
     cwd: appRoot,

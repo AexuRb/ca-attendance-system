@@ -11,6 +11,8 @@ app:
     root: ${APP_ROOT:.}
   auth:
     token-hours: 12
+  remote:
+    port: ${APP_REMOTE_PORT:8081}
   initial-admin:
     student-no: ${INITIAL_ADMIN_ACCOUNT:${INITIAL_ADMIN_STUDENT_NO:}}
     password: ${INITIAL_ADMIN_PASSWORD:}

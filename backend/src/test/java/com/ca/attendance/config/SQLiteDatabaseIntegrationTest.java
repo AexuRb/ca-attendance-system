@@ -104,7 +104,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(4, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(5, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
@@ -132,6 +132,59 @@ class SQLiteDatabaseIntegrationTest {
     }
 
     @Test
+    void versionFiveAutoApprovesExistingMinisterAttendanceOnly() throws Exception {
+        long ministerId = requiredId(jdbc.queryForObject("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES ('minister-migration', '迁移测试部长', 'test-hash', 'MINISTER', 'ACTIVE', 0)
+                RETURNING id
+                """, Long.class));
+        long memberId = requiredId(jdbc.queryForObject(
+                "SELECT id FROM users WHERE student_no = '20240001'", Long.class));
+        LocalDate today = LocalDate.now();
+        LocalDateTime checkIn = today.atTime(14, 0);
+        LocalDateTime checkOut = today.atTime(16, 0);
+        long ministerRecordId = requiredId(jdbc.queryForObject("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  is_duty_day, within_duty_period, check_in_time, check_out_time,
+                  check_in_status, check_out_status, effective_status
+                )
+                VALUES (?, 'minister-migration', '迁移测试部长', ?, ?, 1, 1, ?, ?, 'PENDING', 'PENDING', 'PENDING')
+                RETURNING id
+                """, Long.class, ministerId, today, today.getDayOfWeek().getValue(), checkIn, checkOut));
+        long memberRecordId = requiredId(jdbc.queryForObject("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  is_duty_day, within_duty_period, check_in_time, check_out_time,
+                  check_in_status, check_out_status, effective_status
+                )
+                VALUES (?, '20240001', '测试成员', ?, ?, 1, 1, ?, ?, 'PENDING', 'PENDING', 'PENDING')
+                RETURNING id
+                """, Long.class, memberId, today, today.getDayOfWeek().getValue(), checkIn, checkOut));
+        jdbc.update("""
+                INSERT INTO public_attendance_submissions (
+                  request_id, student_no, record_id, action, name, submitted_at, review_status, message
+                ) VALUES ('migration-receipt', 'minister-migration', ?, 'CHECK_OUT', '迁移测试部长', ?, 'PENDING', '签退提交成功')
+                """, ministerRecordId, checkOut);
+        jdbc.execute("PRAGMA user_version = 4");
+
+        new DatabaseMigrator(dataSource).run();
+
+        assertEquals("AUTO_APPROVED", jdbc.queryForObject(
+                "SELECT check_in_status FROM attendance_records WHERE id = ?", String.class, ministerRecordId));
+        assertEquals("AUTO_APPROVED", jdbc.queryForObject(
+                "SELECT check_out_status FROM attendance_records WHERE id = ?", String.class, ministerRecordId));
+        assertEquals("VALID", jdbc.queryForObject(
+                "SELECT effective_status FROM attendance_records WHERE id = ?", String.class, ministerRecordId));
+        assertEquals(2, jdbc.queryForObject(
+                "SELECT valid_hours FROM attendance_records WHERE id = ?", Integer.class, ministerRecordId));
+        assertEquals("AUTO_APPROVED", jdbc.queryForObject(
+                "SELECT review_status FROM public_attendance_submissions WHERE request_id = 'migration-receipt'", String.class));
+        assertEquals("PENDING", jdbc.queryForObject(
+                "SELECT check_in_status FROM attendance_records WHERE id = ?", String.class, memberRecordId));
+    }
+
+    @Test
     void migratesVersionOneRepairRowsWithoutDataLoss() throws Exception {
         StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v1").toString());
         try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
@@ -152,7 +205,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(4, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(5, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(1, legacyJdbc.queryForObject(
                     "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
                     Integer.class

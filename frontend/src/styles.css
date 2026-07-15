@@ -1668,6 +1668,10 @@ tbody tr:hover {
   align-items: center;
 }
 
+.record-edit-form {
+  grid-template-columns: repeat(2, minmax(190px, 1fr)) minmax(240px, 1.25fr) auto auto;
+}
+
 .record-summary-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1707,7 +1711,7 @@ tbody tr:hover {
   position: sticky;
   left: 0;
   z-index: 2;
-  min-width: 92px;
+  min-width: 154px;
   background: var(--panel);
   box-shadow: 1px 0 0 var(--line);
 }

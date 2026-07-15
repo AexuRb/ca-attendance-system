@@ -1,11 +1,14 @@
 package com.ca.attendance.attendance;
 
+import com.ca.attendance.common.Role;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public record AttendanceRecord(
         long id,
         long userId,
+        Role userRole,
         String studentNo,
         String name,
         LocalDate dutyDate,

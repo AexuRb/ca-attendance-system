@@ -69,8 +69,8 @@ public class AttendanceController {
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable long id) {
-        attendance.delete(id);
+    public void delete(@PathVariable long id, @RequestParam String reason) {
+        attendance.delete(id, reason);
     }
 
     public record ReviewRequest(@NotBlank String part, @NotBlank String action, String reason) {

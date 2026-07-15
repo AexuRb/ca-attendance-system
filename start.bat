@@ -5,6 +5,7 @@ cd /d "%~dp0"
 
 if not defined APP_HOST set "APP_HOST=127.0.0.1"
 if not defined APP_PORT set "APP_PORT=8080"
+if not defined APP_REMOTE_PORT set "APP_REMOTE_PORT=8081"
 if not defined APP_ROOT set "APP_ROOT=%~dp0"
 for %%I in ("%APP_ROOT%") do set "APP_ROOT=%%~fI"
 if "%APP_ROOT:~-1%"=="\" if not "%APP_ROOT:~1%"==":\" set "APP_ROOT=%APP_ROOT:~0,-1%"
@@ -32,6 +33,19 @@ if errorlevel 1 (
   exit /b 1
 )
 
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { [void][uint16]'%APP_REMOTE_PORT%'; exit 0 } catch { exit 1 }"
+if errorlevel 1 (
+  echo [ERROR] APP_REMOTE_PORT is invalid: %APP_REMOTE_PORT%
+  pause
+  exit /b 1
+)
+
+if "%APP_REMOTE_PORT%"=="%APP_PORT%" (
+  echo [ERROR] APP_REMOTE_PORT must be different from APP_PORT.
+  pause
+  exit /b 1
+)
+
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\check-port.ps1" "%APP_PORT%"
 set "PORT_CHECK=%ERRORLEVEL%"
 if "%PORT_CHECK%"=="10" (
@@ -43,6 +57,15 @@ if "%PORT_CHECK%"=="10" (
 if "%PORT_CHECK%"=="11" (
   echo [ERROR] Port %APP_PORT% is occupied by another program.
   echo Close that program or set APP_PORT before running this script.
+  pause
+  exit /b 1
+)
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\check-port.ps1" "%APP_REMOTE_PORT%"
+set "REMOTE_PORT_CHECK=%ERRORLEVEL%"
+if not "%REMOTE_PORT_CHECK%"=="0" (
+  echo [ERROR] Remote administration port %APP_REMOTE_PORT% is occupied or unavailable.
+  echo Close the program using that port, or set APP_REMOTE_PORT before running this script.
   pause
   exit /b 1
 )
@@ -83,6 +106,7 @@ echo [START] Opening local SQLite service...
 echo [WAIT] The browser will open after the service is ready.
 echo [DATA] %APP_ROOT%\data\attendance.db
 echo [URL] http://127.0.0.1:%APP_PORT%
+echo [REMOTE] SakuraFrp local target: 127.0.0.1:%APP_REMOTE_PORT%
 echo.
 echo Close this window or press Ctrl+C to stop the service.
 
@@ -90,7 +114,7 @@ set "WAIT_BROWSER_ARG="
 if defined CA_START_NO_BROWSER set "WAIT_BROWSER_ARG=-NoBrowser"
 start "" /b powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\wait-open-service.ps1" -Address "%APP_HOST%" -Port "%APP_PORT%" %WAIT_BROWSER_ARG%
 
-java -jar "%JAR%" --server.address="%APP_HOST%" --server.port="%APP_PORT%"
+java -jar "%JAR%" --server.address="%APP_HOST%" --server.port="%APP_PORT%" --app.remote.port="%APP_REMOTE_PORT%"
 set "BACKEND_EXIT=%ERRORLEVEL%"
 
 echo.

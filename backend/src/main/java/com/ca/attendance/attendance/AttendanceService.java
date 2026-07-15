@@ -18,6 +18,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -116,7 +117,7 @@ public class AttendanceService {
         boolean withinDutyPeriod = periods.contains(now.toLocalTime());
         UserSummary user = users.findActiveByStudentNo(normalizedStudentNo)
                 .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
-        boolean autoApproved = user.role() == Role.PRESIDENT || user.role() == Role.ADMIN;
+        boolean autoApproved = user.role() == Role.MINISTER || user.role() == Role.PRESIDENT || user.role() == Role.ADMIN;
         String pendingOrAuto = autoApproved ? ReviewStatus.AUTO_APPROVED.name() : ReviewStatus.PENDING.name();
 
         var open = records.findOpenToday(user.id(), today);
@@ -292,20 +293,48 @@ public class AttendanceService {
 
     public AttendanceRecord manualUpdate(long id, ManualUpdateRequest request) {
         AuthUser current = AuthContext.current();
-        if (current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有管理员可以手动修改签到记录");
+        if (!current.role().atLeastManager()) {
+            throw ApiException.forbidden("只有部长、会长或管理员可以修改签到记录");
         }
         if (request.reason() == null || request.reason().isBlank()) {
             throw ApiException.badRequest("手动修改必须填写原因");
         }
+        if (request.checkInTime() == null) {
+            throw ApiException.badRequest("请填写签到时间");
+        }
+        if (request.checkOutTime() != null && !request.checkOutTime().isAfter(request.checkInTime())) {
+            throw ApiException.badRequest("签退时间必须晚于签到时间");
+        }
         AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        if (current.role() == Role.MINISTER) {
+            requireMinisterRecordAccess(before, request.checkInTime().toLocalDate());
+        }
+        LocalDate dutyDate = request.checkInTime().toLocalDate();
+        int dutyWeekday = dutyDate.getDayOfWeek().getValue();
+        boolean dutyDay = weekdays.isDutyWeekday(dutyWeekday);
+        boolean withinDutyPeriod = periods.contains(request.checkInTime().toLocalTime());
+        String checkInStatus = current.role() == Role.MINISTER
+                ? ReviewStatus.AUTO_APPROVED.name()
+                : normalizeReviewStatus(request.checkInStatus(), "签到审核状态");
+        String checkOutStatus;
+        if (request.checkOutTime() == null) {
+            checkOutStatus = ReviewStatus.NOT_SUBMITTED.name();
+        } else if (current.role() == Role.MINISTER) {
+            checkOutStatus = ReviewStatus.AUTO_APPROVED.name();
+        } else {
+            checkOutStatus = normalizeReviewStatus(request.checkOutStatus(), "签退审核状态");
+        }
         records.manualUpdate(
                 id,
+                dutyDate,
+                dutyWeekday,
+                dutyDay,
+                withinDutyPeriod,
                 Timestamp.valueOf(request.checkInTime()),
                 request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
-                request.checkInStatus(),
-                request.checkOutStatus(),
-                request.reason(),
+                checkInStatus,
+                checkOutStatus,
+                request.reason().trim(),
                 current.id()
         );
         recompute(id);
@@ -363,16 +392,45 @@ public class AttendanceService {
         return created;
     }
 
-    public void delete(long id) {
+    public void delete(long id, String reason) {
         AuthUser current = AuthContext.current();
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以删除签到记录");
+        if (!current.role().atLeastManager()) {
+            throw ApiException.forbidden("只有部长、会长或管理员可以删除签到记录");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw ApiException.badRequest("删除签到记录必须填写原因");
         }
         AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
-        BackupService.BackupItem safetyBackup = backups.create();
+        if (current.role() == Role.MINISTER) {
+            requireMinisterRecordAccess(before, before.dutyDate());
+        }
+        BackupService.BackupItem safetyBackup = backups.createSystemBackup(
+                current.name() + "（" + current.studentNo() + "）删除签到记录 #" + id
+        );
         records.delete(id);
         logs.log("DELETE_ATTENDANCE_RECORD", "attendance_records", id, before, null,
-                "会长或管理员删除签到记录；删除前自动备份：" + safetyBackup.filename());
+                reason.trim() + "；删除前自动备份：" + safetyBackup.filename());
+    }
+
+    private void requireMinisterRecordAccess(AttendanceRecord record, LocalDate updatedDutyDate) {
+        LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        LocalDate weekEnd = weekStart.plusDays(6);
+        if (record.dutyDate().isBefore(weekStart) || record.dutyDate().isAfter(weekEnd)
+                || updatedDutyDate.isBefore(weekStart) || updatedDutyDate.isAfter(weekEnd)) {
+            throw ApiException.forbidden("部长只能修改或删除本周签到记录");
+        }
+        Role targetRole = record.userRole();
+        if (targetRole == Role.PRESIDENT || targetRole == Role.ADMIN) {
+            throw ApiException.forbidden("部长不能修改或删除会长或管理员的签到记录");
+        }
+    }
+
+    private String normalizeReviewStatus(String status, String fieldName) {
+        try {
+            return ReviewStatus.valueOf(status == null ? "" : status.trim().toUpperCase()).name();
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.badRequest(fieldName + "不正确");
+        }
     }
 
     public void recompute(long id) {

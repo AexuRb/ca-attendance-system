@@ -3,11 +3,25 @@
     <div class="section-head">
       <h3>签到记录</h3>
       <div class="section-actions">
-        <button v-if="canManageRecords" class="ghost-button" :class="{ active: showCreateForm }" @click="toggleCreateForm">
+        <button v-if="canCreateRecords" class="ghost-button" :class="{ active: showCreateForm }" @click="toggleCreateForm">
           <ClipboardCheck :size="16" />新增记录
         </button>
         <button class="ghost-button" :disabled="busy" @click="loadRecords"><RefreshCw :size="16" />刷新</button>
       </div>
+    </div>
+
+    <div v-if="editingRecord" class="inline-form-block record-action-panel record-edit-panel">
+      <div class="subsection-head">
+        <h4>修改签到记录</h4>
+        <span>{{ editingRecord.name }} · {{ editingRecord.studentNo }}</span>
+      </div>
+      <form class="record-create-form record-edit-form" novalidate @input="setDirty(true)" @change="setDirty(true)" @submit.prevent="saveRecord">
+        <label for="recordEditCheckIn"><span>签到时间</span><input id="recordEditCheckIn" v-model="editForm.checkInTime" name="checkInTime" type="datetime-local" :aria-invalid="Boolean(editErrors.checkInTime)" required /><small v-if="editErrors.checkInTime" class="field-error">{{ editErrors.checkInTime }}</small></label>
+        <label for="recordEditCheckOut"><span>签退时间</span><input id="recordEditCheckOut" v-model="editForm.checkOutTime" name="checkOutTime" type="datetime-local" :aria-invalid="Boolean(editErrors.checkOutTime)" /><small v-if="editErrors.checkOutTime" class="field-error">{{ editErrors.checkOutTime }}</small></label>
+        <label for="recordEditReason"><span>修改原因</span><input id="recordEditReason" v-model.trim="editForm.reason" name="reason" autocomplete="off" :aria-invalid="Boolean(editErrors.reason)" required /><small v-if="editErrors.reason" class="field-error">{{ editErrors.reason }}</small></label>
+        <button class="primary-action" data-action="save-record" type="submit" :disabled="busy"><Save :size="17" /><span>保存修改</span></button>
+        <button class="ghost-button" type="button" @click="cancelEdit"><X :size="16" /><span>取消</span></button>
+      </form>
     </div>
 
     <div v-if="showCreateForm" class="inline-form-block record-action-panel">
@@ -53,8 +67,9 @@
         <tbody>
           <tr v-for="item in records" :key="item.id">
             <td class="actions record-action-column">
-              <button v-if="canManageRecords" class="danger" @click="deleteRecord(item)"><Trash2 :size="14" />删除</button>
-              <span v-else class="muted-cell">-</span>
+              <button v-if="canModifyRecord(item)" class="ghost-button" data-action="edit-record" title="修改记录" @click="startEdit(item)"><Pencil :size="14" /><span>修改</span></button>
+              <button v-if="canModifyRecord(item)" class="danger" data-action="delete-record" title="删除记录" @click="deleteRecord(item)"><Trash2 :size="14" /><span>删除</span></button>
+              <span v-if="!canModifyRecord(item)" class="muted-cell">-</span>
             </td>
             <td>{{ item.dutyDate }}</td><td>{{ item.name }}</td><td class="mono">{{ item.studentNo }}</td>
             <td>{{ timeText(item.checkInTime) }}</td><td>{{ timeText(item.checkOutTime) }}</td>
@@ -72,10 +87,10 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ClipboardCheck, RefreshCw, Trash2 } from '@lucide/vue'
-import { api, del, post } from '../api.js'
+import { ClipboardCheck, Pencil, RefreshCw, Save, Trash2, X } from '@lucide/vue'
+import { api, del, post, put } from '../api.js'
 import { compactQuery, queryDate, queryOneOf, queryText } from '../features/navigation/queryState.js'
-import { requestConfirmation } from '../shared/confirm.js'
+import { requestTextInput } from '../shared/confirm.js'
 
 const props = defineProps({ currentUser: { type: Object, required: true } })
 const emit = defineEmits(['notify', 'dirty-change'])
@@ -95,13 +110,16 @@ const effectiveStatusOptions = [
 const busy = ref(false)
 const records = ref([])
 const showCreateForm = ref(false)
+const editingRecord = ref(null)
 const dirty = ref(false)
 const lastAppliedRoute = ref('')
 const filters = reactive({ keyword: '', status: '', from: yearStart, to: todayValue })
 const form = reactive(emptyForm())
 const errors = reactive({ studentNo: '', checkInTime: '', checkOutTime: '', reason: '' })
+const editForm = reactive({ checkInTime: '', checkOutTime: '', reason: '' })
+const editErrors = reactive({ checkInTime: '', checkOutTime: '', reason: '' })
 
-const canManageRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(props.currentUser.role))
+const canCreateRecords = computed(() => ['PRESIDENT', 'ADMIN'].includes(props.currentUser.role))
 const recordHours = computed(() => records.value.reduce((sum, row) => sum + Number(row.validHours || 0), 0))
 const pendingCount = computed(() => records.value.filter(row => row.checkInStatus === 'PENDING' || row.checkOutStatus === 'PENDING').length)
 
@@ -144,7 +162,7 @@ async function loadRecords(syncRoute = true) {
 }
 
 async function createRecord() {
-  if (!canManageRecords.value) return notify('只有会长或管理员可以添加签到记录', 'warn')
+  if (!canCreateRecords.value) return notify('只有会长或管理员可以添加签到记录', 'warn')
   if (!await validateForm()) return
   await run(async () => {
     await post('/api/attendance/manual', {
@@ -161,7 +179,10 @@ async function createRecord() {
 
 function toggleCreateForm() {
   if (showCreateForm.value) cancelCreateForm()
-  else showCreateForm.value = true
+  else {
+    cancelEdit()
+    showCreateForm.value = true
+  }
 }
 
 function cancelCreateForm() {
@@ -185,20 +206,88 @@ async function validateForm() {
 }
 
 async function deleteRecord(item) {
-  if (!canManageRecords.value) return notify('只有会长或管理员可以删除签到记录', 'warn')
+  if (!canModifyRecord(item)) return notify('没有权限删除这条签到记录', 'warn')
   const timeLabel = item.checkInTime ? timeText(item.checkInTime) : item.dutyDate
-  const confirmed = await requestConfirmation({
-    title: '删除确认',
+  const reason = await requestTextInput({
+    title: '删除签到记录',
     message: `确认删除 ${item.name}（${item.studentNo}）在 ${timeLabel} 的签到记录？删除后无法恢复。`,
-    confirmLabel: '删除',
-    requiredText: '删除'
+    inputLabel: '删除原因',
+    inputPlaceholder: '简要说明删除原因',
+    confirmLabel: '确认删除',
+    tone: 'danger'
   })
-  if (!confirmed) return
+  if (!reason) return
   await run(async () => {
-    await del(`/api/attendance/${item.id}`)
+    const params = new URLSearchParams({ reason })
+    await del(`/api/attendance/${item.id}?${params}`)
+    if (editingRecord.value?.id === item.id) cancelEdit()
     notify('签到记录已删除，删除前已自动备份', 'success')
     await loadRecords()
   })
+}
+
+function canModifyRecord(item) {
+  if (['PRESIDENT', 'ADMIN'].includes(props.currentUser.role)) return true
+  return props.currentUser.role === 'MINISTER' &&
+    ['MEMBER', 'MINISTER'].includes(item.userRole) &&
+    isCurrentWeek(item.dutyDate)
+}
+
+function startEdit(item) {
+  if (!canModifyRecord(item)) return notify('没有权限修改这条签到记录', 'warn')
+  cancelCreateForm()
+  editingRecord.value = item
+  editForm.checkInTime = dateTimeInputValue(item.checkInTime)
+  editForm.checkOutTime = dateTimeInputValue(item.checkOutTime)
+  editForm.reason = ''
+  Object.keys(editErrors).forEach(key => { editErrors[key] = '' })
+}
+
+function cancelEdit() {
+  editingRecord.value = null
+  editForm.checkInTime = ''
+  editForm.checkOutTime = ''
+  editForm.reason = ''
+  Object.keys(editErrors).forEach(key => { editErrors[key] = '' })
+  setDirty(false)
+}
+
+async function saveRecord() {
+  if (!editingRecord.value || !canModifyRecord(editingRecord.value)) return notify('没有权限修改这条签到记录', 'warn')
+  if (!await validateEditForm()) return
+  await run(async () => {
+    await put(`/api/attendance/${editingRecord.value.id}/manual`, {
+      checkInTime: editForm.checkInTime,
+      checkOutTime: editForm.checkOutTime || null,
+      checkInStatus: editingRecord.value.checkInStatus,
+      checkOutStatus: editingRecord.value.checkOutStatus,
+      reason: editForm.reason
+    })
+    cancelEdit()
+    notify('签到记录已修改', 'success')
+    await loadRecords()
+  })
+}
+
+async function validateEditForm() {
+  editErrors.checkInTime = editForm.checkInTime ? '' : '请选择签到时间'
+  editErrors.checkOutTime = editForm.checkOutTime && editForm.checkOutTime <= editForm.checkInTime ? '签退时间必须晚于签到时间' : ''
+  editErrors.reason = editForm.reason ? '' : '请填写修改原因'
+  const id = editErrors.checkInTime ? 'recordEditCheckIn' : editErrors.checkOutTime ? 'recordEditCheckOut' : editErrors.reason ? 'recordEditReason' : ''
+  if (!id) return true
+  await nextTick()
+  document.getElementById(id)?.focus()
+  notify(editErrors.checkInTime || editErrors.checkOutTime || editErrors.reason, 'warn')
+  return false
+}
+
+function isCurrentWeek(dateValue) {
+  if (!dateValue) return false
+  const value = String(dateValue).slice(0, 10)
+  const day = today.getDay() || 7
+  const weekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + 1)
+  const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6)
+  return value >= formatLocalDate(weekStart) && value <= formatLocalDate(weekEnd)
 }
 
 function setDirty(value) {
@@ -214,6 +303,7 @@ async function run(action, showError = true) {
 
 function notify(message, type = 'info') { emit('notify', { message, type }) }
 function emptyForm() { return { studentNo: '', checkInTime: '', checkOutTime: '', reason: '' } }
+function dateTimeInputValue(value) { return value ? String(value).slice(0, 16) : '' }
 function formatLocalDate(value) { return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}` }
 function timeText(value) { return value ? String(value).replace('T', ' ').slice(0, 16) : '-' }
 function formatHours(value) { const number = Number(value || 0); return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '') }

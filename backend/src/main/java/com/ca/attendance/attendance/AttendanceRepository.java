@@ -23,6 +23,7 @@ public class AttendanceRepository {
     private final RowMapper<AttendanceRecord> mapper = (rs, rowNum) -> new AttendanceRecord(
             rs.getLong("id"),
             rs.getLong("user_id"),
+            com.ca.attendance.common.Role.valueOf(rs.getString("user_role")),
             rs.getString("student_no_snapshot"),
             rs.getString("name_snapshot"),
             localDate(rs, "duty_date"),
@@ -52,7 +53,12 @@ public class AttendanceRepository {
 
     public Optional<AttendanceRecord> findById(long id) {
         try {
-            return Optional.ofNullable(jdbc.queryForObject("SELECT * FROM attendance_records WHERE id = ?", mapper, id));
+            return Optional.ofNullable(jdbc.queryForObject("""
+                    SELECT ar.*, u.role AS user_role
+                    FROM attendance_records ar
+                    JOIN users u ON u.id = ar.user_id
+                    WHERE ar.id = ?
+                    """, mapper, id));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
@@ -61,14 +67,15 @@ public class AttendanceRepository {
     public Optional<AttendanceRecord> findOpenToday(long userId, LocalDate dutyDate) {
         try {
             return Optional.ofNullable(jdbc.queryForObject("""
-                    SELECT *
-                    FROM attendance_records
-                    WHERE user_id = ?
-                      AND duty_date = ?
-                      AND check_out_time IS NULL
-                      AND check_out_status = 'NOT_SUBMITTED'
-                      AND check_in_status <> 'REJECTED'
-                    ORDER BY check_in_time DESC
+                    SELECT ar.*, u.role AS user_role
+                    FROM attendance_records ar
+                    JOIN users u ON u.id = ar.user_id
+                    WHERE ar.user_id = ?
+                      AND ar.duty_date = ?
+                      AND ar.check_out_time IS NULL
+                      AND ar.check_out_status = 'NOT_SUBMITTED'
+                      AND ar.check_in_status <> 'REJECTED'
+                    ORDER BY ar.check_in_time DESC
                     LIMIT 1
                     """, mapper, userId, databaseDate(dutyDate)));
         } catch (EmptyResultDataAccessException ex) {
@@ -79,32 +86,35 @@ public class AttendanceRepository {
     public List<AttendanceRecord> pendingForReviewer(long reviewerId, boolean minister) {
         if (minister) {
             return jdbc.query("""
-                    SELECT *
-                    FROM attendance_records
-                    WHERE (check_in_status = 'PENDING' OR check_out_status = 'PENDING')
-                      AND user_id <> ?
-                    ORDER BY duty_date DESC, check_in_time DESC
+                    SELECT ar.*, u.role AS user_role
+                    FROM attendance_records ar
+                    JOIN users u ON u.id = ar.user_id
+                    WHERE (ar.check_in_status = 'PENDING' OR ar.check_out_status = 'PENDING')
+                      AND ar.user_id <> ?
+                    ORDER BY ar.duty_date DESC, ar.check_in_time DESC
                     LIMIT 500
                     """, mapper, reviewerId);
         }
         return jdbc.query("""
-                SELECT *
-                FROM attendance_records
-                WHERE check_in_status = 'PENDING' OR check_out_status = 'PENDING'
-                ORDER BY duty_date DESC, check_in_time DESC
+                SELECT ar.*, u.role AS user_role
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                WHERE ar.check_in_status = 'PENDING' OR ar.check_out_status = 'PENDING'
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
                 LIMIT 500
                 """, mapper);
     }
 
     public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
         return jdbc.query("""
-                SELECT *
-                FROM attendance_records
-                WHERE duty_date BETWEEN ? AND ?
-                  AND check_out_time IS NULL
-                  AND check_out_status = 'NOT_SUBMITTED'
-                  AND check_in_status <> 'REJECTED'
-                ORDER BY check_in_time DESC
+                SELECT ar.*, u.role AS user_role
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                WHERE ar.duty_date BETWEEN ? AND ?
+                  AND ar.check_out_time IS NULL
+                  AND ar.check_out_status = 'NOT_SUBMITTED'
+                  AND ar.check_in_status <> 'REJECTED'
+                ORDER BY ar.check_in_time DESC
                 LIMIT 500
                 """, mapper, databaseDate(from), databaseDate(to));
     }
@@ -113,12 +123,13 @@ public class AttendanceRepository {
         String keywordLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
         String effectiveStatus = status == null || status.isBlank() ? "%" : status;
         return jdbc.query("""
-                SELECT *
-                FROM attendance_records
-                WHERE duty_date BETWEEN ? AND ?
-                  AND (student_no_snapshot LIKE ? OR name_snapshot LIKE ?)
-                  AND effective_status LIKE ?
-                ORDER BY duty_date DESC, check_in_time DESC
+                SELECT ar.*, u.role AS user_role
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                WHERE ar.duty_date BETWEEN ? AND ?
+                  AND (ar.student_no_snapshot LIKE ? OR ar.name_snapshot LIKE ?)
+                  AND ar.effective_status LIKE ?
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
                 """, mapper, databaseDate(from), databaseDate(to), keywordLike, keywordLike, effectiveStatus);
     }
 
@@ -187,14 +198,17 @@ public class AttendanceRepository {
                 """, durationMinutes, validHours, effectiveStatus, recordId);
     }
 
-    public void manualUpdate(long id, Timestamp checkInTime, Timestamp checkOutTime, String checkInStatus,
-                             String checkOutStatus, String reason, long operatorId) {
+    public void manualUpdate(long id, LocalDate dutyDate, int dutyWeekday, boolean dutyDay,
+                             boolean withinDutyPeriod, Timestamp checkInTime, Timestamp checkOutTime,
+                             String checkInStatus, String checkOutStatus, String reason, long operatorId) {
         jdbc.update("""
-                UPDATE attendance_records
-                SET check_in_time = ?, check_out_time = ?, check_in_status = ?, check_out_status = ?,
-                    source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
-                WHERE id = ?
-                """, checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, operatorId, id);
+                    UPDATE attendance_records
+                    SET duty_date = ?, duty_weekday = ?, is_duty_day = ?, within_duty_period = ?,
+                        check_in_time = ?, check_out_time = ?, check_in_status = ?, check_out_status = ?,
+                        source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
+                    WHERE id = ?
+                """, databaseDate(dutyDate), dutyWeekday, dutyDay, withinDutyPeriod,
+                checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, operatorId, id);
     }
 
     public void delete(long id) {

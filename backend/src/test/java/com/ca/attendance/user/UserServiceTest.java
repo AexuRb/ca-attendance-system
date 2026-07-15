@@ -4,6 +4,7 @@ import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.Role;
+import com.ca.attendance.common.ApiException;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,6 +71,16 @@ class UserServiceTest {
         verify(jdbc).update(contains("UPDATE users"), eq("DISABLED"), eq("DISABLED"), eq("DISABLED"),
                 eq(1L), eq(1L), eq(2L));
         verify(tokens).revokeUser(2L);
+    }
+
+    @Test
+    void presidentCannotAppointAdministrator() {
+        UserService service = new UserService(users, jdbc, passwordEncoder, logs, backups, tokens);
+        AuthContext.set(new AuthUser(3L, "president", "测试会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
+
+        assertThatThrownBy(() -> service.create(new UserService.CreateUserRequest(
+                "new-admin", "新管理员", "ADMIN", null, null, null, null
+        ))).isInstanceOf(ApiException.class).hasMessageContaining("管理员只能由管理员任命");
     }
 
     private UserSummary user(long id, String studentNo, String name, Role role, String status) {

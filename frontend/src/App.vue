@@ -1,5 +1,10 @@
 <template>
+  <div v-if="!accessModeReady" class="app-access-boot" role="status" aria-live="polite">
+    <img src="/brand/ca-logo-white.png" alt="" aria-hidden="true" />
+    <span>正在验证访问入口</span>
+  </div>
   <div
+    v-else
     class="app-shell"
     :class="{
       'admin-fullscreen': view === 'dashboard' && currentUser,
@@ -14,13 +19,13 @@
         </div>
         <div>
           <p class="eyebrow">Computer Association</p>
-          <h1>值班签到台</h1>
+          <h1>{{ remoteAccess ? '远程管理入口' : '值班签到台' }}</h1>
           <p class="brand-code">#include &lt;the.world&gt;</p>
         </div>
       </div>
 
       <nav class="rail-nav" aria-label="主导航">
-        <button :class="{ active: view === 'kiosk' }" @click="returnToKiosk">
+        <button v-if="accessContext.kioskAvailable" :class="{ active: view === 'kiosk' }" @click="returnToKiosk">
           <ScanLine :size="18" />
           <span>签到台</span>
         </button>
@@ -38,7 +43,7 @@
 
     <main class="main-surface">
       <KioskView
-        v-if="view === 'kiosk'"
+        v-if="view === 'kiosk' && accessContext.kioskAvailable"
         :health-ok="healthOk"
         :date-text="kioskDateText"
         :time-text="kioskTimeText"
@@ -68,7 +73,7 @@
               </span>
               <span class="admin-brand-copy">
                 <strong>计算机协会</strong>
-                <small>本地离线管理后台</small>
+                <small>{{ remoteAccess ? '远程安全管理后台' : '本地离线管理后台' }}</small>
               </span>
             </div>
 
@@ -109,7 +114,7 @@
               <span><img src="/brand/ca-logo-white.png" alt="计协会徽" /></span>
               <div>
                 <strong>计算机协会</strong>
-                <small>本地离线管理后台</small>
+                <small>{{ remoteAccess ? '远程安全管理后台' : '本地离线管理后台' }}</small>
               </div>
             </div>
             <div class="login-topbar-clock">
@@ -124,7 +129,7 @@
                 <Sparkles :size="17" aria-hidden="true" />
                 <span>鸣谢</span>
               </button>
-              <button type="button" title="返回签到台" aria-label="返回签到台" @click="returnToKiosk">
+              <button v-if="accessContext.kioskAvailable" type="button" title="返回签到台" aria-label="返回签到台" @click="returnToKiosk">
                 <ScanLine :size="19" />
               </button>
             </div>
@@ -138,6 +143,7 @@
           v-model:remember-login="rememberLogin"
           :setup-required="setupRequired"
           :health-ok="healthOk"
+          :remote-access="remoteAccess"
           :login-error="loginError"
           :login-verified="loginVerified"
           :busy="busy"
@@ -303,6 +309,12 @@ import {
 import { api, getToken, post, setToken } from './api.js'
 import { adminModuleLocation, tabFromRoute } from './app/router.js'
 import {
+  inferredAccessContext,
+  isRemoteAccess,
+  normalizeAccessContext,
+  routeForAccessMode
+} from './features/access/accessMode.js'
+import {
   adminNavBlueprint,
   adminTabDescriptions,
   adminTabs,
@@ -342,7 +354,9 @@ import {
 const route = useRoute()
 const appRouter = useRouter()
 
-const view = ref('kiosk')
+const accessContext = ref(inferredAccessContext())
+const accessModeReady = ref(false)
+const view = ref('dashboard')
 const activeTab = ref('overview')
 const pendingAdminTab = ref(null)
 const healthOk = ref(false)
@@ -388,6 +402,7 @@ const toast = reactive({ message: '', type: 'info' })
 let loginErrorTimer = null
 
 const availableTabs = computed(() => tabsForRole(currentUser.value?.role))
+const remoteAccess = computed(() => isRemoteAccess(accessContext.value))
 const activeTabInfo = computed(() => availableTabs.value.find(tab => tab.id === activeTab.value) || availableTabs.value[0] || adminTabs[0])
 const activeTabDescription = computed(() => adminTabDescriptions[activeTabInfo.value?.id] || '管理当前模块的数据和操作。')
 const adminNavGroups = computed(() => {
@@ -509,6 +524,8 @@ const kioskWeekSummary = computed(() => {
 const dashboardRoleClass = computed(() => currentUser.value ? `role-${String(currentUser.value.role).toLowerCase()}` : '')
 
 onMounted(async () => {
+  await loadAccessContext()
+  accessModeReady.value = true
   removeUnsavedRouteGuard = appRouter.beforeEach(confirmUnsavedRouteChange)
   window.addEventListener('beforeunload', warnBeforeUnload)
   await loadRememberedLoginCredentials()
@@ -516,9 +533,11 @@ onMounted(async () => {
     liveNow.value = new Date()
   }, 1000)
   await checkHealth()
-  if (healthOk.value) await checkSetupStatus()
-  if (!setupRequired.value) await loadPublicSchedules()
+  if (healthOk.value && !remoteAccess.value) await checkSetupStatus()
   await restoreSession()
+  if (!setupRequired.value && (!remoteAccess.value || currentUser.value)) await loadPublicSchedules()
+  const accessRedirect = routeForAccessMode(accessContext.value, route.name, Boolean(currentUser.value))
+  if (accessRedirect) await appRouter.replace(accessRedirect)
   if (setupRequired.value) {
     await appRouter.replace('/login')
   } else if (currentUser.value?.mustChangePassword && route.name !== 'kiosk') {
@@ -578,6 +597,14 @@ async function checkHealth() {
   }
 }
 
+async function loadAccessContext() {
+  try {
+    accessContext.value = normalizeAccessContext(await api('/api/access/context'))
+  } catch {
+    accessContext.value = inferredAccessContext()
+  }
+}
+
 async function checkSetupStatus() {
   try {
     const status = await api('/api/setup/status')
@@ -627,6 +654,10 @@ async function openDashboard() {
 }
 
 function returnToKiosk() {
+  if (remoteAccess.value) {
+    void appRouter.push(currentUser.value ? '/admin/today' : '/login')
+    return
+  }
   loginVerified.value = false
   loginError.value = false
   showLoginPassword.value = false
@@ -683,6 +714,7 @@ async function login() {
 }
 
 async function initializeSystem() {
+  if (remoteAccess.value) return notify('系统初始化只能在主机本地完成', 'warn')
   if (!setupFormReady.value) {
     if (setupForm.password !== setupForm.confirmPassword) return notify('两次输入的密码不一致', 'warn')
     return notify('请完整填写管理员信息', 'warn')
@@ -798,6 +830,11 @@ async function selectTab(tab, options = {}) {
 
 async function applyRouteLocation() {
   if (route.name === 'kiosk') {
+    const redirect = routeForAccessMode(accessContext.value, route.name, Boolean(currentUser.value))
+    if (redirect) {
+      await appRouter.replace(redirect)
+      return
+    }
     view.value = 'kiosk'
     return
   }

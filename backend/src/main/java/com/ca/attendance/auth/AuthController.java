@@ -1,5 +1,7 @@
 package com.ca.attendance.auth;
 
+import com.ca.attendance.access.RemoteAccessPolicy;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -9,14 +11,16 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService authService;
+    private final RemoteAccessPolicy remoteAccess;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, RemoteAccessPolicy remoteAccess) {
         this.authService = authService;
+        this.remoteAccess = remoteAccess;
     }
 
     @PostMapping("/login")
-    public AuthService.LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request.studentNo(), request.password());
+    public AuthService.LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
+        return authService.login(request.studentNo(), request.password(), remoteAccess.loginContext(servletRequest));
     }
 
     @GetMapping("/me")
@@ -39,7 +43,8 @@ public class AuthController {
         }
     }
 
-    public record LoginRequest(@NotBlank String studentNo, @NotBlank String password) {
+    public record LoginRequest(@NotBlank @Size(max = 64) String studentNo,
+                               @NotBlank @Size(max = 128) String password) {
     }
 
     public record ChangePasswordRequest(@NotBlank String oldPassword, @NotBlank @Size(min = 6, max = 64) String newPassword) {

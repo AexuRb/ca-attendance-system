@@ -7,13 +7,13 @@
         </div>
         <div class="login-identity-copy">
           <p class="eyebrow">Computer Association</p>
-          <h1>{{ setupRequired ? '系统首次初始化' : '本地离线后台' }}</h1>
-          <span>{{ setupRequired ? '建立本机数据库与首位管理员' : '值班、成员与协会事务管理' }}</span>
+          <h1>{{ setupRequired ? '系统首次初始化' : remoteAccess ? '远程安全后台' : '本地离线后台' }}</h1>
+          <span>{{ setupRequired ? '建立本机数据库与首位管理员' : remoteAccess ? '仅会长与管理员可用' : '值班、成员与协会事务管理' }}</span>
         </div>
         <div class="login-identity-status" :class="{ online: healthOk }">
           <i aria-hidden="true"></i>
           <div>
-            <span>本机服务</span>
+            <span>{{ remoteAccess ? '远程入口' : '本机服务' }}</span>
             <strong>{{ healthOk ? '连接正常' : '暂未连接' }}</strong>
           </div>
         </div>
@@ -111,7 +111,7 @@
             <div class="login-form-heading">
               <p class="eyebrow">Identity Verification</p>
               <h2>后台身份验证</h2>
-              <span>使用协会后台账号登录</span>
+              <span>{{ remoteAccess ? '仅允许会长或管理员账号登录' : '使用协会后台账号登录' }}</span>
             </div>
 
             <label for="loginStudentNo">账号 / 学号</label>
@@ -232,6 +232,7 @@ import {
 defineProps({
   setupRequired: { type: Boolean, default: false },
   healthOk: { type: Boolean, default: false },
+  remoteAccess: { type: Boolean, default: false },
   loginError: { type: Boolean, default: false },
   loginVerified: { type: Boolean, default: false },
   busy: { type: Boolean, default: false },

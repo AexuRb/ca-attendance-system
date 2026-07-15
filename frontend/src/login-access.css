@@ -1,4 +1,28 @@
 /* Offline admin identity verification screen. */
+.app-access-boot {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  color: #52738f;
+  background: #f4faff;
+  font: 700 13px/1.5 "Microsoft YaHei UI", "Segoe UI", sans-serif;
+}
+
+.app-access-boot img {
+  width: 54px;
+  height: 54px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #246fa8;
+  animation: remote-access-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes remote-access-pulse {
+  50% { opacity: 0.62; transform: scale(0.96); }
+}
+
 .app-shell.login-fullscreen {
   display: block !important;
   min-height: 100vh;

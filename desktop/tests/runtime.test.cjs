@@ -4,12 +4,17 @@ const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  REMOTE_ADMIN_PORT,
   ensureStorageLayout,
   isAttendanceHealth,
   restoreApplicationWindow,
   shouldHideWindowOnClose,
   resolveAppRoot
 } = require('../runtime.cjs');
+
+test('reserves a separate loopback port for the remote admin tunnel', () => {
+  assert.equal(REMOTE_ADMIN_PORT, 8081);
+});
 
 test('resolves the data root above an installed app directory', () => {
   assert.equal(resolveAppRoot({

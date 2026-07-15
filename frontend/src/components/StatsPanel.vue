@@ -2,7 +2,7 @@
   <section class="work-section tab-stats">
     <div class="section-head">
       <h3>统计与导出</h3>
-      <button v-if="canExport" class="ghost-button" :disabled="busy" @click="exportExcel"><Download :size="16" />导出</button>
+      <button v-if="canExport" class="ghost-button" data-action="export-stats" :disabled="busy" @click="exportExcel"><Download :size="16" />导出</button>
     </div>
 
     <div class="range-presets" aria-label="快捷时间范围">
@@ -94,7 +94,7 @@ const preset = ref('custom')
 const lastAppliedRoute = ref('')
 const range = reactive({ from: yearStart, to: todayValue })
 
-const canExport = computed(() => ['PRESIDENT', 'ADMIN'].includes(props.currentUser.role))
+const canExport = computed(() => ['MINISTER', 'PRESIDENT', 'ADMIN'].includes(props.currentUser.role))
 const totalHours = computed(() => stats.value.reduce((sum, row) => sum + Number(row.totalHours || 0), 0))
 const totalCount = computed(() => stats.value.reduce((sum, row) => sum + Number(row.dutyCount || 0), 0))
 

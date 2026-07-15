@@ -1,6 +1,8 @@
 package com.ca.attendance.auth;
 
+import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -15,25 +17,56 @@ public class AuthService {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final RemoteAccessPolicy remoteAccess;
+    private final RemoteLoginAttemptGuard remoteLoginAttempts;
+    private final OperationLogService logs;
 
-    public AuthService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder, TokenService tokenService) {
+    public AuthService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder, TokenService tokenService,
+                       RemoteAccessPolicy remoteAccess, RemoteLoginAttemptGuard remoteLoginAttempts,
+                       OperationLogService logs) {
         this.users = users;
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
+        this.remoteAccess = remoteAccess;
+        this.remoteLoginAttempts = remoteLoginAttempts;
+        this.logs = logs;
     }
 
     public LoginResponse login(String studentNo, String password) {
-        UserRepository.UserLoginRow user = users.findLoginByStudentNo(studentNo)
-                .orElseThrow(() -> ApiException.unauthorized("学号或密码错误"));
-        if (!"ACTIVE".equals(user.status())) {
-            throw ApiException.forbidden("账号已停用");
+        return login(studentNo, password, LoginContext.local());
+    }
+
+    public LoginResponse login(String studentNo, String password, LoginContext context) {
+        if (context.remote()) {
+            remoteLoginAttempts.requireAllowed(studentNo, context);
         }
-        if (!passwordEncoder.matches(password, user.passwordHash())) {
-            throw ApiException.unauthorized("学号或密码错误");
+        UserRepository.UserLoginRow user = null;
+        try {
+            user = users.findLoginByStudentNo(studentNo)
+                    .orElseThrow(() -> ApiException.unauthorized("学号或密码错误"));
+            if (!"ACTIVE".equals(user.status())) {
+                throw ApiException.forbidden("账号已停用");
+            }
+            if (!passwordEncoder.matches(password, user.passwordHash())) {
+                throw ApiException.unauthorized("学号或密码错误");
+            }
+            if (context.remote() && !remoteAccess.roleAllowed(user.role())) {
+                throw ApiException.forbidden("远程后台仅允许会长或管理员登录");
+            }
+        } catch (ApiException ex) {
+            if (context.remote()) {
+                remoteLoginAttempts.recordFailure(studentNo, context);
+                logs.logRemoteAuthentication(false, user, studentNo, context.clientAddress(), context.userAgent(), ex.getMessage());
+            }
+            throw ex;
         }
         jdbc.update("UPDATE users SET last_login_at = ? WHERE id = ?", LocalDateTime.now(), user.id());
         String token = tokenService.issue(user.id(), user.studentNo(), user.name(), user.role());
+        if (context.remote()) {
+            remoteLoginAttempts.recordSuccess(studentNo, context);
+            logs.logRemoteAuthentication(true, user, studentNo, context.clientAddress(), context.userAgent(), "远程后台登录成功");
+        }
         return new LoginResponse(token, user.id(), user.studentNo(), user.name(), user.role().name(), user.mustChangePassword());
     }
 
@@ -58,5 +91,11 @@ public class AuthService {
     }
 
     public record LoginResponse(String token, long id, String studentNo, String name, String role, boolean mustChangePassword) {
+    }
+
+    public record LoginContext(boolean remote, String clientAddress, String userAgent) {
+        public static LoginContext local() {
+            return new LoginContext(false, "127.0.0.1", "local");
+        }
     }
 }

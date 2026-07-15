@@ -1370,6 +1370,10 @@
   align-items: end;
 }
 
+.dashboard.logged-in-dashboard .record-edit-form {
+  grid-template-columns: repeat(2, minmax(190px, 1fr)) minmax(240px, 1.2fr) auto auto;
+}
+
 .dashboard.logged-in-dashboard .create-member-form {
   grid-template-columns: repeat(6, minmax(116px, 1fr)) auto auto;
   align-items: end;

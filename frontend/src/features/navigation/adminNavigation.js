@@ -16,7 +16,7 @@ import {
 export const adminTabs = [
   { id: 'overview', label: '今日', icon: Gauge, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
   { id: 'reviews', label: '审核', icon: ListChecks, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
-  { id: 'records', label: '记录', icon: ClipboardList, roles: ['PRESIDENT', 'ADMIN'] },
+  { id: 'records', label: '记录', icon: ClipboardList, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
   { id: 'members', label: '成员', icon: UsersRound, roles: ['PRESIDENT', 'ADMIN'] },
   { id: 'stats', label: '统计', icon: LayoutDashboard, roles: ['MINISTER', 'PRESIDENT', 'ADMIN'] },
   { id: 'trainings', label: '培训', icon: GraduationCap, roles: ['PRESIDENT', 'ADMIN'] },
@@ -31,7 +31,7 @@ export const adminTabs = [
 export const adminTabDescriptions = {
   overview: '今日排班、待处理事项和关键值班状态集中在这里。',
   reviews: '处理成员提交的签到和签退审核，优先清掉待办。',
-  records: '查询、补录和修正值班记录，适合做月度核对。',
+  records: '查询和修正值班记录，适合做日常核对。',
   members: '维护协会成员账号、角色、状态和批量导入。',
   stats: '按时间范围汇总值班时长、次数和明细。',
   trainings: '管理培训场次、参与名单和计入值班时长的培训记录。',
