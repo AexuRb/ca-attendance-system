@@ -43,30 +43,50 @@ public class BackupService {
     private static final long MAX_RESTORE_BYTES = 50L * 1024 * 1024;
     private static final List<TableExport> TABLES = List.of(
             new TableExport("users", "SELECT * FROM users ORDER BY id"),
+            new TableExport("academic_terms", "SELECT * FROM academic_terms ORDER BY start_date, id"),
             new TableExport("training_sessions", "SELECT * FROM training_sessions ORDER BY training_date DESC, id DESC"),
             new TableExport("training_participants", "SELECT * FROM training_participants ORDER BY session_id, student_no_snapshot"),
             new TableExport("duty_schedule_slots", "SELECT * FROM duty_schedule_slots ORDER BY weekday, start_time, id"),
             new TableExport("duty_schedule_assignees", "SELECT * FROM duty_schedule_assignees ORDER BY slot_id, sort_order, id"),
+            new TableExport("duty_schedule_exceptions", "SELECT * FROM duty_schedule_exceptions ORDER BY exception_date, id"),
+            new TableExport("duty_schedule_exception_assignees", "SELECT * FROM duty_schedule_exception_assignees ORDER BY exception_id, sort_order, id"),
+            new TableExport("duty_shift_reassignments", "SELECT * FROM duty_shift_reassignments ORDER BY duty_date, start_time, id"),
             new TableExport("repair_cases", "SELECT * FROM repair_cases ORDER BY received_at DESC, id DESC"),
             new TableExport("attendance_records", "SELECT * FROM attendance_records ORDER BY duty_date DESC, check_in_time DESC, id DESC"),
+            new TableExport("public_attendance_submissions", "SELECT * FROM public_attendance_submissions ORDER BY created_at, request_id"),
+            new TableExport("term_settlements", "SELECT * FROM term_settlements ORDER BY term_id, version"),
+            new TableExport("term_member_settlements", "SELECT * FROM term_member_settlements ORDER BY settlement_id, total_minutes DESC, id"),
             new TableExport("operation_logs", "SELECT * FROM operation_logs ORDER BY created_at DESC, id DESC"),
             new TableExport("duty_weekday_settings", "SELECT * FROM duty_weekday_settings ORDER BY weekday"),
             new TableExport("app_settings", "SELECT * FROM app_settings ORDER BY setting_key")
     );
     private static final List<String> RESTORE_TABLE_ORDER = List.of(
             "users",
+            "academic_terms",
             "training_sessions",
             "training_participants",
             "duty_schedule_slots",
             "duty_schedule_assignees",
+            "duty_schedule_exceptions",
+            "duty_schedule_exception_assignees",
+            "duty_shift_reassignments",
             "repair_cases",
             "duty_weekday_settings",
             "app_settings",
             "attendance_records",
+            "public_attendance_submissions",
+            "term_settlements",
+            "term_member_settlements",
             "operation_logs"
     );
     private static final List<String> CLEAR_TABLE_ORDER = List.of(
             "operation_logs",
+            "term_member_settlements",
+            "term_settlements",
+            "public_attendance_submissions",
+            "duty_shift_reassignments",
+            "duty_schedule_exception_assignees",
+            "duty_schedule_exceptions",
             "duty_schedule_assignees",
             "duty_schedule_slots",
             "training_participants",
@@ -75,11 +95,15 @@ public class BackupService {
             "attendance_records",
             "app_settings",
             "duty_weekday_settings",
+            "academic_terms",
             "users"
     );
     private static final Set<String> OPTIONAL_RESTORE_TABLES = Set.of(
             "app_settings", "training_sessions", "training_participants",
-            "duty_schedule_slots", "duty_schedule_assignees", "repair_cases"
+            "duty_schedule_slots", "duty_schedule_assignees", "repair_cases",
+            "academic_terms", "duty_schedule_exceptions", "duty_schedule_exception_assignees",
+            "duty_shift_reassignments", "public_attendance_submissions",
+            "term_settlements", "term_member_settlements"
     );
     private static final Map<String, Set<String>> TABLE_COLUMNS = Map.ofEntries(
             Map.entry("users", Set.of(
@@ -87,9 +111,15 @@ public class BackupService {
                     "must_change_password", "last_login_at", "disabled_at", "disabled_by", "created_by", "updated_by",
                     "created_at", "updated_at"
             )),
+            Map.entry("academic_terms", Set.of(
+                    "id", "term_code", "term_name", "start_date", "end_date", "status", "legacy",
+                    "settling_started_at", "settling_started_by", "sealed_at", "sealed_by",
+                    "reopened_at", "reopened_by", "reopen_reason", "created_by", "updated_by",
+                    "created_at", "updated_at"
+            )),
             Map.entry("training_sessions", Set.of(
                     "id", "title", "training_date", "start_time", "end_time", "location", "speaker",
-                    "description", "status", "created_by", "updated_by", "created_at", "updated_at"
+                    "description", "status", "term_id", "created_by", "updated_by", "created_at", "updated_at"
             )),
             Map.entry("training_participants", Set.of(
                     "id", "session_id", "user_id", "student_no_snapshot", "name_snapshot", "attendance_status",
@@ -97,17 +127,30 @@ public class BackupService {
             )),
             Map.entry("duty_schedule_slots", Set.of(
                     "id", "weekday", "start_time", "end_time", "title", "location", "note", "enabled",
-                    "status", "created_by", "updated_by", "created_at", "updated_at"
+                    "status", "term_id", "created_by", "updated_by", "created_at", "updated_at"
             )),
             Map.entry("duty_schedule_assignees", Set.of(
                     "id", "slot_id", "user_id", "student_no_snapshot", "name_snapshot", "sort_order", "created_at"
+            )),
+            Map.entry("duty_schedule_exceptions", Set.of(
+                    "id", "term_id", "exception_date", "exception_type", "source_slot_id", "start_time",
+                    "end_time", "title", "location", "reason", "created_by", "updated_by", "created_at", "updated_at"
+            )),
+            Map.entry("duty_schedule_exception_assignees", Set.of(
+                    "id", "exception_id", "user_id", "student_no_snapshot", "name_snapshot", "sort_order"
+            )),
+            Map.entry("duty_shift_reassignments", Set.of(
+                    "id", "term_id", "duty_date", "source_slot_id", "start_time", "end_time",
+                    "original_user_id", "original_student_no_snapshot", "original_name_snapshot",
+                    "replacement_user_id", "replacement_student_no_snapshot", "replacement_name_snapshot",
+                    "reason", "created_by", "updated_by", "created_at", "updated_at"
             )),
             Map.entry("repair_cases", Set.of(
                     "id", "case_no", "agreement_type", "owner_name", "owner_phone", "owner_org", "device_type",
                     "device_brand", "device_model", "device_serial", "accessories", "fault_description",
                     "service_description", "data_backup_confirmed", "risk_acknowledged", "privacy_acknowledged",
                     "status", "received_at", "completed_at", "handler_user_id", "handler_name_snapshot",
-                    "remark", "created_by", "updated_by", "created_at", "updated_at", "deleted_at", "deleted_by"
+                    "remark", "term_id", "created_by", "updated_by", "created_at", "updated_at", "deleted_at", "deleted_by"
             )),
             Map.entry("attendance_records", Set.of(
                     "id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "duty_weekday", "is_duty_day",
@@ -115,7 +158,19 @@ public class BackupService {
                     "check_in_time", "check_out_time", "check_in_status", "check_out_status", "check_in_reviewed_by",
                     "check_out_reviewed_by", "check_in_reviewed_at", "check_out_reviewed_at", "check_in_reject_reason",
                     "check_out_reject_reason", "duration_minutes", "valid_hours", "effective_status", "source",
-                    "manual_reason", "created_by", "updated_by", "created_at", "updated_at"
+                    "manual_reason", "term_id", "created_by", "updated_by", "created_at", "updated_at"
+            )),
+            Map.entry("public_attendance_submissions", Set.of(
+                    "request_id", "student_no", "record_id", "action", "name", "submitted_at",
+                    "review_status", "message", "created_at"
+            )),
+            Map.entry("term_settlements", Set.of(
+                    "id", "term_id", "version", "status", "summary_json", "source_digest",
+                    "prepared_at", "prepared_by", "sealed_at", "sealed_by", "superseded_at", "reopen_reason"
+            )),
+            Map.entry("term_member_settlements", Set.of(
+                    "id", "settlement_id", "user_id", "student_no_snapshot", "name_snapshot", "role_snapshot",
+                    "attendance_count", "attendance_minutes", "training_count", "training_minutes", "total_minutes"
             )),
             Map.entry("operation_logs", Set.of(
                     "id", "operator_user_id", "operator_student_no", "operator_name", "action_type", "target_type",
@@ -130,40 +185,67 @@ public class BackupService {
     );
     private static final Map<String, Set<String>> REQUIRED_KEYS = Map.ofEntries(
             Map.entry("users", Set.of("id", "student_no", "name", "password_hash", "role", "status")),
+            Map.entry("academic_terms", Set.of("id", "term_code", "term_name", "start_date", "end_date", "status", "legacy")),
             Map.entry("training_sessions", Set.of("id", "title", "training_date", "status")),
             Map.entry("training_participants", Set.of("id", "session_id", "student_no_snapshot", "name_snapshot", "attendance_status", "source")),
             Map.entry("duty_schedule_slots", Set.of("id", "weekday", "title", "enabled", "status")),
             Map.entry("duty_schedule_assignees", Set.of("id", "slot_id", "name_snapshot", "sort_order")),
+            Map.entry("duty_schedule_exceptions", Set.of("id", "term_id", "exception_date", "exception_type", "reason")),
+            Map.entry("duty_schedule_exception_assignees", Set.of("id", "exception_id", "name_snapshot", "sort_order")),
+            Map.entry("duty_shift_reassignments", Set.of(
+                    "id", "term_id", "duty_date", "start_time", "end_time", "original_name_snapshot",
+                    "replacement_name_snapshot", "reason"
+            )),
             Map.entry("repair_cases", Set.of("id", "case_no", "agreement_type", "owner_name", "device_type", "fault_description", "status", "received_at")),
             Map.entry("attendance_records", Set.of("id", "user_id", "student_no_snapshot", "name_snapshot", "duty_date", "check_in_time")),
+            Map.entry("public_attendance_submissions", Set.of(
+                    "request_id", "student_no", "record_id", "action", "name", "submitted_at", "review_status", "message"
+            )),
+            Map.entry("term_settlements", Set.of("id", "term_id", "version", "status", "summary_json", "source_digest", "prepared_at")),
+            Map.entry("term_member_settlements", Set.of(
+                    "id", "settlement_id", "student_no_snapshot", "name_snapshot", "role_snapshot",
+                    "attendance_count", "attendance_minutes", "training_count", "training_minutes", "total_minutes"
+            )),
             Map.entry("operation_logs", Set.of("id", "action_type", "target_type", "created_at")),
             Map.entry("duty_weekday_settings", Set.of("weekday", "weekday_name", "enabled")),
             Map.entry("app_settings", Set.of("setting_key", "setting_value"))
     );
-    private static final Map<String, Set<String>> DATE_COLUMNS = Map.of(
-            "attendance_records", Set.of("duty_date"),
-            "training_sessions", Set.of("training_date")
+    private static final Map<String, Set<String>> DATE_COLUMNS = Map.ofEntries(
+            Map.entry("academic_terms", Set.of("start_date", "end_date")),
+            Map.entry("attendance_records", Set.of("duty_date")),
+            Map.entry("training_sessions", Set.of("training_date")),
+            Map.entry("duty_schedule_exceptions", Set.of("exception_date")),
+            Map.entry("duty_shift_reassignments", Set.of("duty_date"))
     );
-    private static final Map<String, Set<String>> TIME_COLUMNS = Map.of(
-            "training_sessions", Set.of("start_time", "end_time"),
-            "duty_schedule_slots", Set.of("start_time", "end_time")
+    private static final Map<String, Set<String>> TIME_COLUMNS = Map.ofEntries(
+            Map.entry("training_sessions", Set.of("start_time", "end_time")),
+            Map.entry("duty_schedule_slots", Set.of("start_time", "end_time")),
+            Map.entry("duty_schedule_exceptions", Set.of("start_time", "end_time")),
+            Map.entry("duty_shift_reassignments", Set.of("start_time", "end_time"))
     );
     private static final Map<String, Set<String>> DATE_TIME_COLUMNS = Map.ofEntries(
             Map.entry("users", Set.of("last_login_at", "disabled_at", "created_at", "updated_at")),
+            Map.entry("academic_terms", Set.of(
+                    "settling_started_at", "sealed_at", "reopened_at", "created_at", "updated_at"
+            )),
             Map.entry("training_sessions", Set.of("created_at", "updated_at")),
             Map.entry("training_participants", Set.of("created_at", "updated_at")),
             Map.entry("duty_schedule_slots", Set.of("created_at", "updated_at")),
             Map.entry("duty_schedule_assignees", Set.of("created_at")),
+            Map.entry("duty_schedule_exceptions", Set.of("created_at", "updated_at")),
+            Map.entry("duty_shift_reassignments", Set.of("created_at", "updated_at")),
             Map.entry("repair_cases", Set.of("received_at", "completed_at", "created_at", "updated_at", "deleted_at")),
             Map.entry("attendance_records", Set.of(
                     "check_in_time", "check_out_time", "check_in_reviewed_at", "check_out_reviewed_at",
                     "created_at", "updated_at"
             )),
+            Map.entry("public_attendance_submissions", Set.of("submitted_at", "created_at")),
+            Map.entry("term_settlements", Set.of("prepared_at", "sealed_at", "superseded_at")),
             Map.entry("operation_logs", Set.of("created_at")),
             Map.entry("duty_weekday_settings", Set.of("created_at", "updated_at")),
             Map.entry("app_settings", Set.of("created_at", "updated_at"))
     );
-    private static final Set<String> JSON_COLUMNS = Set.of("before_data", "after_data");
+    private static final Set<String> JSON_COLUMNS = Set.of("before_data", "after_data", "summary_json");
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
     private static final TypeReference<List<LinkedHashMap<String, Object>>> ROWS_TYPE = new TypeReference<>() {
@@ -300,9 +382,7 @@ public class BackupService {
         Map<String, Integer> restoredRows = new LinkedHashMap<>();
         jdbc.execute("PRAGMA defer_foreign_keys = ON");
         for (String table : CLEAR_TABLE_ORDER) {
-            if (shouldRestoreTable(payload, table)) {
-                jdbc.update("DELETE FROM " + table);
-            }
+            jdbc.update("DELETE FROM " + table);
         }
         for (String table : RESTORE_TABLE_ORDER) {
             if (shouldRestoreTable(payload, table)) {
@@ -310,10 +390,57 @@ public class BackupService {
                 restoredRows.put(table, count);
             }
         }
+        ensureHistoricalTermAndBackfill();
 
         RestoreResult result = new RestoreResult(safetyBackup, restoredRows, restoredRows.values().stream().mapToInt(Integer::intValue).sum());
         logRestore(current, result);
         return result;
+    }
+
+    private void ensureHistoricalTermAndBackfill() {
+        Integer missingTerms = jdbc.queryForObject("""
+                SELECT
+                  (SELECT COUNT(*) FROM attendance_records WHERE term_id IS NULL) +
+                  (SELECT COUNT(*) FROM training_sessions WHERE term_id IS NULL) +
+                  (SELECT COUNT(*) FROM duty_schedule_slots WHERE term_id IS NULL) +
+                  (SELECT COUNT(*) FROM repair_cases WHERE term_id IS NULL)
+                """, Integer.class);
+        if (missingTerms == null || missingTerms == 0) {
+            return;
+        }
+
+        List<Long> legacyIds = jdbc.query("""
+                SELECT id FROM academic_terms WHERE term_code = '__legacy__' LIMIT 1
+                """, (rs, rowNum) -> rs.getLong(1));
+        long legacyId;
+        if (legacyIds.isEmpty()) {
+            Long created = jdbc.queryForObject("""
+                    WITH business_dates(value) AS (
+                      SELECT duty_date FROM attendance_records
+                      UNION ALL SELECT training_date FROM training_sessions
+                      UNION ALL SELECT date(received_at) FROM repair_cases
+                    )
+                    INSERT INTO academic_terms (
+                      term_code, term_name, start_date, end_date, status, legacy, settling_started_at
+                    )
+                    SELECT '__legacy__', '历史学期',
+                           COALESCE(MIN(date(value)), date('now', 'localtime')),
+                           COALESCE(MAX(date(value)), date('now', 'localtime')),
+                           'SETTLING', 1, datetime('now', 'localtime')
+                    FROM business_dates
+                    RETURNING id
+                    """, Long.class);
+            legacyId = created == null ? 0 : created;
+        } else {
+            legacyId = legacyIds.getFirst();
+        }
+        if (legacyId <= 0) {
+            throw ApiException.badRequest("恢复旧备份时无法创建历史学期");
+        }
+        jdbc.update("UPDATE attendance_records SET term_id = ? WHERE term_id IS NULL", legacyId);
+        jdbc.update("UPDATE training_sessions SET term_id = ? WHERE term_id IS NULL", legacyId);
+        jdbc.update("UPDATE duty_schedule_slots SET term_id = ? WHERE term_id IS NULL", legacyId);
+        jdbc.update("UPDATE repair_cases SET term_id = ? WHERE term_id IS NULL", legacyId);
     }
 
     private BackupPayload readRestorePayload(MultipartFile file) {
@@ -583,7 +710,7 @@ public class BackupService {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("system", "计算机协会本地管理系统");
         metadata.put("database", "SQLite");
-        metadata.put("schemaVersion", 2);
+        metadata.put("schemaVersion", 3);
         metadata.put("createdAt", LocalDateTime.now());
         metadata.put("operatorStudentNo", operatorStudentNo);
         metadata.put("operatorName", operatorName);
