@@ -1,6 +1,6 @@
 # 计算机协会本地管理系统后端
 
-Spring Boot 单体后端，提供静态前端、REST API、SQLite 持久化、Excel/PDF 处理、备份恢复和桌面端本机控制。
+Spring Boot 模块化单体后端，提供静态前端、REST API、SQLite 持久化、Excel/PDF 处理、备份恢复和桌面端本机控制。新增业务以领域、应用、基础设施和 API 分层组织。
 
 ## 环境
 
@@ -126,6 +126,11 @@ Authorization: Bearer <token>
 | `GET` | `/api/schedules/import-template` | 下载当前星期和时段对应的排班模板 |
 | `POST` | `/api/schedules/import/preview` | 全量校验并预览排班文件，不写入数据 |
 | `POST` | `/api/schedules/import` | 校验通过后按星期和时段分组覆盖导入 |
+| `GET` | `/api/schedules/effective` | 按学期与日期查询例外、调班合并后的最终排班 |
+| `GET/POST` | `/api/schedules/exceptions` | 查询或新增排班例外 |
+| `PUT/DELETE` | `/api/schedules/exceptions/{id}` | 修改或删除排班例外 |
+| `GET/POST` | `/api/schedules/reassignments` | 查询或新增直接调班 |
+| `PUT/DELETE` | `/api/schedules/reassignments/{id}` | 修改或删除直接调班 |
 | `GET/POST` | `/api/repairs` | 部长及以上查询、新增维修事务 |
 | `PUT` | `/api/repairs/{id}` | 修改维修事务 |
 | `DELETE` | `/api/repairs/{id}` | 会长或管理员移入维修回收站 |
@@ -136,6 +141,20 @@ Authorization: Bearer <token>
 | `GET` | `/api/repairs/{id}/agreement` | 打开可打印协议 |
 | `GET` | `/api/exports/options` | 获取当前角色可用的数据源、筛选项和字段 |
 | `POST` | `/api/exports/excel` | 按单一数据源、字段顺序和筛选条件导出 Excel |
+
+学期与结算：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| `GET/POST` | `/api/terms` | 查询或新建学期 |
+| `PUT` | `/api/terms/{id}` | 修改草稿学期 |
+| `POST` | `/api/terms/{id}/activate` | 激活学期，可选择复制上一学期固定排班 |
+| `POST` | `/api/terms/{id}/settling` | 进入结算状态 |
+| `GET` | `/api/terms/{id}/settlement/preflight` | 查询封存阻塞项 |
+| `POST` | `/api/terms/{id}/settlement/preview` | 生成成员与业务汇总结算预览 |
+| `POST` | `/api/terms/{id}/seal` | 管理员自动备份并封存学期 |
+| `POST` | `/api/terms/{id}/reopen` | 管理员填写原因后重新打开 |
+| `GET` | `/api/terms/{id}/settlements` | 查询结算版本历史 |
 
 设置、日志与维护：
 

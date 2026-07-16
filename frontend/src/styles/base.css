@@ -1,0 +1,137 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  min-width: 320px;
+  background: var(--canvas);
+  color: var(--ink-950);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background: var(--canvas);
+}
+button,
+input,
+select,
+textarea {
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+}
+button,
+select {
+  cursor: pointer;
+}
+button:disabled,
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.8;
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+input,
+select,
+textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  outline: 0;
+  background: var(--surface);
+  padding: 8px 11px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background 0.2s;
+}
+textarea {
+  resize: vertical;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(58, 150, 200, 0.14);
+}
+input::placeholder,
+textarea::placeholder {
+  color: #9aabb7;
+}
+input[type="checkbox"] {
+  width: 17px;
+  min-height: 17px;
+  accent-color: var(--blue-600);
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(58, 150, 200, 0.32);
+  outline-offset: 2px;
+}
+::selection {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.spin {
+  animation: spin 1s linear infinite;
+}
+.route-enter-active,
+.route-leave-active {
+  transition:
+    opacity 0.22s var(--ease-out),
+    transform 0.28s var(--ease-out);
+}
+.route-enter-from {
+  opacity: 0;
+  transform: translateY(7px);
+}
+.route-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

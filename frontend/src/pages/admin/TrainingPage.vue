@@ -1,0 +1,458 @@
+<template>
+  <div class="page-stack">
+    <PageHeader
+      title="培训"
+      description="记录培训场次、参与名单与计入值班的培训时长。"
+      ><template #actions
+        ><button class="button secondary" @click="exportSummary">
+          <Download />导出统计</button
+        ><button class="button primary" @click="openSession()">
+          <Plus />新建培训
+        </button></template
+      ></PageHeader
+    >
+    <form class="filter-bar" @submit.prevent="loadSessions">
+      <label class="filter-grow"
+        ><span>关键词</span
+        ><input
+          v-model.trim="filters.keyword"
+          placeholder="标题、地点或主讲人" /></label
+      ><label
+        ><span>开始日期</span
+        ><input v-model="filters.from" type="date" /></label
+      ><label
+        ><span>结束日期</span><input v-model="filters.to" type="date" /></label
+      ><button class="button secondary" type="submit"><Search />查询</button>
+    </form>
+    <div class="split-workspace">
+      <aside class="record-list panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SESSIONS</p>
+            <h2>培训场次</h2>
+          </div>
+          <span>{{ sessions.length }}</span>
+        </div>
+        <button
+          v-for="item in sessions"
+          :key="item.id"
+          class="record-list-item"
+          :class="{ active: selected?.id === item.id }"
+          @click="select(item)"
+        >
+          <span class="record-date">{{ shortDate(item.trainingDate) }}</span
+          ><span
+            ><strong>{{ item.title }}</strong
+            ><small>{{
+              [item.speaker, item.location].filter(Boolean).join(" · ") ||
+              "未填写主讲人与地点"
+            }}</small></span
+          ><b>{{ item.participantCount || 0 }} 人</b>
+        </button>
+        <EmptyState v-if="!sessions.length" title="暂无培训记录" />
+      </aside>
+      <main class="detail-panel panel">
+        <EmptyState v-if="!selected" title="请选择培训场次" />
+        <template v-else>
+          <div class="detail-heading">
+            <div>
+              <p class="eyebrow">{{ selected.trainingDate }}</p>
+              <h2>{{ selected.title }}</h2>
+              <span>{{ sessionMeta(selected) }}</span>
+            </div>
+            <div class="row-actions">
+              <button
+                class="icon-button"
+                title="导出名单"
+                @click="downloadSession"
+              >
+                <Download /></button
+              ><button
+                class="icon-button"
+                title="导入名单"
+                @click="importOpen = true"
+              >
+                <Upload /></button
+              ><button
+                class="icon-button"
+                title="编辑培训"
+                @click="openSession(selected)"
+              >
+                <Pencil /></button
+              ><button
+                class="icon-button danger-ghost"
+                title="归档培训"
+                @click="deleteTarget = selected"
+              >
+                <Trash2 />
+              </button>
+            </div>
+          </div>
+          <div class="compact-metrics">
+            <div>
+              <span>参与人数</span
+              ><strong>{{ selected.participantCount || 0 }}</strong>
+            </div>
+            <div>
+              <span>累计时长</span
+              ><strong>{{ hours(selected.totalDurationHours) }} h</strong>
+            </div>
+            <div>
+              <span>培训时间</span><strong>{{ timeRange(selected) }}</strong>
+            </div>
+          </div>
+          <div class="section-heading list-heading">
+            <div>
+              <p class="eyebrow">PARTICIPANTS</p>
+              <h2>参与名单</h2>
+            </div>
+            <button class="button secondary small" @click="openParticipant()">
+              <Plus />新增记录
+            </button>
+          </div>
+          <EmptyState v-if="!participants.length" title="暂无参与记录" />
+          <div v-else class="table-shell compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>参与人</th>
+                  <th>计入时长</th>
+                  <th>备注</th>
+                  <th class="align-right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in participants" :key="item.id">
+                  <td>
+                    <strong>{{ item.name }}</strong
+                    ><small>{{ item.studentNo || "未关联账号" }}</small>
+                  </td>
+                  <td>{{ hours(item.durationHours) }} 小时</td>
+                  <td>{{ item.remark || "—" }}</td>
+                  <td class="align-right row-actions">
+                    <button
+                      class="icon-button"
+                      title="编辑"
+                      @click="openParticipant(item)"
+                    >
+                      <Pencil /></button
+                    ><button
+                      class="icon-button danger-ghost"
+                      title="删除"
+                      @click="participantDeleteTarget = item"
+                    >
+                      <Trash2 />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+      </main>
+    </div>
+
+    <ModalDialog
+      :open="sessionOpen"
+      :title="sessionForm.id ? '编辑培训' : '新建培训'"
+      size="lg"
+      @close="sessionOpen = false"
+      ><div class="form-grid two">
+        <label class="field span-2"
+          ><span>培训标题</span
+          ><input v-model.trim="sessionForm.title" /></label
+        ><label class="field"
+          ><span>培训日期</span
+          ><input v-model="sessionForm.trainingDate" type="date" /></label
+        ><label class="field"
+          ><span>地点</span><input v-model.trim="sessionForm.location" /></label
+        ><label class="field"
+          ><span>开始时间</span
+          ><input v-model="sessionForm.startTime" type="time" /></label
+        ><label class="field"
+          ><span>结束时间</span
+          ><input v-model="sessionForm.endTime" type="time" /></label
+        ><label class="field"
+          ><span>主讲人</span
+          ><input v-model.trim="sessionForm.speaker" /></label
+        ><label class="field"
+          ><span>说明</span><input v-model.trim="sessionForm.description"
+        /></label>
+      </div>
+      <template #footer
+        ><button class="button secondary" @click="sessionOpen = false">
+          取消</button
+        ><button
+          class="button primary"
+          :disabled="!sessionForm.title || !sessionForm.trainingDate"
+          @click="saveSession"
+        >
+          保存培训
+        </button></template
+      ></ModalDialog
+    >
+    <ModalDialog
+      :open="participantOpen"
+      :title="participantForm.id ? '编辑参与记录' : '新增参与记录'"
+      size="sm"
+      @close="participantOpen = false"
+      ><div class="form-grid">
+        <label class="field"
+          ><span>学号</span
+          ><input v-model.trim="participantForm.studentNo" /></label
+        ><label class="field"
+          ><span>姓名</span><input v-model.trim="participantForm.name" /></label
+        ><label class="field"
+          ><span>计入时长（小时）</span
+          ><input
+            v-model.number="participantForm.durationHours"
+            type="number"
+            min="0"
+            step="0.25" /></label
+        ><label class="field"
+          ><span>备注</span
+          ><textarea v-model.trim="participantForm.remark" rows="3" />
+        </label>
+      </div>
+      <template #footer
+        ><button class="button secondary" @click="participantOpen = false">
+          取消</button
+        ><button
+          class="button primary"
+          :disabled="!participantForm.name"
+          @click="saveParticipant"
+        >
+          保存记录
+        </button></template
+      ></ModalDialog
+    >
+    <ModalDialog
+      :open="importOpen"
+      title="导入参与名单"
+      size="sm"
+      @close="importOpen = false"
+      ><div class="upload-zone">
+        <Upload /><strong>选择培训名单 Excel</strong>
+        <p>第一行默认作为主讲人记录</p>
+        <input type="file" accept=".xlsx,.xls" @change="pickImport" />
+      </div>
+      <template #footer
+        ><button class="button secondary" @click="downloadTemplate">
+          <Download />下载模板</button
+        ><button
+          class="button primary"
+          :disabled="!importFile"
+          @click="importParticipants"
+        >
+          开始导入
+        </button></template
+      ></ModalDialog
+    >
+    <ConfirmDialog
+      :open="Boolean(deleteTarget)"
+      title="归档培训"
+      :message="`归档培训“${deleteTarget?.title || ''}”，该场次将不再出现在列表中。`"
+      confirm-label="确认归档"
+      @cancel="deleteTarget = null"
+      @confirm="archiveSession"
+    />
+    <ConfirmDialog
+      :open="Boolean(participantDeleteTarget)"
+      title="删除参与记录"
+      :message="`删除 ${participantDeleteTarget?.name || ''} 的培训记录。`"
+      confirm-label="删除记录"
+      danger
+      @cancel="participantDeleteTarget = null"
+      @confirm="deleteParticipant"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted, reactive, ref } from "vue";
+import { Download, Pencil, Plus, Search, Trash2, Upload } from "@lucide/vue";
+import PageHeader from "../../shared/ui/PageHeader.vue";
+import EmptyState from "../../shared/ui/EmptyState.vue";
+import ModalDialog from "../../shared/ui/ModalDialog.vue";
+import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import { del, get, post, put, downloadBlob } from "../../shared/api";
+import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useTerms } from "../../shared/composables/useTerms";
+const { run } = useAsyncTask();
+const { selectedTerm } = useTerms();
+const sessions = ref<any[]>([]);
+const participants = ref<any[]>([]);
+const selected = ref<any>(null);
+const sessionOpen = ref(false);
+const participantOpen = ref(false);
+const importOpen = ref(false);
+const importFile = ref<File | null>(null);
+const deleteTarget = ref<any>(null);
+const participantDeleteTarget = ref<any>(null);
+const today = localDate(new Date());
+const filters = reactive({
+  keyword: "",
+  from: selectedTerm.value?.startDate || `${new Date().getFullYear()}-01-01`,
+  to: today,
+});
+const sessionForm = reactive<any>({});
+const participantForm = reactive<any>({});
+onMounted(loadSessions);
+async function loadSessions() {
+  const p = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => v && p.set(k, v));
+  const value = await run(() => get<any[]>(`/api/trainings?${p}`));
+  if (value) {
+    sessions.value = value;
+    const next =
+      value.find((i) => i.id === selected.value?.id) || value[0] || null;
+    await select(next);
+  }
+}
+async function select(item: any) {
+  selected.value = item;
+  participants.value = item
+    ? await get(`/api/trainings/${item.id}/participants`)
+    : [];
+}
+function openSession(item?: any) {
+  Object.assign(
+    sessionForm,
+    item
+      ? { ...item }
+      : {
+          id: null,
+          title: "",
+          trainingDate: today,
+          startTime: "",
+          endTime: "",
+          location: "",
+          speaker: "",
+          description: "",
+        },
+  );
+  sessionOpen.value = true;
+}
+async function saveSession() {
+  const payload = {
+    ...sessionForm,
+    startTime: sessionForm.startTime || null,
+    endTime: sessionForm.endTime || null,
+  };
+  const result = sessionForm.id
+    ? await run(
+        () => put(`/api/trainings/${sessionForm.id}`, payload),
+        "培训已更新",
+      )
+    : await run(() => post("/api/trainings", payload), "培训已创建");
+  if (result) {
+    sessionOpen.value = false;
+    await loadSessions();
+  }
+}
+async function archiveSession() {
+  await run(() => del(`/api/trainings/${deleteTarget.value.id}`), "培训已归档");
+  deleteTarget.value = null;
+  selected.value = null;
+  await loadSessions();
+}
+function openParticipant(item?: any) {
+  Object.assign(
+    participantForm,
+    item
+      ? { ...item }
+      : {
+          id: null,
+          studentNo: "",
+          name: participants.value.length ? "" : selected.value?.speaker || "",
+          durationHours: defaultDuration(selected.value),
+          remark: "",
+        },
+  );
+  participantOpen.value = true;
+}
+async function saveParticipant() {
+  const path = `/api/trainings/${selected.value.id}/participants`;
+  const result = participantForm.id
+    ? await run(
+        () => put(`${path}/${participantForm.id}`, participantForm),
+        "参与记录已更新",
+      )
+    : await run(() => post(path, participantForm), "参与记录已添加");
+  if (result) {
+    participantOpen.value = false;
+    await loadSessions();
+  }
+}
+async function deleteParticipant() {
+  await run(
+    () =>
+      del(
+        `/api/trainings/${selected.value.id}/participants/${participantDeleteTarget.value.id}`,
+      ),
+    "参与记录已删除",
+  );
+  participantDeleteTarget.value = null;
+  await loadSessions();
+}
+function pickImport(e: Event) {
+  importFile.value = (e.target as HTMLInputElement).files?.[0] || null;
+}
+async function importParticipants() {
+  if (!importFile.value) return;
+  const body = new FormData();
+  body.append("file", importFile.value);
+  if (
+    await run(
+      () =>
+        post(`/api/trainings/${selected.value.id}/participants/import`, body),
+      "名单导入完成",
+    )
+  ) {
+    importOpen.value = false;
+    importFile.value = null;
+    await loadSessions();
+  }
+}
+async function downloadTemplate() {
+  downloadBlob(
+    await get(
+      `/api/trainings/${selected.value.id}/participants/import-template`,
+    ),
+    `培训名单导入模板_${selected.value.title}.xlsx`,
+  );
+}
+async function downloadSession() {
+  downloadBlob(
+    await get(`/api/trainings/${selected.value.id}/export`),
+    `培训名单_${selected.value.title}.xlsx`,
+  );
+}
+async function exportSummary() {
+  const p = new URLSearchParams(filters as any);
+  downloadBlob(
+    await get(`/api/trainings/export?${p}`),
+    `培训统计_${filters.from}_${filters.to}.xlsx`,
+  );
+}
+const hours = (v: any) =>
+  Number(v || 0)
+    .toFixed(2)
+    .replace(/\.00$/, "");
+const shortDate = (v: string) => v?.slice(5).replace("-", "/");
+const timeRange = (v: any) =>
+  v.startTime && v.endTime
+    ? `${v.startTime.slice(0, 5)}–${v.endTime.slice(0, 5)}`
+    : "未设置";
+const sessionMeta = (v: any) =>
+  [v.speaker, v.location, timeRange(v)].filter(Boolean).join(" · ");
+function defaultDuration(v: any) {
+  if (!v?.startTime || !v?.endTime) return 0;
+  const [sh, sm] = v.startTime.split(":").map(Number),
+    [eh, em] = v.endTime.split(":").map(Number);
+  return Math.max(0, Number(((eh * 60 + em - sh * 60 - sm) / 60).toFixed(2)));
+}
+function localDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+</script>

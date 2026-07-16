@@ -10,6 +10,8 @@
 - 成员管理、角色调整、批量启停和 Excel 导入
 - 培训场次、主讲人、参与名单、培训时长和 Excel 导入导出
 - 每周排班、Excel 批量导入、值班星期和值班时间段设置
+- 学期生命周期、结算预检、数据快照、封存与管理员重开
+- 排班全天/时段例外、临时增班、人员覆盖和直接调班
 - 维修事务、维修协议、免责协议、维修回收站和记录导出
 - 自定义 Excel 数据中心、操作日志、完整备份与恢复
 - 首次启动向导、响应式签到台和分角色后台
@@ -27,7 +29,7 @@
 
 - 桌面端：Electron 43
 - 前端：Vue 3、Vite 8、Lucide Icons
-- 后端：Spring Boot 4、Spring JDBC
+- 后端：Spring Boot 4、Spring JDBC，按领域分层的模块化单体
 - 数据库：SQLite，单文件存储
 - 运行时：随应用打包的 Eclipse Temurin JRE 21
 - 支持系统：Windows 10/11 x64
@@ -96,7 +98,7 @@ backend/        Spring Boot 后端、SQLite 迁移和集成测试
 database/       SQLite 结构说明和可读架构副本
 desktop/        Electron 主进程、预加载桥接和打包配置
 docs/           Excel 模板及项目补充文档
-frontend/       Vue 前端
+frontend/       Vue TypeScript 前端、业务页面和统一设计系统
 scripts/        构建、业务冒烟和浏览器界面测试
 ```
 

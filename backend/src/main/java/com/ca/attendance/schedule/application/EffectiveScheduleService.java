@@ -31,9 +31,7 @@ public class EffectiveScheduleService {
     }
 
     public EffectiveScheduleDay publicDay(LocalDate date) {
-        AcademicTerm term = terms.active()
-                .orElseThrow(() -> ApiException.conflict("当前没有活动学期"));
-        return resolve(term, date);
+        return terms.active().map(term -> resolve(term, date)).orElseGet(() -> emptyDay(date));
     }
 
     public EffectiveScheduleDay day(LocalDate date, Long termId) {
@@ -44,9 +42,7 @@ public class EffectiveScheduleService {
     }
 
     public List<EffectiveScheduleDay> publicWeek(LocalDate date) {
-        AcademicTerm term = terms.active()
-                .orElseThrow(() -> ApiException.conflict("当前没有活动学期"));
-        return week(term, date);
+        return terms.active().map(term -> week(term, date)).orElseGet(() -> emptyWeek(date));
     }
 
     public List<EffectiveScheduleDay> week(LocalDate date, Long termId) {
@@ -66,6 +62,20 @@ public class EffectiveScheduleService {
             }
         }
         return List.copyOf(result);
+    }
+
+    private List<EffectiveScheduleDay> emptyWeek(LocalDate date) {
+        LocalDate monday = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        List<EffectiveScheduleDay> result = new ArrayList<>();
+        for (int index = 0; index < 7; index++) {
+            result.add(emptyDay(monday.plusDays(index)));
+        }
+        return List.copyOf(result);
+    }
+
+    private EffectiveScheduleDay emptyDay(LocalDate date) {
+        int weekday = date.getDayOfWeek().getValue();
+        return new EffectiveScheduleDay(0, "未设置活动学期", date, weekday, weekdayName(weekday), false, List.of());
     }
 
     private EffectiveScheduleDay resolve(AcademicTerm term, LocalDate date) {

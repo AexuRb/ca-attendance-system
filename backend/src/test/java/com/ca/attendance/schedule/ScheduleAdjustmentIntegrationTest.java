@@ -193,6 +193,17 @@ class ScheduleAdjustmentIntegrationTest {
                 )));
     }
 
+    @Test
+    void publicScheduleReturnsEmptyCalendarWhenNoTermIsActive() {
+        jdbc.update("UPDATE academic_terms SET status = 'SEALED' WHERE id = ?", termId);
+
+        EffectiveScheduleDay day = effective.publicDay(MONDAY);
+
+        assertEquals(0, day.termId());
+        assertTrue(day.slots().isEmpty());
+        assertEquals(7, effective.publicWeek(MONDAY).size());
+    }
+
     private long insertSlot(long actorId) {
         long id = requiredId(jdbc.queryForObject("""
                 INSERT INTO duty_schedule_slots (

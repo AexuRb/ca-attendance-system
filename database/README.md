@@ -16,6 +16,8 @@ backend/src/main/resources/db/sqlite/V1__initial_schema.sql
 backend/src/main/resources/db/sqlite/V2__repair_recycle_bin.sql
 backend/src/main/resources/db/sqlite/V3__attendance_duty_period.sql
 backend/src/main/resources/db/sqlite/V4__public_submission_idempotency.sql
+backend/src/main/resources/db/sqlite/V5__minister_attendance_auto_approval.sql
+backend/src/main/resources/db/sqlite/V6__academic_terms_and_schedule_exceptions.sql
 ```
 
 本目录下的 `schema.sql` 是同一结构的便于审阅版本，不需要手动执行。
@@ -37,5 +39,6 @@ backend/src/main/resources/db/sqlite/V4__public_submission_idempotency.sql
 - 迁移整套系统前，应先关闭桌面应用，再复制完整应用根目录。
 - 应用运行期间不要直接复制 `attendance.db`，应使用后台的一键备份或完整迁移包。
 - 更新程序不会覆盖 `data/` 和 `backups/`。
-- 数据库当前结构版本为 4；旧数据库启动时会自动增加维修回收站、值班时段资格快照和公共签到幂等回执表。
+- 数据库当前结构版本为 6；旧数据库启动时会依次补齐维修回收站、值班资格快照、公共签到幂等、部长自动审核、学期结算和排班调整结构。
+- V6 会在检测到既有业务数据时创建“历史学期”并完成关联，不要求手动清库或迁移。
 - SQLite 文件未加密，请妥善保管数据库与备份文件。
