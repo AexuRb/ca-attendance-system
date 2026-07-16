@@ -69,23 +69,23 @@ public class DutyScheduleController {
 @RestController
 @RequestMapping("/api/public/schedules")
 class PublicDutyScheduleController {
-    private final DutyScheduleService schedules;
+    private final com.ca.attendance.schedule.application.EffectiveScheduleService effectiveSchedules;
 
-    PublicDutyScheduleController(DutyScheduleService schedules) {
-        this.schedules = schedules;
+    PublicDutyScheduleController(com.ca.attendance.schedule.application.EffectiveScheduleService effectiveSchedules) {
+        this.effectiveSchedules = effectiveSchedules;
     }
 
     @GetMapping("/today")
-    public List<DutyScheduleSlotItem> today(
+    public com.ca.attendance.schedule.domain.EffectiveScheduleDay today(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        return schedules.today(date == null ? LocalDate.now() : date);
+        return effectiveSchedules.publicDay(date == null ? LocalDate.now() : date);
     }
 
     @GetMapping("/week")
-    public List<DutyScheduleSlotItem> week(
+    public List<com.ca.attendance.schedule.domain.EffectiveScheduleDay> week(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        return schedules.week(date == null ? LocalDate.now() : date);
+        return effectiveSchedules.publicWeek(date == null ? LocalDate.now() : date);
     }
 }

@@ -7,6 +7,9 @@ import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.settings.DutyPeriodItem;
 import com.ca.attendance.settings.DutyPeriodService;
+import com.ca.attendance.term.application.TermWritePolicy;
+import com.ca.attendance.term.infrastructure.AcademicTermRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,7 @@ public class DutyScheduleService {
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
     private final DutyPeriodService dutyPeriods;
+    private final TermWritePolicy termPolicy;
 
     private final RowMapper<SlotRow> slotMapper = (rs, rowNum) -> new SlotRow(
             rs.getLong("id"),
@@ -48,16 +52,24 @@ public class DutyScheduleService {
             localDateTime(rs, "updated_at")
     );
 
-    public DutyScheduleService(JdbcTemplate jdbc, OperationLogService logs, DutyPeriodService dutyPeriods) {
+    @Autowired
+    public DutyScheduleService(JdbcTemplate jdbc, OperationLogService logs, DutyPeriodService dutyPeriods,
+                               TermWritePolicy termPolicy) {
         this.jdbc = jdbc;
         this.logs = logs;
         this.dutyPeriods = dutyPeriods;
+        this.termPolicy = termPolicy;
+    }
+
+    public DutyScheduleService(JdbcTemplate jdbc, OperationLogService logs, DutyPeriodService dutyPeriods) {
+        this(jdbc, logs, dutyPeriods, new TermWritePolicy(new AcademicTermRepository(jdbc)));
     }
 
     public List<DutyScheduleSlotItem> list() {
         AuthContext.current();
         return slots("""
                 WHERE s.status = 'ACTIVE'
+                  AND s.term_id = (SELECT id FROM academic_terms WHERE status = 'ACTIVE' LIMIT 1)
                 ORDER BY s.weekday, COALESCE(s.start_time, '00:00:00'), s.id
                 """, null);
     }
@@ -66,6 +78,7 @@ public class DutyScheduleService {
         LocalDate monday = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         return slots("""
                 WHERE s.status = 'ACTIVE'
+                  AND s.term_id = (SELECT id FROM academic_terms WHERE status = 'ACTIVE' LIMIT 1)
                   AND s.enabled = 1
                   AND s.weekday = ?
                 ORDER BY COALESCE(s.start_time, '00:00:00'), s.id
@@ -76,6 +89,7 @@ public class DutyScheduleService {
         LocalDate monday = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         return slots("""
                 WHERE s.status = 'ACTIVE'
+                  AND s.term_id = (SELECT id FROM academic_terms WHERE status = 'ACTIVE' LIMIT 1)
                   AND s.enabled = 1
                 ORDER BY s.weekday, COALESCE(s.start_time, '00:00:00'), s.id
                 """, monday);
@@ -84,14 +98,16 @@ public class DutyScheduleService {
     public DutyScheduleSlotItem create(SlotRequest request) {
         AuthUser current = AuthContext.current();
         requireManage(current);
+        long termId = termPolicy.requireScheduleWriteTerm(null, current.role()).id();
         SlotValues values = slotValues(request, null);
         Long id = jdbc.queryForObject("""
                 INSERT INTO duty_schedule_slots (
-                  weekday, start_time, end_time, title, location, note, enabled, created_by, updated_by
+                  term_id, weekday, start_time, end_time, title, location, note, enabled, created_by, updated_by
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """, Long.class,
+                termId,
                 values.weekday(),
                 toSqlTime(values.startTime()),
                 toSqlTime(values.endTime()),
@@ -113,6 +129,7 @@ public class DutyScheduleService {
         AuthUser current = AuthContext.current();
         requireManage(current);
         DutyScheduleSlotItem before = find(id).orElseThrow(() -> ApiException.notFound("排班不存在"));
+        termPolicy.requireScheduleWriteTerm(termId(id), current.role());
         SlotValues values = slotValues(request, before);
         jdbc.update("""
                 UPDATE duty_schedule_slots
@@ -140,6 +157,7 @@ public class DutyScheduleService {
         AuthUser current = AuthContext.current();
         requireManage(current);
         DutyScheduleSlotItem before = find(id).orElseThrow(() -> ApiException.notFound("排班不存在"));
+        termPolicy.requireScheduleWriteTerm(termId(id), current.role());
         jdbc.update("""
                 UPDATE duty_schedule_slots
                 SET status = 'ARCHIVED', updated_by = ?, updated_at = datetime('now', 'localtime')
@@ -153,6 +171,15 @@ public class DutyScheduleService {
                 WHERE s.id = ?
                 ORDER BY s.weekday, COALESCE(s.start_time, '00:00:00'), s.id
                 """, null, id).stream().findFirst();
+    }
+
+    private long termId(long slotId) {
+        List<Long> ids = jdbc.query("SELECT term_id FROM duty_schedule_slots WHERE id = ?",
+                (rs, rowNum) -> rs.getLong(1), slotId);
+        if (ids.isEmpty() || ids.getFirst() <= 0) {
+            throw ApiException.conflict("排班尚未归属学期");
+        }
+        return ids.getFirst();
     }
 
     private List<DutyScheduleSlotItem> slots(String whereSql, LocalDate weekStart, Object... args) {

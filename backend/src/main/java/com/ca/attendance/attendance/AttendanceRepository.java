@@ -136,14 +136,21 @@ public class AttendanceRepository {
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
                               boolean isDutyDay, boolean withinDutyPeriod, Timestamp checkInTime, String checkInStatus,
                               String effectiveStatus) {
+        return insertCheckIn(null, userId, studentNo, name, dutyDate, weekday, isDutyDay, withinDutyPeriod,
+                checkInTime, checkInStatus, effectiveStatus);
+    }
+
+    public long insertCheckIn(Long termId, long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
+                              boolean isDutyDay, boolean withinDutyPeriod, Timestamp checkInTime, String checkInStatus,
+                              String effectiveStatus) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
-                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
+                  term_id, user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
                   check_in_time, check_in_status, check_out_status, effective_status, source
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
                 RETURNING id
-                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, isDutyDay,
+                """, Long.class, termId, userId, studentNo, name, databaseDate(dutyDate), weekday, isDutyDay,
                 withinDutyPeriod, checkInTime, checkInStatus, effectiveStatus);
         return id == null ? 0 : id;
     }
@@ -151,15 +158,22 @@ public class AttendanceRepository {
     public long insertManual(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
                              Timestamp checkInTime, Timestamp checkOutTime, String checkInStatus,
                              String checkOutStatus, String reason, long operatorId) {
+        return insertManual(null, userId, studentNo, name, dutyDate, weekday, checkInTime, checkOutTime,
+                checkInStatus, checkOutStatus, reason, operatorId);
+    }
+
+    public long insertManual(Long termId, long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
+                             Timestamp checkInTime, Timestamp checkOutTime, String checkInStatus,
+                             String checkOutStatus, String reason, long operatorId) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
-                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
+                  term_id, user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
                   check_in_time, check_out_time, check_in_status, check_out_status, effective_status,
                   source, manual_reason, created_by, updated_by
                 )
-                VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
                 RETURNING id
-                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, checkInTime, checkOutTime,
+                """, Long.class, termId, userId, studentNo, name, databaseDate(dutyDate), weekday, checkInTime, checkOutTime,
                 checkInStatus, checkOutStatus, reason, operatorId, operatorId);
         return id == null ? 0 : id;
     }
@@ -201,14 +215,29 @@ public class AttendanceRepository {
     public void manualUpdate(long id, LocalDate dutyDate, int dutyWeekday, boolean dutyDay,
                              boolean withinDutyPeriod, Timestamp checkInTime, Timestamp checkOutTime,
                              String checkInStatus, String checkOutStatus, String reason, long operatorId) {
+        manualUpdate(id, null, dutyDate, dutyWeekday, dutyDay, withinDutyPeriod, checkInTime, checkOutTime,
+                checkInStatus, checkOutStatus, reason, operatorId);
+    }
+
+    public void manualUpdate(long id, Long termId, LocalDate dutyDate, int dutyWeekday, boolean dutyDay,
+                             boolean withinDutyPeriod, Timestamp checkInTime, Timestamp checkOutTime,
+                             String checkInStatus, String checkOutStatus, String reason, long operatorId) {
         jdbc.update("""
                     UPDATE attendance_records
-                    SET duty_date = ?, duty_weekday = ?, is_duty_day = ?, within_duty_period = ?,
+                    SET term_id = COALESCE(?, term_id), duty_date = ?, duty_weekday = ?, is_duty_day = ?, within_duty_period = ?,
                         check_in_time = ?, check_out_time = ?, check_in_status = ?, check_out_status = ?,
                         source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ?
-                """, databaseDate(dutyDate), dutyWeekday, dutyDay, withinDutyPeriod,
+                """, termId, databaseDate(dutyDate), dutyWeekday, dutyDay, withinDutyPeriod,
                 checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, operatorId, id);
+    }
+
+    public Long termId(long recordId) {
+        return jdbc.query("SELECT term_id FROM attendance_records WHERE id = ?",
+                (rs, rowNum) -> {
+                    long value = rs.getLong(1);
+                    return rs.wasNull() ? null : value;
+                }, recordId).stream().findFirst().orElse(null);
     }
 
     public void delete(long id) {

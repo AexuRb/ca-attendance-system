@@ -11,6 +11,8 @@ import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
+import com.ca.attendance.term.application.TermWritePolicy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,10 +34,12 @@ public class AttendanceService {
     private final OperationLogService logs;
     private final BackupService backups;
     private final PublicSubmissionRepository submissions;
+    private final TermWritePolicy termPolicy;
 
+    @Autowired
     public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays,
                              DutyPeriodService periods, OperationLogService logs, BackupService backups,
-                             PublicSubmissionRepository submissions) {
+                             PublicSubmissionRepository submissions, TermWritePolicy termPolicy) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
@@ -43,6 +47,13 @@ public class AttendanceService {
         this.logs = logs;
         this.backups = backups;
         this.submissions = submissions;
+        this.termPolicy = termPolicy;
+    }
+
+    public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays,
+                             DutyPeriodService periods, OperationLogService logs, BackupService backups,
+                             PublicSubmissionRepository submissions) {
+        this(users, records, weekdays, periods, logs, backups, submissions, null);
     }
 
     public PublicLookupResponse lookup(String studentNo) {
@@ -112,6 +123,7 @@ public class AttendanceService {
 
         LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
+        Long termId = termPolicy == null ? null : termPolicy.requirePublicAttendanceTerm(today).id();
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
         boolean withinDutyPeriod = periods.contains(now.toLocalTime());
@@ -122,18 +134,13 @@ public class AttendanceService {
 
         var open = records.findOpenToday(user.id(), today);
         if (open.isEmpty()) {
-            long id = records.insertCheckIn(
-                    user.id(),
-                    user.studentNo(),
-                    user.name(),
-                    today,
-                    weekday,
-                    dutyDay,
-                    withinDutyPeriod,
-                    Timestamp.valueOf(now),
-                    pendingOrAuto,
-                    "INCOMPLETE"
-            );
+            long id = termPolicy == null
+                    ? records.insertCheckIn(
+                            user.id(), user.studentNo(), user.name(), today, weekday, dutyDay, withinDutyPeriod,
+                            Timestamp.valueOf(now), pendingOrAuto, "INCOMPLETE")
+                    : records.insertCheckIn(
+                            termId, user.id(), user.studentNo(), user.name(), today, weekday, dutyDay,
+                            withinDutyPeriod, Timestamp.valueOf(now), pendingOrAuto, "INCOMPLETE");
             recompute(id);
             SubmitResponse response = new SubmitResponse(id, "CHECK_IN", user.studentNo(), user.name(), now, pendingOrAuto,
                     submissionMessage("签到", dutyDay, withinDutyPeriod));
@@ -209,6 +216,7 @@ public class AttendanceService {
             throw ApiException.forbidden("无权审核");
         }
         AttendanceRecord record = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        requireRecordWritable(id, current.role());
         if (current.role() == Role.MINISTER && current.id() == record.userId()) {
             throw ApiException.forbidden("部长不能审核自己的记录");
         }
@@ -306,10 +314,12 @@ public class AttendanceService {
             throw ApiException.badRequest("签退时间必须晚于签到时间");
         }
         AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        requireRecordWritable(id, current.role());
         if (current.role() == Role.MINISTER) {
             requireMinisterRecordAccess(before, request.checkInTime().toLocalDate());
         }
         LocalDate dutyDate = request.checkInTime().toLocalDate();
+        Long targetTermId = termPolicy == null ? null : termPolicy.requireBusinessWriteTerm(dutyDate, current.role()).id();
         int dutyWeekday = dutyDate.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(dutyWeekday);
         boolean withinDutyPeriod = periods.contains(request.checkInTime().toLocalTime());
@@ -324,19 +334,19 @@ public class AttendanceService {
         } else {
             checkOutStatus = normalizeReviewStatus(request.checkOutStatus(), "签退审核状态");
         }
-        records.manualUpdate(
-                id,
-                dutyDate,
-                dutyWeekday,
-                dutyDay,
-                withinDutyPeriod,
-                Timestamp.valueOf(request.checkInTime()),
-                request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
-                checkInStatus,
-                checkOutStatus,
-                request.reason().trim(),
-                current.id()
-        );
+        if (termPolicy == null) {
+            records.manualUpdate(
+                    id, dutyDate, dutyWeekday, dutyDay, withinDutyPeriod,
+                    Timestamp.valueOf(request.checkInTime()),
+                    request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
+                    checkInStatus, checkOutStatus, request.reason().trim(), current.id());
+        } else {
+            records.manualUpdate(
+                    id, targetTermId, dutyDate, dutyWeekday, dutyDay, withinDutyPeriod,
+                    Timestamp.valueOf(request.checkInTime()),
+                    request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
+                    checkInStatus, checkOutStatus, request.reason().trim(), current.id());
+        }
         recompute(id);
         AttendanceRecord after = records.findById(id).orElseThrow();
         logs.log("MANUAL_UPDATE_ATTENDANCE", "attendance_records", id, before, after, request.reason());
@@ -364,6 +374,7 @@ public class AttendanceService {
         UserSummary user = users.findActiveByStudentNo(request.studentNo().trim())
                 .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
         LocalDate dutyDate = request.checkInTime().toLocalDate();
+        Long termId = termPolicy == null ? null : termPolicy.requireBusinessWriteTerm(dutyDate, current.role()).id();
         int weekday = dutyDate.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
         if (!dutyDay) {
@@ -373,19 +384,17 @@ public class AttendanceService {
         String checkOutStatus = request.checkOutTime() == null
                 ? ReviewStatus.NOT_SUBMITTED.name()
                 : ReviewStatus.AUTO_APPROVED.name();
-        long id = records.insertManual(
-                user.id(),
-                user.studentNo(),
-                user.name(),
-                dutyDate,
-                weekday,
-                Timestamp.valueOf(request.checkInTime()),
-                request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
-                ReviewStatus.AUTO_APPROVED.name(),
-                checkOutStatus,
-                request.reason().trim(),
-                current.id()
-        );
+        long id = termPolicy == null
+                ? records.insertManual(
+                        user.id(), user.studentNo(), user.name(), dutyDate, weekday,
+                        Timestamp.valueOf(request.checkInTime()),
+                        request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
+                        ReviewStatus.AUTO_APPROVED.name(), checkOutStatus, request.reason().trim(), current.id())
+                : records.insertManual(
+                        termId, user.id(), user.studentNo(), user.name(), dutyDate, weekday,
+                        Timestamp.valueOf(request.checkInTime()),
+                        request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
+                        ReviewStatus.AUTO_APPROVED.name(), checkOutStatus, request.reason().trim(), current.id());
         recompute(id);
         AttendanceRecord created = records.findById(id).orElseThrow();
         logs.log("MANUAL_CREATE_ATTENDANCE", "attendance_records", id, null, created, request.reason());
@@ -401,6 +410,7 @@ public class AttendanceService {
             throw ApiException.badRequest("删除签到记录必须填写原因");
         }
         AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
+        requireRecordWritable(id, current.role());
         if (current.role() == Role.MINISTER) {
             requireMinisterRecordAccess(before, before.dutyDate());
         }
@@ -423,6 +433,17 @@ public class AttendanceService {
         if (targetRole == Role.PRESIDENT || targetRole == Role.ADMIN) {
             throw ApiException.forbidden("部长不能修改或删除会长或管理员的签到记录");
         }
+    }
+
+    private void requireRecordWritable(long recordId, Role role) {
+        if (termPolicy == null) {
+            return;
+        }
+        Long termId = records.termId(recordId);
+        if (termId == null) {
+            throw ApiException.conflict("签到记录尚未归属学期");
+        }
+        termPolicy.requireScheduleWriteTerm(termId, role);
     }
 
     private String normalizeReviewStatus(String status, String fieldName) {

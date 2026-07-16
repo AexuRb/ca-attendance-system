@@ -6,6 +6,8 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
+import com.ca.attendance.term.application.TermWritePolicy;
+import com.ca.attendance.term.infrastructure.AcademicTermRepository;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -19,6 +21,7 @@ import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -157,10 +160,19 @@ public class RepairCaseService {
             localDateTime(rs, "deleted_at")
     );
 
-    public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs, BackupService backups) {
+    private final TermWritePolicy termPolicy;
+
+    @Autowired
+    public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs, BackupService backups,
+                             TermWritePolicy termPolicy) {
         this.jdbc = jdbc;
         this.logs = logs;
         this.backups = backups;
+        this.termPolicy = termPolicy;
+    }
+
+    public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs, BackupService backups) {
+        this(jdbc, logs, backups, new TermWritePolicy(new AcademicTermRepository(jdbc)));
     }
 
     public List<RepairCaseItem> list(String keyword, String status, LocalDate from, LocalDate to) {
@@ -219,18 +231,20 @@ public class RepairCaseService {
         AuthUser current = AuthContext.current();
         requireManager(current);
         RepairValues values = repairValues(request, null, current);
+        long termId = termPolicy.requireBusinessWriteTerm(values.receivedAt().toLocalDate(), current.role()).id();
         String caseNo = nextCaseNo();
         Long id = jdbc.queryForObject("""
                 INSERT INTO repair_cases (
-                  case_no, agreement_type, owner_name, owner_phone, owner_org, device_type,
+                  term_id, case_no, agreement_type, owner_name, owner_phone, owner_org, device_type,
                   device_brand, device_model, device_serial, accessories, fault_description,
                   service_description, data_backup_confirmed, risk_acknowledged, privacy_acknowledged,
                   status, received_at, completed_at, handler_user_id, handler_name_snapshot,
                   remark, created_by, updated_by
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """, Long.class,
+                termId,
                 caseNo,
                 values.agreementType(),
                 values.ownerName(),
@@ -264,10 +278,12 @@ public class RepairCaseService {
         AuthUser current = AuthContext.current();
         requireManager(current);
         RepairCaseItem before = findCase(id).orElseThrow(() -> ApiException.notFound("维修事务不存在"));
+        requireCaseWritable(id, current.role());
         RepairValues values = repairValues(request, before, current);
+        long termId = termPolicy.requireBusinessWriteTerm(values.receivedAt().toLocalDate(), current.role()).id();
         jdbc.update("""
                 UPDATE repair_cases
-                SET agreement_type = ?, owner_name = ?, owner_phone = ?, owner_org = ?,
+                SET term_id = ?, agreement_type = ?, owner_name = ?, owner_phone = ?, owner_org = ?,
                     device_type = ?, device_brand = ?, device_model = ?, device_serial = ?,
                     accessories = ?, fault_description = ?, service_description = ?,
                     data_backup_confirmed = ?, risk_acknowledged = ?, privacy_acknowledged = ?,
@@ -275,6 +291,7 @@ public class RepairCaseService {
                     handler_name_snapshot = ?, remark = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """,
+                termId,
                 values.agreementType(),
                 values.ownerName(),
                 values.ownerPhone(),
@@ -341,6 +358,7 @@ public class RepairCaseService {
         AuthUser current = AuthContext.current();
         requireRepairDeleter(current);
         RepairCaseItem before = findCase(id).orElseThrow(() -> ApiException.notFound("维修事务不存在"));
+        requireCaseWritable(id, current.role());
         jdbc.update("""
                 UPDATE repair_cases
                 SET deleted_at = datetime('now', 'localtime'), deleted_by = ?,
@@ -357,6 +375,7 @@ public class RepairCaseService {
         AuthUser current = AuthContext.current();
         requireAdmin(current);
         RepairCaseItem before = findDeletedCase(id).orElseThrow(() -> ApiException.notFound("回收站中不存在该维修事务"));
+        requireCaseWritable(id, current.role());
         jdbc.update("""
                 UPDATE repair_cases
                 SET deleted_at = NULL, deleted_by = NULL,
@@ -373,6 +392,7 @@ public class RepairCaseService {
         AuthUser current = AuthContext.current();
         requireAdmin(current);
         RepairCaseItem before = findDeletedCase(id).orElseThrow(() -> ApiException.notFound("回收站中不存在该维修事务"));
+        requireCaseWritable(id, current.role());
         if (confirmedCaseNo == null || !before.caseNo().equals(confirmedCaseNo.trim())) {
             throw ApiException.badRequest("维修编号不匹配，未执行永久删除");
         }
@@ -946,6 +966,15 @@ public class RepairCaseService {
         if (!current.role().atLeastManager()) {
             throw ApiException.forbidden("只有部长、会长或管理员可以管理维修事务");
         }
+    }
+
+    private void requireCaseWritable(long caseId, Role role) {
+        List<Long> termIds = jdbc.query("SELECT term_id FROM repair_cases WHERE id = ?",
+                (rs, rowNum) -> rs.getLong(1), caseId);
+        if (termIds.isEmpty() || termIds.getFirst() <= 0) {
+            throw ApiException.conflict("维修事务尚未归属学期");
+        }
+        termPolicy.requireScheduleWriteTerm(termIds.getFirst(), role);
     }
 
     private void requireRepairExporter(AuthUser current) {

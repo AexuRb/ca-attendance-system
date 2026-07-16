@@ -90,6 +90,11 @@ class SQLiteDatabaseIntegrationTest {
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
                 VALUES ('20240001', '测试成员', 'test-hash', 'MEMBER', 'ACTIVE', 0)
                 """);
+        jdbc.update("""
+                INSERT INTO academic_terms (
+                  term_code, term_name, start_date, end_date, status, created_by, updated_by
+                ) VALUES ('integration-current', '集成测试学期', ?, ?, 'ACTIVE', ?, ?)
+                """, LocalDate.now().minusYears(1), LocalDate.now().plusYears(1), adminId, adminId);
         AuthContext.set(new AuthUser(adminId, "admin", "管理员", Role.ADMIN, Instant.now().plusSeconds(3600)));
     }
 
