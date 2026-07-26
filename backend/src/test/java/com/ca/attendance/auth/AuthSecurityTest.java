@@ -226,6 +226,45 @@ class AuthSecurityTest {
                 .hasMessageContaining("尝试次数过多");
     }
 
+    @Test
+    void remoteLoginContextIgnoresUntrustedForwardedAddress() {
+        RemoteAccessPolicy policy = new RemoteAccessPolicy(8081);
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+        request.setLocalPort(8081);
+        request.setRemoteAddr("127.0.0.1");
+        request.addHeader("X-Forwarded-For", "203.0.113.200");
+
+        AuthService.LoginContext context = policy.loginContext(request);
+
+        assertThat(context.remote()).isTrue();
+        assertThat(context.clientAddress()).isEqualTo("127.0.0.1");
+    }
+
+    @Test
+    void spoofedForwardedAddressesCannotBypassRemoteLoginLimit() {
+        RemoteAccessPolicy policy = new RemoteAccessPolicy(8081);
+        RemoteLoginAttemptGuard guard = new RemoteLoginAttemptGuard();
+
+        for (int attempt = 0; attempt < 5; attempt++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");
+            request.setLocalPort(8081);
+            request.setRemoteAddr("127.0.0.1");
+            request.addHeader("X-Forwarded-For", "203.0.113." + attempt);
+            AuthService.LoginContext context = policy.loginContext(request);
+            guard.requireAllowed("admin", context);
+            guard.recordFailure("admin", context);
+        }
+
+        MockHttpServletRequest nextRequest = new MockHttpServletRequest("POST", "/api/auth/login");
+        nextRequest.setLocalPort(8081);
+        nextRequest.setRemoteAddr("127.0.0.1");
+        nextRequest.addHeader("X-Forwarded-For", "198.51.100.99");
+
+        assertThatThrownBy(() -> guard.requireAllowed("admin", policy.loginContext(nextRequest)))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("尝试次数过多");
+    }
+
     private MockHttpServletRequest request(String path, String token) {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
         request.setRequestURI(path);

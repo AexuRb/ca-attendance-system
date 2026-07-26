@@ -626,6 +626,20 @@ class SQLiteDatabaseIntegrationTest {
         assertFalse(result.restoredRows().containsKey("app_settings"));
     }
 
+    @Test
+    void failedBackupDoesNotLeavePartialArchive() throws Exception {
+        BackupService backups = backupService();
+        jdbc.execute("DROP TABLE app_settings");
+
+        assertThrows(RuntimeException.class, backups::create);
+
+        Path backupDirectory = new StoragePaths(tempDirectory.toString()).backupDirectory();
+        assertTrue(Files.isDirectory(backupDirectory));
+        try (var files = Files.list(backupDirectory)) {
+            assertEquals(0, files.count());
+        }
+    }
+
     private long requiredId(Long id) {
         assertNotNull(id);
         return id;

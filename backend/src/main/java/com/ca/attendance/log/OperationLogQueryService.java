@@ -8,6 +8,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.sql.ResultSet;
@@ -79,6 +80,7 @@ public class OperationLogQueryService {
         return new LogPage(items, total == null ? 0 : total, safePage, safePageSize);
     }
 
+    @Transactional
     public ClearResult clear() {
         if (!AuthContext.current().role().canViewOperationLogs()) {
             throw ApiException.forbidden("只有管理员可以清空操作日志");

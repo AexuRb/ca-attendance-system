@@ -16,10 +16,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -215,15 +217,18 @@ public class BackupService {
         return createBackup("LOCAL_SYSTEM", "本机系统", reason);
     }
 
-    private BackupItem createBackup(String operatorStudentNo, String operatorName, String reason) {
+    private synchronized BackupItem createBackup(String operatorStudentNo, String operatorName, String reason) {
+        Path temporary = null;
         try {
             Path dir = backupDir();
             Files.createDirectories(dir);
             Path target = newBackupPath(dir);
             String filename = target.getFileName().toString();
+            temporary = target.resolveSibling(filename + ".tmp");
+            Path output = temporary;
 
             transactionTemplate.executeWithoutResult(status -> {
-                try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(target), StandardCharsets.UTF_8)) {
+                try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(output), StandardCharsets.UTF_8)) {
                     writeJson(zip, "metadata.json", metadata(operatorStudentNo, operatorName, reason));
                     for (TableExport table : TABLES) {
                         writeJson(zip, table.name() + ".json", jdbc.queryForList(table.sql()));
@@ -239,9 +244,33 @@ public class BackupService {
                     throw ApiException.badRequest("生成备份失败");
                 }
             });
+            publishBackup(temporary, target);
             return toItem(target);
+        } catch (RuntimeException ex) {
+            deleteTemporary(temporary);
+            throw ex;
         } catch (IOException ex) {
+            deleteTemporary(temporary);
             throw ApiException.badRequest("生成备份失败");
+        }
+    }
+
+    private void publishBackup(Path temporary, Path target) throws IOException {
+        try {
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException ex) {
+            Files.move(temporary, target);
+        }
+    }
+
+    private void deleteTemporary(Path temporary) {
+        if (temporary == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(temporary);
+        } catch (IOException ignored) {
+            // Temporary files are never listed as restorable backups.
         }
     }
 

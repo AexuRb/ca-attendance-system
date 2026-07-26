@@ -29,7 +29,7 @@ public class RemoteAccessPolicy {
         boolean remote = isRemote(request);
         return new AuthService.LoginContext(
                 remote,
-                remote ? clientAddress(request) : "127.0.0.1",
+                remote ? remoteClientAddress(request) : "127.0.0.1",
                 limited(request.getHeader("User-Agent"))
         );
     }
@@ -43,15 +43,8 @@ public class RemoteAccessPolicy {
         );
     }
 
-    private String clientAddress(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            String[] addresses = forwardedFor.split(",");
-            String lastAddress = addresses[addresses.length - 1].trim();
-            if (!lastAddress.isBlank()) {
-                return limited(lastAddress);
-            }
-        }
+    private String remoteClientAddress(HttpServletRequest request) {
+        // The tunnel terminates locally, so client-supplied forwarding headers are not trusted.
         return limited(request.getRemoteAddr());
     }
 

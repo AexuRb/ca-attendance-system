@@ -11,7 +11,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.lang.reflect.Method;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -49,5 +51,12 @@ class OperationLogQueryServiceTest {
         assertThat(result.safetyBackup()).isEqualTo(backup);
         verify(backups).create();
         verify(jdbc).update("DELETE FROM operation_logs");
+    }
+
+    @Test
+    void clearHasTransactionBoundary() throws Exception {
+        Method clear = OperationLogQueryService.class.getMethod("clear");
+
+        assertThat(clear.isAnnotationPresent(Transactional.class)).isTrue();
     }
 }

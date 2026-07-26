@@ -197,6 +197,7 @@ public class AttendanceService {
         return records.openRecords(from, to);
     }
 
+    @Transactional
     public void review(long id, String part, String action, String reason) {
         AuthUser current = AuthContext.current();
         if (!current.role().atLeastManager()) {
@@ -227,6 +228,7 @@ public class AttendanceService {
         logs.log("REVIEW_ATTENDANCE", "attendance_records", id, record, after, reviewReason(normalizedPart, status, reason));
     }
 
+    @Transactional
     public BulkReviewResult bulkReview(BulkReviewRequest request) {
         if (!AuthContext.current().role().atLeastManager()) {
             throw ApiException.forbidden("无权审核");
@@ -285,6 +287,7 @@ public class AttendanceService {
         return records.search(from, to, "", "").stream().filter(r -> r.userId() == userId).toList();
     }
 
+    @Transactional
     public AttendanceRecord manualUpdate(long id, ManualUpdateRequest request) {
         AuthUser current = AuthContext.current();
         if (!current.role().atLeastManager()) {
@@ -329,6 +332,7 @@ public class AttendanceService {
         return after;
     }
 
+    @Transactional
     public AttendanceRecord manualCreate(ManualCreateRequest request) {
         AuthUser current = AuthContext.current();
         if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
