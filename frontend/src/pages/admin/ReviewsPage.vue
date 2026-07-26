@@ -121,6 +121,15 @@ import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import { get, post } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { notify } from "../../shared/composables/useToast";
+import { buildBulkApprovalRequest } from "../../features/attendance/reviewBulkApproval";
+
+interface BulkReviewResult {
+  reviewed: number;
+  skipped: number;
+  errors: string[];
+}
+
 const records = ref<any[]>([]);
 const { busy, run } = useAsyncTask();
 const rejectTarget = ref<any>(null);
@@ -139,14 +148,21 @@ async function review(id: number, part: string, action: string, reason = "") {
   await load();
 }
 async function bulkApprove() {
-  await run(
-    () =>
-      post("/api/attendance/reviews/bulk", {
-        ids: records.value.map((i) => i.id),
-        part: "BOTH",
-      }),
-    "待审核记录已处理",
+  const result = await run(() =>
+    post<BulkReviewResult>(
+      "/api/attendance/reviews/bulk",
+      buildBulkApprovalRequest(records.value),
+    ),
   );
+  if (!result) return;
+  if (result.errors.length) {
+    notify(
+      `已通过 ${result.reviewed} 项，${result.skipped} 条未处理`,
+      "warning",
+    );
+  } else {
+    notify(`已通过 ${result.reviewed} 项审核`, "success");
+  }
   await load();
 }
 function openReject(record: any) {

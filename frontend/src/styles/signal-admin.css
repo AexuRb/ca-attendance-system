@@ -96,6 +96,42 @@
   padding: 0 24px;
 }
 
+.refined-admin-layout .topbar-credit-button {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #c9e2ed;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #f5fbfe;
+  color: var(--signal-blue-deep);
+  font-size: 11px;
+  font-weight: 700;
+  transition:
+    transform 0.32s var(--signal-ease),
+    border-color 0.22s,
+    background 0.22s,
+    box-shadow 0.32s var(--signal-ease);
+}
+
+.refined-admin-layout .topbar-credit-button:hover {
+  transform: translateY(-1px);
+  border-color: #9bcbdc;
+  background: white;
+  box-shadow: 0 7px 18px rgba(8, 103, 134, 0.1);
+}
+
+.refined-admin-layout .topbar-credit-button:active {
+  transform: scale(0.97);
+}
+
+.refined-admin-layout .topbar-credit-button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.8;
+}
+
 .refined-admin-layout .admin-content {
   min-height: calc(100dvh - 56px);
   padding: 28px clamp(20px, 3vw, 42px) 52px;
@@ -377,6 +413,17 @@
   .refined-admin-layout .refined-topbar {
     min-height: 58px;
     padding: 0 13px;
+  }
+
+  .refined-admin-layout .topbar-credit-button {
+    width: 34px;
+    min-height: 34px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .refined-admin-layout .topbar-credit-button span {
+    display: none;
   }
 
   .refined-admin-layout .admin-content {

@@ -20,7 +20,6 @@
       :aria-hidden="!sidebarInteractive"
       :inert="sidebarInteractive ? undefined : true"
       @collapse="collapseSidebar"
-      @credits="creditsOpen = true"
       @logout="signOut"
       @navigate="navOpen = false"
     />
@@ -41,6 +40,7 @@
         :clock="clock"
         @open-navigation="navOpen = true"
         @expand-sidebar="expandSidebar"
+        @open-credits="creditsOpen = true"
       />
       <main class="admin-content">
         <RouterView v-slot="{ Component, route: activeRoute }">

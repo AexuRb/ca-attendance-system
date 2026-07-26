@@ -50,7 +50,7 @@
           v-if="state.access.kioskAvailable"
           class="auth-back"
           to="/"
-          ><ArrowLeft aria-hidden="true" />签到台</RouterLink
+          ><ArrowLeft aria-hidden="true" /><span>返回签到台</span></RouterLink
         >
       </div>
       <p v-if="error" class="form-error" role="alert">{{ error }}</p>

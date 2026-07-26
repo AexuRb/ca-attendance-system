@@ -29,10 +29,6 @@
     </nav>
 
     <div class="section-sidebar-foot">
-      <button type="button" class="sidebar-credit" @click="$emit('credits')">
-        <HeartHandshake aria-hidden="true" />
-        <span>鸣谢</span>
-      </button>
       <div class="section-user">
         <span class="avatar">{{ user.name.slice(0, 1) }}</span>
         <div>
@@ -55,12 +51,7 @@
 
 <script setup lang="ts">
 import { RouterLink } from "vue-router";
-import {
-  ChevronRight,
-  HeartHandshake,
-  LogOut,
-  PanelLeftClose,
-} from "@lucide/vue";
+import { ChevronRight, LogOut, PanelLeftClose } from "@lucide/vue";
 import type { AdminNavSection } from "../../app/adminNavigation";
 import type { UserSession } from "../../shared/types";
 
@@ -72,7 +63,6 @@ defineProps<{
 
 defineEmits<{
   collapse: [];
-  credits: [];
   logout: [];
   navigate: [];
 }>();

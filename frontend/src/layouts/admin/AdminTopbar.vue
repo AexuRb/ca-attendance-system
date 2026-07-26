@@ -29,6 +29,16 @@
     </div>
 
     <div class="topbar-tools">
+      <button
+        type="button"
+        class="topbar-credit-button"
+        title="查看鸣谢"
+        aria-label="查看鸣谢"
+        @click="$emit('openCredits')"
+      >
+        <HeartHandshake aria-hidden="true" />
+        <span>鸣谢</span>
+      </button>
       <ServiceStatus :online="true" compact />
       <span class="local-clock">{{ clock }}</span>
     </div>
@@ -36,7 +46,12 @@
 </template>
 
 <script setup lang="ts">
-import { ChevronRight, Menu, PanelLeftOpen } from "@lucide/vue";
+import {
+  ChevronRight,
+  HeartHandshake,
+  Menu,
+  PanelLeftOpen,
+} from "@lucide/vue";
 import ServiceStatus from "../../shared/ui/ServiceStatus.vue";
 
 defineProps<{
@@ -49,5 +64,6 @@ defineProps<{
 defineEmits<{
   openNavigation: [];
   expandSidebar: [];
+  openCredits: [];
 }>();
 </script>

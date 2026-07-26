@@ -38,7 +38,7 @@
           ><label class="field"
             ><span>QQ</span><input v-model.trim="profile.qq" /></label
           ><label class="field"
-            ><span>专业</span><input v-model.trim="profile.major" /></label
+            ><span>学院</span><input v-model.trim="profile.major" /></label
           ><label class="field"
             ><span>年级</span><input v-model.trim="profile.grade"
           /></label>
