@@ -27,7 +27,6 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +40,11 @@ import java.util.zip.ZipOutputStream;
 public class BackupService {
     private static final DateTimeFormatter FILENAME_TIME = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
     private static final long MAX_RESTORE_BYTES = 50L * 1024 * 1024;
+    private static final int MAX_ZIP_ENTRIES = 16;
+    private static final long MAX_ENTRY_UNCOMPRESSED_BYTES = 16L * 1024 * 1024;
+    private static final long MAX_TOTAL_UNCOMPRESSED_BYTES = 64L * 1024 * 1024;
+    private static final int MAX_ROWS_PER_TABLE = 100_000;
+    private static final int MAX_TOTAL_ROWS = 250_000;
     private static final List<TableExport> TABLES = List.of(
             new TableExport("users", "SELECT * FROM users ORDER BY id"),
             new TableExport("training_sessions", "SELECT * FROM training_sessions ORDER BY training_date DESC, id DESC"),
@@ -312,7 +316,9 @@ public class BackupService {
         Map<String, Integer> restoredRows = new LinkedHashMap<>();
         jdbc.execute("PRAGMA defer_foreign_keys = ON");
         for (String table : CLEAR_TABLE_ORDER) {
-            jdbc.update("DELETE FROM " + table);
+            if (shouldClearTable(payload, table)) {
+                jdbc.update("DELETE FROM " + table);
+            }
         }
         for (String table : RESTORE_TABLE_ORDER) {
             if (shouldRestoreTable(payload, table)) {
@@ -337,23 +343,52 @@ public class BackupService {
             throw ApiException.badRequest("只能上传系统生成的 zip 备份文件");
         }
 
-        Map<String, byte[]> entries = new HashMap<>();
+        Map<String, byte[]> entries = new LinkedHashMap<>();
         try (ZipInputStream zip = new ZipInputStream(file.getInputStream(), StandardCharsets.UTF_8)) {
             ZipEntry entry;
+            int entryCount = 0;
+            long totalBytes = 0;
+            byte[] buffer = new byte[8192];
             while ((entry = zip.getNextEntry()) != null) {
+                if (++entryCount > MAX_ZIP_ENTRIES) {
+                    throw ApiException.badRequest("备份文件包含过多条目");
+                }
                 if (entry.isDirectory()) {
-                    continue;
+                    throw ApiException.badRequest("备份文件结构不正确");
                 }
                 String name = entry.getName();
-                if (name.contains("\\")) {
+                if (name == null || name.isBlank() || name.contains("\\") || name.contains("/")) {
                     throw ApiException.badRequest("备份文件结构不正确");
                 }
+                if (!isSupportedRestoreEntry(name)) {
+                    throw ApiException.badRequest("备份文件包含不支持的条目：" + name);
+                }
+                if (entries.containsKey(name)) {
+                    throw ApiException.badRequest("备份文件包含重复条目：" + name);
+                }
+                if (entry.getSize() > MAX_ENTRY_UNCOMPRESSED_BYTES) {
+                    throw ApiException.badRequest("备份文件中的 " + name + " 解压后过大");
+                }
+
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
-                zip.transferTo(out);
-                if (name.contains("/")) {
-                    throw ApiException.badRequest("备份文件结构不正确");
+                long entryBytes = 0;
+                int read;
+                while ((read = zip.read(buffer)) != -1) {
+                    if (read == 0) {
+                        continue;
+                    }
+                    entryBytes += read;
+                    totalBytes += read;
+                    if (entryBytes > MAX_ENTRY_UNCOMPRESSED_BYTES) {
+                        throw ApiException.badRequest("备份文件中的 " + name + " 解压后过大");
+                    }
+                    if (totalBytes > MAX_TOTAL_UNCOMPRESSED_BYTES) {
+                        throw ApiException.badRequest("备份文件解压后的总数据量过大");
+                    }
+                    out.write(buffer, 0, read);
                 }
                 entries.put(name, out.toByteArray());
+                zip.closeEntry();
             }
         } catch (ApiException ex) {
             throw ex;
@@ -366,6 +401,7 @@ public class BackupService {
         Set<String> tableNames = validateMetadata(metadata);
 
         Map<String, List<LinkedHashMap<String, Object>>> rows = new LinkedHashMap<>();
+        int totalRows = 0;
         for (String table : RESTORE_TABLE_ORDER) {
             byte[] tableBytes = entries.get(table + ".json");
             if (tableBytes == null) {
@@ -375,10 +411,27 @@ public class BackupService {
                 continue;
             }
             List<LinkedHashMap<String, Object>> tableRows = readRows(tableBytes, table);
+            if (tableRows.size() > MAX_ROWS_PER_TABLE) {
+                throw ApiException.badRequest(table + " 数据行数过多");
+            }
+            totalRows += tableRows.size();
+            if (totalRows > MAX_TOTAL_ROWS) {
+                throw ApiException.badRequest("备份文件包含的数据行数过多");
+            }
             validateRows(table, tableRows);
             rows.put(table, tableRows);
         }
         return new BackupPayload(metadata, rows);
+    }
+
+    private boolean isSupportedRestoreEntry(String name) {
+        if ("metadata.json".equals(name) || "README.txt".equals(name)) {
+            return true;
+        }
+        if (!name.endsWith(".json")) {
+            return false;
+        }
+        return RESTORE_TABLE_ORDER.contains(name.substring(0, name.length() - ".json".length()));
     }
 
     private void validateRequiredEntries(Map<String, byte[]> entries) {
@@ -466,6 +519,10 @@ public class BackupService {
 
     private boolean shouldRestoreTable(BackupPayload payload, String table) {
         return payload.rows().containsKey(table) || !OPTIONAL_RESTORE_TABLES.contains(table);
+    }
+
+    private boolean shouldClearTable(BackupPayload payload, String table) {
+        return !"app_settings".equals(table) || payload.rows().containsKey(table);
     }
 
     private Object restoreValue(String table, String column, Object value) {

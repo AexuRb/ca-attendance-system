@@ -65,7 +65,8 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable long id) {
-        users.delete(id);
+    public void delete(@PathVariable long id,
+                       @RequestBody(required = false) UserService.DeleteUserRequest request) {
+        users.delete(id, request == null ? null : request.reason());
     }
 }

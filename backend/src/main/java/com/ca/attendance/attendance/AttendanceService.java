@@ -369,6 +369,7 @@ public class AttendanceService {
         return created;
     }
 
+    @Transactional
     public void delete(long id, String reason) {
         AuthUser current = AuthContext.current();
         if (!current.role().atLeastManager()) {

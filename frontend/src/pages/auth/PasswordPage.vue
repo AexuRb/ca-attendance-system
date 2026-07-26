@@ -34,7 +34,11 @@
       /></label>
       <p v-if="error" class="form-error" role="alert">{{ error }}</p>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
-        <KeyRound />{{ busy ? "正在更新" : "更新密码" }}
+        <span>{{ busy ? "正在更新" : "更新密码" }}</span>
+        <span class="auth-submit-icon" aria-hidden="true">
+          <LoaderCircle v-if="busy" class="spin" />
+          <KeyRound v-else />
+        </span>
       </button>
     </form>
   </AuthLayout>
@@ -43,7 +47,7 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { KeyRound } from "@lucide/vue";
+import { KeyRound, LoaderCircle } from "@lucide/vue";
 import AuthLayout from "../../layouts/AuthLayout.vue";
 import { post, setToken } from "../../shared/api";
 import { useSession } from "../../app/session";

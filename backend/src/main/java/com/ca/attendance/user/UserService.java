@@ -16,9 +16,11 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -196,7 +198,8 @@ public class UserService {
                 request.reason() == null ? "重置密码" : request.reason());
     }
 
-    public void delete(long id) {
+    @Transactional
+    public void delete(long id, String reason) {
         AuthUser current = AuthContext.current();
         if (current.role() != Role.ADMIN) {
             throw ApiException.forbidden("只有管理员可以删除成员");
@@ -213,13 +216,20 @@ public class UserService {
         if (recordCount != null && recordCount > 0) {
             throw ApiException.badRequest("该成员已有值班记录，不能删除，请改为停用账号");
         }
+        if (reason == null || reason.isBlank()) {
+            throw ApiException.badRequest("删除成员必须填写原因");
+        }
         BackupService.BackupItem safetyBackup = backups.create();
+        int deleted = jdbc.update("DELETE FROM users WHERE id = ?", id);
+        if (deleted != 1) {
+            throw ApiException.notFound("用户不存在或已被删除");
+        }
         logs.log("DELETE_USER", "users", id, target, Map.of("deleted", true),
-                "删除成员；删除前自动备份：" + safetyBackup.filename());
-        jdbc.update("DELETE FROM users WHERE id = ?", id);
+                reason.trim() + "；删除前自动备份：" + safetyBackup.filename());
         tokens.revokeUser(id);
     }
 
+    @Transactional
     public BulkStatusResult bulkStatus(BulkStatusRequest request) {
         AuthUser current = AuthContext.current();
         requireManageUsers();
@@ -234,12 +244,11 @@ public class UserService {
             throw ApiException.badRequest("账号状态只能是 ACTIVE 或 DISABLED");
         }
 
-        int updated = 0;
         int unchanged = 0;
         int skipped = 0;
         List<String> issues = new ArrayList<>();
         Set<Long> seenIds = new LinkedHashSet<>();
-        BackupService.BackupItem safetyBackup = null;
+        List<UserSummary> changes = new ArrayList<>();
 
         for (Long id : targetIds) {
             if (id == null || !seenIds.add(id)) {
@@ -265,34 +274,48 @@ public class UserService {
                 unchanged++;
                 continue;
             }
-
-            if ("DISABLED".equals(targetStatus) && safetyBackup == null) {
-                safetyBackup = backups.create();
-            }
-            jdbc.update("""
-                    UPDATE users
-                    SET status = ?,
-                        disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, datetime('now', 'localtime')) ELSE NULL END,
-                        disabled_by = CASE WHEN ? = 'DISABLED' THEN ? ELSE NULL END,
-                        updated_by = ?, updated_at = datetime('now', 'localtime')
-                    WHERE id = ?
-                    """,
-                    targetStatus,
-                    targetStatus,
-                    targetStatus,
-                    current.id(),
-                    current.id(),
-                    id
-            );
-            tokens.revokeUser(id);
-            updated++;
+            changes.add(target);
         }
 
+        BackupService.BackupItem safetyBackup = "DISABLED".equals(targetStatus) && !changes.isEmpty()
+                ? backups.create()
+                : null;
+        List<Object[]> batchArgs = changes.stream()
+                .map(target -> new Object[]{
+                        targetStatus,
+                        targetStatus,
+                        targetStatus,
+                        current.id(),
+                        current.id(),
+                        target.id()
+                })
+                .toList();
+        int[] updateCounts = batchArgs.isEmpty()
+                ? new int[0]
+                : jdbc.batchUpdate("""
+                        UPDATE users
+                        SET status = ?,
+                            disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, datetime('now', 'localtime')) ELSE NULL END,
+                            disabled_by = CASE WHEN ? = 'DISABLED' THEN ? ELSE NULL END,
+                            updated_by = ?, updated_at = datetime('now', 'localtime')
+                        WHERE id = ?
+                        """, batchArgs);
+        if (updateCounts.length != changes.size()) {
+            throw ApiException.badRequest("批量修改账号状态时返回的更新数量不正确");
+        }
+        for (int count : updateCounts) {
+            if (count != 1 && count != Statement.SUCCESS_NO_INFO) {
+                throw ApiException.badRequest("批量修改账号状态时有成员未成功更新");
+            }
+        }
+
+        int updated = changes.size();
         BulkStatusResult result = new BulkStatusResult(updated, unchanged, skipped, issues, safetyBackup);
         logs.log("BULK_UPDATE_USER_STATUS", "users", null,
                 Map.of("ids", seenIds, "targetStatus", targetStatus),
                 result,
                 bulkStatusReason(request.reason(), safetyBackup));
+        changes.forEach(target -> tokens.revokeUser(target.id()));
         return result;
     }
 
@@ -577,6 +600,9 @@ public class UserService {
     }
 
     public record ResetPasswordRequest(String newPassword, String reason) {
+    }
+
+    public record DeleteUserRequest(String reason) {
     }
 
     public record BulkStatusRequest(List<Long> ids, String keyword, String role, String statusFilter, String grade, String status, String reason) {

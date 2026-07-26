@@ -42,6 +42,7 @@ import javax.sql.DataSource;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -55,6 +56,9 @@ import java.time.LocalTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -565,6 +569,63 @@ class SQLiteDatabaseIntegrationTest {
         assertEquals("ok", jdbc.queryForObject("PRAGMA integrity_check", String.class));
     }
 
+    @Test
+    void rejectsBackupEntryThatExpandsBeyondTheRestoreLimit() throws Exception {
+        ByteArrayOutputStream compressed = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(compressed, StandardCharsets.UTF_8)) {
+            zip.putNextEntry(new ZipEntry("metadata.json"));
+            byte[] block = new byte[8192];
+            int blocks = (16 * 1024 * 1024 / block.length) + 1;
+            for (int index = 0; index < blocks; index++) {
+                zip.write(block);
+            }
+            zip.closeEntry();
+        }
+
+        MockMultipartFile upload = new MockMultipartFile(
+                "file",
+                "backup_oversized.zip",
+                "application/zip",
+                compressed.toByteArray()
+        );
+        ApiException error = assertThrows(ApiException.class, () -> backupService().restore(upload));
+
+        assertTrue(error.getMessage().contains("解压后过大"));
+    }
+
+    @Test
+    void legacyBackupWithoutAppSettingsKeepsCurrentSettings() throws Exception {
+        BackupService backups = backupService();
+        jdbc.update("""
+                INSERT INTO app_settings (setting_key, setting_value, description)
+                VALUES ('legacy_restore_test', 'before-backup', '兼容性测试')
+                """);
+        BackupService.BackupItem backup = backups.create();
+        Path backupPath = new StoragePaths(tempDirectory.toString()).backupDirectory().resolve(backup.filename());
+
+        jdbc.update("""
+                UPDATE app_settings
+                SET setting_value = 'keep-current'
+                WHERE setting_key = 'legacy_restore_test'
+                """);
+        byte[] legacyBytes = withoutAppSettings(Files.readAllBytes(backupPath));
+        MockMultipartFile upload = new MockMultipartFile(
+                "file",
+                "backup_legacy.zip",
+                "application/zip",
+                legacyBytes
+        );
+
+        BackupService.RestoreResult result = backups.restore(upload);
+
+        assertEquals("keep-current", jdbc.queryForObject("""
+                SELECT setting_value
+                FROM app_settings
+                WHERE setting_key = 'legacy_restore_test'
+                """, String.class));
+        assertFalse(result.restoredRows().containsKey("app_settings"));
+    }
+
     private long requiredId(Long id) {
         assertNotNull(id);
         return id;
@@ -574,6 +635,33 @@ class SQLiteDatabaseIntegrationTest {
         StoragePaths storagePaths = new StoragePaths(tempDirectory.toString());
         TransactionTemplate transactions = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         return new BackupService(jdbc, objectMapper, transactions, new TokenService(12), storagePaths);
+    }
+
+    @SuppressWarnings("unchecked")
+    private byte[] withoutAppSettings(byte[] source) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
+             ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                if ("app_settings.json".equals(entry.getName())) {
+                    continue;
+                }
+                byte[] bytes = input.readAllBytes();
+                if ("metadata.json".equals(entry.getName())) {
+                    Map<String, Object> metadata = objectMapper.readValue(bytes, Map.class);
+                    List<Object> tables = (List<Object>) metadata.get("tables");
+                    metadata.put("tables", tables.stream()
+                            .filter(table -> !"app_settings".equals(String.valueOf(table)))
+                            .toList());
+                    bytes = objectMapper.writeValueAsBytes(metadata);
+                }
+                zip.putNextEntry(new ZipEntry(entry.getName()));
+                zip.write(bytes);
+                zip.closeEntry();
+            }
+        }
+        return output.toByteArray();
     }
 
     private MockMultipartFile scheduleImportFile(String filename, List<String[]> rows) throws Exception {

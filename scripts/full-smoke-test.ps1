@@ -19,6 +19,7 @@ $script:CreatedBackups = New-Object System.Collections.Generic.List[string]
 $script:TempFiles = New-Object System.Collections.Generic.List[string]
 $script:BaselinePath = $null
 $script:BaselineRestored = $false
+$script:InitialBackupNames = @()
 
 function Add-Result {
     param(
@@ -312,6 +313,10 @@ try {
     $health = Invoke-Json GET "/api/health" -Token $null
     Add-Result "健康检查" ($health | ConvertTo-Json -Compress)
 
+    $script:InitialBackupNames = @(
+        @(Invoke-Json GET "/api/maintenance/backups") |
+            ForEach-Object { [string]$_.filename }
+    )
     $baseline = Invoke-Json POST "/api/maintenance/backups"
     Remember-Backup $baseline
     $baselinePath = New-TempPath "baseline-backup.zip"
@@ -324,9 +329,11 @@ try {
     $memberNo = "9901$suffix"
     $ministerNo = "9902$suffix"
     $importNo = "9903$suffix"
+    $deleteNo = "9904$suffix"
     $memberName = "烟测成员$suffix"
     $ministerName = "烟测部长$suffix"
     $importName = "烟测导入$suffix"
+    $deleteName = "烟测删除$suffix"
 
     $member = Invoke-Json POST "/api/users" @{
         studentNo = $memberNo; name = $memberName; role = "MEMBER"; phone = "13000000000";
@@ -363,6 +370,15 @@ try {
     Assert-True ($bulk.updated -eq 1) "批量停用未更新"
     Invoke-Json PUT "/api/users/bulk-status" @{ ids = @($minister.id); status = "ACTIVE"; reason = "烟测启用" } | Out-Null
     Add-Result "成员查询/更新/重置/批量状态" "pageTotal=$($page.total)"
+
+    $deleteCandidate = Invoke-Json POST "/api/users" @{
+        studentNo = $deleteNo; name = $deleteName; role = "MEMBER"; phone = "13000000004";
+        major = "计算机协会测试"; grade = "2025级"; qq = "10004"
+    }
+    Invoke-Json DELETE "/api/users/$($deleteCandidate.id)" @{ reason = "烟测删除无业务记录成员" } | Out-Null
+    $deletedMemberSearch = @(Invoke-Json GET "/api/users?keyword=$deleteNo")
+    Assert-True ($deletedMemberSearch.Count -eq 0) "删除后的成员仍能被查询到"
+    Add-Result "成员删除与审计原因" "member=$($deleteCandidate.id)"
 
     $memberLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $memberNo; password = (Get-DefaultPassword $memberNo) } -Token $null
     Invoke-Json POST "/api/auth/change-password" @{ oldPassword = (Get-DefaultPassword $memberNo); newPassword = "Smoke$suffix" } -Token $memberLogin.token | Out-Null
@@ -636,14 +652,19 @@ try {
         Add-Result "日志清空/备份恢复/令牌重登" "restoredRows=$($restoreResult.totalRows)"
     }
 
-    foreach ($filename in @($script:CreatedBackups | Select-Object -Unique)) {
+    $testBackupNames = @(
+        @(Invoke-Json GET "/api/maintenance/backups") |
+            ForEach-Object { [string]$_.filename } |
+            Where-Object { $script:InitialBackupNames -notcontains $_ }
+    )
+    foreach ($filename in $testBackupNames) {
         try {
             Invoke-Json DELETE "/api/maintenance/backups/$filename" | Out-Null
         } catch {
             Write-Warning "删除烟测备份失败：$filename；$($_.Exception.Message)"
         }
     }
-    Add-Result "烟测备份清理" "count=$(@($script:CreatedBackups | Select-Object -Unique).Count)"
+    Add-Result "烟测备份清理" "count=$($testBackupNames.Count)"
 
     Write-Host ""
     Write-Host "FULL_SMOKE_TEST_OK steps=$($script:Results.Count)"

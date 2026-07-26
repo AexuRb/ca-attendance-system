@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal
 cd /d "%~dp0"
 
-if not defined APP_HOST set "APP_HOST=127.0.0.1"
+set "APP_HOST=127.0.0.1"
 if not defined APP_PORT set "APP_PORT=8080"
 if not defined APP_REMOTE_PORT set "APP_REMOTE_PORT=8081"
 if not defined APP_ROOT set "APP_ROOT=%~dp0"

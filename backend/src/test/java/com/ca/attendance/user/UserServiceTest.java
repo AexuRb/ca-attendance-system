@@ -60,6 +60,7 @@ class UserServiceTest {
 
         when(users.findSummaryById(2L)).thenReturn(Optional.of(target));
         when(backups.create()).thenReturn(backup);
+        when(jdbc.batchUpdate(anyString(), anyList())).thenReturn(new int[]{1});
 
         UserService.BulkStatusResult result = service.bulkStatus(new UserService.BulkStatusRequest(
                 List.of(2L), null, null, null, null, "DISABLED", "批量停用测试"
@@ -68,8 +69,7 @@ class UserServiceTest {
         assertThat(result.updated()).isEqualTo(1);
         assertThat(result.safetyBackup()).isEqualTo(backup);
         verify(backups).create();
-        verify(jdbc).update(contains("UPDATE users"), eq("DISABLED"), eq("DISABLED"), eq("DISABLED"),
-                eq(1L), eq(1L), eq(2L));
+        verify(jdbc).batchUpdate(contains("UPDATE users"), anyList());
         verify(tokens).revokeUser(2L);
     }
 

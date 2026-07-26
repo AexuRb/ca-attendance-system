@@ -234,7 +234,7 @@
     <ConfirmDialog
       :open="Boolean(deleteTarget)"
       title="删除成员"
-      :message="`将永久删除 ${deleteTarget?.name || ''} 的账号。已有业务记录时请改为停用。`"
+      :message="`将删除 ${deleteTarget?.name || ''} 的账号。系统会先自动备份，删除后只能通过整库备份恢复；已有业务记录时请改为停用。`"
       confirm-label="删除成员"
       danger
       require-reason

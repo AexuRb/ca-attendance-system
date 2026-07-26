@@ -1,6 +1,6 @@
 <template>
   <AuthLayout>
-    <form class="auth-form" @submit.prevent="submit">
+    <form class="auth-form auth-form--setup" @submit.prevent="submit">
       <div class="auth-heading">
         <p class="eyebrow">FIRST RUN</p>
         <h2>初始化本机</h2>
@@ -44,7 +44,11 @@
       /></label>
       <p v-if="error" class="form-error" role="alert">{{ error }}</p>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
-        <DatabaseZap />{{ busy ? "正在初始化" : "创建本地系统" }}
+        <span>{{ busy ? "正在初始化" : "创建本地系统" }}</span>
+        <span class="auth-submit-icon" aria-hidden="true">
+          <LoaderCircle v-if="busy" class="spin" />
+          <DatabaseZap v-else />
+        </span>
       </button>
     </form>
   </AuthLayout>
@@ -53,7 +57,7 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { DatabaseZap } from "@lucide/vue";
+import { DatabaseZap, LoaderCircle } from "@lucide/vue";
 import AuthLayout from "../../layouts/AuthLayout.vue";
 import { useSession } from "../../app/session";
 const { initialize } = useSession();
