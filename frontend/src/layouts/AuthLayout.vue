@@ -1,19 +1,28 @@
 <template>
-  <main class="auth-layout">
-    <div class="auth-brand-panel">
+  <main class="auth-layout auth-signal-layout">
+    <header class="auth-signal-header">
       <div class="auth-brand-lockup">
-        <img src="/brand/ca-logo-white.png" alt="计算机协会" />
+        <span class="auth-brand-mark">
+          <img src="/brand/ca-logo-white.png" alt="计算机协会会徽" />
+        </span>
         <div>
-          <span>COMPUTER ASSOCIATION</span><strong>本地管理系统</strong>
+          <strong>计算机协会</strong>
+          <span>值班管理系统</span>
         </div>
       </div>
-      <div class="auth-brand-message">
-        <p>LOCAL OPERATIONS</p>
-        <h1>把值班、事务和交接，留在一台可靠的电脑里。</h1>
-        <div class="auth-signal"><span></span>SQLite 本地数据 · 无需互联网</div>
+      <div class="auth-signal-context">
+        <i aria-hidden="true"></i>
+        <span>本机管理后台</span>
       </div>
-      <p class="auth-brand-foot">中国地质大学（北京）计算机协会</p>
-    </div>
-    <section class="auth-form-panel"><slot /></section>
+    </header>
+
+    <section class="auth-form-panel">
+      <div class="auth-form-shell"><slot /></div>
+    </section>
+
+    <footer class="auth-signal-footer">
+      <span>COMPUTER ASSOCIATION</span>
+      <span>SQLITE · OFFLINE</span>
+    </footer>
   </main>
 </template>

@@ -1,7 +1,8 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      title="培训"
+      eyebrow="WORK / TRAINING"
+      title="培训记录"
       description="记录培训场次、参与名单与计入值班的培训时长。"
       ><template #actions
         ><button class="button secondary" @click="exportSummary">
@@ -277,9 +278,7 @@ import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { del, get, post, put, downloadBlob } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { useTerms } from "../../shared/composables/useTerms";
 const { run } = useAsyncTask();
-const { selectedTerm } = useTerms();
 const sessions = ref<any[]>([]);
 const participants = ref<any[]>([]);
 const selected = ref<any>(null);
@@ -292,7 +291,7 @@ const participantDeleteTarget = ref<any>(null);
 const today = localDate(new Date());
 const filters = reactive({
   keyword: "",
-  from: selectedTerm.value?.startDate || `${new Date().getFullYear()}-01-01`,
+  from: `${new Date().getFullYear()}-01-01`,
   to: today,
 });
 const sessionForm = reactive<any>({});

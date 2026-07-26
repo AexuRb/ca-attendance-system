@@ -16,7 +16,7 @@ import java.sql.Statement;
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class DatabaseMigrator implements CommandLineRunner {
-    private static final int CURRENT_VERSION = 6;
+    private static final int CURRENT_VERSION = 7;
     private final DataSource dataSource;
 
     public DatabaseMigrator(DataSource dataSource) {
@@ -52,6 +52,10 @@ public class DatabaseMigrator implements CommandLineRunner {
             }
             if (version < 6) {
                 migrateToVersionSix(connection);
+                version = 6;
+            }
+            if (version < 7) {
+                migrateToVersionSeven(connection);
             }
             verifyIntegrity(connection);
         }
@@ -78,7 +82,11 @@ public class DatabaseMigrator implements CommandLineRunner {
     }
 
     private void migrateToVersionSix(Connection connection) throws SQLException {
-        migrate(connection, "db/sqlite/V6__academic_terms_and_schedule_exceptions.sql", 6);
+        migrate(connection, "db/sqlite/V6__reserved.sql", 6);
+    }
+
+    private void migrateToVersionSeven(Connection connection) throws SQLException {
+        migrate(connection, "db/sqlite/V7__remove_schedule_adjustments.sql", 7);
     }
 
     private void migrate(Connection connection, String resource, int version) throws SQLException {

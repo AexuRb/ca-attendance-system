@@ -17,6 +17,8 @@ $script:AdminToken = $null
 $script:Results = New-Object System.Collections.Generic.List[object]
 $script:CreatedBackups = New-Object System.Collections.Generic.List[string]
 $script:TempFiles = New-Object System.Collections.Generic.List[string]
+$script:BaselinePath = $null
+$script:BaselineRestored = $false
 
 function Add-Result {
     param(
@@ -315,6 +317,7 @@ try {
     $baselinePath = New-TempPath "baseline-backup.zip"
     Invoke-Download "/api/maintenance/backups/$($baseline.filename)" $baselinePath | Out-Null
     Assert-ZipBackup $baselinePath
+    $script:BaselinePath = $baselinePath
     Add-Result "基线备份" $baseline.filename
 
     $suffix = (Get-Date -Format "MMddHHmmss")
@@ -443,7 +446,7 @@ try {
         reason = "烟测手动修改"
     }
     Assert-True ($manualUpdated.id -eq $manual.id) "手动记录修改返回不匹配"
-    Invoke-Json DELETE "/api/attendance/$($manual.id)" | Out-Null
+    Invoke-Json DELETE "/api/attendance/$($manual.id)?reason=$([uri]::EscapeDataString('烟测删除手动记录'))" | Out-Null
     Add-Result "后台手动记录新增/修改/删除" "manual=$($manual.id)"
 
     Invoke-Json GET "/api/stats/dashboard" | Out-Null
@@ -517,6 +520,7 @@ try {
     Invoke-Json DELETE "/api/schedules/$($schedule.id)" | Out-Null
     Add-Result "排班创建/更新/公开今日周表/归档" "schedule=$($schedule.id)"
 
+    $repairDashboardBefore = Invoke-Json GET "/api/stats/dashboard?date=$today"
     $repair = Invoke-Json POST "/api/repairs" @{
         agreementType = "PERSONAL_DEVICE"; ownerName = "烟测送修$suffix"; ownerPhone = "13000000003";
         deviceType = "笔记本电脑"; deviceBrand = "ThinkPad"; deviceModel = "T14";
@@ -526,7 +530,9 @@ try {
         handlerName = $ministerName; remark = "烟测维修"
     }
     $repairDashboard = Invoke-Json GET "/api/stats/dashboard?date=$today"
-    Assert-True ([int]$repairDashboard.ongoingRepairCount -eq 1) "今日工作台未统计进行中的维修事务"
+    Assert-True (
+        [int]$repairDashboard.ongoingRepairCount -eq ([int]$repairDashboardBefore.ongoingRepairCount + 1)
+    ) "今日工作台未统计新建的进行中维修事务"
     Invoke-Json PUT "/api/repairs/$($repair.id)" @{
         agreementType = "PUBLIC_DEVICE"; ownerName = "烟测送修$suffix"; ownerPhone = "13000000003";
         deviceType = "台式机"; deviceBrand = "Lenovo"; deviceModel = "M";
@@ -620,6 +626,7 @@ try {
         Remember-Backup $clearResult.safetyBackup
         Assert-True ($clearResult.deleted -ge 0) "日志清理返回异常"
         $restoreResult = Invoke-Upload "/api/maintenance/backups/restore" $baselinePath
+        $script:BaselineRestored = $true
         Remember-Backup $restoreResult.safetyBackup
         Assert-True ($restoreResult.totalRows -gt 0) "恢复备份没有恢复任何行"
         $loginAfterRestore = Invoke-Json POST "/api/auth/login" @{ studentNo = $AdminStudentNo; password = $script:EffectiveAdminPassword } -Token $null
@@ -641,6 +648,21 @@ try {
     Write-Host ""
     Write-Host "FULL_SMOKE_TEST_OK steps=$($script:Results.Count)"
 } finally {
+    if (
+        -not $SkipRestore -and
+        -not $script:BaselineRestored -and
+        $script:BaselinePath -and
+        (Test-Path -LiteralPath $script:BaselinePath) -and
+        $script:AdminToken
+    ) {
+        try {
+            Invoke-Upload "/api/maintenance/backups/restore" $script:BaselinePath | Out-Null
+            $script:BaselineRestored = $true
+            Write-Warning "烟测中断，已自动恢复基线备份。"
+        } catch {
+            Write-Warning "烟测中断后恢复基线备份失败：$($_.Exception.Message)"
+        }
+    }
     foreach ($file in $script:TempFiles) {
         try {
             if (Test-Path -LiteralPath $file) {

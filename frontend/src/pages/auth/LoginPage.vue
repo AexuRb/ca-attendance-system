@@ -2,20 +2,9 @@
   <AuthLayout>
     <form class="auth-form" @submit.prevent="submit">
       <div class="auth-heading">
-        <p class="eyebrow">
-          {{
-            state.access.mode === "REMOTE_ADMIN"
-              ? "REMOTE ACCESS"
-              : "ADMIN ACCESS"
-          }}
-        </p>
         <h2>登录后台</h2>
-        <p>
-          {{
-            state.access.mode === "REMOTE_ADMIN"
-              ? "远程入口仅允许会长和管理员。"
-              : "使用协会账号进入本地管理后台。"
-          }}
+        <p v-if="state.access.mode === 'REMOTE_ADMIN'">
+          远程入口仅允许会长和管理员
         </p>
       </div>
       <label class="field">
@@ -51,20 +40,27 @@
           </button>
         </div>
       </label>
-      <label class="check-row"
-        ><input v-model="remember" type="checkbox" /><span
-          >记住账号和密码</span
-        ></label
-      >
+      <div class="auth-form-options">
+        <label class="check-row"
+          ><input v-model="remember" type="checkbox" /><span
+            >记住账号和密码</span
+          ></label
+        >
+        <RouterLink
+          v-if="state.access.kioskAvailable"
+          class="auth-back"
+          to="/"
+          ><ArrowLeft aria-hidden="true" />签到台</RouterLink
+        >
+      </div>
       <p v-if="error" class="form-error" role="alert">{{ error }}</p>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
-        <LoaderCircle v-if="busy" class="spin" /><LogIn v-else />{{
-          busy ? "正在验证" : "进入后台"
-        }}
+        <span>{{ busy ? "正在验证" : "进入后台" }}</span>
+        <span class="auth-submit-icon" aria-hidden="true">
+          <LoaderCircle v-if="busy" class="spin" />
+          <LogIn v-else />
+        </span>
       </button>
-      <RouterLink v-if="state.access.kioskAvailable" class="auth-back" to="/"
-        ><ArrowLeft />返回签到台</RouterLink
-      >
     </form>
   </AuthLayout>
 </template>

@@ -1,7 +1,8 @@
 <template>
   <div class="page-stack settings-page">
     <PageHeader
-      title="值班设置"
+      eyebrow="SYSTEM / SETTINGS"
+      title="系统设置"
       description="设置每周开放日和值班时间段，排班只能选用这里保存的时段。"
     />
     <section class="panel setting-section">
@@ -9,7 +10,7 @@
         <div>
           <p class="eyebrow">WEEKDAYS</p>
           <h2>值班星期</h2>
-          <span>未开放日期仍可测试签到，但不会计入正常值班。</span>
+          <span>未开放日期仍可签到签退，是否计入有效时长由审核结果决定。</span>
         </div>
         <button class="button primary small" @click="saveWeekdays">
           <Save />保存星期
@@ -33,7 +34,7 @@
         <div>
           <p class="eyebrow">DUTY PERIODS</p>
           <h2>值班时间段</h2>
-          <span>保存后签到台、固定排班与临时调整会同步使用。</span>
+          <span>保存后签到台与固定排班会同步使用。</span>
         </div>
         <button class="button secondary small" @click="addPeriod">
           <Plus />新增时段
@@ -87,15 +88,18 @@ import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import { get, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { normalizeDutyWeekdays } from "../../features/settings/dutyWeekdays";
 const { run } = useAsyncTask();
 const weekdays = ref<any[]>([]);
 const periods = ref<any[]>([]);
 const periodError = computed(() => validatePeriods(periods.value));
 onMounted(async () => {
-  [weekdays.value, periods.value] = await Promise.all([
+  const [weekdayRows, dutyPeriods] = await Promise.all([
     get("/api/settings/weekdays"),
     get("/api/settings/duty-periods"),
   ]);
+  weekdays.value = normalizeDutyWeekdays(weekdayRows as any[]);
+  periods.value = dutyPeriods as any[];
 });
 async function saveWeekdays() {
   await run(

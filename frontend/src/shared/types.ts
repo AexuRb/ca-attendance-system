@@ -17,17 +17,3 @@ export interface AccessContext {
   kioskAvailable: boolean;
   allowedRemoteRoles: Role[];
 }
-
-export interface AcademicTerm {
-  id: number;
-  code: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  status: "DRAFT" | "ACTIVE" | "SETTLING" | "SEALED";
-  legacy: boolean;
-  settlingStartedAt?: string;
-  sealedAt?: string;
-  reopenedAt?: string;
-  reopenReason?: string;
-}

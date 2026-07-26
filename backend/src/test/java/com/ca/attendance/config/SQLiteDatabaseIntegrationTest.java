@@ -90,11 +90,6 @@ class SQLiteDatabaseIntegrationTest {
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
                 VALUES ('20240001', '测试成员', 'test-hash', 'MEMBER', 'ACTIVE', 0)
                 """);
-        jdbc.update("""
-                INSERT INTO academic_terms (
-                  term_code, term_name, start_date, end_date, status, created_by, updated_by
-                ) VALUES ('integration-current', '集成测试学期', ?, ?, 'ACTIVE', ?, ?)
-                """, LocalDate.now().minusYears(1), LocalDate.now().plusYears(1), adminId, adminId);
         AuthContext.set(new AuthUser(adminId, "admin", "管理员", Role.ADMIN, Instant.now().plusSeconds(3600)));
     }
 
@@ -109,7 +104,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(6, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(7, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
@@ -130,14 +125,12 @@ class SQLiteDatabaseIntegrationTest {
                 FROM sqlite_master
                 WHERE type = 'table' AND name = 'public_attendance_submissions'
                 """, Integer.class));
-        assertEquals(1, jdbc.queryForObject("""
-                SELECT COUNT(*) FROM sqlite_master
-                WHERE type = 'table' AND name = 'academic_terms'
-                """, Integer.class));
-        assertEquals(3, jdbc.queryForObject("""
+        assertEquals(0, jdbc.queryForObject("""
                 SELECT COUNT(*) FROM sqlite_master
                 WHERE type = 'table' AND name IN (
-                  'term_settlements', 'duty_schedule_exceptions', 'duty_shift_reassignments'
+                  'duty_schedule_exceptions',
+                  'duty_schedule_exception_assignees',
+                  'duty_shift_reassignments'
                 )
                 """, Integer.class));
         String createdAt = jdbc.queryForObject("SELECT created_at FROM users WHERE id = ?", String.class, adminId);
@@ -221,17 +214,11 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(6, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(7, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(1, legacyJdbc.queryForObject(
                     "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
                     Integer.class
             ));
-            assertEquals("历史学期", legacyJdbc.queryForObject("""
-                    SELECT t.term_name
-                    FROM repair_cases r
-                    JOIN academic_terms t ON t.id = r.term_id
-                    WHERE r.case_no = 'JXWX-LEGACY-0001'
-                    """, String.class));
             assertEquals(2, legacyJdbc.queryForObject("""
                     SELECT COUNT(*)
                     FROM pragma_table_info('repair_cases')

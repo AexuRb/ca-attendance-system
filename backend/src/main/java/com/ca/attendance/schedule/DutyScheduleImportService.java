@@ -6,8 +6,6 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.settings.DutyPeriodService;
-import com.ca.attendance.term.application.TermWritePolicy;
-import com.ca.attendance.term.infrastructure.AcademicTermRepository;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -22,7 +20,6 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -58,23 +55,12 @@ public class DutyScheduleImportService {
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
     private final DutyPeriodService dutyPeriods;
-    private final TermWritePolicy termPolicy;
-
-    @Autowired
-    public DutyScheduleImportService(JdbcTemplate jdbc,
-                                     OperationLogService logs,
-                                     DutyPeriodService dutyPeriods,
-                                     TermWritePolicy termPolicy) {
-        this.jdbc = jdbc;
-        this.logs = logs;
-        this.dutyPeriods = dutyPeriods;
-        this.termPolicy = termPolicy;
-    }
-
     public DutyScheduleImportService(JdbcTemplate jdbc,
                                      OperationLogService logs,
                                      DutyPeriodService dutyPeriods) {
-        this(jdbc, logs, dutyPeriods, new TermWritePolicy(new AcademicTermRepository(jdbc)));
+        this.jdbc = jdbc;
+        this.logs = logs;
+        this.dutyPeriods = dutyPeriods;
     }
 
     public ExportFile exportTemplate() {
@@ -99,7 +85,6 @@ public class DutyScheduleImportService {
     public ImportResult importSchedules(MultipartFile file) {
         AuthUser current = AuthContext.current();
         requireManage(current);
-        long termId = termPolicy.requireScheduleWriteTerm(null, current.role()).id();
         ParsedImport parsed = parse(file);
         if (!parsed.issues().isEmpty()) {
             ImportIssue issue = parsed.issues().getFirst();
@@ -113,7 +98,7 @@ public class DutyScheduleImportService {
         int assignedMembers = 0;
         List<ImportedGroup> importedGroups = new ArrayList<>();
         for (ParsedGroup group : parsed.groups()) {
-            ReplaceOutcome outcome = replaceGroup(group, current.id(), termId);
+            ReplaceOutcome outcome = replaceGroup(group, current.id());
             if (outcome.created()) {
                 createdGroups++;
             } else {
@@ -288,26 +273,26 @@ public class DutyScheduleImportService {
         );
     }
 
-    private ReplaceOutcome replaceGroup(ParsedGroup group, long operatorId, long termId) {
+    private ReplaceOutcome replaceGroup(ParsedGroup group, long operatorId) {
         GroupKey key = group.key();
         List<Long> existingIds = jdbc.queryForList("""
                 SELECT id
                 FROM duty_schedule_slots
-                WHERE term_id = ? AND status = 'ACTIVE' AND weekday = ? AND start_time = ? AND end_time = ?
+                WHERE status = 'ACTIVE' AND weekday = ? AND start_time = ? AND end_time = ?
                 ORDER BY id
-                """, Long.class, termId, key.weekday(), databaseTime(key.startTime()), databaseTime(key.endTime()));
+                """, Long.class, key.weekday(), databaseTime(key.startTime()), databaseTime(key.endTime()));
         boolean created = existingIds.isEmpty();
         long slotId;
         int archivedDuplicates = 0;
         if (created) {
             Long inserted = jdbc.queryForObject("""
                     INSERT INTO duty_schedule_slots (
-                      term_id, weekday, start_time, end_time, title, location, note, enabled, status, created_by, updated_by
+                      weekday, start_time, end_time, title, location, note, enabled, status, created_by, updated_by
                     )
-                    VALUES (?, ?, ?, ?, '部长值班', NULL, NULL, 1, 'ACTIVE', ?, ?)
+                    VALUES (?, ?, ?, '部长值班', NULL, NULL, 1, 'ACTIVE', ?, ?)
                     RETURNING id
                     """, Long.class,
-                    termId, key.weekday(), databaseTime(key.startTime()), databaseTime(key.endTime()), operatorId, operatorId);
+                    key.weekday(), databaseTime(key.startTime()), databaseTime(key.endTime()), operatorId, operatorId);
             slotId = inserted == null ? 0 : inserted;
         } else {
             slotId = existingIds.getFirst();

@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Service
@@ -27,7 +28,21 @@ public class DutyWeekdayService {
     }
 
     public List<Map<String, Object>> list() {
-        return jdbc.queryForList("SELECT weekday, weekday_name, enabled FROM duty_weekday_settings ORDER BY weekday");
+        return jdbc.queryForList("SELECT weekday, weekday_name, enabled FROM duty_weekday_settings ORDER BY weekday")
+                .stream()
+                .map(this::normalizeRow)
+                .toList();
+    }
+
+    private Map<String, Object> normalizeRow(Map<String, Object> row) {
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put("weekday", ((Number) row.get("weekday")).intValue());
+        normalized.put("weekday_name", row.get("weekday_name"));
+        Object enabled = row.get("enabled");
+        normalized.put("enabled", enabled instanceof Boolean booleanValue
+                ? booleanValue
+                : enabled instanceof Number numberValue && numberValue.intValue() == 1);
+        return normalized;
     }
 
     public void update(List<Integer> enabledWeekdays) {

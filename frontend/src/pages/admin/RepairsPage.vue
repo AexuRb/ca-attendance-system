@@ -1,6 +1,7 @@
 <template>
   <div class="page-stack">
     <PageHeader
+      eyebrow="WORK / REPAIRS"
       title="维修事务"
       description="维护维修受理过程、协议与交付状态。"
       ><template #actions
@@ -20,7 +21,7 @@
       ><label
         ><span>状态</span
         ><select v-model="filters.status">
-          <option value="">全部状态</option>
+          <option value="ALL">全部状态</option>
           <option value="REPAIRING">进行中</option>
           <option value="COMPLETED">已完成</option>
           <option value="CANCELED">已取消</option>
@@ -237,10 +238,8 @@ import AgreementDialog from "../../shared/ui/AgreementDialog.vue";
 import { api, del, get, post, put, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { useTerms } from "../../shared/composables/useTerms";
 const { user } = useSession();
 const { run } = useAsyncTask();
-const { selectedTerm } = useTerms();
 const cases = ref<any[]>([]);
 const editorOpen = ref(false);
 const deleteTarget = ref<any>(null);
@@ -252,8 +251,8 @@ const agreementError = ref("");
 const now = new Date();
 const filters = reactive({
   keyword: "",
-  status: "",
-  from: selectedTerm.value?.startDate || `${now.getFullYear()}-01-01`,
+  status: "ALL",
+  from: `${now.getFullYear()}-01-01`,
   to: localDate(now),
 });
 const form = reactive<any>({});

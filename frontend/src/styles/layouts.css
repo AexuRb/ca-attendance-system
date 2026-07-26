@@ -181,24 +181,6 @@
   align-items: center;
   gap: 10px;
 }
-.term-select {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--blue-700);
-}
-.term-select svg {
-  width: 16px;
-}
-.term-select select {
-  width: auto;
-  min-width: 150px;
-  min-height: 34px;
-  border: 0;
-  background: transparent;
-  color: var(--ink-800);
-  font-size: 11px;
-}
 .local-clock {
   padding-left: 10px;
   border-left: 1px solid var(--line);
@@ -420,17 +402,11 @@
   align-items: center;
   gap: 12px;
 }
-.kiosk-mark {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid var(--blue-700);
-  border-radius: 50%;
-  background: var(--blue-700);
-  color: white;
-  font: 700 11px var(--font-mono);
-  box-shadow: 0 0 0 5px var(--blue-100);
+.kiosk-brand-mark {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
 }
 .kiosk-brand strong,
 .kiosk-brand div > span {
@@ -872,9 +848,6 @@
   font-size: 12px;
   font-style: normal;
 }
-.slot-people span.reassigned {
-  color: var(--amber-700);
-}
 .week-strip {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1000,13 +973,8 @@
   .topbar-context {
     margin-right: auto;
   }
-  .local-clock,
-  .term-select svg {
+  .local-clock {
     display: none;
-  }
-  .term-select select {
-    min-width: 105px;
-    max-width: 130px;
   }
   .nav-scrim {
     position: fixed;

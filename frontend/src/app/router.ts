@@ -88,12 +88,6 @@ const routes: RouteRecordRaw[] = [
         meta: { roles: ["MINISTER", "PRESIDENT", "ADMIN"] },
       },
       {
-        path: "terms",
-        name: "terms",
-        component: () => import("../pages/admin/TermsPage.vue"),
-        meta: { roles: ["PRESIDENT", "ADMIN"] },
-      },
-      {
         path: "data",
         name: "data",
         component: () => import("../pages/admin/DataPage.vue"),

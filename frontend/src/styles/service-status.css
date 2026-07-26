@@ -1,0 +1,38 @@
+.service-status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-600);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.service-status i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--red-700);
+}
+
+.service-status[data-online="true"] i {
+  background: #36a283;
+  animation: service-pulse 2.6s var(--ease-out) infinite;
+}
+
+.service-status.compact {
+  font-size: 9px;
+}
+
+@keyframes service-pulse {
+  55% {
+    box-shadow: 0 0 0 7px rgba(54, 162, 131, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-status i {
+    animation: none !important;
+  }
+}

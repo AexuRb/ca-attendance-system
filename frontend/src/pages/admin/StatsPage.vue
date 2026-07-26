@@ -1,6 +1,9 @@
 <template>
   <div class="page-stack">
-    <PageHeader title="值班统计" description="签到与培训时长按成员合并统计。"
+    <PageHeader
+      eyebrow="DUTY / ANALYTICS"
+      title="值班统计"
+      description="签到与培训时长按成员合并统计。"
       ><template #actions
         ><button class="button primary" @click="exportExcel">
           <Download />导出 Excel
@@ -91,17 +94,15 @@ import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import { downloadBlob, get } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { useTerms } from "../../shared/composables/useTerms";
-const { selectedTerm } = useTerms();
 const { busy, run } = useAsyncTask();
 const rows = ref<any[]>([]);
 const from = ref("");
 const to = ref("");
-const preset = ref("term");
+const preset = ref("year");
 const presets = [
   { id: "week", label: "本周" },
   { id: "month", label: "本月" },
-  { id: "term", label: "本学期" },
+  { id: "year", label: "本年" },
 ];
 const totalHours = computed(() =>
   number(rows.value.reduce((s, i) => s + Number(i.totalHours || 0), 0)),
@@ -116,7 +117,7 @@ const totalTraining = computed(() =>
   rows.value.reduce((s, i) => s + Number(i.trainingCount || 0), 0),
 );
 onMounted(() => {
-  applyPreset("term");
+  applyPreset("year");
 });
 function applyPreset(id: string) {
   preset.value = id;
@@ -125,10 +126,8 @@ function applyPreset(id: string) {
   const start = new Date(now);
   if (id === "week") start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
   else if (id === "month") start.setDate(1);
-  if (id === "term" && selectedTerm.value) {
-    from.value = selectedTerm.value.startDate;
-    to.value = selectedTerm.value.endDate;
-  } else from.value = date(start);
+  else if (id === "year") start.setMonth(0, 1);
+  from.value = date(start);
   load();
 }
 async function load() {

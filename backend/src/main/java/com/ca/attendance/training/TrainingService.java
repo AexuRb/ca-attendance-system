@@ -5,13 +5,10 @@ import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
-import com.ca.attendance.term.application.TermWritePolicy;
-import com.ca.attendance.term.infrastructure.AcademicTermRepository;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -40,7 +37,6 @@ public class TrainingService {
 
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
-    private final TermWritePolicy termPolicy;
 
     private final RowMapper<TrainingSessionItem> sessionMapper = (rs, rowNum) -> new TrainingSessionItem(
             rs.getLong("id"),
@@ -79,15 +75,9 @@ public class TrainingService {
             localDateTime(rs, "updated_at")
     );
 
-    @Autowired
-    public TrainingService(JdbcTemplate jdbc, OperationLogService logs, TermWritePolicy termPolicy) {
+    public TrainingService(JdbcTemplate jdbc, OperationLogService logs) {
         this.jdbc = jdbc;
         this.logs = logs;
-        this.termPolicy = termPolicy;
-    }
-
-    public TrainingService(JdbcTemplate jdbc, OperationLogService logs) {
-        this(jdbc, logs, new TermWritePolicy(new AcademicTermRepository(jdbc)));
     }
 
     public List<TrainingSessionItem> list(String keyword, String status, LocalDate from, LocalDate to) {
@@ -126,16 +116,14 @@ public class TrainingService {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
         SessionValues values = sessionValues(request, null);
-        long termId = termPolicy.requireBusinessWriteTerm(values.trainingDate(), current.role()).id();
         Long id = jdbc.queryForObject("""
                 INSERT INTO training_sessions (
-                  term_id, title, training_date, start_time, end_time, location, speaker, description, status,
+                  title, training_date, start_time, end_time, location, speaker, description, status,
                   created_by, updated_by
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 RETURNING id
                 """, Long.class,
-                termId,
                 values.title(),
                 databaseDate(values.trainingDate()),
                 databaseTime(values.startTime()),
@@ -156,16 +144,13 @@ public class TrainingService {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
         TrainingSessionItem before = findSession(id).orElseThrow(() -> ApiException.notFound("培训不存在"));
-        requireSessionWritable(id, current.role());
         SessionValues values = sessionValues(request, before);
-        long termId = termPolicy.requireBusinessWriteTerm(values.trainingDate(), current.role()).id();
         jdbc.update("""
                 UPDATE training_sessions
-                SET term_id = ?, title = ?, training_date = ?, start_time = ?, end_time = ?, location = ?,
+                SET title = ?, training_date = ?, start_time = ?, end_time = ?, location = ?,
                     speaker = ?, description = ?, status = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """,
-                termId,
                 values.title(),
                 databaseDate(values.trainingDate()),
                 databaseTime(values.startTime()),
@@ -186,7 +171,6 @@ public class TrainingService {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
         TrainingSessionItem before = findSession(id).orElseThrow(() -> ApiException.notFound("培训不存在"));
-        requireSessionWritable(id, current.role());
         jdbc.update("""
                 UPDATE training_sessions
                 SET status = 'ARCHIVED', updated_by = ?, updated_at = datetime('now', 'localtime')
@@ -204,7 +188,6 @@ public class TrainingService {
     public TrainingParticipantItem addParticipant(long sessionId, ParticipantRequest request) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
-        requireSessionWritable(sessionId, current.role());
         ensureSessionExists(sessionId);
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
         ParticipantValues values = participantValues(request, "MANUAL", defaultDurationHours(session), null);
@@ -221,7 +204,6 @@ public class TrainingService {
     public TrainingParticipantItem updateParticipant(long sessionId, long participantId, ParticipantRequest request) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
-        requireSessionWritable(sessionId, current.role());
         TrainingParticipantItem before = findParticipant(sessionId, participantId)
                 .orElseThrow(() -> ApiException.notFound("参与记录不存在"));
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
@@ -254,7 +236,6 @@ public class TrainingService {
     public void deleteParticipant(long sessionId, long participantId) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
-        requireSessionWritable(sessionId, current.role());
         TrainingParticipantItem before = findParticipant(sessionId, participantId)
                 .orElseThrow(() -> ApiException.notFound("参与记录不存在"));
         jdbc.update("DELETE FROM training_participants WHERE id = ? AND session_id = ?", participantId, sessionId);
@@ -264,7 +245,6 @@ public class TrainingService {
     public ImportResult importParticipants(long sessionId, MultipartFile file) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
-        requireSessionWritable(sessionId, current.role());
         ensureSessionExists(sessionId);
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择 Excel 文件");
@@ -878,15 +858,6 @@ public class TrainingService {
         if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
             throw ApiException.forbidden("只有会长或管理员可以管理培训");
         }
-    }
-
-    private void requireSessionWritable(long sessionId, Role role) {
-        List<Long> termIds = jdbc.query("SELECT term_id FROM training_sessions WHERE id = ?",
-                (rs, rowNum) -> rs.getLong(1), sessionId);
-        if (termIds.isEmpty() || termIds.getFirst() <= 0) {
-            throw ApiException.conflict("培训尚未归属学期");
-        }
-        termPolicy.requireScheduleWriteTerm(termIds.getFirst(), role);
     }
 
     private void requireViewTrainings(AuthUser current) {

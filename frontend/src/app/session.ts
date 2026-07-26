@@ -89,6 +89,8 @@ async function refreshUser() {
 async function logout() {
   try {
     await post("/api/auth/logout");
+  } catch {
+    // A stale server-side token must not block local sign-out.
   } finally {
     setToken("");
     state.user = null;

@@ -1,5 +1,7 @@
 package com.ca.attendance.schedule;
 
+import com.ca.attendance.schedule.application.FixedScheduleCalendarService;
+import com.ca.attendance.schedule.domain.FixedScheduleDay;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -69,23 +71,23 @@ public class DutyScheduleController {
 @RestController
 @RequestMapping("/api/public/schedules")
 class PublicDutyScheduleController {
-    private final com.ca.attendance.schedule.application.EffectiveScheduleService effectiveSchedules;
+    private final FixedScheduleCalendarService calendar;
 
-    PublicDutyScheduleController(com.ca.attendance.schedule.application.EffectiveScheduleService effectiveSchedules) {
-        this.effectiveSchedules = effectiveSchedules;
+    PublicDutyScheduleController(FixedScheduleCalendarService calendar) {
+        this.calendar = calendar;
     }
 
     @GetMapping("/today")
-    public com.ca.attendance.schedule.domain.EffectiveScheduleDay today(
+    public FixedScheduleDay today(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        return effectiveSchedules.publicDay(date == null ? LocalDate.now() : date);
+        return calendar.day(date == null ? LocalDate.now() : date);
     }
 
     @GetMapping("/week")
-    public List<com.ca.attendance.schedule.domain.EffectiveScheduleDay> week(
+    public List<FixedScheduleDay> week(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
-        return effectiveSchedules.publicWeek(date == null ? LocalDate.now() : date);
+        return calendar.week(date == null ? LocalDate.now() : date);
     }
 }

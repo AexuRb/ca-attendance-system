@@ -1,6 +1,10 @@
 <template>
   <div class="page-stack">
-    <PageHeader title="签到审核" description="逐项确认成员提交的签到与签退。">
+    <PageHeader
+      eyebrow="TODAY / REVIEW"
+      title="签到审核"
+      description="逐项确认成员提交的签到与签退。"
+    >
       <template #actions
         ><button
           class="button secondary"
@@ -31,35 +35,41 @@
           <strong>{{ record.name }}</strong
           ><span>{{ record.studentNo }} · {{ record.dutyDate }}</span>
         </div>
-        <div class="review-event">
-          <span>签到 {{ clock(record.checkInTime) }}</span
-          ><StatusBadge
-            :label="reviewLabel(record.checkInStatus)"
-            :tone="record.checkInStatus === 'PENDING' ? 'warning' : 'success'"
-          />
-        </div>
-        <div class="review-event">
-          <span>签退 {{ clock(record.checkOutTime) }}</span
-          ><StatusBadge
-            :label="reviewLabel(record.checkOutStatus)"
-            :tone="record.checkOutStatus === 'PENDING' ? 'warning' : 'neutral'"
-          />
+        <div class="review-events">
+          <div class="review-event">
+            <span>签到 {{ clock(record.checkInTime) }}</span
+            ><StatusBadge
+              :label="reviewLabel(record.checkInStatus)"
+              :tone="
+                record.checkInStatus === 'PENDING' ? 'warning' : 'success'
+              "
+            />
+          </div>
+          <div class="review-event">
+            <span>签退 {{ clock(record.checkOutTime) }}</span
+            ><StatusBadge
+              :label="reviewLabel(record.checkOutStatus)"
+              :tone="
+                record.checkOutStatus === 'PENDING' ? 'warning' : 'neutral'
+              "
+            />
+          </div>
         </div>
         <div class="row-actions">
           <button
             v-if="record.checkInStatus === 'PENDING'"
-            class="button small primary"
+            class="button small primary review-approve-check-in"
             @click="review(record.id, 'CHECK_IN', 'APPROVE')"
           >
             通过签到</button
           ><button
             v-if="record.checkOutStatus === 'PENDING'"
-            class="button small primary"
+            class="button small primary review-approve-check-out"
             @click="review(record.id, 'CHECK_OUT', 'APPROVE')"
           >
             通过签退</button
           ><button
-            class="icon-button danger-ghost"
+            class="icon-button danger-ghost review-reject"
             title="驳回"
             aria-label="驳回"
             @click="openReject(record)"

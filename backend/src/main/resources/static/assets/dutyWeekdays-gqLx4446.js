@@ -1,0 +1,1 @@
+function e(e){return e.map(e=>({weekday:Number(e.weekday),weekday_name:e.weekday_name||e.weekdayName||`星期${Number(e.weekday)}`,enabled:e.enabled===!0||e.enabled===1||e.enabled===`1`||e.enabled===`true`}))}export{e as t};

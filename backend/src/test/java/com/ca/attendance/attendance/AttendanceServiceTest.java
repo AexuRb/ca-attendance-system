@@ -204,7 +204,7 @@ class AttendanceServiceTest {
     }
 
     @Test
-    void submitOutsideConfiguredPeriodKeepsRecordButMarksItIneligible() {
+    void submitOutsideConfiguredPeriodKeepsRecordForReview() {
         AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
         UserSummary member = user(1L, "20230001", "张三", Role.MEMBER);
         when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
@@ -220,7 +220,21 @@ class AttendanceServiceTest {
         AttendanceService.SubmitResponse response = service.submitPublic("20230001");
 
         assertThat(response.message()).contains("不在值班时段");
-        verify(records).updateEffective(40L, 0, 0, "INVALID");
+        verify(records).updateEffective(40L, 0, 0, "INCOMPLETE");
+    }
+
+    @Test
+    void approvedRecordOutsideConfiguredPeriodStillCountsDuration() {
+        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        LocalDateTime checkIn = LocalDateTime.of(2026, 7, 16, 20, 0);
+        LocalDateTime checkOut = checkIn.plusHours(2);
+        when(records.findById(41L)).thenReturn(Optional.of(
+                record(41L, checkIn, checkOut, "APPROVED", "APPROVED", false)
+        ));
+
+        service.recompute(41L);
+
+        verify(records).updateEffective(41L, 120, 2, "VALID");
     }
 
     @Test

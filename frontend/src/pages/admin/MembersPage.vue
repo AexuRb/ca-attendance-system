@@ -1,6 +1,10 @@
 <template>
   <div class="page-stack">
-    <PageHeader title="成员" description="管理在册账号、角色与启用状态。">
+    <PageHeader
+      eyebrow="PEOPLE / DIRECTORY"
+      title="成员名册"
+      description="管理在册账号、角色与启用状态。"
+    >
       <template #actions>
         <button class="button secondary" @click="importOpen = true">
           <Upload />批量导入

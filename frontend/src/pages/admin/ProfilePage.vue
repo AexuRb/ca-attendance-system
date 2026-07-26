@@ -1,6 +1,7 @@
 <template>
   <div class="page-stack profile-page">
     <PageHeader
+      eyebrow="PEOPLE / PROFILE"
       title="个人资料"
       description="维护联系方式，并查看自己的值班与培训记录。"
     />
@@ -12,7 +13,7 @@
       </div>
       <div class="profile-stat">
         <strong>{{ totalHours }}</strong
-        ><span>本学期小时</span>
+        ><span>本年小时</span>
       </div>
       <div class="profile-stat">
         <strong>{{ records.length }}</strong
@@ -86,9 +87,7 @@ import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import { get, put } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { useTerms } from "../../shared/composables/useTerms";
 const { user, refreshUser } = useSession();
-const { selectedTerm } = useTerms();
 const { busy, run } = useAsyncTask();
 const records = ref<any[]>([]);
 const training = ref<any>({ trainingHours: 0 });
@@ -109,8 +108,8 @@ async function load() {
     grade: me.grade || "",
   });
   const now = new Date();
-  const from = selectedTerm.value?.startDate || `${now.getFullYear()}-01-01`;
-  const to = selectedTerm.value?.endDate || date(now);
+  const from = `${now.getFullYear()}-01-01`;
+  const to = date(now);
   [records.value, training.value] = await Promise.all([
     get(`/api/attendance/me?from=${from}&to=${to}`),
     get(`/api/trainings/me/hours?from=${from}&to=${to}`),
