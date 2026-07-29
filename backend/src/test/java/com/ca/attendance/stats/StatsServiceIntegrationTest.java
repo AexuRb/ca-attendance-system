@@ -95,6 +95,48 @@ class StatsServiceIntegrationTest {
         assertEquals(new BigDecimal("3.50"), row.get("totalHours"));
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void weeklyDetailSeparatesDailyAttendanceFromTrainingAndIncludesMemberContext() {
+        LocalDate date = LocalDate.of(2026, 7, 24);
+        jdbc.update("UPDATE users SET grade = '2025级' WHERE id = ?", memberId);
+        jdbc.update("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  check_in_time, check_out_time, check_in_status, check_out_status,
+                  duration_minutes, valid_hours, effective_status
+                )
+                VALUES (?, 'member', '测试成员', ?, 5, ?, ?, 'APPROVED', 'APPROVED', 120, 2, 'VALID')
+                """, memberId, date, date.atTime(14, 0), date.atTime(16, 0));
+        long sessionId = requiredId(jdbc.queryForObject("""
+                INSERT INTO training_sessions (
+                  title, training_date, start_time, end_time, status
+                )
+                VALUES ('周统计培训', ?, '16:00:00', '17:30:00', 'COMPLETED')
+                RETURNING id
+                """, Long.class, date));
+        jdbc.update("""
+                INSERT INTO training_participants (
+                  session_id, user_id, student_no_snapshot, name_snapshot, duration_hours
+                )
+                VALUES (?, ?, 'member', '测试成员', 1.5)
+                """, sessionId, memberId);
+
+        Map<String, Object> result = stats.weeklyDetail(date, date);
+        List<Map<String, Object>> users = (List<Map<String, Object>>) result.get("users");
+        Map<String, Map<String, BigDecimal>> cells =
+                (Map<String, Map<String, BigDecimal>>) result.get("cells");
+
+        assertEquals(1, users.size());
+        Map<String, Object> row = users.getFirst();
+        assertEquals("2025级", row.get("grade"));
+        assertEquals("MEMBER", row.get("role"));
+        assertEquals(new BigDecimal("2.00"), row.get("attendanceHours"));
+        assertEquals(new BigDecimal("1.50"), row.get("trainingHours"));
+        assertEquals(new BigDecimal("3.50"), row.get("totalHours"));
+        assertEquals(new BigDecimal("2.00"), cells.get(date.toString()).get(String.valueOf(memberId)));
+    }
+
     private long insertUser(String studentNo, String name, String role) {
         return requiredId(jdbc.queryForObject("""
                 INSERT INTO users (

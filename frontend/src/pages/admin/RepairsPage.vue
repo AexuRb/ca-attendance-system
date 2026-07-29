@@ -5,7 +5,7 @@
       title="维修事务"
       description="维护维修受理过程、协议与交付状态。"
       ><template #actions
-        ><button class="button secondary" @click="exportCases">
+        ><button v-if="canExport" class="button secondary" @click="exportCases">
           <Download />导出</button
         ><button v-if="canManage" class="button primary" @click="openEditor()">
           <Plus />新建维修
@@ -171,10 +171,16 @@
             ><label class="field"
               ><span>完成时间</span
               ><input v-model="form.completedAt" type="datetime-local" /></label
-            ><label class="field"
-              ><span>负责人姓名</span
-              ><input v-model.trim="form.handlerName" /></label
-            ><label class="field"
+            ><div class="field span-2">
+              <span>负责人账号</span>
+              <AccountPicker
+                v-model="selectedHandler"
+                :candidates="handlerCandidates"
+                aria-label="选择维修负责人"
+                placeholder="搜索姓名或学号"
+              />
+            </div>
+            <label class="field"
               ><span>备注</span><input v-model.trim="form.remark"
             /></label>
           </div>
@@ -235,19 +241,29 @@ import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AgreementDialog from "../../shared/ui/AgreementDialog.vue";
+import AccountPicker from "../../features/accounts/AccountPicker.vue";
 import { api, del, get, post, put, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { canExportRepairs } from "../../features/repairs/repairPermissions";
+import type { AccountCandidate } from "../../features/accounts/accountCandidates";
+import type {
+  RepairCase,
+  RepairCaseForm,
+  RepairStatus,
+} from "../../features/repairs/repairTypes";
 const { user } = useSession();
 const { run } = useAsyncTask();
-const cases = ref<any[]>([]);
+const cases = ref<RepairCase[]>([]);
 const editorOpen = ref(false);
-const deleteTarget = ref<any>(null);
+const deleteTarget = ref<RepairCase | null>(null);
 const agreementOpen = ref(false);
-const agreementTarget = ref<any>(null);
+const agreementTarget = ref<RepairCase | null>(null);
 const agreementHtml = ref("");
 const agreementLoading = ref(false);
 const agreementError = ref("");
+const handlerCandidates = ref<AccountCandidate[]>([]);
+const selectedHandler = ref<AccountCandidate | null>(null);
 const now = new Date();
 const filters = reactive({
   keyword: "",
@@ -255,8 +271,31 @@ const filters = reactive({
   from: `${now.getFullYear()}-01-01`,
   to: localDate(now),
 });
-const form = reactive<any>({});
-const columns = [
+const form = reactive<RepairCaseForm>({
+  id: null,
+  agreementType: "REPAIR",
+  ownerName: "",
+  ownerPhone: "",
+  deviceType: "",
+  deviceBrand: "",
+  deviceModel: "",
+  accessories: "",
+  faultDescription: "",
+  serviceDescription: "",
+  dataBackupConfirmed: false,
+  riskAcknowledged: false,
+  privacyAcknowledged: false,
+  status: "REPAIRING",
+  receivedAt: "",
+  completedAt: "",
+  handlerName: "",
+  remark: "",
+});
+const columns: Array<{
+  status: RepairStatus;
+  label: string;
+  tone: string;
+}> = [
   { status: "REPAIRING", label: "进行中", tone: "blue" },
   { status: "COMPLETED", label: "已完成", tone: "green" },
   { status: "CANCELED", label: "已取消", tone: "gray" },
@@ -267,24 +306,28 @@ const canManage = computed(() =>
 const canDelete = computed(() =>
   ["PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
 );
+const canExport = computed(() => canExportRepairs(user.value?.role));
 const validForm = computed(
   () =>
     form.ownerName &&
     form.ownerPhone &&
     form.deviceType &&
     form.faultDescription &&
-    form.receivedAt,
+    form.receivedAt &&
+    selectedHandler.value,
 );
-onMounted(load);
+onMounted(async () => {
+  await Promise.all([load(), loadHandlerCandidates()]);
+});
 async function load() {
   const p = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => v && p.set(k, v));
-  const value = await run(() => get<any[]>(`/api/repairs?${p}`));
+  const value = await run(() => get<RepairCase[]>(`/api/repairs?${p}`));
   if (value) cases.value = value;
 }
-const casesByStatus = (status: string) =>
+const casesByStatus = (status: RepairStatus) =>
   cases.value.filter((i) => i.status === status);
-function openEditor(item?: any) {
+function openEditor(item?: RepairCase) {
   Object.assign(
     form,
     item
@@ -316,11 +359,28 @@ function openEditor(item?: any) {
           remark: "",
         },
   );
+  selectedHandler.value = item
+    ? handlerCandidates.value.find(
+        (candidate) => candidate.id === item.handlerUserId,
+      ) ||
+      (item.handlerUserId
+        ? {
+            id: item.handlerUserId,
+            studentNo: "",
+            name: item.handlerName || "原负责人",
+            inactive: true,
+          }
+        : null)
+    : handlerCandidates.value.find(
+        (candidate) => candidate.id === user.value?.id,
+      ) || null;
   editorOpen.value = true;
 }
 async function save() {
   const payload = {
     ...form,
+    handlerUserId: selectedHandler.value?.id || null,
+    handlerName: selectedHandler.value?.name || null,
     ownerOrg: null,
     deviceSerial: null,
     completedAt: form.completedAt || null,
@@ -333,15 +393,23 @@ async function save() {
     await load();
   }
 }
+async function loadHandlerCandidates() {
+  const value = await run(() =>
+    get<AccountCandidate[]>("/api/repairs/handler-candidates"),
+  );
+  if (value) handlerCandidates.value = value;
+}
 async function remove() {
+  const target = deleteTarget.value;
+  if (!target) return;
   await run(
-    () => del(`/api/repairs/${deleteTarget.value.id}`),
+    () => del(`/api/repairs/${target.id}`),
     "已移入维修回收站",
   );
   deleteTarget.value = null;
   await load();
 }
-async function preview(item: any) {
+async function preview(item: RepairCase) {
   agreementTarget.value = item;
   agreementOpen.value = true;
   await loadAgreement();
@@ -355,8 +423,9 @@ async function loadAgreement() {
       `/api/repairs/${agreementTarget.value.id}/agreement`,
     );
     agreementHtml.value = await blob.text();
-  } catch (e: any) {
-    agreementError.value = e.message;
+  } catch (cause) {
+    agreementError.value =
+      cause instanceof Error ? cause.message : "协议暂时无法预览";
   } finally {
     agreementLoading.value = false;
   }
@@ -374,7 +443,7 @@ async function exportCases() {
     `维修事务_${filters.from}_${filters.to}.xlsx`,
   );
 }
-const deviceName = (i: any) =>
+const deviceName = (i: RepairCase) =>
   [i.deviceBrand, i.deviceModel, i.deviceType].filter(Boolean).join(" ") ||
   "未命名设备";
 const agreementLabel = (v: string) =>

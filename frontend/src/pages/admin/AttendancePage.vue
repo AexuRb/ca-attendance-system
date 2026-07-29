@@ -10,7 +10,7 @@
         </button></template
       ></PageHeader
     >
-    <form class="filter-bar" @submit.prevent="load">
+    <form class="filter-bar" @submit.prevent="load(1)">
       <label
         ><span>开始日期</span
         ><input v-model="filters.from" type="date" /></label
@@ -68,15 +68,33 @@
             <td class="align-right row-actions">
               <button
                 class="icon-button"
-                title="编辑"
-                aria-label="编辑"
+                :title="
+                  actionAccess(item).allowed
+                    ? '编辑'
+                    : actionAccess(item).reason
+                "
+                :aria-label="
+                  actionAccess(item).allowed
+                    ? '编辑'
+                    : `不可编辑：${actionAccess(item).reason}`
+                "
+                :disabled="!actionAccess(item).allowed"
                 @click="openEdit(item)"
               >
                 <Pencil /></button
               ><button
                 class="icon-button danger-ghost"
-                title="删除"
-                aria-label="删除"
+                :title="
+                  actionAccess(item).allowed
+                    ? '删除'
+                    : actionAccess(item).reason
+                "
+                :aria-label="
+                  actionAccess(item).allowed
+                    ? '删除'
+                    : `不可删除：${actionAccess(item).reason}`
+                "
+                :disabled="!actionAccess(item).allowed"
                 @click="askDelete(item)"
               >
                 <Trash2 />
@@ -86,6 +104,26 @@
         </tbody>
       </table>
     </div>
+    <div v-if="total" class="pagination">
+      <span>共 {{ total }} 条记录</span>
+      <div>
+        <button
+          class="button secondary small"
+          :disabled="page <= 1 || busy"
+          @click="load(page - 1)"
+        >
+          <ChevronLeft />上一页
+        </button>
+        <span>第 {{ page }} / {{ totalPages }} 页</span>
+        <button
+          class="button secondary small"
+          :disabled="page >= totalPages || busy"
+          @click="load(page + 1)"
+        >
+          下一页<ChevronRight />
+        </button>
+      </div>
+    </div>
     <ModalDialog
       :open="editorOpen"
       :title="editing ? '修改值班记录' : '补录值班记录'"
@@ -93,10 +131,16 @@
       @close="editorOpen = false"
     >
       <div class="form-grid two">
-        <label v-if="!editing" class="field"
-          ><span>成员学号</span
-          ><input v-model.trim="form.studentNo" required /></label
-        ><label class="field"
+        <div v-if="!editing" class="field span-2">
+          <span>补录成员</span>
+          <AccountPicker
+            v-model="selectedMember"
+            :candidates="manualCandidates"
+            aria-label="选择补录成员"
+            placeholder="搜索姓名或学号"
+          />
+        </div>
+        <label class="field"
           ><span>签到时间</span
           ><input
             v-model="form.checkInTime"
@@ -130,7 +174,9 @@
           取消</button
         ><button
           class="button primary"
-          :disabled="!form.reason.trim()"
+          :disabled="
+            !form.reason.trim() || (!editing && !selectedMember)
+          "
           @click="save"
         >
           保存
@@ -153,23 +199,46 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { Pencil, Plus, Search, Trash2 } from "@lucide/vue";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "@lucide/vue";
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import AccountPicker from "../../features/accounts/AccountPicker.vue";
 import { del, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useSession } from "../../app/session";
+import {
+  attendancePageQuery,
+  attendanceActionAccess,
+  localDateTimeInput,
+  totalAttendancePages,
+  type AttendanceActionAccess,
+  type AttendanceRecordItem,
+  type AttendanceRecordPage,
+} from "../../features/attendance/attendanceRecords";
+import type { AccountCandidate } from "../../features/accounts/accountCandidates";
 const { user } = useSession();
 const route = useRoute();
-const records = ref<any[]>([]);
+const records = ref<AttendanceRecordItem[]>([]);
+const total = ref(0);
+const page = ref(1);
+const pageSize = 20;
 const { busy, run } = useAsyncTask();
 const editorOpen = ref(false);
-const editing = ref<any>(null);
-const deleteTarget = ref<any>(null);
+const editing = ref<AttendanceRecordItem | null>(null);
+const deleteTarget = ref<AttendanceRecordItem | null>(null);
+const manualCandidates = ref<AccountCandidate[]>([]);
+const selectedMember = ref<AccountCandidate | null>(null);
 const filters = reactive({ from: "", to: "", keyword: "", status: "" });
 const form = reactive({
   studentNo: "",
@@ -183,7 +252,10 @@ const canCreate = computed(() =>
   ["PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
 );
 const canReviewStatus = canCreate;
-onMounted(() => {
+const totalPages = computed(() =>
+  totalAttendancePages(total.value, pageSize),
+);
+onMounted(async () => {
   const now = new Date();
   filters.to = localDate(now);
   const start = new Date(now);
@@ -191,20 +263,24 @@ onMounted(() => {
   filters.from = localDate(start);
   filters.status =
     typeof route.query.status === "string" ? route.query.status : "";
-  load();
+  await Promise.all([load(), canCreate.value ? loadManualCandidates() : undefined]);
 });
-async function load() {
-  const p = new URLSearchParams({ from: filters.from, to: filters.to });
-  if (filters.keyword) p.set("studentNo", filters.keyword);
-  if (filters.status) p.set("status", filters.status);
-  const value = await run(() => get<any[]>(`/api/attendance?${p}`));
-  if (value) records.value = value;
+async function load(target = page.value) {
+  const query = attendancePageQuery(filters, target, pageSize);
+  const value = await run(() =>
+    get<AttendanceRecordPage>(`/api/attendance/page?${query}`),
+  );
+  if (!value) return;
+  records.value = value.items;
+  total.value = value.total;
+  page.value = value.page;
 }
 function openCreate() {
   editing.value = null;
+  selectedMember.value = null;
   Object.assign(form, {
     studentNo: "",
-    checkInTime: `${localDate(new Date())}T14:00`,
+    checkInTime: localDateTimeInput(new Date()),
     checkOutTime: "",
     checkInStatus: "APPROVED",
     checkOutStatus: "APPROVED",
@@ -212,7 +288,8 @@ function openCreate() {
   });
   editorOpen.value = true;
 }
-function openEdit(item: any) {
+function openEdit(item: AttendanceRecordItem) {
+  if (!actionAccess(item).allowed) return;
   editing.value = item;
   Object.assign(form, {
     studentNo: item.studentNo,
@@ -225,10 +302,17 @@ function openEdit(item: any) {
   editorOpen.value = true;
 }
 async function save() {
-  const payload = { ...form, checkOutTime: form.checkOutTime || null };
-  const ok = editing.value
+  const current = editing.value;
+  const payload = {
+    ...form,
+    studentNo: current
+      ? form.studentNo
+      : selectedMember.value?.studentNo || "",
+    checkOutTime: form.checkOutTime || null,
+  };
+  const ok = current
     ? await run(
-        () => put(`/api/attendance/${editing.value.id}/manual`, payload),
+        () => put(`/api/attendance/${current.id}/manual`, payload),
         "记录已更新",
       )
     : await run(() => post("/api/attendance/manual", payload), "记录已补录");
@@ -237,29 +321,30 @@ async function save() {
     await load();
   }
 }
-function askDelete(item: any) {
+function askDelete(item: AttendanceRecordItem) {
+  if (!actionAccess(item).allowed) return;
   deleteTarget.value = item;
 }
 async function remove(reason: string) {
+  const target = deleteTarget.value;
+  if (!target) return;
   await run(
     () =>
       del(
-        `/api/attendance/${deleteTarget.value.id}?reason=${encodeURIComponent(reason)}`,
+        `/api/attendance/${target.id}?reason=${encodeURIComponent(reason)}`,
       ),
     "记录已删除",
   );
   deleteTarget.value = null;
   await load();
 }
-const statusLabel = (v: string) =>
-  (
-    ({
-      VALID: "有效",
-      INCOMPLETE: "未签退",
-      PENDING: "待审核",
-      INVALID: "无效",
-    }) as any
-  )[v] || v;
+const statusLabels: Record<string, string> = {
+  VALID: "有效",
+  INCOMPLETE: "未签退",
+  PENDING: "待审核",
+  INVALID: "无效",
+};
+const statusLabel = (v: string) => statusLabels[v] || v;
 const statusTone = (v: string) =>
   v === "VALID"
     ? "success"
@@ -270,6 +355,19 @@ const statusTone = (v: string) =>
         : "info";
 const dateTime = (v?: string) => v?.replace("T", " ").slice(0, 16) || "—";
 const toInput = (v?: string) => v?.slice(0, 16) || "";
+function actionAccess(item: AttendanceRecordItem): AttendanceActionAccess {
+  return attendanceActionAccess(
+    user.value?.role,
+    item.userRole,
+    item.dutyDate,
+  );
+}
+async function loadManualCandidates() {
+  const value = await run(() =>
+    get<AccountCandidate[]>("/api/attendance/manual-candidates"),
+  );
+  if (value) manualCandidates.value = value;
+}
 function localDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

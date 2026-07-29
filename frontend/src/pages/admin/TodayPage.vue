@@ -54,35 +54,51 @@ const schedule = ref<TodayScheduleData | null>(null);
 const records = ref<TodayAttendanceRecord[]>([]);
 let timer = 0;
 
-const now = new Date();
-const today = localDate(now);
-const todayLabel = new Intl.DateTimeFormat("zh-CN", {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-  weekday: "long",
-}).format(now);
-const weekdayLabel = new Intl.DateTimeFormat("zh-CN", {
-  weekday: "long",
-}).format(now);
+const currentDate = ref(new Date());
+const today = computed(() => localDate(currentDate.value));
+const todayLabel = computed(() =>
+  new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(currentDate.value),
+);
+const weekdayLabel = computed(() =>
+  new Intl.DateTimeFormat("zh-CN", {
+    weekday: "long",
+  }).format(currentDate.value),
+);
 const canSchedule = computed(
   () => user.value?.role === "PRESIDENT" || user.value?.role === "ADMIN",
 );
 
 onMounted(() => {
-  load();
-  timer = window.setInterval(load, 60_000);
+  refresh();
+  timer = window.setInterval(refresh, 60_000);
+  window.addEventListener("focus", refresh);
 });
 
-onBeforeUnmount(() => window.clearInterval(timer));
+onBeforeUnmount(() => {
+  window.clearInterval(timer);
+  window.removeEventListener("focus", refresh);
+});
+
+function refresh() {
+  if (!busy.value) void load().catch(() => undefined);
+}
 
 async function load() {
   busy.value = true;
   try {
+    currentDate.value = new Date();
+    const queryDate = today.value;
     [dashboard.value, schedule.value, records.value] = await Promise.all([
-      get<TodayDashboardData>(`/api/stats/dashboard?date=${today}`),
+      get<TodayDashboardData>(`/api/stats/dashboard?date=${queryDate}`),
       get<TodayScheduleData>("/api/public/schedules/today"),
-      get<TodayAttendanceRecord[]>(`/api/attendance?from=${today}&to=${today}`),
+      get<TodayAttendanceRecord[]>(
+        `/api/attendance?from=${queryDate}&to=${queryDate}`,
+      ),
     ]);
   } finally {
     busy.value = false;

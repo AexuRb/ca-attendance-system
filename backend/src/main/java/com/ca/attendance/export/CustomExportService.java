@@ -1,5 +1,6 @@
 package com.ca.attendance.export;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
@@ -60,7 +61,10 @@ public class CustomExportService {
         AuthUser current = AuthContext.current();
         requireExporter(current);
         List<SourceOption> sources = SOURCES.stream()
-                .filter(source -> !source.adminOnly() || current.role() == Role.ADMIN)
+                .filter(source -> !source.adminOnly()
+                        || RolePermissionPolicy.allows(
+                                current.role(),
+                                RolePermissionPolicy.Permission.OPERATION_LOGS))
                 .map(source -> new SourceOption(source.id(), source.label(), source.fields(), source.filters()))
                 .toList();
         return new ExportOptions(sources);
@@ -126,8 +130,10 @@ public class CustomExportService {
                 .filter(item -> item.id().equalsIgnoreCase(text(request.source())))
                 .findFirst()
                 .orElseThrow(() -> ApiException.badRequest("导出数据源不存在"));
-        if (source.adminOnly() && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有管理员可以导出操作日志");
+        if (source.adminOnly()) {
+            RolePermissionPolicy.require(current.role(),
+                    RolePermissionPolicy.Permission.OPERATION_LOGS,
+                    "只有管理员可以导出操作日志");
         }
 
         List<FieldOption> selectedFields = validateFields(source, request.fields());
@@ -526,9 +532,9 @@ public class CustomExportService {
     }
 
     private void requireExporter(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以自定义导出 Excel");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.CUSTOM_EXPORT,
+                "只有会长或管理员可以自定义导出 Excel");
     }
 
     private static SourceDefinition membersSource() {

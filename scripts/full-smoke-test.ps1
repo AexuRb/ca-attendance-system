@@ -328,10 +328,12 @@ try {
     $suffix = (Get-Date -Format "MMddHHmmss")
     $memberNo = "9901$suffix"
     $ministerNo = "9902$suffix"
+    $secondMinisterNo = "9905$suffix"
     $importNo = "9903$suffix"
     $deleteNo = "9904$suffix"
     $memberName = "烟测成员$suffix"
     $ministerName = "烟测部长$suffix"
+    $secondMinisterName = "烟测部长乙$suffix"
     $importName = "烟测导入$suffix"
     $deleteName = "烟测删除$suffix"
 
@@ -344,7 +346,11 @@ try {
         studentNo = $ministerNo; name = $ministerName; role = "MINISTER"; phone = "13000000001";
         major = "计算机协会测试"; grade = "2025级"; qq = "10001"
     }
-    Add-Result "成员创建" "$memberNo / $ministerNo"
+    $secondMinister = Invoke-Json POST "/api/users" @{
+        studentNo = $secondMinisterNo; name = $secondMinisterName; role = "MINISTER"; phone = "13000000005";
+        major = "计算机协会测试"; grade = "2025级"; qq = "10005"
+    }
+    Add-Result "成员创建" "$memberNo / $ministerNo / $secondMinisterNo"
 
     $memberImportPath = New-TempPath "member-import.xlsx"
     New-SimpleXlsx $memberImportPath @(
@@ -401,7 +407,13 @@ try {
     if (-not $periods.Count) {
         $periods = @(Invoke-Json PUT "/api/settings/duty-periods" @{ periods = @(@{ startTime = "14:00"; endTime = "16:00" }) })
     } else {
-        $payloadPeriods = @($periods | ForEach-Object { @{ startTime = $_.startTime; endTime = $_.endTime } })
+        $payloadPeriods = @($periods | ForEach-Object {
+            @{
+                startTime = $_.startTime
+                endTime = $_.endTime
+                enabled = if ($null -eq $_.enabled) { $true } else { [bool]$_.enabled }
+            }
+        })
         Invoke-Json PUT "/api/settings/duty-periods" @{ periods = $payloadPeriods } | Out-Null
     }
     Add-Result "值班星期/时段设置" "enabled=$($enabledWeekdays -join ','), periods=$(@($periods).Count)"
@@ -428,12 +440,19 @@ try {
 
     $lookup = Invoke-Json GET "/api/public/attendance/lookup/$memberNo" -Token $null
     Assert-True $lookup.exists "公共查找临时成员失败"
-    Invoke-Json GET "/api/public/attendance/lookup?query=$memberName" -Token $null | Out-Null
+    Assert-True ([bool]$lookup.memberToken) "公共查找没有返回匿名成员令牌"
+    Assert-True ($lookup.maskedStudentNo -ne $memberNo) "公共查找泄露了完整学号"
+    Assert-True ($null -eq $lookup.PSObject.Properties["studentNo"]) "公共查找响应不应包含 studentNo 字段"
+    $nameLookup = Invoke-Json GET "/api/public/attendance/lookup?query=$memberName" -Token $null
+    Assert-True ($null -eq $nameLookup.PSObject.Properties["studentNo"]) "姓名查找响应不应包含 studentNo 字段"
     $checkInRequestId = "smoke-$suffix-check-in"
-    $checkIn = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo; requestId = $checkInRequestId } -Token $null
-    $checkInRetry = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo; requestId = $checkInRequestId } -Token $null
+    $checkIn = Invoke-Json POST "/api/public/attendance/submit" @{ memberToken = $lookup.memberToken; requestId = $checkInRequestId } -Token $null
+    $checkInRetry = Invoke-Json POST "/api/public/attendance/submit" @{ memberToken = $lookup.memberToken; requestId = $checkInRequestId } -Token $null
     Assert-True ($checkInRetry.recordId -eq $checkIn.recordId -and $checkInRetry.action -eq "CHECK_IN") "重复签到请求未返回原始结果"
-    $checkOut = Invoke-Json POST "/api/public/attendance/submit" @{ studentNo = $memberNo; requestId = "smoke-$suffix-check-out" } -Token $null
+    Assert-True ($null -eq $checkIn.PSObject.Properties["studentNo"]) "公共签到响应不应包含 studentNo 字段"
+    $checkOutLookup = Invoke-Json GET "/api/public/attendance/lookup/$memberNo" -Token $null
+    Assert-True ($checkOutLookup.action -eq "CHECK_OUT") "签到后公共查找没有切换为签退动作"
+    $checkOut = Invoke-Json POST "/api/public/attendance/submit" @{ memberToken = $checkOutLookup.memberToken; requestId = "smoke-$suffix-check-out" } -Token $null
     Assert-True ($checkIn.recordId -eq $checkOut.recordId) "签到签退记录 ID 不一致"
     $today = Get-Date -Format "yyyy-MM-dd"
     Invoke-Json GET "/api/attendance/open?from=$today&to=$today" | Out-Null
@@ -444,6 +463,11 @@ try {
     $bulkReview = Invoke-Json POST "/api/attendance/reviews/bulk" @{ ids = @($checkIn.recordId); part = "ALL" }
     Assert-True ($bulkReview.reviewed -ge 2) "批量审核没有通过签到签退"
     Add-Result "公共签到/签退/审核" "record=$($checkIn.recordId)"
+
+    $manualCandidates = @(Invoke-Json GET "/api/attendance/manual-candidates")
+    Assert-True (
+        @($manualCandidates | Where-Object { $_.id -eq $member.id -and $_.studentNo -eq $memberNo }).Count -eq 1
+    ) "补录候选账号缺少启用成员"
 
     $manualDate = Get-EnabledWeekdayDate $enabledWeekdays[0]
     $manualIn = $manualDate.AddHours(9)
@@ -501,6 +525,18 @@ try {
     $memberLoginAfterPasswordChange = Invoke-Json POST "/api/auth/login" @{ studentNo = $memberNo; password = "Smoke$suffix" } -Token $null
     $trainingHours = Invoke-Json GET "/api/trainings/me/hours?from=$today&to=$today" -Token $memberLoginAfterPasswordChange.token
     Assert-True ($trainingHours.trainingCount -ge 1) "个人培训时长没有统计到导入记录"
+    $myAttendance = @(Invoke-Json GET "/api/attendance/me?from=$today&to=$today" -Token $memberLoginAfterPasswordChange.token)
+    Assert-True ($myAttendance.Count -ge 1) "个人值班明细没有返回当前成员记录"
+    Assert-True (@($myAttendance | Where-Object { $_.userId -ne $member.id }).Count -eq 0) "个人值班明细混入其他成员记录"
+    $myTrainings = @(Invoke-Json GET "/api/trainings/me?from=$today&to=$today" -Token $memberLoginAfterPasswordChange.token)
+    Assert-True ($myTrainings.Count -ge 1) "个人培训明细没有返回参与记录"
+    Assert-True (@($myTrainings | Where-Object { $_.title -eq $training.title }).Count -ge 1) "个人培训明细缺少当前培训"
+    $weeklyDetail = Invoke-Json GET "/api/stats/weekly-detail?from=$today&to=$today"
+    $weeklyMember = @($weeklyDetail.users | Where-Object { $_.userId -eq $member.id } | Select-Object -First 1)
+    Assert-True ($weeklyMember.Count -eq 1) "周统计矩阵缺少当前成员"
+    Assert-True ([decimal]$weeklyMember[0].trainingHours -gt 0) "周统计矩阵没有独立培训时长"
+    Assert-True ([string]$weeklyMember[0].grade -eq "2026级") "周统计矩阵缺少年级"
+    Add-Result "个人明细/周统计矩阵" "attendance=$($myAttendance.Count), training=$($myTrainings.Count)"
     Invoke-Json DELETE "/api/trainings/$($training.id)" | Out-Null
     Add-Result "培训创建/模板/导入/参与维护/导出/归档" "training=$($training.id)"
 
@@ -517,7 +553,7 @@ try {
         enabled = $true
         assignees = @(@{ studentNo = $ministerNo; name = $ministerName })
     }
-    Invoke-Json PUT "/api/schedules/$($schedule.id)" @{
+    $scheduleUpdate = @{
         weekday = $todayWeekday
         startTime = $period.startTime
         endTime = $period.endTime
@@ -527,24 +563,35 @@ try {
         enabled = $true
         assignees = @(
             @{ studentNo = $ministerNo; name = $ministerName },
-            @{ studentNo = $memberNo; name = "$memberName-改" }
+            @{ studentNo = $secondMinisterNo; name = $secondMinisterName }
         )
-    } | Out-Null
+    }
+    Invoke-Json PUT "/api/schedules/$($schedule.id)" $scheduleUpdate | Out-Null
     Invoke-Json GET "/api/schedules" | Out-Null
-    Invoke-Json GET "/api/public/schedules/today?date=$today" -Token $null | Out-Null
+    $publicToday = Invoke-Json GET "/api/public/schedules/today?date=$today" -Token $null
+    Assert-True (@($publicToday.slots | Where-Object { $_.id -eq $schedule.id }).Count -eq 1) "显示排班未进入签到台接口"
     Invoke-Json GET "/api/public/schedules/week?date=$today" -Token $null | Out-Null
+    $scheduleUpdate.enabled = $false
+    Invoke-Json PUT "/api/schedules/$($schedule.id)" $scheduleUpdate | Out-Null
+    $hiddenToday = Invoke-Json GET "/api/public/schedules/today?date=$today" -Token $null
+    Assert-True (@($hiddenToday.slots | Where-Object { $_.id -eq $schedule.id }).Count -eq 0) "隐藏排班仍出现在签到台接口"
     Invoke-Json DELETE "/api/schedules/$($schedule.id)" | Out-Null
-    Add-Result "排班创建/更新/公开今日周表/归档" "schedule=$($schedule.id)"
+    Add-Result "排班创建/更新/显示隐藏/公开今日周表/归档" "schedule=$($schedule.id)"
 
     $repairDashboardBefore = Invoke-Json GET "/api/stats/dashboard?date=$today"
+    $handlerCandidates = @(Invoke-Json GET "/api/repairs/handler-candidates")
+    Assert-True (
+        @($handlerCandidates | Where-Object { $_.id -eq $minister.id -and $_.studentNo -eq $ministerNo }).Count -eq 1
+    ) "维修负责人候选账号缺少启用部长"
     $repair = Invoke-Json POST "/api/repairs" @{
         agreementType = "PERSONAL_DEVICE"; ownerName = "烟测送修$suffix"; ownerPhone = "13000000003";
         deviceType = "笔记本电脑"; deviceBrand = "ThinkPad"; deviceModel = "T14";
         accessories = "电源适配器"; faultDescription = "系统无法启动"; serviceDescription = "初步检查";
         dataBackupConfirmed = $true; riskAcknowledged = $true; privacyAcknowledged = $true;
         status = "REPAIRING"; receivedAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss");
-        handlerName = $ministerName; remark = "烟测维修"
+        handlerUserId = $minister.id; handlerName = "不可伪造的姓名"; remark = "烟测维修"
     }
+    Assert-True ($repair.handlerUserId -eq $minister.id -and $repair.handlerName -eq $ministerName) "维修负责人 ID 或姓名快照不正确"
     $repairDashboard = Invoke-Json GET "/api/stats/dashboard?date=$today"
     Assert-True (
         [int]$repairDashboard.ongoingRepairCount -eq ([int]$repairDashboardBefore.ongoingRepairCount + 1)
@@ -555,7 +602,7 @@ try {
         accessories = "无"; faultDescription = "无法开机"; serviceDescription = "已完成烟测";
         dataBackupConfirmed = $true; riskAcknowledged = $true; privacyAcknowledged = $true;
         status = "COMPLETED"; receivedAt = $repair.receivedAt; completedAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss");
-        handlerName = $ministerName; remark = "烟测维修完成"
+        handlerUserId = $minister.id; handlerName = $ministerName; remark = "烟测维修完成"
     } | Out-Null
     $repairList = @(Invoke-Json GET "/api/repairs?keyword=$suffix&status=ALL&from=$today&to=$today")
     Assert-True ($repairList.Count -ge 1) "维修列表未找到新维修"
@@ -580,6 +627,7 @@ try {
     } -Token $ministerLogin.token | Out-Null
     $ministerLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $ministerNo; password = "Minister$suffix" } -Token $null
     Invoke-Json GET "/api/repairs?status=ALL" -Token $ministerLogin.token | Out-Null
+    Invoke-Json GET "/api/repairs/handler-candidates" -Token $ministerLogin.token | Out-Null
     Invoke-Json DELETE "/api/repairs/$($repair.id)" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/repairs/recycle-bin" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/trainings" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null

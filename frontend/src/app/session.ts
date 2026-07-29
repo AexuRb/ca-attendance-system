@@ -97,6 +97,11 @@ async function logout() {
   }
 }
 
+function expireSession() {
+  setToken("");
+  state.user = null;
+}
+
 export function useSession() {
   return {
     state,
@@ -107,5 +112,6 @@ export function useSession() {
     initialize,
     refreshUser,
     logout,
+    expireSession,
   };
 }

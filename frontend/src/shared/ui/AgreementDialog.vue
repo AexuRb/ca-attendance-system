@@ -7,10 +7,12 @@
         @click.self="$emit('close')"
       >
         <section
+          ref="dialog"
           class="agreement-dialog"
           role="dialog"
           aria-modal="true"
           aria-labelledby="agreement-title"
+          tabindex="-1"
         >
           <header>
             <div>
@@ -34,7 +36,7 @@
               </button>
             </div>
           </header>
-          <main>
+          <main data-dialog-content>
             <LoadingBlock v-if="loading" label="正在生成协议" />
             <div v-else-if="error" class="agreement-error">
               <TriangleAlert /><strong>协议暂时无法预览</strong>
@@ -60,15 +62,25 @@
 import { ref } from "vue";
 import { Printer, RefreshCw, TriangleAlert, X } from "@lucide/vue";
 import LoadingBlock from "./LoadingBlock.vue";
-defineProps<{
+import { useDialogFocus } from "./useDialogFocus";
+
+const props = defineProps<{
   open: boolean;
   caseNo?: string;
   html?: string;
   loading?: boolean;
   error?: string;
 }>();
-defineEmits(["close", "retry"]);
+const emit = defineEmits<{ close: []; retry: [] }>();
+const dialog = ref<HTMLElement | null>(null);
 const frame = ref<HTMLIFrameElement | null>(null);
+
+useDialogFocus({
+  root: dialog,
+  open: () => props.open,
+  close: () => emit("close"),
+});
+
 function print() {
   frame.value?.contentWindow?.focus();
   frame.value?.contentWindow?.print();

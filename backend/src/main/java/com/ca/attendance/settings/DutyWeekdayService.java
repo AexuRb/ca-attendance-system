@@ -1,5 +1,6 @@
 package com.ca.attendance.settings;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
@@ -47,9 +48,9 @@ public class DutyWeekdayService {
 
     public void update(List<Integer> enabledWeekdays) {
         AuthUser current = AuthContext.current();
-        if (!current.role().canSetDutyWeekdays()) {
-            throw ApiException.forbidden("无权调整值班星期");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.DUTY_SETTINGS_MANAGE,
+                "无权调整值班星期");
         List<Map<String, Object>> before = list();
         for (int i = 1; i <= 7; i++) {
             boolean enabled = enabledWeekdays != null && enabledWeekdays.contains(i);
@@ -60,9 +61,8 @@ public class DutyWeekdayService {
     }
 
     public void requireManager() {
-        Role role = AuthContext.current().role();
-        if (!role.atLeastManager()) {
-            throw ApiException.forbidden("无权查看该数据");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权查看该数据");
     }
 }

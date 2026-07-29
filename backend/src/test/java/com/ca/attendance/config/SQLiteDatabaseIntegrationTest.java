@@ -19,6 +19,7 @@ import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.training.TrainingParticipantItem;
 import com.ca.attendance.training.TrainingService;
 import com.ca.attendance.training.TrainingSessionItem;
+import com.ca.attendance.user.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.zaxxer.hikari.HikariDataSource;
@@ -269,6 +270,7 @@ class SQLiteDatabaseIntegrationTest {
         periods.update(List.of(new DutyPeriodService.DutyPeriodRequest("14:00", "16:00")));
 
         DutyScheduleService schedules = new DutyScheduleService(jdbc, logs, periods);
+        jdbc.update("UPDATE users SET role = 'MINISTER' WHERE id = ?", memberId);
         DutyScheduleSlotItem slot = schedules.create(new DutyScheduleService.SlotRequest(
                 1,
                 LocalTime.of(14, 0),
@@ -307,7 +309,7 @@ class SQLiteDatabaseIntegrationTest {
                 "SELECT start_time FROM training_sessions WHERE id = ?", String.class, session.id()));
         assertEquals(1, trainings.list("离线系统培训", null, today, today).size());
 
-        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backupService());
+        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backupService(), new UserRepository(jdbc));
         RepairCaseItem repair = repairs.create(new RepairCaseService.RepairCaseRequest(
                 "PERSONAL_DEVICE",
                 "送修同学",
@@ -326,18 +328,21 @@ class SQLiteDatabaseIntegrationTest {
                 "REPAIRING",
                 LocalDateTime.now(),
                 null,
+                adminId,
                 "管理员",
                 null
         ));
         assertTrue(repair.id() > 0);
         assertNotNull(repair.caseNo());
+        assertEquals(adminId, repair.handlerUserId());
+        assertEquals("管理员", repair.handlerName());
     }
 
     @Test
     void protectsRepairRecycleBinAndBacksUpPermanentDeletion() {
         OperationLogService logs = new OperationLogService(jdbc, objectMapper);
         BackupService backups = backupService();
-        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backups);
+        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backups, new UserRepository(jdbc));
         LocalDateTime receivedAt = LocalDateTime.now();
         RepairCaseItem repair = repairs.create(new RepairCaseService.RepairCaseRequest(
                 "PERSONAL_DEVICE", "回收站测试", "13800000001", null,

@@ -1,5 +1,6 @@
 package com.ca.attendance.attendance;
 
+import com.ca.attendance.user.UserRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,6 +26,25 @@ public class AttendanceController {
             @RequestParam(required = false) String status
     ) {
         return attendance.search(from, to, studentNo, status);
+    }
+
+    @GetMapping("/page")
+    public AttendanceRepository.AttendancePage searchPage(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String studentNo,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return attendance.searchPage(from, to, studentNo, status, page, pageSize);
+    }
+
+    @GetMapping("/manual-candidates")
+    public List<UserRepository.UserCandidate> manualCandidates(
+            @RequestParam(required = false) String keyword
+    ) {
+        return attendance.manualCandidates(keyword);
     }
 
     @GetMapping("/me")

@@ -3,11 +3,13 @@
     <Transition name="modal">
       <div v-if="open" class="modal-backdrop" @mousedown.self="$emit('close')">
         <section
+          ref="dialog"
           class="modal-shell"
           :class="size ? `modal-${size}` : ''"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
+          tabindex="-1"
         >
           <header class="modal-header">
             <div>
@@ -24,7 +26,7 @@
               <X />
             </button>
           </header>
-          <div class="modal-body"><slot /></div>
+          <div class="modal-body" data-dialog-content><slot /></div>
           <footer v-if="$slots.footer" class="modal-footer">
             <slot name="footer" />
           </footer>
@@ -36,12 +38,21 @@
 
 <script setup lang="ts">
 import { X } from "@lucide/vue";
+import { ref } from "vue";
+import { useDialogFocus } from "./useDialogFocus";
+
 const titleId = `modal-${Math.random().toString(36).slice(2)}`;
-defineProps<{
+const props = defineProps<{
   open: boolean;
   title: string;
   eyebrow?: string;
   size?: "sm" | "lg" | "xl";
 }>();
-defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: [] }>();
+const dialog = ref<HTMLElement | null>(null);
+useDialogFocus({
+  root: dialog,
+  open: () => props.open,
+  close: () => emit("close"),
+});
 </script>

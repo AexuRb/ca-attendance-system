@@ -278,29 +278,50 @@ import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { del, get, post, put, downloadBlob } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import type {
+  TrainingParticipant,
+  TrainingParticipantForm,
+  TrainingSession,
+  TrainingSessionForm,
+} from "../../features/training/trainingTypes";
 const { run } = useAsyncTask();
-const sessions = ref<any[]>([]);
-const participants = ref<any[]>([]);
-const selected = ref<any>(null);
+const sessions = ref<TrainingSession[]>([]);
+const participants = ref<TrainingParticipant[]>([]);
+const selected = ref<TrainingSession | null>(null);
 const sessionOpen = ref(false);
 const participantOpen = ref(false);
 const importOpen = ref(false);
 const importFile = ref<File | null>(null);
-const deleteTarget = ref<any>(null);
-const participantDeleteTarget = ref<any>(null);
+const deleteTarget = ref<TrainingSession | null>(null);
+const participantDeleteTarget = ref<TrainingParticipant | null>(null);
 const today = localDate(new Date());
 const filters = reactive({
   keyword: "",
   from: `${new Date().getFullYear()}-01-01`,
   to: today,
 });
-const sessionForm = reactive<any>({});
-const participantForm = reactive<any>({});
+const sessionForm = reactive<TrainingSessionForm>({
+  id: null,
+  title: "",
+  trainingDate: today,
+  startTime: "",
+  endTime: "",
+  location: "",
+  speaker: "",
+  description: "",
+});
+const participantForm = reactive<TrainingParticipantForm>({
+  id: null,
+  studentNo: "",
+  name: "",
+  durationHours: 0,
+  remark: "",
+});
 onMounted(loadSessions);
 async function loadSessions() {
   const p = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => v && p.set(k, v));
-  const value = await run(() => get<any[]>(`/api/trainings?${p}`));
+  const value = await run(() => get<TrainingSession[]>(`/api/trainings?${p}`));
   if (value) {
     sessions.value = value;
     const next =
@@ -308,13 +329,15 @@ async function loadSessions() {
     await select(next);
   }
 }
-async function select(item: any) {
+async function select(item: TrainingSession | null) {
   selected.value = item;
   participants.value = item
-    ? await get(`/api/trainings/${item.id}/participants`)
+    ? await get<TrainingParticipant[]>(
+        `/api/trainings/${item.id}/participants`,
+      )
     : [];
 }
-function openSession(item?: any) {
+function openSession(item?: TrainingSession) {
   Object.assign(
     sessionForm,
     item
@@ -350,12 +373,14 @@ async function saveSession() {
   }
 }
 async function archiveSession() {
-  await run(() => del(`/api/trainings/${deleteTarget.value.id}`), "培训已归档");
+  const target = deleteTarget.value;
+  if (!target) return;
+  await run(() => del(`/api/trainings/${target.id}`), "培训已归档");
   deleteTarget.value = null;
   selected.value = null;
   await loadSessions();
 }
-function openParticipant(item?: any) {
+function openParticipant(item?: TrainingParticipant) {
   Object.assign(
     participantForm,
     item
@@ -371,7 +396,9 @@ function openParticipant(item?: any) {
   participantOpen.value = true;
 }
 async function saveParticipant() {
-  const path = `/api/trainings/${selected.value.id}/participants`;
+  const session = selected.value;
+  if (!session) return;
+  const path = `/api/trainings/${session.id}/participants`;
   const result = participantForm.id
     ? await run(
         () => put(`${path}/${participantForm.id}`, participantForm),
@@ -384,11 +411,12 @@ async function saveParticipant() {
   }
 }
 async function deleteParticipant() {
+  const session = selected.value;
+  const target = participantDeleteTarget.value;
+  if (!session || !target) return;
   await run(
     () =>
-      del(
-        `/api/trainings/${selected.value.id}/participants/${participantDeleteTarget.value.id}`,
-      ),
+      del(`/api/trainings/${session.id}/participants/${target.id}`),
     "参与记录已删除",
   );
   participantDeleteTarget.value = null;
@@ -398,13 +426,14 @@ function pickImport(e: Event) {
   importFile.value = (e.target as HTMLInputElement).files?.[0] || null;
 }
 async function importParticipants() {
-  if (!importFile.value) return;
+  const session = selected.value;
+  if (!importFile.value || !session) return;
   const body = new FormData();
   body.append("file", importFile.value);
   if (
     await run(
       () =>
-        post(`/api/trainings/${selected.value.id}/participants/import`, body),
+        post(`/api/trainings/${session.id}/participants/import`, body),
       "名单导入完成",
     )
   ) {
@@ -414,38 +443,42 @@ async function importParticipants() {
   }
 }
 async function downloadTemplate() {
+  const session = selected.value;
+  if (!session) return;
   downloadBlob(
-    await get(
-      `/api/trainings/${selected.value.id}/participants/import-template`,
+    await get<Blob>(
+      `/api/trainings/${session.id}/participants/import-template`,
     ),
-    `培训名单导入模板_${selected.value.title}.xlsx`,
+    `培训名单导入模板_${session.title}.xlsx`,
   );
 }
 async function downloadSession() {
+  const session = selected.value;
+  if (!session) return;
   downloadBlob(
-    await get(`/api/trainings/${selected.value.id}/export`),
-    `培训名单_${selected.value.title}.xlsx`,
+    await get<Blob>(`/api/trainings/${session.id}/export`),
+    `培训名单_${session.title}.xlsx`,
   );
 }
 async function exportSummary() {
-  const p = new URLSearchParams(filters as any);
+  const p = new URLSearchParams(filters);
   downloadBlob(
     await get(`/api/trainings/export?${p}`),
     `培训统计_${filters.from}_${filters.to}.xlsx`,
   );
 }
-const hours = (v: any) =>
+const hours = (v: number | string | null | undefined) =>
   Number(v || 0)
     .toFixed(2)
     .replace(/\.00$/, "");
 const shortDate = (v: string) => v?.slice(5).replace("-", "/");
-const timeRange = (v: any) =>
+const timeRange = (v: Pick<TrainingSession, "startTime" | "endTime">) =>
   v.startTime && v.endTime
     ? `${v.startTime.slice(0, 5)}–${v.endTime.slice(0, 5)}`
     : "未设置";
-const sessionMeta = (v: any) =>
+const sessionMeta = (v: TrainingSession) =>
   [v.speaker, v.location, timeRange(v)].filter(Boolean).join(" · ");
-function defaultDuration(v: any) {
+function defaultDuration(v: TrainingSession | null) {
   if (!v?.startTime || !v?.endTime) return 0;
   const [sh, sm] = v.startTime.split(":").map(Number),
     [eh, em] = v.endTime.split(":").map(Number);

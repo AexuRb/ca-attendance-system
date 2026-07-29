@@ -9,7 +9,7 @@
         ><button
           class="button secondary"
           :disabled="busy || !records.length"
-          @click="bulkApprove"
+          @click="bulkConfirmOpen = true"
         >
           <CheckCheck />全部通过
         </button></template
@@ -101,12 +101,36 @@
           取消</button
         ><button
           class="button danger"
-          :disabled="!rejectReason.trim()"
+          :disabled="busy || !rejectReason.trim()"
           @click="confirmReject"
         >
           确认驳回
         </button></template
       >
+    </ModalDialog>
+    <ConfirmDialog
+      :open="bulkConfirmOpen"
+      title="通过全部待审核记录"
+      :message="`将处理当前列表中的 ${records.length} 条记录，并通过其中所有待审核的签到和签退。`"
+      confirm-label="全部通过"
+      @cancel="bulkConfirmOpen = false"
+      @confirm="bulkApprove"
+    />
+    <ModalDialog
+      :open="bulkErrors.length > 0"
+      title="部分记录未处理"
+      size="sm"
+      @close="bulkErrors = []"
+    >
+      <p class="confirm-copy">以下记录需要单独检查：</p>
+      <ul class="review-error-list">
+        <li v-for="message in bulkErrors" :key="message">{{ message }}</li>
+      </ul>
+      <template #footer>
+        <button class="button primary" type="button" @click="bulkErrors = []">
+          知道了
+        </button>
+      </template>
     </ModalDialog>
   </div>
 </template>
@@ -119,10 +143,14 @@ import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
+import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { get, post } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { notify } from "../../shared/composables/useToast";
-import { buildBulkApprovalRequest } from "../../features/attendance/reviewBulkApproval";
+import {
+  buildBulkApprovalRequest,
+  type PendingReviewRecord,
+} from "../../features/attendance/reviewBulkApproval";
 
 interface BulkReviewResult {
   reviewed: number;
@@ -130,32 +158,62 @@ interface BulkReviewResult {
   errors: string[];
 }
 
-const records = ref<any[]>([]);
+type ReviewPart = "CHECK_IN" | "CHECK_OUT";
+type ReviewAction = "APPROVE" | "REJECT";
+
+interface ReviewRecord extends PendingReviewRecord {
+  studentNo: string;
+  name: string;
+  dutyDate: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  checkInStatus: string;
+  checkOutStatus: string;
+}
+
+const records = ref<ReviewRecord[]>([]);
 const { busy, run } = useAsyncTask();
-const rejectTarget = ref<any>(null);
-const rejectPart = ref("CHECK_IN");
+const rejectTarget = ref<PendingReviewRecord | null>(null);
+const rejectPart = ref<ReviewPart>("CHECK_IN");
 const rejectReason = ref("");
+const bulkConfirmOpen = ref(false);
+const bulkErrors = ref<string[]>([]);
 onMounted(load);
 async function load() {
-  const value = await run(() => get<any[]>("/api/attendance/reviews/pending"));
+  const value = await run(() =>
+    get<ReviewRecord[]>("/api/attendance/reviews/pending"),
+  );
   if (value) records.value = value;
 }
-async function review(id: number, part: string, action: string, reason = "") {
-  await run(
+async function review(
+  id: number,
+  part: ReviewPart,
+  action: ReviewAction,
+  reason = "",
+) {
+  const result = await run(
     () => post(`/api/attendance/${id}/review`, { part, action, reason }),
     action === "APPROVE" ? "审核已通过" : "记录已驳回",
   );
+  if (result === undefined) return false;
   await load();
+  return true;
 }
 async function bulkApprove() {
+  if (busy.value) return;
+  bulkConfirmOpen.value = false;
   const result = await run(() =>
     post<BulkReviewResult>(
       "/api/attendance/reviews/bulk",
       buildBulkApprovalRequest(records.value),
     ),
   );
-  if (!result) return;
+  if (!result) {
+    bulkConfirmOpen.value = true;
+    return;
+  }
   if (result.errors.length) {
+    bulkErrors.value = result.errors;
     notify(
       `已通过 ${result.reviewed} 项，${result.skipped} 条未处理`,
       "warning",
@@ -165,30 +223,31 @@ async function bulkApprove() {
   }
   await load();
 }
-function openReject(record: any) {
+function openReject(record: ReviewRecord) {
   rejectTarget.value = record;
   rejectPart.value =
     record.checkInStatus === "PENDING" ? "CHECK_IN" : "CHECK_OUT";
   rejectReason.value = "";
 }
 async function confirmReject() {
-  await review(
-    rejectTarget.value.id,
+  const target = rejectTarget.value;
+  if (!target) return;
+  const succeeded = await review(
+    target.id,
     rejectPart.value,
     "REJECT",
     rejectReason.value,
   );
-  rejectTarget.value = null;
+  if (succeeded) rejectTarget.value = null;
 }
 const clock = (v?: string) => v?.slice(11, 16) || "—";
+const reviewLabels: Record<string, string> = {
+  PENDING: "待审核",
+  APPROVED: "已通过",
+  AUTO_APPROVED: "自动通过",
+  NOT_SUBMITTED: "未提交",
+  REJECTED: "已驳回",
+};
 const reviewLabel = (v: string) =>
-  (
-    ({
-      PENDING: "待审核",
-      APPROVED: "已通过",
-      AUTO_APPROVED: "自动通过",
-      NOT_SUBMITTED: "未提交",
-      REJECTED: "已驳回",
-    }) as any
-  )[v] || v;
+  reviewLabels[v] || v;
 </script>

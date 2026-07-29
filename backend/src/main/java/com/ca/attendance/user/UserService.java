@@ -1,5 +1,6 @@
 package com.ca.attendance.user;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
@@ -105,9 +106,9 @@ public class UserService {
 
     public ImportResult importMembers(MultipartFile file) {
         AuthUser current = AuthContext.current();
-        if (!current.role().canManageUsers()) {
-            throw ApiException.forbidden("只有会长或管理员可以批量导入成员");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.MEMBERS_MANAGE,
+                "只有会长或管理员可以批量导入成员");
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择 Excel 文件");
         }
@@ -201,9 +202,9 @@ public class UserService {
     @Transactional
     public void delete(long id, String reason) {
         AuthUser current = AuthContext.current();
-        if (current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有管理员可以删除成员");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.MEMBERS_DELETE,
+                "只有管理员可以删除成员");
         if (current.id() == id) {
             throw ApiException.badRequest("不能删除当前登录账号");
         }
@@ -528,19 +529,20 @@ public class UserService {
     }
 
     private void requireManageUsers() {
-        if (!AuthContext.current().role().canManageUsers()) {
-            throw ApiException.forbidden("无权管理成员");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.MEMBERS_MANAGE,
+                "无权管理成员");
     }
 
     private void requireCreateUsers() {
-        if (!AuthContext.current().role().canManageUsers()) {
-            throw ApiException.forbidden("无权新增成员");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.MEMBERS_MANAGE,
+                "无权新增成员");
     }
 
     private void validateRoleAssignment(Role operator, Role oldRole, Role newRole) {
-        if (oldRole == null && newRole == Role.MEMBER && operator.canManageUsers()) {
+        if (oldRole == null && newRole == Role.MEMBER
+                && RolePermissionPolicy.allows(operator, RolePermissionPolicy.Permission.MEMBERS_MANAGE)) {
             return;
         }
         if (newRole == Role.ADMIN && operator != Role.ADMIN) {

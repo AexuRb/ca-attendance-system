@@ -1,5 +1,6 @@
 package com.ca.attendance.log;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.maintenance.BackupService;
@@ -49,9 +50,7 @@ public class OperationLogQueryService {
     }
 
     public LogPage search(String keyword, String actionType, String from, String to, int page, int pageSize) {
-        if (!AuthContext.current().role().canViewOperationLogs()) {
-            throw ApiException.forbidden("只有管理员可以查看操作日志");
-        }
+        requireOperationLogs("只有管理员可以查看操作日志");
 
         int safePage = Math.max(1, page);
         int safePageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
@@ -82,18 +81,14 @@ public class OperationLogQueryService {
 
     @Transactional
     public ClearResult clear() {
-        if (!AuthContext.current().role().canViewOperationLogs()) {
-            throw ApiException.forbidden("只有管理员可以清空操作日志");
-        }
+        requireOperationLogs("只有管理员可以清空操作日志");
         BackupService.BackupItem safetyBackup = backups.create();
         int deleted = jdbc.update("DELETE FROM operation_logs");
         return new ClearResult(deleted, safetyBackup);
     }
 
     public byte[] export(String keyword, String actionType, String from, String to) {
-        if (!AuthContext.current().role().canViewOperationLogs()) {
-            throw ApiException.forbidden("只有管理员可以导出操作日志");
-        }
+        requireOperationLogs("只有管理员可以导出操作日志");
         QueryParts query = buildWhere(keyword, actionType, from, to);
         List<LogItem> items = jdbc.query("""
                 SELECT id, operator_user_id, operator_student_no, operator_name,
@@ -252,6 +247,12 @@ public class OperationLogQueryService {
     }
 
     public record LogPage(List<LogItem> items, long total, int page, int pageSize) {
+    }
+
+    private void requireOperationLogs(String message) {
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.OPERATION_LOGS,
+                message);
     }
 
     public record ClearResult(int deleted, BackupService.BackupItem safetyBackup) {

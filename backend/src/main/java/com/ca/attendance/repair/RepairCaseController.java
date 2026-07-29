@@ -1,5 +1,6 @@
 package com.ca.attendance.repair;
 
+import com.ca.attendance.user.UserRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -34,6 +35,13 @@ public class RepairCaseController {
                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return repairs.list(keyword, status, from, to);
+    }
+
+    @GetMapping("/handler-candidates")
+    public List<UserRepository.UserCandidate> handlerCandidates(
+            @RequestParam(required = false) String keyword
+    ) {
+        return repairs.handlerCandidates(keyword);
     }
 
     @PostMapping

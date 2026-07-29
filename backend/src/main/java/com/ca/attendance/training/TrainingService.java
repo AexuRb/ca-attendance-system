@@ -1,5 +1,6 @@
 package com.ca.attendance.training;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
@@ -318,6 +319,47 @@ public class TrainingService {
                 "trainingCount", number(row.get("trainingCount")),
                 "trainingHours", decimal(row.get("trainingHours"))
         );
+    }
+
+    public List<MyTrainingRecordItem> myRecords(LocalDate from, LocalDate to) {
+        AuthUser current = AuthContext.current();
+        LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
+        LocalDate end = to == null ? LocalDate.now() : to;
+        if (start.isAfter(end)) {
+            throw ApiException.badRequest("开始日期不能晚于结束日期");
+        }
+        return jdbc.query("""
+                SELECT
+                  p.id AS participant_id,
+                  s.id AS session_id,
+                  s.title,
+                  s.training_date,
+                  s.start_time,
+                  s.end_time,
+                  s.location,
+                  s.speaker,
+                  p.attendance_status,
+                  p.duration_hours,
+                  p.remark
+                FROM training_participants p
+                JOIN training_sessions s ON s.id = p.session_id
+                WHERE p.user_id = ?
+                  AND s.status <> 'ARCHIVED'
+                  AND s.training_date BETWEEN ? AND ?
+                ORDER BY s.training_date DESC, s.start_time DESC, p.id DESC
+                """, (rs, rowNum) -> new MyTrainingRecordItem(
+                rs.getLong("participant_id"),
+                rs.getLong("session_id"),
+                rs.getString("title"),
+                localDate(rs, "training_date"),
+                localTime(rs, "start_time"),
+                localTime(rs, "end_time"),
+                rs.getString("location"),
+                rs.getString("speaker"),
+                rs.getString("attendance_status"),
+                rs.getBigDecimal("duration_hours"),
+                rs.getString("remark")
+        ), current.id(), databaseDate(start), databaseDate(end));
     }
 
     private ImportResult importSheet(long sessionId, Sheet sheet, long operatorId) {
@@ -855,21 +897,21 @@ public class TrainingService {
     }
 
     private void requireManageTrainings(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以管理培训");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.TRAINING_MANAGE,
+                "只有会长或管理员可以管理培训");
     }
 
     private void requireViewTrainings(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以查看培训管理");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.TRAINING_MANAGE,
+                "只有会长或管理员可以查看培训管理");
     }
 
     private void requireExportTrainings(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以导出培训 Excel");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.TRAINING_MANAGE,
+                "只有会长或管理员可以导出培训 Excel");
     }
 
     private byte[] workbookBytes(WorkbookWriter writer) {

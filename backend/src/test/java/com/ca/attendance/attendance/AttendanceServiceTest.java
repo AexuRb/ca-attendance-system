@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -44,6 +45,8 @@ class AttendanceServiceTest {
     private BackupService backups;
     @Mock
     private PublicSubmissionRepository submissions;
+    @Mock
+    private PublicMemberSelectionService selections;
 
     @AfterEach
     void clearAuthContext() {
@@ -52,7 +55,7 @@ class AttendanceServiceTest {
 
     @Test
     void submitPublicCreatesCheckInAndMarksRecordIncomplete() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         UserSummary member = user(1L, "20230001", "张三", Role.MEMBER);
 
         when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
@@ -75,7 +78,7 @@ class AttendanceServiceTest {
 
     @Test
     void ministerPublicSubmissionIsAutoApproved() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         UserSummary minister = user(2L, "20230002", "测试部长", Role.MINISTER);
 
         when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
@@ -95,7 +98,7 @@ class AttendanceServiceTest {
 
     @Test
     void recomputeApprovedCheckoutRoundsValidHours() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         LocalDateTime checkIn = LocalDateTime.of(2026, 6, 30, 8, 0);
         LocalDateTime checkOut = LocalDateTime.of(2026, 6, 30, 10, 34);
         when(records.findById(20L)).thenReturn(Optional.of(record(20L, checkIn, checkOut, "APPROVED", "APPROVED")));
@@ -107,7 +110,7 @@ class AttendanceServiceTest {
 
     @Test
     void presidentCanDeleteAttendanceRecordWithSafetyBackup() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         AuthContext.set(new AuthUser(2L, "president", "会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
         AttendanceRecord existing = record(30L, null, "APPROVED", "NOT_SUBMITTED");
         when(records.findById(30L)).thenReturn(Optional.of(existing));
@@ -121,7 +124,7 @@ class AttendanceServiceTest {
 
     @Test
     void ministerCanUpdateAndDeleteMemberRecordFromCurrentWeek() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         AuthContext.set(new AuthUser(2L, "minister", "测试部长", Role.MINISTER, Instant.now().plusSeconds(3600)));
         LocalDateTime checkIn = LocalDate.now().atTime(14, 0);
         LocalDateTime checkOut = LocalDate.now().atTime(16, 0);
@@ -147,7 +150,7 @@ class AttendanceServiceTest {
 
     @Test
     void ministerCannotChangeRecordOutsideCurrentWeekOrOwnedByPresident() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         AuthContext.set(new AuthUser(2L, "minister", "测试部长", Role.MINISTER, Instant.now().plusSeconds(3600)));
         LocalDateTime lastWeek = LocalDate.now().minusWeeks(1).atTime(14, 0);
         AttendanceRecord oldMemberRecord = record(32L, 1L, lastWeek, lastWeek.plusHours(2), "APPROVED", "APPROVED", true);
@@ -167,7 +170,7 @@ class AttendanceServiceTest {
 
     @Test
     void ministerCannotMoveRecordOutsideCurrentWeekOrCreateManualRecord() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         AuthContext.set(new AuthUser(2L, "minister", "测试部长", Role.MINISTER, Instant.now().plusSeconds(3600)));
         LocalDateTime thisWeek = LocalDate.now().atTime(14, 0);
         AttendanceRecord memberRecord = record(34L, 1L, thisWeek, thisWeek.plusHours(2), "APPROVED", "APPROVED", true);
@@ -185,8 +188,26 @@ class AttendanceServiceTest {
     }
 
     @Test
+    void manualCandidatesRequireLeaderPermissionAndReturnActiveAccounts() {
+        AttendanceService service = service();
+        List<UserRepository.UserCandidate> candidates = List.of(
+                new UserRepository.UserCandidate(1L, "20230001", "张三", Role.MEMBER)
+        );
+        when(users.searchActiveCandidates("张", 1000)).thenReturn(candidates);
+
+        AuthContext.set(new AuthUser(3L, "president", "测试会长", Role.PRESIDENT,
+                Instant.now().plusSeconds(3600)));
+        assertThat(service.manualCandidates(" 张 ")).isEqualTo(candidates);
+
+        AuthContext.set(new AuthUser(2L, "minister", "测试部长", Role.MINISTER,
+                Instant.now().plusSeconds(3600)));
+        assertThatThrownBy(() -> service.manualCandidates("张"))
+                .hasMessageContaining("会长或管理员");
+    }
+
+    @Test
     void presidentClearingCheckoutResetsCheckoutStatus() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         AuthContext.set(new AuthUser(3L, "president", "测试会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
         LocalDateTime checkIn = LocalDate.now().atTime(14, 0);
         AttendanceRecord before = record(35L, 1L, checkIn, checkIn.plusHours(2), "APPROVED", "APPROVED", true);
@@ -205,7 +226,7 @@ class AttendanceServiceTest {
 
     @Test
     void submitOutsideConfiguredPeriodKeepsRecordForReview() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         UserSummary member = user(1L, "20230001", "张三", Role.MEMBER);
         when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
         when(periods.contains(any())).thenReturn(false);
@@ -225,7 +246,7 @@ class AttendanceServiceTest {
 
     @Test
     void approvedRecordOutsideConfiguredPeriodStillCountsDuration() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         LocalDateTime checkIn = LocalDateTime.of(2026, 7, 16, 20, 0);
         LocalDateTime checkOut = checkIn.plusHours(2);
         when(records.findById(41L)).thenReturn(Optional.of(
@@ -239,7 +260,7 @@ class AttendanceServiceTest {
 
     @Test
     void repeatedPublicSubmissionReturnsTheOriginalReceiptWithoutTogglingAttendance() {
-        AttendanceService service = new AttendanceService(users, records, weekdays, periods, logs, backups, submissions);
+        AttendanceService service = service();
         LocalDateTime submittedAt = LocalDateTime.of(2026, 7, 11, 14, 30);
         when(submissions.findByRequestId("kiosk-retry-001")).thenReturn(Optional.of(
                 new PublicSubmissionRepository.Receipt(
@@ -260,6 +281,48 @@ class AttendanceServiceTest {
         assertThat(response.action()).isEqualTo("CHECK_IN");
         assertThat(response.submittedAt()).isEqualTo(submittedAt);
         verifyNoInteractions(users, records, weekdays, periods);
+    }
+
+    @Test
+    void sameNameLookupReturnsMaskedAccountsAndOpaqueSelectionTokens() {
+        AttendanceService service = service();
+        UserSummary first = new UserSummary(
+                1L, "20230001", "张三", Role.MEMBER, "ACTIVE",
+                null, null, "2023级", null, false, LocalDateTime.now(), LocalDateTime.now()
+        );
+        UserSummary second = new UserSummary(
+                2L, "20240002", "张三", Role.MEMBER, "ACTIVE",
+                null, null, "2024级", null, false, LocalDateTime.now(), LocalDateTime.now()
+        );
+        when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
+        when(periods.contains(any())).thenReturn(true);
+        when(users.findActiveByStudentNo("张三")).thenReturn(Optional.empty());
+        when(users.findActiveByName("张三")).thenReturn(List.of(first, second));
+        when(selections.issue("20230001")).thenReturn("sel_11111111111111111111111111111111");
+        when(selections.issue("20240002")).thenReturn("sel_22222222222222222222222222222222");
+
+        AttendanceService.PublicLookupResponse response = service.lookupByInput("张三");
+
+        assertThat(response.matches()).extracting(AttendanceService.PublicMemberOption::maskedStudentNo)
+                .containsExactly("2023****0001", "2024****0002");
+        assertThat(response.matches()).extracting(AttendanceService.PublicMemberOption::memberToken)
+                .allMatch(token -> token.startsWith("sel_"));
+    }
+
+    @Test
+    void oneCharacterNameLookupIsRejectedBeforeNameSearch() {
+        AttendanceService service = service();
+        when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
+        when(periods.contains(any())).thenReturn(true);
+        when(users.findActiveByStudentNo("张")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.lookupByInput("张"))
+                .isInstanceOf(com.ca.attendance.common.ApiException.class)
+                .hasMessageContaining("至少输入 2 个字");
+    }
+
+    private AttendanceService service() {
+        return new AttendanceService(users, records, weekdays, periods, logs, backups, submissions, selections);
     }
 
     private UserSummary user(long id, String studentNo, String name, Role role) {

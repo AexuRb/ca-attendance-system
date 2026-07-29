@@ -41,6 +41,6 @@ class PublicDutyPeriodController {
 
     @GetMapping
     public List<DutyPeriodItem> list() {
-        return service.list();
+        return service.listEnabled();
     }
 }

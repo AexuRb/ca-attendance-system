@@ -1,5 +1,6 @@
 package com.ca.attendance.stats;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.common.ApiException;
 import org.apache.poi.ss.usermodel.*;
@@ -99,7 +100,7 @@ public class StatsService {
                 String.valueOf(row.get("weekday_name"))
         ));
 
-        Set<LocalDate> activeDates = activeHourDates(from, to);
+        Set<LocalDate> activeDates = activeAttendanceDates(from, to);
         List<Map<String, Object>> days = new java.util.ArrayList<>();
         Map<String, Map<String, BigDecimal>> cells = new LinkedHashMap<>();
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
@@ -121,27 +122,33 @@ public class StatsService {
                   r.user_id AS userId,
                   r.student_no_snapshot AS studentNo,
                   r.name_snapshot AS name,
-                  COALESCE(SUM(r.valid_hours), 0) AS totalHours
+                  u.grade AS grade,
+                  u.role AS role,
+                  COALESCE(SUM(r.valid_hours), 0) AS attendanceHours
                 FROM attendance_records r
+                JOIN users u ON u.id = r.user_id
                 WHERE r.effective_status = 'VALID'
                   AND r.duty_date BETWEEN ? AND ?
-                GROUP BY r.user_id, r.student_no_snapshot, r.name_snapshot
-                ORDER BY totalHours DESC, r.student_no_snapshot
-                """, from, to).forEach(row -> mergeSimpleUserRow(userRows, row));
+                GROUP BY r.user_id, r.student_no_snapshot, r.name_snapshot, u.grade, u.role
+                ORDER BY attendanceHours DESC, r.student_no_snapshot
+                """, from, to).forEach(row -> mergeWeeklyUserRow(userRows, row, false));
         jdbc.queryForList("""
                 SELECT
                   p.user_id AS userId,
                   p.student_no_snapshot AS studentNo,
                   p.name_snapshot AS name,
-                  COALESCE(SUM(p.duration_hours), 0) AS totalHours
+                  u.grade AS grade,
+                  u.role AS role,
+                  COALESCE(SUM(p.duration_hours), 0) AS trainingHours
                 FROM training_participants p
                 JOIN training_sessions s ON s.id = p.session_id
+                JOIN users u ON u.id = p.user_id
                 WHERE s.status <> 'ARCHIVED'
                   AND s.training_date BETWEEN ? AND ?
                   AND p.user_id IS NOT NULL
                   AND p.duration_hours > 0
-                GROUP BY p.user_id, p.student_no_snapshot, p.name_snapshot
-                """, from, to).forEach(row -> mergeSimpleUserRow(userRows, row));
+                GROUP BY p.user_id, p.student_no_snapshot, p.name_snapshot, u.grade, u.role
+                """, from, to).forEach(row -> mergeWeeklyUserRow(userRows, row, true));
         List<Map<String, Object>> users = userRows.values().stream()
                 .sorted(Comparator
                         .<Map<String, Object>>comparingDouble(row -> decimal(row.get("totalHours")).doubleValue())
@@ -169,28 +176,6 @@ public class StatsService {
                 mergeCellHours(rowCells, row.get("userId"), row.get("totalHours"));
             }
         });
-        jdbc.queryForList("""
-                SELECT
-                  s.training_date AS dutyDate,
-                  p.user_id AS userId,
-                  COALESCE(SUM(p.duration_hours), 0) AS totalHours
-                FROM training_participants p
-                JOIN training_sessions s ON s.id = p.session_id
-                WHERE s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
-                  AND p.user_id IS NOT NULL
-                  AND p.duration_hours > 0
-                GROUP BY s.training_date, p.user_id
-                ORDER BY s.training_date, p.user_id
-                """, from, to).forEach(row -> {
-            Object rawDate = row.get("dutyDate");
-            LocalDate dutyDate = toLocalDate(rawDate);
-            Map<String, BigDecimal> rowCells = cells.get(dutyDate.toString());
-            if (rowCells != null) {
-                mergeCellHours(rowCells, row.get("userId"), row.get("totalHours"));
-            }
-        });
-
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("days", days);
         result.put("users", users);
@@ -251,9 +236,9 @@ public class StatsService {
     }
 
     public byte[] export(LocalDate from, LocalDate to) {
-        if (!AuthContext.current().role().canExport()) {
-            throw ApiException.forbidden("无权导出 Excel");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.STATS_EXPORT,
+                "无权导出 Excel");
         if (from.isAfter(to)) {
             throw ApiException.badRequest("开始日期不能晚于结束日期");
         }
@@ -433,6 +418,17 @@ public class StatsService {
         return dates;
     }
 
+    private Set<LocalDate> activeAttendanceDates(LocalDate from, LocalDate to) {
+        Set<LocalDate> dates = new HashSet<>();
+        jdbc.queryForList("""
+                SELECT DISTINCT duty_date AS dutyDate
+                FROM attendance_records
+                WHERE effective_status = 'VALID'
+                  AND duty_date BETWEEN ? AND ?
+                """, from, to).forEach(row -> dates.add(toLocalDate(row.get("dutyDate"))));
+        return dates;
+    }
+
     private BigDecimal hoursForRange(LocalDate from, LocalDate to) {
         BigDecimal attendanceHours = decimal(jdbc.queryForObject("""
                 SELECT COALESCE(SUM(valid_hours), 0)
@@ -489,17 +485,31 @@ public class StatsService {
                 .setScale(2, RoundingMode.HALF_UP));
     }
 
-    private void mergeSimpleUserRow(Map<Long, Map<String, Object>> rows, Map<String, Object> row) {
+    private void mergeWeeklyUserRow(
+            Map<Long, Map<String, Object>> rows,
+            Map<String, Object> row,
+            boolean training
+    ) {
         long userId = ((Number) row.get("userId")).longValue();
         Map<String, Object> merged = rows.computeIfAbsent(userId, id -> {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("userId", userId);
             item.put("studentNo", row.get("studentNo"));
             item.put("name", row.get("name"));
+            item.put("grade", row.get("grade"));
+            item.put("role", row.get("role"));
+            item.put("attendanceHours", BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+            item.put("trainingHours", BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
             item.put("totalHours", BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
             return item;
         });
-        merged.put("totalHours", decimal(merged.get("totalHours")).add(decimal(row.get("totalHours"))).setScale(2, RoundingMode.HALF_UP));
+        String hoursKey = training ? "trainingHours" : "attendanceHours";
+        merged.put(hoursKey, decimal(merged.get(hoursKey))
+                .add(decimal(row.get(hoursKey)))
+                .setScale(2, RoundingMode.HALF_UP));
+        merged.put("totalHours", decimal(merged.get("attendanceHours"))
+                .add(decimal(merged.get("trainingHours")))
+                .setScale(2, RoundingMode.HALF_UP));
     }
 
     private void mergeCellHours(Map<String, BigDecimal> rowCells, Object rawUserId, Object rawHours) {
@@ -609,9 +619,9 @@ public class StatsService {
     }
 
     private void requireManager() {
-        if (!AuthContext.current().role().atLeastManager()) {
-            throw ApiException.forbidden("无权查看统计");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.STATS_VIEW,
+                "无权查看统计");
     }
 
     private int number(String sql, Object... args) {

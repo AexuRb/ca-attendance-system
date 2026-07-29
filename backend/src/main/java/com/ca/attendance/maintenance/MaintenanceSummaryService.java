@@ -1,5 +1,6 @@
 package com.ca.attendance.maintenance;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
@@ -22,9 +23,9 @@ public class MaintenanceSummaryService {
 
     public MaintenanceSummary summary() {
         Role role = AuthContext.current().role();
-        if (role != Role.PRESIDENT && role != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以查看数据中心");
-        }
+        RolePermissionPolicy.require(role,
+                RolePermissionPolicy.Permission.DATA_CENTER,
+                "只有会长或管理员可以查看数据中心");
 
         List<BackupService.BackupItem> backupItems = backups.list();
         long backupSize = backupItems.stream().mapToLong(BackupService.BackupItem::size).sum();

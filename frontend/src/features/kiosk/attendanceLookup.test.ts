@@ -6,7 +6,8 @@ describe("attendance lookup", () => {
     expect(
       canConfirmAttendance({
         exists: true,
-        studentNo: "20230001",
+        memberToken: "sel_member_1",
+        maskedStudentNo: "2023****0001",
         name: "张三",
         action: "CHECK_IN",
         message: "请确认姓名后提交",

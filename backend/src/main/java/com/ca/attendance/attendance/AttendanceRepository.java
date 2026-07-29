@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -120,17 +121,52 @@ public class AttendanceRepository {
     }
 
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
-        String keywordLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
-        String effectiveStatus = status == null || status.isBlank() ? "%" : status;
+        SearchQuery query = searchQuery(from, to, studentNo, status);
         return jdbc.query("""
                 SELECT ar.*, u.role AS user_role
                 FROM attendance_records ar
                 JOIN users u ON u.id = ar.user_id
-                WHERE ar.duty_date BETWEEN ? AND ?
-                  AND (ar.student_no_snapshot LIKE ? OR ar.name_snapshot LIKE ?)
-                  AND ar.effective_status LIKE ?
+                """ + query.where() + """
+
                 ORDER BY ar.duty_date DESC, ar.check_in_time DESC
-                """, mapper, databaseDate(from), databaseDate(to), keywordLike, keywordLike, effectiveStatus);
+                """, mapper, query.args().toArray());
+    }
+
+    public AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo, String status,
+                                     int page, int pageSize) {
+        SearchQuery query = searchQuery(from, to, studentNo, status);
+        Long total = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                """ + query.where(), Long.class, query.args().toArray());
+        long totalRows = total == null ? 0 : total;
+        int lastPage = Math.max(1, (int) Math.ceil((double) totalRows / pageSize));
+        int resolvedPage = Math.min(page, lastPage);
+        List<Object> args = new ArrayList<>(query.args());
+        args.add(pageSize);
+        args.add((resolvedPage - 1) * pageSize);
+        List<AttendanceRecord> items = jdbc.query("""
+                SELECT ar.*, u.role AS user_role
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                """ + query.where() + """
+
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
+                LIMIT ? OFFSET ?
+                """, mapper, args.toArray());
+        return new AttendancePage(items, totalRows, resolvedPage, pageSize);
+    }
+
+    public List<AttendanceRecord> searchForUser(long userId, LocalDate from, LocalDate to) {
+        return jdbc.query("""
+                SELECT ar.*, u.role AS user_role
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                WHERE ar.user_id = ?
+                  AND ar.duty_date BETWEEN ? AND ?
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
+                """, mapper, userId, databaseDate(from), databaseDate(to));
     }
 
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
@@ -218,5 +254,27 @@ public class AttendanceRepository {
     private static Long nullableLong(ResultSet result, String column) throws SQLException {
         long value = result.getLong(column);
         return result.wasNull() ? null : value;
+    }
+
+    private SearchQuery searchQuery(LocalDate from, LocalDate to, String studentNo, String status) {
+        String keywordLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
+        String effectiveStatus = status == null || status.isBlank() ? "%" : status;
+        return new SearchQuery("""
+                WHERE ar.duty_date BETWEEN ? AND ?
+                  AND (ar.student_no_snapshot LIKE ? OR ar.name_snapshot LIKE ?)
+                  AND ar.effective_status LIKE ?
+                """, List.of(
+                databaseDate(from),
+                databaseDate(to),
+                keywordLike,
+                keywordLike,
+                effectiveStatus
+        ));
+    }
+
+    public record AttendancePage(List<AttendanceRecord> items, long total, int page, int pageSize) {
+    }
+
+    private record SearchQuery(String where, List<Object> args) {
     }
 }

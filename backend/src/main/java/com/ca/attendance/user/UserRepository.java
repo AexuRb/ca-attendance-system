@@ -81,6 +81,31 @@ public class UserRepository {
                 """, summaryMapper, name == null ? "" : name.trim());
     }
 
+    public List<UserCandidate> searchActiveCandidates(String keyword, int limit) {
+        String normalized = keyword == null ? "" : keyword.trim();
+        String like = "%" + normalized + "%";
+        return jdbc.query("""
+                SELECT id, student_no, name, role
+                FROM users
+                WHERE status = 'ACTIVE'
+                  AND (? = '' OR student_no LIKE ? OR name LIKE ?)
+                ORDER BY
+                  CASE role
+                    WHEN 'ADMIN' THEN 1
+                    WHEN 'PRESIDENT' THEN 2
+                    WHEN 'MINISTER' THEN 3
+                    ELSE 4
+                  END,
+                  student_no
+                LIMIT ?
+                """, (rs, rowNum) -> new UserCandidate(
+                rs.getLong("id"),
+                rs.getString("student_no"),
+                rs.getString("name"),
+                Role.valueOf(rs.getString("role"))
+        ), normalized, like, like, Math.max(1, Math.min(limit, 1000)));
+    }
+
     public List<UserSummary> search(String keyword, String role, String status, String grade) {
         SearchQuery query = searchQuery(keyword, role, status, grade);
         return jdbc.query("""
@@ -142,6 +167,9 @@ public class UserRepository {
     }
 
     public record UserPage(List<UserSummary> items, long total, int page, int pageSize) {
+    }
+
+    public record UserCandidate(long id, String studentNo, String name, Role role) {
     }
 
     private SearchQuery searchQuery(String keyword, String role, String status, String grade) {

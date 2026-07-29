@@ -10,7 +10,11 @@
         <FileSpreadsheet />自定义导出</button
       ><button :class="{ active: tab === 'backups' }" @click="tab = 'backups'">
         <DatabaseBackup />本机备份</button
-      ><button :class="{ active: tab === 'recycle' }" @click="tab = 'recycle'">
+      ><button
+        v-if="canViewRecycle"
+        :class="{ active: tab === 'recycle' }"
+        @click="tab = 'recycle'"
+      >
         <ArchiveRestore />维修回收站
       </button>
     </div>
@@ -201,7 +205,7 @@
             <h2>备份文件</h2>
           </div>
           <div>
-            <label class="button secondary file-button"
+            <label v-if="canRestore" class="button secondary file-button"
               ><Upload />恢复备份<input
                 type="file"
                 accept=".zip"
@@ -311,10 +315,18 @@
       @cancel="purgeTarget = null"
       @confirm="purgeRepair"
     />
+    <RestoreBackupDialog
+      :open="Boolean(restoreTarget)"
+      :file="restoreTarget"
+      :busy="busy"
+      @cancel="restoreTarget = null"
+      @confirm="restoreBackup"
+    />
   </div>
 </template>
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import {
   ArchiveRestore,
   ArrowLeft,
@@ -334,31 +346,51 @@ import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import RestoreBackupDialog from "../../features/maintenance/RestoreBackupDialog.vue";
+import {
+  canRestoreBackup,
+  canViewRepairRecycleBin,
+} from "../../features/maintenance/dataPermissions";
 import { api, del, get, post, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-const { user } = useSession();
-const { run } = useAsyncTask();
+import type {
+  BackupItem,
+  ExportOptions,
+  ExportPreview,
+  ExportRequest,
+  ExportSource,
+  MaintenanceSummary,
+  RecycledRepairCase,
+} from "../../features/maintenance/dataCenterTypes";
+const { user, expireSession } = useSession();
+const { busy, run } = useAsyncTask();
+const router = useRouter();
 const tab = ref("export");
 const step = ref(1);
-const options = reactive<any>({ sources: [] });
-const request = reactive<any>({
+const options = reactive<ExportOptions>({ sources: [] });
+const request = reactive<ExportRequest>({
   source: "",
   fields: [],
   filters: {},
   filename: "",
 });
-const preview = ref<any>(null);
+const preview = ref<ExportPreview | null>(null);
 const previewing = ref(false);
-const summary = ref<any>(null);
-const backups = ref<any[]>([]);
-const recycle = ref<any[]>([]);
-const deleteBackupTarget = ref<any>(null);
-const purgeTarget = ref<any>(null);
+const summary = ref<MaintenanceSummary | null>(null);
+const backups = ref<BackupItem[]>([]);
+const recycle = ref<RecycledRepairCase[]>([]);
+const deleteBackupTarget = ref<BackupItem | null>(null);
+const purgeTarget = ref<RecycledRepairCase | null>(null);
+const restoreTarget = ref<File | null>(null);
 const isAdmin = computed(() => user.value?.role === "ADMIN");
+const canRestore = computed(() => canRestoreBackup(user.value?.role));
+const canViewRecycle = computed(() =>
+  canViewRepairRecycleBin(user.value?.role),
+);
 const stepLabels = ["选择数据源", "设置筛选", "选择字段", "预览导出"];
-const currentSource = computed(() =>
-  options.sources.find((i: any) => i.id === request.source),
+const currentSource = computed<ExportSource | undefined>(() =>
+  options.sources.find((source) => source.id === request.source),
 );
 const canContinue = computed(() =>
   step.value === 1
@@ -368,7 +400,7 @@ const canContinue = computed(() =>
       : true,
 );
 onMounted(async () => {
-  const value = await get<any>("/api/exports/options");
+  const value = await get<ExportOptions>("/api/exports/options");
   options.sources = value.sources || [];
   if (options.sources[0]) selectSource(options.sources[0]);
 });
@@ -376,28 +408,29 @@ watch(tab, async (value) => {
   if (value === "backups") await loadBackups();
   if (value === "recycle") await loadRecycle();
 });
-function selectSource(source: any) {
+function selectSource(source: ExportSource) {
   request.source = source.id;
   request.fields = source.fields
-    .filter((i: any) => i.defaultSelected)
-    .map((i: any) => i.id);
+    .filter((field) => field.defaultSelected)
+    .map((field) => field.id);
   request.filters = {};
-  source.filters.forEach(
-    (i: any) => (request.filters[i.id] = i.defaultValue || ""),
-  );
+  source.filters.forEach((filter) => {
+    request.filters[filter.id] = filter.defaultValue || "";
+  });
   request.filename = "";
   preview.value = null;
 }
 function toggleAll() {
+  if (!currentSource.value) return;
   request.fields =
     request.fields.length === currentSource.value.fields.length
       ? []
-      : currentSource.value.fields.map((i: any) => i.id);
+      : currentSource.value.fields.map((field) => field.id);
 }
 async function makePreview() {
   previewing.value = true;
   try {
-    preview.value = await post("/api/exports/preview", request);
+    preview.value = await post<ExportPreview>("/api/exports/preview", request);
   } finally {
     previewing.value = false;
   }
@@ -412,30 +445,32 @@ async function exportCustom() {
       },
       body: JSON.stringify(request),
     }),
-    `${request.filename || currentSource.value.label}.xlsx`,
+    `${request.filename || currentSource.value?.label || "自定义导出"}.xlsx`,
   );
 }
 async function loadBackups() {
   [summary.value, backups.value] = await Promise.all([
-    get("/api/maintenance/summary"),
-    get("/api/maintenance/backups"),
+    get<MaintenanceSummary>("/api/maintenance/summary"),
+    get<BackupItem[]>("/api/maintenance/backups"),
   ]);
 }
 async function createBackup() {
   if (await run(() => post("/api/maintenance/backups"), "备份已创建"))
     await loadBackups();
 }
-async function downloadBackup(item: any) {
+async function downloadBackup(item: BackupItem) {
   downloadBlob(
     await get(`/api/maintenance/backups/${encodeURIComponent(item.filename)}`),
     item.filename,
   );
 }
 async function deleteBackup() {
+  const target = deleteBackupTarget.value;
+  if (!target) return;
   await run(
     () =>
       del(
-        `/api/maintenance/backups/${encodeURIComponent(deleteBackupTarget.value.filename)}`,
+        `/api/maintenance/backups/${encodeURIComponent(target.filename)}`,
       ),
     "备份已删除",
   );
@@ -444,29 +479,37 @@ async function deleteBackup() {
 }
 async function pickRestore(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  const body = new FormData();
-  body.append("file", file);
-  if (
-    await run(
-      () => post("/api/maintenance/backups/restore", body),
-      "数据已恢复，恢复前备份已自动创建",
-    )
-  )
-    await loadBackups();
   (e.target as HTMLInputElement).value = "";
+  if (!file || !canRestore.value) return;
+  restoreTarget.value = file;
+}
+async function restoreBackup() {
+  if (!restoreTarget.value || !canRestore.value) return;
+  const body = new FormData();
+  body.append("file", restoreTarget.value);
+  const restored = await run(
+    () => post("/api/maintenance/backups/restore", body),
+    "数据已恢复，请重新登录",
+  );
+  if (restored === undefined) return;
+  restoreTarget.value = null;
+  expireSession();
+  await router.replace({ name: "login", query: { reason: "restored" } });
+  window.location.reload();
 }
 async function loadRecycle() {
-  recycle.value = await get("/api/repairs/recycle-bin");
+  if (!canViewRecycle.value) return;
+  recycle.value = await get<RecycledRepairCase[]>("/api/repairs/recycle-bin");
 }
-async function restoreRepair(item: any) {
+async function restoreRepair(item: RecycledRepairCase) {
   await run(() => post(`/api/repairs/${item.id}/restore`), "维修事务已恢复");
   await loadRecycle();
 }
 async function purgeRepair(value: string) {
-  if (value.trim() !== purgeTarget.value.caseNo) return;
+  const target = purgeTarget.value;
+  if (!target || value.trim() !== target.caseNo) return;
   await run(
-    () => post(`/api/repairs/${purgeTarget.value.id}/purge`, { caseNo: value }),
+    () => post(`/api/repairs/${target.id}/purge`, { caseNo: value }),
     "维修事务已彻底删除",
   );
   purgeTarget.value = null;

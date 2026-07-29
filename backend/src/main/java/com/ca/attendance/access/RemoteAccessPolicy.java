@@ -22,7 +22,7 @@ public class RemoteAccessPolicy {
     }
 
     public boolean roleAllowed(Role role) {
-        return role == Role.PRESIDENT || role == Role.ADMIN;
+        return RolePermissionPolicy.allows(role, RolePermissionPolicy.Permission.REMOTE_ADMIN);
     }
 
     public AuthService.LoginContext loginContext(HttpServletRequest request) {

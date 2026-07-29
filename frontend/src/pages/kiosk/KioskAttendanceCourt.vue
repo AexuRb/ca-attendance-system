@@ -66,14 +66,17 @@
           <div class="kiosk-focus-choice-list">
             <button
               v-for="member in matches"
-              :key="member.studentNo"
+              :key="member.memberToken"
               type="button"
-              @click="$emit('select-member', member.studentNo)"
+              @click="$emit('select-member', member.memberToken)"
             >
               <span class="kiosk-focus-avatar">{{ member.name.slice(0, 1) }}</span>
               <span>
                 <strong>{{ member.name }}</strong>
-                <small>学号末四位 {{ member.studentNo.slice(-4) }}</small>
+                <small
+                  >{{ member.maskedStudentNo
+                  }}{{ member.grade ? ` · ${member.grade}` : "" }}</small
+                >
               </span>
               <ChevronRight aria-hidden="true" />
             </button>
@@ -98,7 +101,7 @@
             }}</span>
             <div>
               <strong>{{ lookupResult.name }}</strong>
-              <span>学号末四位 {{ lookupResult.studentNo?.slice(-4) }}</span>
+              <span>{{ lookupResult.maskedStudentNo }}</span>
             </div>
             <div class="kiosk-focus-action-row">
               <button
@@ -206,7 +209,7 @@ const emit = defineEmits<{
   lookup: [];
   reset: [];
   submit: [];
-  "select-member": [studentNo: string];
+  "select-member": [memberToken: string];
 }>();
 
 const queryInput = ref<HTMLInputElement>();

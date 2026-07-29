@@ -1,11 +1,14 @@
 package com.ca.attendance.repair;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
+import com.ca.attendance.user.UserRepository;
+import com.ca.attendance.user.UserSummary;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -125,6 +128,7 @@ public class RepairCaseService {
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
     private final BackupService backups;
+    private final UserRepository users;
 
     private final RowMapper<RepairCaseItem> mapper = (rs, rowNum) -> new RepairCaseItem(
             rs.getLong("id"),
@@ -157,10 +161,12 @@ public class RepairCaseService {
             localDateTime(rs, "deleted_at")
     );
 
-    public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs, BackupService backups) {
+    public RepairCaseService(JdbcTemplate jdbc, OperationLogService logs, BackupService backups,
+                             UserRepository users) {
         this.jdbc = jdbc;
         this.logs = logs;
         this.backups = backups;
+        this.users = users;
     }
 
     public List<RepairCaseItem> list(String keyword, String status, LocalDate from, LocalDate to) {
@@ -213,6 +219,11 @@ public class RepairCaseService {
             }
         }
         return queryCases(where.toString(), args.toArray());
+    }
+
+    public List<UserRepository.UserCandidate> handlerCandidates(String keyword) {
+        requireManager(AuthContext.current());
+        return users.searchActiveCandidates(keyword, 1000);
     }
 
     public RepairCaseItem create(RepairCaseRequest request) {
@@ -442,11 +453,7 @@ public class RepairCaseService {
                     ? fallback != null && fallback.completedAt() != null ? fallback.completedAt() : LocalDateTime.now()
                     : request.completedAt()
                 : null;
-        String handlerName = trimToNull(valueOr(request.handlerName(), fallback == null ? current.name() : fallback.handlerName()), 64);
-        if (handlerName == null) {
-            handlerName = current.name();
-        }
-        Long handlerUserId = handlerName.equals(current.name()) ? current.id() : null;
+        HandlerSelection handler = resolveHandler(request, fallback, current);
 
         return new RepairValues(
                 parseAgreementType(valueOr(request.agreementType(), fallback == null ? "PERSONAL_DEVICE" : fallback.agreementType())),
@@ -466,10 +473,60 @@ public class RepairCaseService {
                 status,
                 receivedAt,
                 completedAt,
-                handlerUserId,
-                handlerName,
+                handler.userId(),
+                handler.name(),
                 trimToNull(valueOr(request.remark(), fallback == null ? null : fallback.remark()), 1000)
         );
+    }
+
+    private HandlerSelection resolveHandler(RepairCaseRequest request, RepairCaseItem fallback, AuthUser current) {
+        Long requestedId = request.handlerUserId();
+        if (requestedId != null) {
+            Optional<UserRepository.UserCandidate> active = activeHandlerById(requestedId);
+            if (active.isPresent()) {
+                UserRepository.UserCandidate candidate = active.get();
+                return new HandlerSelection(candidate.id(), candidate.name());
+            }
+            if (fallback != null && requestedId.equals(fallback.handlerUserId())) {
+                return new HandlerSelection(fallback.handlerUserId(), fallback.handlerName());
+            }
+            throw ApiException.badRequest("负责人账号不存在或已停用");
+        }
+
+        String requestedName = trimToNull(request.handlerName(), 64);
+        if (fallback != null
+                && (requestedName == null || requestedName.equals(fallback.handlerName()))) {
+            return new HandlerSelection(fallback.handlerUserId(), fallback.handlerName());
+        }
+        if (requestedName == null || requestedName.equals(current.name())) {
+            return new HandlerSelection(current.id(), current.name());
+        }
+
+        List<UserRepository.UserCandidate> matches = activeHandlersByName(requestedName);
+        if (matches.size() == 1) {
+            UserRepository.UserCandidate candidate = matches.get(0);
+            return new HandlerSelection(candidate.id(), candidate.name());
+        }
+        throw ApiException.badRequest(matches.isEmpty()
+                ? "负责人账号不存在或已停用"
+                : "存在同名账号，请通过账号选择负责人");
+    }
+
+    private Optional<UserRepository.UserCandidate> activeHandlerById(long id) {
+        return users.findSummaryById(id)
+                .filter(user -> "ACTIVE".equals(user.status()))
+                .map(this::toCandidate);
+    }
+
+    private List<UserRepository.UserCandidate> activeHandlersByName(String name) {
+        return users.findActiveByName(name).stream()
+                .limit(2)
+                .map(this::toCandidate)
+                .toList();
+    }
+
+    private UserRepository.UserCandidate toCandidate(UserSummary user) {
+        return new UserRepository.UserCandidate(user.id(), user.studentNo(), user.name(), user.role());
     }
 
     private String nextCaseNo() {
@@ -943,27 +1000,27 @@ public class RepairCaseService {
     }
 
     private void requireManager(AuthUser current) {
-        if (!current.role().atLeastManager()) {
-            throw ApiException.forbidden("只有部长、会长或管理员可以管理维修事务");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.REPAIR_MANAGE,
+                "只有部长、会长或管理员可以管理维修事务");
     }
 
     private void requireRepairExporter(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以导出维修事务");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.REPAIR_EXPORT,
+                "只有会长或管理员可以导出维修事务");
     }
 
     private void requireRepairDeleter(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以删除维修事务");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.REPAIR_DELETE,
+                "只有会长或管理员可以删除维修事务");
     }
 
     private void requireAdmin(AuthUser current) {
-        if (current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有管理员可以管理维修回收站");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.REPAIR_RECYCLE_BIN,
+                "只有管理员可以管理维修回收站");
     }
 
     private byte[] workbookBytes(WorkbookWriter writer) {
@@ -1165,9 +1222,36 @@ public class RepairCaseService {
             String status,
             LocalDateTime receivedAt,
             LocalDateTime completedAt,
+            Long handlerUserId,
             String handlerName,
             String remark
     ) {
+        public RepairCaseRequest(
+                String agreementType,
+                String ownerName,
+                String ownerPhone,
+                String ownerOrg,
+                String deviceType,
+                String deviceBrand,
+                String deviceModel,
+                String deviceSerial,
+                String accessories,
+                String faultDescription,
+                String serviceDescription,
+                Boolean dataBackupConfirmed,
+                Boolean riskAcknowledged,
+                Boolean privacyAcknowledged,
+                String status,
+                LocalDateTime receivedAt,
+                LocalDateTime completedAt,
+                String handlerName,
+                String remark
+        ) {
+            this(agreementType, ownerName, ownerPhone, ownerOrg, deviceType, deviceBrand,
+                    deviceModel, deviceSerial, accessories, faultDescription, serviceDescription,
+                    dataBackupConfirmed, riskAcknowledged, privacyAcknowledged, status, receivedAt,
+                    completedAt, null, handlerName, remark);
+        }
     }
 
     public record ExportFile(String filename, byte[] bytes) {
@@ -1201,6 +1285,9 @@ public class RepairCaseService {
             String handlerName,
             String remark
     ) {
+    }
+
+    private record HandlerSelection(Long userId, String name) {
     }
 
     private interface WorkbookWriter {
