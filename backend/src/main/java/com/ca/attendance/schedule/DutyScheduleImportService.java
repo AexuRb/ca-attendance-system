@@ -1,5 +1,6 @@
 package com.ca.attendance.schedule;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
@@ -391,12 +392,11 @@ public class DutyScheduleImportService {
     }
 
     private List<ConfiguredPeriod> configuredPeriods() {
-        return dutyPeriods.list().stream()
+        return dutyPeriods.listEnabled().stream()
                 .map(item -> new ConfiguredPeriod(
                         LocalTime.parse(item.startTime()),
                         LocalTime.parse(item.endTime())
                 ))
-                .sorted(Comparator.comparing(ConfiguredPeriod::startTime).thenComparing(ConfiguredPeriod::endTime))
                 .toList();
     }
 
@@ -507,9 +507,9 @@ public class DutyScheduleImportService {
     }
 
     private void requireManage(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以批量导入排班");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.SCHEDULE_MANAGE,
+                "只有会长或管理员可以批量导入排班");
     }
 
     private String cell(Row row, int column, DataFormatter formatter) {

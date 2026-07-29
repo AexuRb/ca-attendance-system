@@ -5,6 +5,10 @@ import {
   type AttendanceLookupResult,
   type AttendanceMemberOption,
 } from "./attendanceLookup";
+import {
+  ensureSubmissionAttempt,
+  type SubmissionAttempt,
+} from "./attendanceSubmission";
 import type {
   AttendanceSubmitResult,
   KioskStep,
@@ -32,6 +36,7 @@ export function useKioskAttendance() {
   let resetTimer: number | undefined;
   let lookupRetryTimer: number | undefined;
   let scheduleRetryTimer: number | undefined;
+  let submissionAttempt: SubmissionAttempt | null = null;
 
   const scheduleCount = computed(
     () =>
@@ -63,14 +68,15 @@ export function useKioskAttendance() {
     }
   }
 
-  async function lookup() {
-    if (!query.value || busy.value) return;
+  async function lookup(selectionToken?: string) {
+    const lookupQuery = selectionToken || query.value;
+    if (!lookupQuery || busy.value) return;
     window.clearTimeout(lookupRetryTimer);
     busy.value = true;
     error.value = "";
     try {
       const result = await get<AttendanceLookupResult>(
-        `/api/public/attendance/lookup?query=${encodeURIComponent(query.value)}`,
+        `/api/public/attendance/lookup?query=${encodeURIComponent(lookupQuery)}`,
       );
       online.value = true;
       if (result.matches?.length) {
@@ -78,6 +84,7 @@ export function useKioskAttendance() {
         step.value = "choose";
       } else if (canConfirmAttendance(result)) {
         lookupResult.value = result;
+        submissionAttempt = null;
         step.value = "confirm";
       } else {
         const message = result.message || "未找到可签到的成员";
@@ -95,27 +102,27 @@ export function useKioskAttendance() {
     }
   }
 
-  async function selectMember(studentNo: string) {
-    query.value = studentNo;
-    step.value = "input";
-    await lookup();
+  async function selectMember(memberToken: string) {
+    await lookup(memberToken);
   }
 
   async function submitAttendance() {
-    if (!lookupResult.value?.studentNo || busy.value) return;
+    if (!lookupResult.value?.memberToken || busy.value) return;
     busy.value = true;
     error.value = "";
-    const requestId =
-      crypto.randomUUID?.() ||
-      `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    submissionAttempt = ensureSubmissionAttempt(
+      submissionAttempt,
+      lookupResult.value.memberToken,
+    );
     try {
       const result = await post<AttendanceSubmitResult>(
         "/api/public/attendance/submit",
         {
-          studentNo: lookupResult.value.studentNo,
-          requestId,
+          memberToken: submissionAttempt.memberToken,
+          requestId: submissionAttempt.requestId,
         },
       );
+      submissionAttempt = null;
       online.value = true;
       successName.value = result.name;
       successAction.value =
@@ -151,6 +158,7 @@ export function useKioskAttendance() {
     successName.value = "";
     successAction.value = "";
     successTime.value = "";
+    submissionAttempt = null;
     step.value = "input";
   }
 

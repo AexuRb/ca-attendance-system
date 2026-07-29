@@ -1,5 +1,6 @@
 package com.ca.attendance.schedule;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
@@ -10,6 +11,7 @@ import com.ca.attendance.settings.DutyPeriodService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
 import java.time.DayOfWeek;
@@ -55,11 +57,40 @@ public class DutyScheduleService {
     }
 
     public List<DutyScheduleSlotItem> list() {
-        AuthContext.current();
+        AuthUser current = AuthContext.current();
+        requireManage(current);
         return slots("""
                 WHERE s.status = 'ACTIVE'
                 ORDER BY s.weekday, COALESCE(s.start_time, '00:00:00'), s.id
                 """, null);
+    }
+
+    public List<AssigneeCandidate> assigneeCandidates(String keyword) {
+        AuthUser current = AuthContext.current();
+        requireManage(current);
+        String normalized = keyword == null ? "" : keyword.trim();
+        if (normalized.length() > 64) {
+            throw ApiException.badRequest("成员查询内容过长");
+        }
+        String like = "%" + normalized + "%";
+        return jdbc.query("""
+                SELECT student_no, name, role
+                FROM users
+                WHERE status = 'ACTIVE'
+                  AND role IN ('MINISTER', 'PRESIDENT', 'ADMIN')
+                  AND (student_no LIKE ? OR name LIKE ?)
+                ORDER BY CASE role
+                           WHEN 'ADMIN' THEN 1
+                           WHEN 'PRESIDENT' THEN 2
+                           ELSE 3
+                         END,
+                         student_no
+                LIMIT 100
+                """, (rs, rowNum) -> new AssigneeCandidate(
+                rs.getString("student_no"),
+                rs.getString("name"),
+                Role.valueOf(rs.getString("role"))
+        ), like, like);
     }
 
     public List<DutyScheduleSlotItem> today(LocalDate date) {
@@ -81,6 +112,7 @@ public class DutyScheduleService {
                 """, monday);
     }
 
+    @Transactional
     public DutyScheduleSlotItem create(SlotRequest request) {
         AuthUser current = AuthContext.current();
         requireManage(current);
@@ -109,6 +141,7 @@ public class DutyScheduleService {
         return created;
     }
 
+    @Transactional
     public DutyScheduleSlotItem update(long id, SlotRequest request) {
         AuthUser current = AuthContext.current();
         requireManage(current);
@@ -136,6 +169,7 @@ public class DutyScheduleService {
         return after;
     }
 
+    @Transactional
     public void archive(long id) {
         AuthUser current = AuthContext.current();
         requireManage(current);
@@ -264,7 +298,7 @@ public class DutyScheduleService {
             throw ApiException.badRequest("请选择已设置的值班时间段");
         }
         String selectedKey = periodKey(startTime, endTime);
-        List<DutyPeriodItem> configuredPeriods = dutyPeriods.list();
+        List<DutyPeriodItem> configuredPeriods = dutyPeriods.listEnabled();
         if (configuredPeriods.isEmpty()) {
             throw ApiException.badRequest("请先在值班设置中保存值班时间段");
         }
@@ -294,29 +328,32 @@ public class DutyScheduleService {
             if (studentNo != null && !STUDENT_NO_PATTERN.matcher(studentNo).matches()) {
                 throw ApiException.badRequest("排班成员学号格式不正确：" + studentNo);
             }
-            UserRef user = studentNo == null ? null : findUser(studentNo).orElse(null);
-            String displayName = user == null ? name : user.name();
-            if (displayName == null) {
-                throw ApiException.badRequest("排班成员姓名不能为空");
+            if (studentNo == null) {
+                throw ApiException.badRequest("排班人员必须从启用中的部长、会长或管理员中选择");
             }
-            String key = studentNo == null ? "name:" + displayName : "student:" + studentNo;
+            UserRef user = findEligibleUser(studentNo)
+                    .orElseThrow(() -> ApiException.badRequest(
+                            "排班人员必须是启用中的部长、会长或管理员：" + studentNo));
+            String key = "student:" + studentNo;
             if (!seen.add(key)) {
                 continue;
             }
             result.add(new AssigneeValues(
-                    user == null ? null : user.id(),
-                    user == null ? studentNo : user.studentNo(),
-                    displayName
+                    user.id(),
+                    user.studentNo(),
+                    user.name()
             ));
         }
         return result;
     }
 
-    private Optional<UserRef> findUser(String studentNo) {
+    private Optional<UserRef> findEligibleUser(String studentNo) {
         return jdbc.query("""
                 SELECT id, student_no, name
                 FROM users
                 WHERE student_no = ?
+                  AND status = 'ACTIVE'
+                  AND role IN ('MINISTER', 'PRESIDENT', 'ADMIN')
                 LIMIT 1
                 """, (rs, rowNum) -> new UserRef(
                 rs.getLong("id"),
@@ -326,9 +363,9 @@ public class DutyScheduleService {
     }
 
     private void requireManage(AuthUser current) {
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以管理排班");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.SCHEDULE_MANAGE,
+                "只有会长或管理员可以管理排班");
     }
 
     private int number(Integer value, String message) {
@@ -389,6 +426,9 @@ public class DutyScheduleService {
     }
 
     public record AssigneeRequest(String studentNo, String name) {
+    }
+
+    public record AssigneeCandidate(String studentNo, String name, Role role) {
     }
 
     private record SlotRow(

@@ -30,6 +30,13 @@ public class DutyScheduleController {
         return schedules.list();
     }
 
+    @GetMapping("/assignee-candidates")
+    public List<DutyScheduleService.AssigneeCandidate> assigneeCandidates(
+            @RequestParam(required = false) String keyword
+    ) {
+        return schedules.assigneeCandidates(keyword);
+    }
+
     @PostMapping
     public DutyScheduleSlotItem create(@RequestBody DutyScheduleService.SlotRequest request) {
         return schedules.create(request);

@@ -48,7 +48,7 @@
             </div>
             <p>
               {{
-                slot.assignees.map((item: any) => item.name).join("、") ||
+                slot.assignees.map((item) => item.name).join("、") ||
                 "待安排"
               }}
             </p>
@@ -92,6 +92,8 @@
 import { computed } from "vue";
 import { Pencil, Plus, Trash2 } from "@lucide/vue";
 import EmptyState from "../../../shared/ui/EmptyState.vue";
+import type { DutyPeriod } from "../../../features/settings/dutyPeriods";
+import type { ScheduleSlot } from "../../../features/schedule/scheduleTypes";
 
 interface WeekdayOption {
   value: number;
@@ -101,15 +103,15 @@ interface WeekdayOption {
 }
 
 const props = defineProps<{
-  slots: any[];
-  periods: any[];
+  slots: ScheduleSlot[];
+  periods: DutyPeriod[];
   weekdays: WeekdayOption[];
 }>();
 
 defineEmits<{
   add: [weekday: number, period: string];
-  edit: [slot: any];
-  archive: [slot: any];
+  edit: [slot: ScheduleSlot];
+  archive: [slot: ScheduleSlot];
 }>();
 
 const visibleWeekdays = computed(() => {
@@ -121,7 +123,7 @@ const visibleWeekdays = computed(() => {
   );
 });
 
-function slotsFor(weekday: number, period: any) {
+function slotsFor(weekday: number, period: DutyPeriod) {
   const key = periodKey(period);
   return props.slots.filter(
     (slot) => Number(slot.weekday) === weekday && periodKey(slot) === key,
@@ -133,14 +135,14 @@ function dayPeople(weekday: number) {
   props.slots
     .filter((slot) => Number(slot.weekday) === weekday)
     .forEach((slot) =>
-      slot.assignees?.forEach((person: any) =>
+      slot.assignees?.forEach((person) =>
         people.add(person.studentNo || person.name),
       ),
     );
   return people.size;
 }
 
-function periodKey(value: any) {
+function periodKey(value: Pick<DutyPeriod, "startTime" | "endTime">) {
   return `${shortTime(value.startTime)}-${shortTime(value.endTime)}`;
 }
 

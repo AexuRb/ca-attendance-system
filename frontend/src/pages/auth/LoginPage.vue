@@ -7,6 +7,9 @@
           远程入口仅允许会长和管理员
         </p>
       </div>
+      <p v-if="sessionNotice" class="auth-session-notice" role="status">
+        {{ sessionNotice }}
+      </p>
       <label class="field">
         <span>账号</span>
         <div class="input-with-icon">
@@ -42,9 +45,9 @@
       </label>
       <div class="auth-form-options">
         <label class="check-row"
-          ><input v-model="remember" type="checkbox" /><span
-            >记住账号和密码</span
-          ></label
+          ><input v-model="remember" type="checkbox" /><span>{{
+            rememberLabel
+          }}</span></label
         >
         <RouterLink
           v-if="state.access.kioskAvailable"
@@ -66,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import {
   ArrowLeft,
@@ -79,8 +82,13 @@ import {
 } from "@lucide/vue";
 import AuthLayout from "../../layouts/AuthLayout.vue";
 import { useSession } from "../../app/session";
+import {
+  clearRememberedLogin,
+  isDesktopCredentialMode,
+  loadRememberedLogin,
+  saveRememberedLogin,
+} from "../../features/auth/rememberedCredentials";
 
-const CREDENTIALS_KEY = "ca_remembered_credentials";
 const { state, login } = useSession();
 const router = useRouter();
 const route = useRoute();
@@ -90,20 +98,24 @@ const showPassword = ref(false);
 const busy = ref(false);
 const error = ref("");
 const accountInput = ref<HTMLInputElement>();
+const rememberLabel = isDesktopCredentialMode()
+  ? "记住账号和密码"
+  : "记住账号";
+const sessionNotice = computed(() => {
+  if (route.query.reason === "restored") return "数据已恢复，请重新登录";
+  if (route.query.reason === "expired") return "登录状态已失效，请重新登录";
+  return "";
+});
 
 onMounted(async () => {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CREDENTIALS_KEY) || "null");
-    if (saved?.studentNo && saved?.password) {
-      form.studentNo = saved.studentNo;
-      form.password = saved.password;
-      remember.value = true;
-    }
-  } catch {
-    localStorage.removeItem(CREDENTIALS_KEY);
+  const saved = await loadRememberedLogin();
+  if (saved) {
+    form.studentNo = saved.studentNo;
+    form.password = saved.password;
+    remember.value = true;
   }
   await nextTick();
-  accountInput.value?.focus();
+  if (!form.studentNo) accountInput.value?.focus();
 });
 
 async function submit() {
@@ -111,9 +123,12 @@ async function submit() {
   error.value = "";
   try {
     const user = await login(form.studentNo, form.password);
-    if (remember.value)
-      localStorage.setItem(CREDENTIALS_KEY, JSON.stringify(form));
-    else localStorage.removeItem(CREDENTIALS_KEY);
+    try {
+      if (remember.value) await saveRememberedLogin({ ...form });
+      else await clearRememberedLogin();
+    } catch {
+      await clearRememberedLogin().catch(() => undefined);
+    }
     if (user.mustChangePassword) await router.replace({ name: "password" });
     else if (route.query.next) await router.replace(String(route.query.next));
     else

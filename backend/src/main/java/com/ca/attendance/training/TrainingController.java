@@ -53,6 +53,14 @@ public class TrainingController {
         return trainings.myHours(from, to);
     }
 
+    @GetMapping("/me")
+    public List<MyTrainingRecordItem> myRecords(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return trainings.myRecords(from, to);
+    }
+
     @GetMapping("/{id}/participants")
     public List<TrainingParticipantItem> participants(@PathVariable long id) {
         return trainings.participants(id);

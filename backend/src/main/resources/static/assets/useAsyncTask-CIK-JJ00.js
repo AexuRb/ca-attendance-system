@@ -1,0 +1,1 @@
+import{l as e,q as t}from"./index-5zhrDhqX.js";function n(){let n=t(!1),r=t(``);async function i(t,i=``){n.value=!0,r.value=``;try{let n=await t();return i&&e(i,`success`),n}catch(t){r.value=t instanceof Error?t.message:`操作失败`,e(r.value,`danger`);return}finally{n.value=!1}}return{busy:n,error:r,run:i}}export{n as t};

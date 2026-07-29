@@ -1,5 +1,6 @@
 package com.ca.attendance.settings;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
@@ -9,12 +10,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class DutyPeriodService {
@@ -51,13 +55,15 @@ public class DutyPeriodService {
         }
     }
 
+    @Transactional
     public List<DutyPeriodItem> update(List<DutyPeriodRequest> periods) {
         AuthUser current = AuthContext.current();
-        if (!current.role().canSetDutyWeekdays()) {
-            throw ApiException.forbidden("无权调整值班时间段");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.DUTY_SETTINGS_MANAGE,
+                "无权调整值班时间段");
         List<DutyPeriodItem> before = list();
         List<DutyPeriodItem> normalized = normalize(periods);
+        validateActiveScheduleReferences(normalized);
         try {
             String value = objectMapper.writeValueAsString(normalized);
             jdbc.update("""
@@ -80,17 +86,21 @@ public class DutyPeriodService {
         if (time == null) {
             return false;
         }
-        return list().stream().anyMatch(period -> {
+        return listEnabled().stream().anyMatch(period -> {
             LocalTime start = LocalTime.parse(period.startTime());
             LocalTime end = LocalTime.parse(period.endTime());
             return !time.isBefore(start) && time.isBefore(end);
         });
     }
 
+    public List<DutyPeriodItem> listEnabled() {
+        return list().stream().filter(DutyPeriodItem::enabled).toList();
+    }
+
     public void requireManager() {
-        if (!AuthContext.current().role().atLeastManager()) {
-            throw ApiException.forbidden("无权查看该数据");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权查看该数据");
     }
 
     private List<DutyPeriodItem> normalize(List<DutyPeriodRequest> periods) {
@@ -107,7 +117,7 @@ public class DutyPeriodService {
             if (!end.isAfter(start)) {
                 throw ApiException.badRequest("结束时间必须晚于开始时间");
             }
-            values.add(new PeriodValue(start, end));
+            values.add(new PeriodValue(start, end, period.enabled() == null || period.enabled()));
         }
         if (values.isEmpty()) {
             throw ApiException.badRequest("至少保留一个值班时间段");
@@ -115,18 +125,59 @@ public class DutyPeriodService {
         if (values.size() > 12) {
             throw ApiException.badRequest("值班时间段最多设置 12 个");
         }
-        values.sort(Comparator.comparing(PeriodValue::start).thenComparing(PeriodValue::end));
         List<DutyPeriodItem> result = new ArrayList<>();
-        String lastKey = "";
+        Set<String> keys = new HashSet<>();
         for (PeriodValue value : values) {
             String key = value.start().format(TIME_FORMAT) + "-" + value.end().format(TIME_FORMAT);
-            if (key.equals(lastKey)) {
-                continue;
+            if (!keys.add(key)) {
+                throw ApiException.badRequest("值班时间段不能重复");
             }
-            result.add(new DutyPeriodItem(result.size(), value.start().format(TIME_FORMAT), value.end().format(TIME_FORMAT)));
-            lastKey = key;
+            result.add(new DutyPeriodItem(
+                    result.size(),
+                    value.start().format(TIME_FORMAT),
+                    value.end().format(TIME_FORMAT),
+                    value.enabled()
+            ));
         }
+        validateOverlaps(values);
         return result;
+    }
+
+    private void validateOverlaps(List<PeriodValue> values) {
+        List<PeriodValue> enabled = values.stream()
+                .filter(PeriodValue::enabled)
+                .sorted(Comparator.comparing(PeriodValue::start).thenComparing(PeriodValue::end))
+                .toList();
+        for (int index = 1; index < enabled.size(); index++) {
+            if (enabled.get(index).start().isBefore(enabled.get(index - 1).end())) {
+                throw ApiException.badRequest("启用中的值班时间段不能重叠");
+            }
+        }
+    }
+
+    private void validateActiveScheduleReferences(List<DutyPeriodItem> periods) {
+        Set<String> enabledKeys = periods.stream()
+                .filter(DutyPeriodItem::enabled)
+                .map(period -> period.startTime() + "-" + period.endTime())
+                .collect(java.util.stream.Collectors.toSet());
+        List<String> usedKeys = jdbc.query("""
+                SELECT DISTINCT start_time, end_time
+                FROM duty_schedule_slots
+                WHERE status = 'ACTIVE'
+                  AND enabled = 1
+                """, (rs, rowNum) -> periodKey(
+                LocalTime.parse(rs.getString("start_time")),
+                LocalTime.parse(rs.getString("end_time"))
+        ));
+        List<String> conflicts = usedKeys.stream().filter(key -> !enabledKeys.contains(key)).toList();
+        if (!conflicts.isEmpty()) {
+            throw ApiException.badRequest(
+                    "值班时间段仍被固定排班使用，请先调整对应排班：" + String.join("、", conflicts));
+        }
+    }
+
+    private String periodKey(LocalTime start, LocalTime end) {
+        return start.format(TIME_FORMAT) + "-" + end.format(TIME_FORMAT);
     }
 
     private LocalTime parseTime(String value, String emptyMessage) {
@@ -141,9 +192,12 @@ public class DutyPeriodService {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record DutyPeriodRequest(String startTime, String endTime) {
+    public record DutyPeriodRequest(String startTime, String endTime, Boolean enabled) {
+        public DutyPeriodRequest(String startTime, String endTime) {
+            this(startTime, endTime, true);
+        }
     }
 
-    private record PeriodValue(LocalTime start, LocalTime end) {
+    private record PeriodValue(LocalTime start, LocalTime end, boolean enabled) {
     }
 }

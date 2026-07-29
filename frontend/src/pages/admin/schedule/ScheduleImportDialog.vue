@@ -65,7 +65,7 @@
             <span>{{ group.members.length }} 人</span>
           </header>
           <p>
-            {{ group.members.map((member: any) => member.name).join("、") }}
+            {{ group.members.map((member) => member.name).join("、") }}
           </p>
         </article>
       </div>
@@ -90,12 +90,16 @@ import { FileSearch, TriangleAlert, Upload } from "@lucide/vue";
 import ModalDialog from "../../../shared/ui/ModalDialog.vue";
 import { post } from "../../../shared/api";
 import { notify } from "../../../shared/composables/useToast";
+import type {
+  ScheduleImportPreview,
+  ScheduleImportResult,
+} from "../../../features/schedule/scheduleTypes";
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ close: []; imported: [] }>();
 const fileInput = ref<HTMLInputElement>();
 const file = ref<File | null>(null);
-const preview = ref<any>(null);
+const preview = ref<ScheduleImportPreview | null>(null);
 const busy = ref(false);
 
 watch(
@@ -116,7 +120,10 @@ async function previewFile() {
   try {
     const body = new FormData();
     body.append("file", file.value);
-    preview.value = await post("/api/schedules/import/preview", body);
+    preview.value = await post<ScheduleImportPreview>(
+      "/api/schedules/import/preview",
+      body,
+    );
     notify(
       preview.value.valid ? "文件校验通过" : "请先修正导入文件中的错误",
       preview.value.valid ? "success" : "warning",
@@ -124,7 +131,7 @@ async function previewFile() {
   } catch (cause) {
     notify(
       cause instanceof Error ? cause.message : "排班文件校验失败",
-      "error",
+      "danger",
     );
   } finally {
     busy.value = false;
@@ -137,7 +144,10 @@ async function confirmImport() {
   try {
     const body = new FormData();
     body.append("file", file.value);
-    const result = await post<any>("/api/schedules/import", body);
+    const result = await post<ScheduleImportResult>(
+      "/api/schedules/import",
+      body,
+    );
     notify(
       `已导入 ${result.replacedGroups} 个时段、${result.assignedMembers} 人`,
       "success",
@@ -145,7 +155,7 @@ async function confirmImport() {
     emit("imported");
     emit("close");
   } catch (cause) {
-    notify(cause instanceof Error ? cause.message : "排班导入失败", "error");
+    notify(cause instanceof Error ? cause.message : "排班导入失败", "danger");
   } finally {
     busy.value = false;
   }

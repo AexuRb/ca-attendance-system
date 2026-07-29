@@ -154,12 +154,16 @@ import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { del, get, downloadBlob } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import type {
+  OperationLog,
+  OperationLogPage,
+} from "../../features/audit/logTypes";
 const { busy, run } = useAsyncTask();
-const items = ref<any[]>([]);
+const items = ref<OperationLog[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 20;
-const detail = ref<any>(null);
+const detail = ref<OperationLog | null>(null);
 const clearOpen = ref(false);
 const filters = reactive({ keyword: "", actionType: "", from: "", to: "" });
 const totalPages = computed(() =>
@@ -168,7 +172,7 @@ const totalPages = computed(() =>
 onMounted(() => load());
 async function load(target = page.value) {
   const p = params({ ...filters, page: target, pageSize });
-  const value = await run(() => get<any>(`/api/logs?${p}`));
+  const value = await run(() => get<OperationLogPage>(`/api/logs?${p}`));
   if (value) {
     items.value = value.items;
     total.value = value.total;
@@ -177,7 +181,7 @@ async function load(target = page.value) {
 }
 async function exportLogs() {
   downloadBlob(
-    await get(`/api/logs/export?${params(filters)}`),
+    await get<Blob>(`/api/logs/export?${params(filters)}`),
     "操作日志.xlsx",
   );
 }
@@ -186,7 +190,9 @@ async function clearLogs() {
   clearOpen.value = false;
   await load(1);
 }
-function params(value: any) {
+function params(
+  value: Record<string, string | number | null | undefined>,
+) {
   const p = new URLSearchParams();
   Object.entries(value).forEach(
     ([k, v]) => v !== "" && v != null && p.set(k, String(v)),
@@ -195,18 +201,19 @@ function params(value: any) {
 }
 const date = (v: string) => v?.slice(0, 10);
 const time = (v: string) => v?.slice(11, 16);
+const actionLabels: Record<string, string> = {
+  CREATE: "新增",
+  UPDATE: "修改",
+  DELETE: "删除",
+  LOGIN: "登录",
+  RESTORE: "恢复",
+  EXPORT: "导出",
+};
 const actionLabel = (v: string) =>
-  (
-    ({
-      CREATE: "新增",
-      UPDATE: "修改",
-      DELETE: "删除",
-      LOGIN: "登录",
-      RESTORE: "恢复",
-      EXPORT: "导出",
-    }) as any
-  )[v] || v;
-const actionTone = (v: string) =>
+  actionLabels[v] || v;
+const actionTone = (
+  v: string,
+): "neutral" | "info" | "success" | "danger" =>
   v?.includes("DELETE")
     ? "danger"
     : v?.includes("CREATE")
@@ -214,7 +221,7 @@ const actionTone = (v: string) =>
       : v?.includes("UPDATE")
         ? "info"
         : "neutral";
-const targetLabel = (i: any) =>
+const targetLabel = (i: OperationLog) =>
   `${i.targetType || "系统"}${i.targetId ? ` #${i.targetId}` : ""}`;
 function pretty(v?: string) {
   if (!v) return "无";

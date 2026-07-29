@@ -1,4 +1,8 @@
 const TOKEN_KEY = "ca_attendance_token";
+type UnauthorizedHandler = () => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+let invalidatedToken = "";
 
 export class ApiError extends Error {
   status: number;
@@ -17,8 +21,15 @@ export function getToken() {
 }
 
 export function setToken(token: string) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+    invalidatedToken = "";
+  }
   else localStorage.removeItem(TOKEN_KEY);
+}
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
+  unauthorizedHandler = handler;
 }
 
 export async function api<T = unknown>(
@@ -45,6 +56,13 @@ export async function api<T = unknown>(
     );
   }
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      setToken("");
+      if (invalidatedToken !== token) {
+        invalidatedToken = token;
+        unauthorizedHandler?.();
+      }
+    }
     let message = `请求失败（${response.status}）`;
     try {
       const payload = await response.json();

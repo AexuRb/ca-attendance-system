@@ -1,12 +1,13 @@
 {
   "name": "ca-attendance-frontend",
-  "version": "2.3.0",
+  "version": "2.3.5",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -20,7 +21,9 @@
   "devDependencies": {
     "@vue/test-utils": "^2.4.11",
     "jsdom": "^29.1.1",
-    "vitest": "^4.1.10"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.3.8"
   },
   "overrides": {
     "brace-expansion": "5.0.8",

@@ -1,5 +1,6 @@
 package com.ca.attendance.attendance;
 
+import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
@@ -25,6 +26,8 @@ import java.util.UUID;
 
 @Service
 public class AttendanceService {
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final UserRepository users;
     private final AttendanceRepository records;
     private final DutyWeekdayService weekdays;
@@ -32,9 +35,10 @@ public class AttendanceService {
     private final OperationLogService logs;
     private final BackupService backups;
     private final PublicSubmissionRepository submissions;
+    private final PublicMemberSelectionService selections;
     public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays,
                              DutyPeriodService periods, OperationLogService logs, BackupService backups,
-                             PublicSubmissionRepository submissions) {
+                             PublicSubmissionRepository submissions, PublicMemberSelectionService selections) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
@@ -42,6 +46,7 @@ public class AttendanceService {
         this.logs = logs;
         this.backups = backups;
         this.submissions = submissions;
+        this.selections = selections;
     }
 
     public PublicLookupResponse lookup(String studentNo) {
@@ -51,7 +56,7 @@ public class AttendanceService {
         boolean withinDutyPeriod = periods.contains(java.time.LocalTime.now());
         UserSummary user = users.findActiveByStudentNo(studentNo).orElse(null);
         if (user == null) {
-            return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, "学号不存在或账号已停用", List.of());
+            return missingLookup(dutyDay, withinDutyPeriod, "学号不存在或账号已停用");
         }
         return lookupResponse(user, today, dutyDay, withinDutyPeriod);
     }
@@ -63,7 +68,15 @@ public class AttendanceService {
         boolean withinDutyPeriod = periods.contains(java.time.LocalTime.now());
         String keyword = input == null ? "" : input.trim();
         if (keyword.isBlank()) {
-            return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, "请输入学号或姓名", List.of());
+            return missingLookup(dutyDay, withinDutyPeriod, "请输入学号或姓名");
+        }
+        if (keyword.length() > 128) {
+            throw ApiException.badRequest("查询内容过长");
+        }
+        if (keyword.startsWith("sel_")) {
+            UserSummary selected = users.findActiveByStudentNo(selections.resolve(keyword))
+                    .orElseThrow(() -> ApiException.badRequest("身份确认已失效，请重新查询"));
+            return lookupResponse(selected, today, dutyDay, withinDutyPeriod);
         }
 
         var byStudentNo = users.findActiveByStudentNo(keyword);
@@ -71,21 +84,29 @@ public class AttendanceService {
             return lookupResponse(byStudentNo.get(), today, dutyDay, withinDutyPeriod);
         }
 
+        if (keyword.length() < 2) {
+            throw ApiException.badRequest("按姓名查询时至少输入 2 个字");
+        }
         List<UserSummary> sameNameUsers = users.findActiveByName(keyword);
         if (sameNameUsers.isEmpty()) {
-            return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, "未找到该学号或姓名，或账号已停用", List.of());
+            return missingLookup(dutyDay, withinDutyPeriod, "未找到该学号或姓名，或账号已停用");
         }
         if (sameNameUsers.size() == 1) {
             return lookupResponse(sameNameUsers.get(0), today, dutyDay, withinDutyPeriod);
         }
 
         List<PublicMemberOption> matches = sameNameUsers.stream()
-                .map(user -> new PublicMemberOption(user.studentNo(), user.name(), user.grade(), user.major()))
+                .map(user -> new PublicMemberOption(
+                        selections.issue(user.studentNo()),
+                        maskStudentNo(user.studentNo()),
+                        user.name(),
+                        user.grade()
+                ))
                 .toList();
         String message = dutyDay && withinDutyPeriod
-                ? "找到多位同名成员，请选择自己的学号"
+                ? "找到多位同名成员，请选择自己的账号"
                 : "当前不在值班时间，仍可选择成员签到签退";
-        return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, message, matches);
+        return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, null, message, matches);
     }
 
     private PublicLookupResponse lookupResponse(UserSummary user, LocalDate today, boolean dutyDay, boolean withinDutyPeriod) {
@@ -93,11 +114,41 @@ public class AttendanceService {
         String message = dutyDay && withinDutyPeriod
                 ? "请确认姓名后提交"
                 : "当前不在值班时间，仍可提交，是否计入有效时长由审核结果决定";
-        return new PublicLookupResponse(true, dutyDay, withinDutyPeriod, user.studentNo(), user.name(), action, message, List.of());
+        return new PublicLookupResponse(
+                true,
+                dutyDay,
+                withinDutyPeriod,
+                selections.issue(user.studentNo()),
+                maskStudentNo(user.studentNo()),
+                user.name(),
+                action,
+                message,
+                List.of()
+        );
+    }
+
+    private PublicLookupResponse missingLookup(boolean dutyDay, boolean withinDutyPeriod, String message) {
+        return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, null, message, List.of());
+    }
+
+    private String maskStudentNo(String studentNo) {
+        String value = studentNo == null ? "" : studentNo.trim();
+        if (value.length() <= 4) {
+            return "****" + value;
+        }
+        int prefixLength = Math.min(4, value.length() - 4);
+        return value.substring(0, prefixLength) + "****" + value.substring(value.length() - 4);
     }
 
     public SubmitResponse submitPublic(String studentNo) {
         return submitPublic(studentNo, UUID.randomUUID().toString());
+    }
+
+    @Transactional
+    public SubmitResponse submitPublicSelection(String memberToken, String requestId) {
+        String normalizedRequestId = normalizeRequestId(requestId);
+        String studentNo = selections.bindForSubmission(memberToken, normalizedRequestId);
+        return submitPublic(studentNo, normalizedRequestId);
     }
 
     @Transactional
@@ -129,18 +180,18 @@ public class AttendanceService {
                     user.id(), user.studentNo(), user.name(), today, weekday, dutyDay, withinDutyPeriod,
                     Timestamp.valueOf(now), pendingOrAuto, "INCOMPLETE");
             recompute(id);
-            SubmitResponse response = new SubmitResponse(id, "CHECK_IN", user.studentNo(), user.name(), now, pendingOrAuto,
+            SubmitResponse response = new SubmitResponse(id, "CHECK_IN", maskStudentNo(user.studentNo()), user.name(), now, pendingOrAuto,
                     submissionMessage("签到", dutyDay, withinDutyPeriod));
-            saveSubmissionReceipt(normalizedRequestId, response);
+            saveSubmissionReceipt(normalizedRequestId, user.studentNo(), response);
             return response;
         }
 
         AttendanceRecord record = open.get();
         records.updateCheckOut(record.id(), Timestamp.valueOf(now), pendingOrAuto);
         recompute(record.id());
-        SubmitResponse response = new SubmitResponse(record.id(), "CHECK_OUT", user.studentNo(), user.name(), now, pendingOrAuto,
+        SubmitResponse response = new SubmitResponse(record.id(), "CHECK_OUT", maskStudentNo(user.studentNo()), user.name(), now, pendingOrAuto,
                 submissionMessage("签退", record.dutyDay(), record.withinDutyPeriod()));
-        saveSubmissionReceipt(normalizedRequestId, response);
+        saveSubmissionReceipt(normalizedRequestId, user.studentNo(), response);
         return response;
     }
 
@@ -154,10 +205,10 @@ public class AttendanceService {
         return normalized;
     }
 
-    private void saveSubmissionReceipt(String requestId, SubmitResponse response) {
+    private void saveSubmissionReceipt(String requestId, String studentNo, SubmitResponse response) {
         submissions.save(new PublicSubmissionRepository.Receipt(
                 requestId,
-                response.studentNo(),
+                studentNo,
                 response.recordId(),
                 response.action(),
                 response.name(),
@@ -171,7 +222,7 @@ public class AttendanceService {
         return new SubmitResponse(
                 receipt.recordId(),
                 receipt.action(),
-                receipt.studentNo(),
+                maskStudentNo(receipt.studentNo()),
                 receipt.name(),
                 receipt.submittedAt(),
                 receipt.reviewStatus(),
@@ -181,16 +232,16 @@ public class AttendanceService {
 
     public List<AttendanceRecord> pending() {
         AuthUser current = AuthContext.current();
-        if (!current.role().atLeastManager()) {
-            throw ApiException.forbidden("无权查看待审核记录");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权查看待审核记录");
         return records.pendingForReviewer(current.id(), current.role() == Role.MINISTER);
     }
 
     public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
-        if (!AuthContext.current().role().atLeastManager()) {
-            throw ApiException.forbidden("无权查看未签退记录");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权查看未签退记录");
         if (from.isAfter(to)) {
             throw ApiException.badRequest("开始日期不能晚于结束日期");
         }
@@ -200,9 +251,9 @@ public class AttendanceService {
     @Transactional
     public void review(long id, String part, String action, String reason) {
         AuthUser current = AuthContext.current();
-        if (!current.role().atLeastManager()) {
-            throw ApiException.forbidden("无权审核");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权审核");
         AttendanceRecord record = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
         if (current.role() == Role.MINISTER && current.id() == record.userId()) {
             throw ApiException.forbidden("部长不能审核自己的记录");
@@ -230,9 +281,9 @@ public class AttendanceService {
 
     @Transactional
     public BulkReviewResult bulkReview(BulkReviewRequest request) {
-        if (!AuthContext.current().role().atLeastManager()) {
-            throw ApiException.forbidden("无权审核");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权审核");
         if (request.ids() == null || request.ids().isEmpty()) {
             throw ApiException.badRequest("请选择要审核的记录");
         }
@@ -276,23 +327,49 @@ public class AttendanceService {
     }
 
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
-        if (!AuthContext.current().role().atLeastManager()) {
-            throw ApiException.forbidden("无权查看全部记录");
-        }
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权查看全部记录");
+        validateDateRange(from, to);
         return records.search(from, to, studentNo, status);
     }
 
+    public AttendanceRepository.AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo,
+                                                          String status, int page, int pageSize) {
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "无权查看全部记录");
+        validateDateRange(from, to);
+        int safePage = Math.max(1, page);
+        int safePageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+        return records.searchPage(from, to, studentNo, status, safePage, safePageSize);
+    }
+
+    public List<UserRepository.UserCandidate> manualCandidates(String keyword) {
+        RolePermissionPolicy.require(AuthContext.current().role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_CREATE,
+                "只有会长或管理员可以选择补录账号");
+        return users.searchActiveCandidates(keyword == null ? "" : keyword.trim(), 1000);
+    }
+
     public List<AttendanceRecord> myRecords(LocalDate from, LocalDate to) {
+        validateDateRange(from, to);
         long userId = AuthContext.current().id();
-        return records.search(from, to, "", "").stream().filter(r -> r.userId() == userId).toList();
+        return records.searchForUser(userId, from, to);
+    }
+
+    private void validateDateRange(LocalDate from, LocalDate to) {
+        if (from.isAfter(to)) {
+            throw ApiException.badRequest("开始日期不能晚于结束日期");
+        }
     }
 
     @Transactional
     public AttendanceRecord manualUpdate(long id, ManualUpdateRequest request) {
         AuthUser current = AuthContext.current();
-        if (!current.role().atLeastManager()) {
-            throw ApiException.forbidden("只有部长、会长或管理员可以修改签到记录");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "只有部长、会长或管理员可以修改签到记录");
         if (request.reason() == null || request.reason().isBlank()) {
             throw ApiException.badRequest("手动修改必须填写原因");
         }
@@ -335,9 +412,9 @@ public class AttendanceService {
     @Transactional
     public AttendanceRecord manualCreate(ManualCreateRequest request) {
         AuthUser current = AuthContext.current();
-        if (current.role() != Role.PRESIDENT && current.role() != Role.ADMIN) {
-            throw ApiException.forbidden("只有会长或管理员可以添加签到记录");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_CREATE,
+                "只有会长或管理员可以添加签到记录");
         if (request.studentNo() == null || request.studentNo().isBlank()) {
             throw ApiException.badRequest("请填写学号");
         }
@@ -376,9 +453,9 @@ public class AttendanceService {
     @Transactional
     public void delete(long id, String reason) {
         AuthUser current = AuthContext.current();
-        if (!current.role().atLeastManager()) {
-            throw ApiException.forbidden("只有部长、会长或管理员可以删除签到记录");
-        }
+        RolePermissionPolicy.require(current.role(),
+                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
+                "只有部长、会长或管理员可以删除签到记录");
         if (reason == null || reason.isBlank()) {
             throw ApiException.badRequest("删除签到记录必须填写原因");
         }
@@ -485,7 +562,8 @@ public class AttendanceService {
             boolean exists,
             boolean dutyDay,
             boolean withinDutyPeriod,
-            String studentNo,
+            String memberToken,
+            String maskedStudentNo,
             String name,
             String action,
             String message,
@@ -494,17 +572,17 @@ public class AttendanceService {
     }
 
     public record PublicMemberOption(
-            String studentNo,
+            String memberToken,
+            String maskedStudentNo,
             String name,
-            String grade,
-            String major
+            String grade
     ) {
     }
 
     public record SubmitResponse(
             long recordId,
             String action,
-            String studentNo,
+            String maskedStudentNo,
             String name,
             LocalDateTime submittedAt,
             String status,

@@ -44,7 +44,7 @@ class DutyPeriodServiceTest {
 
         List<DutyPeriodItem> periods = service.list();
 
-        assertThat(periods).containsExactly(new DutyPeriodItem(0, "15:00", "17:00"));
+        assertThat(periods).containsExactly(new DutyPeriodItem(0, "15:00", "17:00", true));
     }
 
     @Test
@@ -58,6 +58,17 @@ class DutyPeriodServiceTest {
         assertThat(service.contains(LocalTime.of(14, 0))).isTrue();
         assertThat(service.contains(LocalTime.of(17, 59, 59))).isTrue();
         assertThat(service.contains(LocalTime.of(18, 0))).isFalse();
+    }
+
+    @Test
+    void containsIgnoresDisabledPeriods() {
+        DutyPeriodService service = new DutyPeriodService(jdbc, new ObjectMapper(), logs);
+        when(jdbc.queryForList(anyString(), eq(String.class), eq("DUTY_TIME_PERIODS")))
+                .thenReturn(List.of("""
+                        [{"startTime":"14:00","endTime":"18:00","enabled":false}]
+                        """));
+
+        assertThat(service.contains(LocalTime.of(15, 0))).isFalse();
     }
 
     @Test

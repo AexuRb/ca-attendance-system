@@ -1355,12 +1355,32 @@ td small {
 .period-editor article {
   display: grid;
   grid-template-columns:
-    42px minmax(130px, 1fr) 24px minmax(130px, 1fr)
-    90px 36px;
+    72px minmax(130px, 1fr) 24px minmax(130px, 1fr)
+    82px 68px 36px;
   align-items: end;
   gap: 12px;
   padding: 14px 0;
   border-bottom: 1px solid var(--line-soft);
+}
+.period-editor article.disabled {
+  background: linear-gradient(90deg, transparent, var(--surface-soft), transparent);
+  opacity: 0.68;
+}
+.period-order {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.period-order > span:last-child {
+  display: flex;
+}
+.period-order .icon-button {
+  width: 24px;
+  min-height: 28px;
+}
+.period-order .icon-button svg {
+  width: 13px;
 }
 .period-index {
   align-self: center;
@@ -1375,6 +1395,139 @@ td small {
   align-self: center;
   color: var(--ink-600);
   font-size: 12px;
+}
+.period-enabled-toggle {
+  align-self: center;
+  position: relative;
+  display: grid;
+  width: 64px;
+  min-height: 30px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-500);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 700;
+}
+.period-enabled-toggle:has(input:checked) {
+  border-color: var(--blue-300);
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+.period-enabled-toggle input {
+  position: absolute;
+  opacity: 0;
+}
+.account-picker {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.account-picker-search {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.account-picker-search > svg {
+  width: 17px;
+  color: var(--ink-400);
+}
+.account-picker-search input {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.account-picker-search input:focus {
+  outline: 0;
+}
+.account-picker-current {
+  display: grid;
+  grid-template-columns: 34px minmax(0, max-content) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 6px 10px;
+  border: 1px solid var(--blue-200);
+  border-radius: var(--radius);
+  background: var(--blue-50);
+}
+.account-picker-current > span,
+.account-picker-options button > span:first-child {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--blue-100);
+  color: var(--blue-700);
+  font-weight: 800;
+}
+.account-picker-current small,
+.account-picker-options small {
+  color: var(--ink-500);
+}
+.account-picker-current em {
+  color: var(--danger);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+}
+.account-picker-options {
+  display: grid;
+  max-height: 196px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.account-picker-options button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border: 0;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 7px 10px;
+  background: transparent;
+  color: var(--ink-800);
+  text-align: left;
+  cursor: pointer;
+}
+.account-picker-options button:last-of-type {
+  border-bottom: 0;
+}
+.account-picker-options button:hover,
+.account-picker-options button.selected {
+  background: var(--blue-50);
+}
+.account-picker-options button > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+}
+.account-picker-options button > svg {
+  width: 17px;
+  color: var(--blue-600);
+}
+.account-picker-options button.unavailable {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+.account-picker-options > p {
+  margin: 0;
+  padding: 18px;
+  color: var(--ink-500);
+  text-align: center;
 }
 .timeline-list {
   position: relative;
@@ -1602,10 +1755,14 @@ td small {
     grid-template-columns: repeat(2, 1fr);
   }
   .period-editor article {
-    grid-template-columns: 32px 1fr 18px 1fr 36px;
+    grid-template-columns: 64px 1fr 18px 1fr 36px;
   }
   .period-editor article > strong {
     display: none;
+  }
+  .period-enabled-toggle {
+    grid-column: 2 / 4;
+    justify-self: start;
   }
   .timeline-list article {
     grid-template-columns: 70px 1fr 36px;
