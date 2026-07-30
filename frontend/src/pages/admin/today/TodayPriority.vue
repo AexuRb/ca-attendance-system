@@ -16,7 +16,10 @@
 
     <RouterLink
       class="priority-item"
-      :class="{ attention: pendingCount > 0 }"
+      :class="{
+        attention: pendingCount > 0,
+        primary: primaryKind === 'pending',
+      }"
       data-tone="amber"
       :to="{ name: 'reviews' }"
     >
@@ -27,7 +30,10 @@
     </RouterLink>
     <RouterLink
       class="priority-item"
-      :class="{ attention: openCount > 0 }"
+      :class="{
+        attention: openCount > 0,
+        primary: primaryKind === 'open',
+      }"
       data-tone="red"
       :to="{ name: 'attendance', query: { status: 'INCOMPLETE' } }"
     >
@@ -38,7 +44,10 @@
     </RouterLink>
     <RouterLink
       class="priority-item"
-      :class="{ attention: repairCount > 0 }"
+      :class="{
+        attention: repairCount > 0,
+        primary: primaryKind === 'repair',
+      }"
       data-tone="blue"
       :to="{ name: 'repairs' }"
     >
@@ -63,4 +72,17 @@ const repairCount = computed(() => props.dashboard.ongoingRepairCount || 0);
 const totalAttention = computed(
   () => pendingCount.value + openCount.value + repairCount.value,
 );
+const primaryKind = computed(() => {
+  const candidates = [
+    { kind: "pending", value: pendingCount.value, weight: 3 },
+    { kind: "open", value: openCount.value, weight: 2 },
+    { kind: "repair", value: repairCount.value, weight: 1 },
+  ];
+  return candidates
+    .filter((item) => item.value > 0)
+    .sort(
+      (left, right) =>
+        right.value - left.value || right.weight - left.weight,
+    )[0]?.kind;
+});
 </script>

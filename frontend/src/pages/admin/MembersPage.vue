@@ -14,43 +14,14 @@
       </template>
     </PageHeader>
 
-    <form class="filter-bar" @submit.prevent="load(1)">
-      <label class="filter-grow">
-        <span>搜索成员</span>
-        <input
-          v-model.trim="filters.keyword"
-          placeholder="姓名、学号、手机号或学院"
-        />
-      </label>
-      <label>
-        <span>角色</span>
-        <select v-model="filters.role">
-          <option value="">全部角色</option>
-          <option value="MEMBER">成员</option>
-          <option value="MINISTER">部长</option>
-          <option value="PRESIDENT">会长</option>
-          <option value="ADMIN">管理员</option>
-        </select>
-      </label>
-      <label>
-        <span>状态</span>
-        <select v-model="filters.status">
-          <option value="">全部状态</option>
-          <option value="ACTIVE">启用</option>
-          <option value="DISABLED">停用</option>
-        </select>
-      </label>
-      <label>
-        <span>年级</span>
-        <select v-model="filters.grade">
-          <option value="">全部年级</option>
-          <option v-for="grade in grades" :key="grade" :value="grade">
-            {{ grade }}
-          </option>
-        </select>
-      </label>
-      <button class="button secondary" type="submit"><Search />查询</button>
-    </form>
+    <MemberFilters
+      v-model:keyword="filters.keyword"
+      v-model:role="filters.role"
+      v-model:status="filters.status"
+      v-model:grade="filters.grade"
+      :grades="grades"
+      @submit="load(1)"
+    />
 
     <Transition name="soft-rise">
       <div v-if="selected.size" class="selection-toolbar">
@@ -127,8 +98,13 @@
               />
             </td>
             <td>
-              <strong>{{ item.name }}</strong>
-              <small>{{ item.studentNo }}</small>
+              <div class="member-identity">
+                <span class="avatar small">{{ item.name.slice(0, 1) }}</span>
+                <span>
+                  <strong>{{ item.name }}</strong>
+                  <small>{{ item.studentNo }}</small>
+                </span>
+              </div>
             </td>
             <td>
               {{ item.phone || "—" }}
@@ -146,44 +122,16 @@
               />
             </td>
             <td class="align-right row-actions">
-              <button
-                class="icon-button"
-                title="编辑成员"
-                aria-label="编辑成员"
-                :disabled="!canEdit(item)"
-                @click="openEdit(item)"
-              >
-                <Pencil />
-              </button>
-              <button
-                class="icon-button"
-                :title="item.status === 'ACTIVE' ? '停用账号' : '启用账号'"
-                :aria-label="item.status === 'ACTIVE' ? '停用账号' : '启用账号'"
-                :disabled="!canEdit(item) || item.id === user?.id"
-                @click="toggleStatus(item)"
-              >
-                <Power v-if="item.status !== 'ACTIVE'" />
-                <PowerOff v-else />
-              </button>
-              <button
-                class="icon-button"
-                title="重置密码"
-                aria-label="重置密码"
-                :disabled="!canEdit(item)"
-                @click="resetTarget = item"
-              >
-                <KeyRound />
-              </button>
-              <button
-                v-if="user?.role === 'ADMIN'"
-                class="icon-button danger-ghost"
-                title="删除成员"
-                aria-label="删除成员"
-                :disabled="item.id === user?.id"
-                @click="deleteTarget = item"
-              >
-                <Trash2 />
-              </button>
+              <MemberRowActions
+                :member="item"
+                :editable="canEdit(item)"
+                :self="item.id === user?.id"
+                :deletable="user?.role === 'ADMIN'"
+                @edit="openEdit(item)"
+                @toggle-status="toggleStatus(item)"
+                @reset-password="resetTarget = item"
+                @delete="deleteTarget = item"
+              />
             </td>
           </tr>
         </tbody>
@@ -296,12 +244,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-  KeyRound,
-  Pencil,
   Power,
   PowerOff,
-  Search,
-  Trash2,
   Upload,
   UserPlus,
 } from "@lucide/vue";
@@ -313,6 +257,8 @@ import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import MemberEditorDialog from "../../features/members/MemberEditorDialog.vue";
 import BulkMemberStatusDialog from "../../features/members/BulkMemberStatusDialog.vue";
+import MemberFilters from "../../features/members/MemberFilters.vue";
+import MemberRowActions from "../../features/members/MemberRowActions.vue";
 import {
   bulkStatusPayload,
   selectableMemberIds,

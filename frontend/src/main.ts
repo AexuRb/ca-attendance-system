@@ -13,6 +13,7 @@ import "./styles/admin-shell.css";
 import "./styles/today.css";
 import "./styles/schedule.css";
 import "./styles/admin-details.css";
+import "./styles/admin-interactions.css";
 import "./styles/kiosk-theme.css";
 import "./styles/admin-theme.css";
 import "./styles/auth.css";

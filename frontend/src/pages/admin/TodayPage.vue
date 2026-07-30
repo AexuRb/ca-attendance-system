@@ -3,14 +3,7 @@
     <PageHeader
       title="今日"
       :meta="todayLabel"
-    >
-      <template #actions>
-        <RouterLink class="button secondary today-kiosk-link" :to="{ name: 'kiosk' }">
-          <Eye aria-hidden="true" />
-          查看签到台
-        </RouterLink>
-      </template>
-    </PageHeader>
+    />
     <LoadingBlock v-if="busy && !dashboard" />
     <template v-else>
       <TodayPriority :dashboard="dashboard || {}" />
@@ -32,8 +25,6 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { Eye } from "@lucide/vue";
-import { RouterLink } from "vue-router";
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import TodayPriority from "./today/TodayPriority.vue";
