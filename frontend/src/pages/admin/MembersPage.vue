@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack members-page">
     <PageHeader
-      eyebrow="PEOPLE / DIRECTORY"
       title="成员名册"
       description="管理在册账号、角色与启用状态。"
     >

@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="TODAY / REVIEW"
       title="签到审核"
       description="逐项确认成员提交的签到与签退。"
     >

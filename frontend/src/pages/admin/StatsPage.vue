@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="DUTY / ANALYTICS"
       title="值班统计"
       description="签到与培训时长按成员合并统计。"
       ><template #actions

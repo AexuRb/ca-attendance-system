@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="DUTY / SCHEDULE"
       title="排班管理"
       description="按已设置的值班星期和时间段维护部长固定周表。"
     >

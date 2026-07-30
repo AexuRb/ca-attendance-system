@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="WORK / TRAINING"
       title="培训记录"
       description="记录培训场次、参与名单与计入值班的培训时长。"
       ><template #actions

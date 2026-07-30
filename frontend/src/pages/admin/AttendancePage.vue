@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="DUTY / RECORDS"
       title="值班记录"
       description="查询、补录与修正值班记录。"
       ><template #actions

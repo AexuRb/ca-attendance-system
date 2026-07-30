@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="WORK / REPAIRS"
       title="维修事务"
       description="维护维修受理过程、协议与交付状态。"
       ><template #actions

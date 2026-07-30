@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack settings-page">
     <PageHeader
-      eyebrow="SYSTEM / SETTINGS"
       title="系统设置"
       description="设置每周开放日和值班时间段，排班只能选用这里保存的时段。"
     />

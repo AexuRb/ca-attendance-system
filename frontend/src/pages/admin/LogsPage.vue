@@ -1,7 +1,6 @@
 <template>
   <div class="page-stack">
     <PageHeader
-      eyebrow="SYSTEM / AUDIT"
       title="操作日志"
       description="查看管理员操作轨迹与数据变更前后内容。"
       ><template #actions
