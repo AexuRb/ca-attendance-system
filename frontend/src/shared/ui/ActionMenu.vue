@@ -6,7 +6,7 @@
   >
     <button
       ref="trigger"
-      class="icon-button"
+      :class="triggerText ? 'button secondary' : 'icon-button'"
       type="button"
       :aria-label="label"
       :title="label"
@@ -14,7 +14,10 @@
       :aria-expanded="open"
       @click="toggle"
     >
-      <MoreHorizontal aria-hidden="true" />
+      <template v-if="triggerText">
+        {{ triggerText }}<ChevronDown aria-hidden="true" />
+      </template>
+      <MoreHorizontal v-else aria-hidden="true" />
     </button>
   </div>
   <Teleport to="body">
@@ -36,12 +39,13 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, type CSSProperties } from "vue";
-import { MoreHorizontal } from "@lucide/vue";
+import { ChevronDown, MoreHorizontal } from "@lucide/vue";
 
 const props = withDefaults(
   defineProps<{
     label?: string;
     align?: "start" | "end";
+    triggerText?: string;
   }>(),
   {
     label: "更多操作",

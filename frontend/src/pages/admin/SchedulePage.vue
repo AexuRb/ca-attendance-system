@@ -6,28 +6,39 @@
     >
       <template #actions>
         <button
-          class="button secondary"
-          :disabled="busy"
-          @click="downloadImportTemplate"
-        >
-          <Download />导入模板
-        </button>
-        <button
-          class="button secondary"
-          :disabled="busy"
-          @click="importOpen = true"
-        >
-          <Upload />批量导入
-        </button>
-        <button class="button secondary" :disabled="busy" @click="loadBase">
-          <RefreshCw />刷新
-        </button>
-        <button
           class="button primary"
           :disabled="busy || !periods.length"
           @click="openFixed(null)"
         >
           <Plus />新增排班
+        </button>
+        <ActionMenu label="导入排班" trigger-text="导入">
+          <button
+            role="menuitem"
+            type="button"
+            :disabled="busy"
+            @click="downloadImportTemplate"
+          >
+            <Download aria-hidden="true" />下载导入模板
+          </button>
+          <button
+            role="menuitem"
+            type="button"
+            :disabled="busy"
+            @click="importOpen = true"
+          >
+            <Upload aria-hidden="true" />批量导入
+          </button>
+        </ActionMenu>
+        <button
+          class="icon-button"
+          type="button"
+          aria-label="刷新排班"
+          title="刷新排班"
+          :disabled="busy"
+          @click="loadBase"
+        >
+          <RefreshCw aria-hidden="true" />
         </button>
       </template>
     </PageHeader>
@@ -143,6 +154,7 @@ import PageHeader from "../../shared/ui/PageHeader.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import ActionMenu from "../../shared/ui/ActionMenu.vue";
 import FixedScheduleBoard from "./schedule/FixedScheduleBoard.vue";
 import ScheduleImportDialog from "./schedule/ScheduleImportDialog.vue";
 import ScheduleAssigneePicker from "../../features/schedule/ScheduleAssigneePicker.vue";

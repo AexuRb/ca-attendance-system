@@ -1,97 +1,71 @@
 <template>
-  <div
-    v-if="periods.length"
-    class="schedule-week-grid"
-    :style="{
-      gridTemplateColumns: `repeat(${visibleWeekdays.length}, minmax(0, 1fr))`,
-    }"
-  >
-    <section
-      v-for="day in visibleWeekdays"
-      :key="day.value"
-      class="schedule-day-column"
-      :class="{ disabled: !day.enabled }"
+  <div v-if="periods.length" class="schedule-matrix-shell">
+    <div
+      class="schedule-matrix"
+      role="grid"
+      aria-label="固定周排班表"
+      :style="{
+        gridTemplateColumns: `142px repeat(${visibleWeekdays.length}, minmax(176px, 1fr))`,
+      }"
     >
-      <header class="schedule-day-head">
-        <div>
-          <span>{{ day.short }}</span>
-          <strong>{{ day.label }}</strong>
-        </div>
-        <small>{{
-          day.enabled ? `${dayPeople(day.value)} 人` : "未开放"
-        }}</small>
-      </header>
+      <div class="schedule-matrix-corner" role="columnheader">
+        <span>固定周表</span>
+        <strong>{{ periods.length }} 个时段</strong>
+      </div>
+      <div
+        v-for="day in visibleWeekdays"
+        :key="`head-${day.value}`"
+        class="schedule-matrix-day"
+        :class="{ disabled: !day.enabled }"
+        role="columnheader"
+      >
+        <strong>{{ day.label }}</strong>
+        <span>{{ day.enabled ? `${dayPeople(day.value)} 人` : "未开放" }}</span>
+      </div>
 
-      <div class="schedule-day-periods">
+      <template v-for="period in periods" :key="periodKey(period)">
+        <div class="schedule-matrix-period" role="rowheader">
+          <time>
+            {{ shortTime(period.startTime) }}–{{ shortTime(period.endTime) }}
+          </time>
+          <span>{{ periodSlotCount(period) }} 个排班</span>
+        </div>
         <section
-          v-for="period in periods"
+          v-for="day in visibleWeekdays"
           :key="`${day.value}-${periodKey(period)}`"
-          class="schedule-period-group"
+          class="schedule-matrix-cell"
+          :class="{ disabled: !day.enabled }"
+          role="gridcell"
+          :aria-label="`${day.label} ${shortTime(period.startTime)} 至 ${shortTime(period.endTime)}`"
         >
-          <div class="schedule-period-head">
-            <strong
-              >{{ shortTime(period.startTime) }}-{{
-                shortTime(period.endTime)
-              }}</strong
-            >
-            <span>{{ slotsFor(day.value, period).length }} 个排班</span>
-          </div>
-          <article
+          <FixedScheduleCard
             v-for="slot in slotsFor(day.value, period)"
             :key="slot.id"
-            class="schedule-slot-card"
-            :class="{ muted: !slot.enabled }"
-          >
-            <div class="schedule-slot-top">
-              <strong>{{ slot.title }}</strong>
-              <span>{{ slot.enabled ? "显示" : "隐藏" }}</span>
-            </div>
-            <p>
-              {{
-                slot.assignees.map((item) => item.name).join("、") ||
-                "待安排"
-              }}
-            </p>
-            <small>{{
-              [slot.location, slot.note].filter(Boolean).join(" · ") ||
-              "未填写备注"
-            }}</small>
-            <div class="schedule-card-actions">
-              <button
-                class="icon-button"
-                title="编辑排班"
-                @click="$emit('edit', slot)"
-              >
-                <Pencil />
-              </button>
-              <button
-                class="icon-button danger-ghost"
-                title="归档排班"
-                @click="$emit('archive', slot)"
-              >
-                <Trash2 />
-              </button>
-            </div>
-          </article>
+            :slot="slot"
+            @edit="$emit('edit', slot)"
+            @archive="$emit('archive', slot)"
+          />
           <button
             v-if="day.enabled"
             class="schedule-add-period"
             type="button"
             @click="$emit('add', day.value, periodKey(period))"
           >
-            <Plus />添加人员
+            <Plus aria-hidden="true" />添加人员
           </button>
+          <span v-else class="schedule-closed-cell">未开放</span>
         </section>
-      </div>
-    </section>
+      </template>
+    </div>
   </div>
   <EmptyState v-else title="请先在系统设置中添加值班时间段" />
 </template>
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { Pencil, Plus, Trash2 } from "@lucide/vue";
+import { Plus } from "@lucide/vue";
 import EmptyState from "../../../shared/ui/EmptyState.vue";
+import FixedScheduleCard from "./FixedScheduleCard.vue";
 import type { DutyPeriod } from "../../../features/settings/dutyPeriods";
 import type { ScheduleSlot } from "../../../features/schedule/scheduleTypes";
 
@@ -128,6 +102,11 @@ function slotsFor(weekday: number, period: DutyPeriod) {
   return props.slots.filter(
     (slot) => Number(slot.weekday) === weekday && periodKey(slot) === key,
   );
+}
+
+function periodSlotCount(period: DutyPeriod) {
+  const key = periodKey(period);
+  return props.slots.filter((slot) => periodKey(slot) === key).length;
 }
 
 function dayPeople(weekday: number) {
