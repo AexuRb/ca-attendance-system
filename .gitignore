@@ -9,6 +9,7 @@ backups/
 exports/
 logs/
 materials/
+tasks/
 *.sql.gz
 
 # Build output and dependencies
