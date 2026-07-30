@@ -208,6 +208,26 @@
   height: 15px;
 }
 
+.refined-admin-layout .service-status.compact span,
+.refined-admin-layout .local-clock {
+  font-size: 11px;
+}
+
+.refined-admin-layout small,
+.refined-admin-layout .priority-item > small,
+.refined-admin-layout .today-page .section-heading h2 + span,
+.refined-admin-layout .record-date,
+.refined-admin-layout .record-list-item small,
+.refined-admin-layout .record-list-item b,
+.refined-admin-layout .compact-metrics span,
+.refined-admin-layout .repair-column-head b,
+.refined-admin-layout .export-steps button span,
+.refined-admin-layout .weekday-selector strong,
+.refined-admin-layout .period-enabled-toggle span,
+.refined-admin-layout .log-time span {
+  font-size: 11px;
+}
+
 .refined-admin-layout .admin-content {
   min-height: calc(100dvh - 56px);
   padding: 28px clamp(20px, 3vw, 42px) 52px;
