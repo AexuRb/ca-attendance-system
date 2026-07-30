@@ -1,6 +1,12 @@
 <template>
-  <div class="table-shell weekly-stats-table">
-    <table>
+  <section class="weekly-stats-workspace">
+    <div class="weekly-stats-legend" aria-label="统计图例">
+      <span><i data-tone="duty"></i>有效值班时长</span>
+      <span><i data-tone="training"></i>培训时长</span>
+      <span>— 表示无有效时长</span>
+    </div>
+    <div class="table-shell weekly-stats-table">
+      <table>
       <thead>
         <tr>
           <th class="weekly-member-column">成员</th>
@@ -9,8 +15,8 @@
             <strong>{{ day.weekdayName }}</strong>
             <small>{{ day.dutyDate.slice(5) }}</small>
           </th>
-          <th>培训</th>
-          <th>合计</th>
+          <th class="weekly-training-column">培训</th>
+          <th class="weekly-total-column">合计</th>
         </tr>
       </thead>
       <tbody>
@@ -24,6 +30,11 @@
             v-for="day in detail.days"
             :key="`${member.userId}-${day.dutyDate}`"
             class="weekly-hours-cell"
+            :data-heat="
+              weeklyHeatLevel(
+                weeklyCellHours(detail, day.dutyDate, member.userId),
+              )
+            "
           >
             <span
               :class="{
@@ -45,13 +56,18 @@
             <strong>{{ displayHours(member.totalHours) }}</strong>
           </td>
         </tr>
-      </tbody>
-    </table>
-  </div>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { weeklyCellHours, type WeeklyStatsDetail } from "./weeklyStats";
+import {
+  weeklyCellHours,
+  weeklyHeatLevel,
+  type WeeklyStatsDetail,
+} from "./weeklyStats";
 
 defineProps<{ detail: WeeklyStatsDetail }>();
 

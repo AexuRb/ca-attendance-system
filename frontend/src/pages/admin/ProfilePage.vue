@@ -35,7 +35,6 @@
       <section class="panel profile-contact-panel">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">CONTACT</p>
             <h2>联系信息</h2>
           </div>
         </div>
@@ -70,10 +69,9 @@
 
       <section class="panel profile-record-panel">
         <div class="section-heading profile-record-heading">
-          <div>
-            <p class="eyebrow">MY RECORDS</p>
-            <h2>个人记录</h2>
-          </div>
+          <h2>个人记录</h2>
+        </div>
+        <div class="profile-record-toolbar">
           <div class="segmented page-tabs" aria-label="记录类型">
             <button
               type="button"
@@ -90,21 +88,20 @@
               <GraduationCap />培训 {{ trainingRecords.length }}
             </button>
           </div>
+          <form class="profile-record-filter" @submit.prevent="loadRecords">
+            <label>
+              <span>开始日期</span>
+              <input v-model="from" type="date" required />
+            </label>
+            <label>
+              <span>结束日期</span>
+              <input v-model="to" type="date" required />
+            </label>
+            <button class="button secondary small" type="submit">
+              <Search />查询
+            </button>
+          </form>
         </div>
-
-        <form class="profile-record-filter" @submit.prevent="loadRecords">
-          <label>
-            <span>开始日期</span>
-            <input v-model="from" type="date" required />
-          </label>
-          <label>
-            <span>结束日期</span>
-            <input v-model="to" type="date" required />
-          </label>
-          <button class="button secondary small" type="submit">
-            <Search />查询
-          </button>
-        </form>
 
         <LoadingBlock v-if="busy && !activeRecords.length" />
         <EmptyState

@@ -28,3 +28,10 @@ export function weeklyCellHours(
 ): number {
   return Number(detail.cells[dutyDate]?.[String(userId)] || 0);
 }
+
+export function weeklyHeatLevel(hours: number): 0 | 1 | 2 | 3 {
+  if (hours <= 0) return 0;
+  if (hours <= 2) return 1;
+  if (hours <= 4) return 2;
+  return 3;
+}

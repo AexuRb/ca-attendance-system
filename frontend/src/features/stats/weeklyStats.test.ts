@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { weeklyCellHours, type WeeklyStatsDetail } from "./weeklyStats";
+import {
+  weeklyCellHours,
+  weeklyHeatLevel,
+  type WeeklyStatsDetail,
+} from "./weeklyStats";
 
 describe("weekly statistics matrix", () => {
   const detail: WeeklyStatsDetail = {
@@ -35,5 +39,12 @@ describe("weekly statistics matrix", () => {
 
   it("returns zero for an empty day cell", () => {
     expect(weeklyCellHours(detail, "2026-07-28", 7)).toBe(0);
+  });
+
+  it("maps duty hours to restrained heat levels", () => {
+    expect(weeklyHeatLevel(0)).toBe(0);
+    expect(weeklyHeatLevel(2)).toBe(1);
+    expect(weeklyHeatLevel(3.5)).toBe(2);
+    expect(weeklyHeatLevel(6)).toBe(3);
   });
 });
