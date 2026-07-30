@@ -941,9 +941,73 @@
   box-shadow: none;
 }
 
+.refined-admin-layout .repair-card.is-long-running {
+  border-left: 3px solid #d39a30;
+}
+
 .refined-admin-layout .repair-card:hover {
   border-color: #8fc4dc;
   box-shadow: 0 8px 20px rgba(31, 94, 128, 0.08);
+}
+
+.refined-admin-layout .repair-card-timing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--ink-500);
+  font-size: 11px;
+}
+
+.refined-admin-layout .repair-card-timing span[data-attention="true"] {
+  color: var(--amber-700);
+  font-weight: 750;
+}
+
+.refined-admin-layout .repair-card-timing time {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.refined-admin-layout .repair-contact {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.refined-admin-layout .repair-contact > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refined-admin-layout .repair-phone-toggle {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-500);
+  cursor: pointer;
+}
+
+.refined-admin-layout .repair-phone-toggle:hover,
+.refined-admin-layout .repair-phone-toggle:focus-visible {
+  outline: 0;
+  background: var(--surface-blue);
+  color: var(--blue-700);
+}
+
+.refined-admin-layout .repair-phone-toggle svg {
+  width: 15px;
+  height: 15px;
 }
 
 .refined-admin-layout .export-workspace {

@@ -48,6 +48,7 @@
             v-for="item in casesByStatus(column.status)"
             :key="item.id"
             class="repair-card"
+            :class="{ 'is-long-running': isLongRunningRepair(item) }"
           >
             <div>
               <span class="case-no">{{ item.caseNo }}</span
@@ -56,12 +57,44 @@
                 tone="info"
               />
             </div>
+            <div class="repair-card-timing">
+              <span :data-attention="isLongRunningRepair(item)">
+                {{ repairAgeLabel(item) }}
+              </span>
+              <time :datetime="item.updatedAt">
+                更新于 {{ dateTime(item.updatedAt) }}
+              </time>
+            </div>
             <h3>{{ deviceName(item) }}</h3>
             <p>{{ item.faultDescription }}</p>
             <dl>
               <div>
                 <dt>联系人</dt>
-                <dd>{{ item.ownerName }} · {{ item.ownerPhone }}</dd>
+                <dd class="repair-contact">
+                  <span>
+                    {{ item.ownerName }} ·
+                    {{
+                      phoneVisible(item.id)
+                        ? item.ownerPhone
+                        : maskRepairPhone(item.ownerPhone)
+                    }}
+                  </span>
+                  <button
+                    class="repair-phone-toggle"
+                    type="button"
+                    :aria-label="
+                      phoneVisible(item.id) ? '隐藏完整电话' : '显示完整电话'
+                    "
+                    :title="
+                      phoneVisible(item.id) ? '隐藏完整电话' : '显示完整电话'
+                    "
+                    :aria-pressed="phoneVisible(item.id)"
+                    @click="togglePhone(item.id)"
+                  >
+                    <EyeOff v-if="phoneVisible(item.id)" aria-hidden="true" />
+                    <Eye v-else aria-hidden="true" />
+                  </button>
+                </dd>
               </div>
               <div>
                 <dt>负责人</dt>
@@ -233,7 +266,16 @@
 </template>
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { Download, FileText, Pencil, Plus, Search, Trash2 } from "@lucide/vue";
+import {
+  Download,
+  Eye,
+  EyeOff,
+  FileText,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "@lucide/vue";
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
@@ -245,6 +287,11 @@ import { api, del, get, post, put, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { canExportRepairs } from "../../features/repairs/repairPermissions";
+import {
+  isLongRunningRepair,
+  maskRepairPhone,
+  repairAgeLabel,
+} from "../../features/repairs/repairDisplay";
 import type { AccountCandidate } from "../../features/accounts/accountCandidates";
 import type {
   RepairCase,
@@ -263,6 +310,7 @@ const agreementLoading = ref(false);
 const agreementError = ref("");
 const handlerCandidates = ref<AccountCandidate[]>([]);
 const selectedHandler = ref<AccountCandidate | null>(null);
+const revealedPhones = ref(new Set<number>());
 const now = new Date();
 const filters = reactive({
   keyword: "",
@@ -449,6 +497,13 @@ const agreementLabel = (v: string) =>
   v === "DISCLAIMER" ? "免责协议" : "维修协议";
 const dateTime = (v?: string) => v?.replace("T", " ").slice(0, 16) || "—";
 const toInput = (v?: string) => v?.slice(0, 16) || "";
+const phoneVisible = (id: number) => revealedPhones.value.has(id);
+function togglePhone(id: number) {
+  const next = new Set(revealedPhones.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  revealedPhones.value = next;
+}
 function localDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

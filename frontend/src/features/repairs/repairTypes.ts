@@ -23,6 +23,8 @@ export interface RepairCase {
   handlerName?: string;
   remark?: string;
   deletedByName?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface RepairCaseForm {
