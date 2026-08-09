@@ -17,6 +17,8 @@ import type {
 
 const RESET_DELAY = 4500;
 const RETRY_DELAY = 2500;
+const CLOCK_REFRESH_DELAY = 30_000;
+const SCHEDULE_REFRESH_DELAY = 5 * 60_000;
 
 export function useKioskAttendance() {
   const step = ref<KioskStep>("input");
@@ -29,6 +31,7 @@ export function useKioskAttendance() {
   const todaySchedule = ref<ScheduleDay | null>(null);
   const weekSchedule = ref<ScheduleDay[]>([]);
   const scheduleError = ref("");
+  const currentDate = ref(new Date());
   const successName = ref("");
   const successAction = ref("");
   const successTime = ref("");
@@ -36,6 +39,9 @@ export function useKioskAttendance() {
   let resetTimer: number | undefined;
   let lookupRetryTimer: number | undefined;
   let scheduleRetryTimer: number | undefined;
+  let refreshTimer: number | undefined;
+  let scheduleRequest: Promise<void> | undefined;
+  let lastScheduleRefreshAt = 0;
   let submissionAttempt: SubmissionAttempt | null = null;
 
   const scheduleCount = computed(
@@ -46,25 +52,64 @@ export function useKioskAttendance() {
       ) || 0,
   );
 
-  onMounted(loadSchedule);
+  onMounted(() => {
+    currentDate.value = new Date();
+    void loadSchedule();
+    refreshTimer = window.setInterval(
+      () => refreshKioskState(false),
+      CLOCK_REFRESH_DELAY,
+    );
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  });
   onBeforeUnmount(clearTimers);
 
-  async function loadSchedule() {
+  function loadSchedule(): Promise<void> {
+    if (scheduleRequest) return scheduleRequest;
     window.clearTimeout(scheduleRetryTimer);
-    try {
-      const [today, week] = await Promise.all([
-        get<ScheduleDay>("/api/public/schedules/today"),
-        get<ScheduleDay[]>("/api/public/schedules/week"),
-      ]);
-      todaySchedule.value = today;
-      weekSchedule.value = week;
-      scheduleError.value = "";
-      online.value = true;
-    } catch (cause) {
-      scheduleError.value =
-        cause instanceof Error ? cause.message : "排班暂时不可用";
-      online.value = false;
-      scheduleRetryTimer = window.setTimeout(loadSchedule, 3000);
+    scheduleRequest = (async () => {
+      try {
+        const [today, week] = await Promise.all([
+          get<ScheduleDay>("/api/public/schedules/today"),
+          get<ScheduleDay[]>("/api/public/schedules/week"),
+        ]);
+        todaySchedule.value = today;
+        weekSchedule.value = week;
+        scheduleError.value = "";
+        online.value = true;
+        lastScheduleRefreshAt = Date.now();
+      } catch (cause) {
+        scheduleError.value =
+          cause instanceof Error ? cause.message : "排班暂时不可用";
+        online.value = false;
+        scheduleRetryTimer = window.setTimeout(() => void loadSchedule(), 3000);
+      }
+    })().finally(() => {
+      scheduleRequest = undefined;
+    });
+    return scheduleRequest;
+  }
+
+  function refreshKioskState(forceSchedule: boolean) {
+    const previousDay = localDateKey(currentDate.value);
+    const nextDate = new Date();
+    currentDate.value = nextDate;
+    const dayChanged = previousDay !== localDateKey(nextDate);
+    const scheduleStale =
+      lastScheduleRefreshAt === 0 ||
+      nextDate.getTime() - lastScheduleRefreshAt >= SCHEDULE_REFRESH_DELAY;
+    if (forceSchedule || dayChanged || scheduleStale) {
+      void loadSchedule();
+    }
+  }
+
+  function handleFocus() {
+    refreshKioskState(true);
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState === "visible") {
+      refreshKioskState(true);
     }
   }
 
@@ -166,6 +211,9 @@ export function useKioskAttendance() {
     window.clearTimeout(resetTimer);
     window.clearTimeout(lookupRetryTimer);
     window.clearTimeout(scheduleRetryTimer);
+    window.clearInterval(refreshTimer);
+    window.removeEventListener("focus", handleFocus);
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
   }
 
   return {
@@ -180,6 +228,7 @@ export function useKioskAttendance() {
     weekSchedule,
     scheduleError,
     scheduleCount,
+    currentDate,
     successName,
     successAction,
     successTime,
@@ -189,4 +238,8 @@ export function useKioskAttendance() {
     clearError,
     reset,
   };
+}
+
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 }

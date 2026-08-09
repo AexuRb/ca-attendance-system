@@ -1,7 +1,7 @@
 <template>
   <main class="kiosk-signal-app">
     <section class="kiosk-focus-shell kiosk-signal-shell">
-      <KioskHeader :online="online" />
+      <KioskHeader :online="online" :now="currentDate" />
       <KioskSchedulePanel
         :today-schedule="todaySchedule"
         :schedule-error="scheduleError"
@@ -34,22 +34,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
 import { useKioskAttendance } from "../../features/kiosk/useKioskAttendance";
 import KioskAttendanceCourt from "./KioskAttendanceCourt.vue";
 import KioskHeader from "./KioskHeader.vue";
 import KioskSchedulePanel from "./KioskSchedulePanel.vue";
 import KioskWeekStrip from "./KioskWeekStrip.vue";
-
-const now = new Date();
-const todayValue = localDate(now);
-const dateLabel = new Intl.DateTimeFormat("zh-CN", {
-  month: "long",
-  day: "numeric",
-  weekday: "long",
-}).format(now);
-const weekdayLabel = new Intl.DateTimeFormat("zh-CN", {
-  weekday: "long",
-}).format(now);
 
 const {
   step,
@@ -63,6 +53,7 @@ const {
   weekSchedule,
   scheduleError,
   scheduleCount,
+  currentDate,
   successName,
   successAction,
   successTime,
@@ -72,6 +63,20 @@ const {
   clearError,
   reset,
 } = useKioskAttendance();
+
+const todayValue = computed(() => localDate(currentDate.value));
+const dateLabel = computed(() =>
+  new Intl.DateTimeFormat("zh-CN", {
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(currentDate.value),
+);
+const weekdayLabel = computed(() =>
+  new Intl.DateTimeFormat("zh-CN", {
+    weekday: "long",
+  }).format(currentDate.value),
+);
 
 function localDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;

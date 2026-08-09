@@ -26,33 +26,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed } from "vue";
 import ServiceStatus from "../../shared/ui/ServiceStatus.vue";
 
-defineProps<{ online: boolean }>();
+const props = defineProps<{ online: boolean; now: Date }>();
 
-const now = ref(new Date());
-let clockTimer: number | undefined;
 const clock = computed(() =>
   new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(now.value),
+  }).format(props.now),
 );
 const date = computed(() =>
   new Intl.DateTimeFormat("zh-CN", {
     month: "long",
     day: "numeric",
     weekday: "long",
-  }).format(now.value),
+  }).format(props.now),
 );
-const clockIso = computed(() => now.value.toISOString());
-
-onMounted(() => {
-  clockTimer = window.setInterval(() => {
-    now.value = new Date();
-  }, 30000);
-});
-onBeforeUnmount(() => window.clearInterval(clockTimer));
+const clockIso = computed(() => props.now.toISOString());
 </script>
