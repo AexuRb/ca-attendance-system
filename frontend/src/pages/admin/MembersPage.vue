@@ -165,6 +165,7 @@
       :operator-role="user?.role"
       :grade-choices="gradeChoices"
       :busy="busy"
+      :lock-account-controls="lockEditorAccountControls"
       @close="closeEditor"
       @save="saveMember"
     />
@@ -307,6 +308,11 @@ const pageAllSelected = computed(
   () =>
     selectableIds.value.length > 0 &&
     selectableIds.value.every((id) => selected.value.has(id)),
+);
+const lockEditorAccountControls = computed(
+  () =>
+    editorTarget.value?.id === user.value?.id &&
+    editorTarget.value?.role === "ADMIN",
 );
 
 onMounted(async () => {

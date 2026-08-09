@@ -28,7 +28,11 @@
       </label>
       <label class="field">
         <span>角色</span>
-        <select v-model="form.role" name="role">
+        <select
+          v-model="form.role"
+          name="role"
+          :disabled="lockAccountControls"
+        >
           <option value="MEMBER">成员</option>
           <option value="MINISTER">部长</option>
           <option value="PRESIDENT">会长</option>
@@ -37,7 +41,11 @@
       </label>
       <label class="field">
         <span>账号状态</span>
-        <select v-model="form.status" name="status">
+        <select
+          v-model="form.status"
+          name="status"
+          :disabled="lockAccountControls"
+        >
           <option value="ACTIVE">启用</option>
           <option value="DISABLED">停用</option>
         </select>
@@ -109,6 +117,7 @@ const props = defineProps<{
   operatorRole?: string;
   gradeChoices: string[];
   busy?: boolean;
+  lockAccountControls?: boolean;
 }>();
 const emit = defineEmits<{
   close: [];

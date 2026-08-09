@@ -2,6 +2,7 @@ package com.ca.attendance.user;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -126,6 +127,59 @@ class UserTransactionIntegrationTest {
         assertEquals(0, actionCount("DELETE_USER"));
     }
 
+    @Test
+    void onlyActiveAdminCannotDisableOwnAccount() {
+        assertThrows(ApiException.class, () -> users.update(adminId, new UserService.UpdateUserRequest(
+                "事务测试管理员",
+                "ADMIN",
+                "DISABLED",
+                null,
+                null,
+                null,
+                null,
+                "禁止锁死系统测试"
+        )));
+
+        assertEquals("ACTIVE", status(adminId));
+        assertEquals("ADMIN", role(adminId));
+    }
+
+    @Test
+    void onlyActiveAdminCannotDemoteOwnAccount() {
+        assertThrows(ApiException.class, () -> users.update(adminId, new UserService.UpdateUserRequest(
+                "事务测试管理员",
+                "PRESIDENT",
+                "ACTIVE",
+                null,
+                null,
+                null,
+                null,
+                "禁止锁死系统测试"
+        )));
+
+        assertEquals("ACTIVE", status(adminId));
+        assertEquals("ADMIN", role(adminId));
+    }
+
+    @Test
+    void adminCanDisableAnotherAdminWhenOneActiveAdminRemains() {
+        long secondAdminId = insertAdmin("tx-second-admin", "第二管理员");
+
+        users.update(secondAdminId, new UserService.UpdateUserRequest(
+                "第二管理员",
+                "ADMIN",
+                "DISABLED",
+                null,
+                null,
+                null,
+                null,
+                "管理员交接测试"
+        ));
+
+        assertEquals("DISABLED", status(secondAdminId));
+        assertEquals("ACTIVE", status(adminId));
+    }
+
     private long insertMember(String studentNo, String name) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
@@ -138,8 +192,24 @@ class UserTransactionIntegrationTest {
         return id;
     }
 
+    private long insertAdmin(String studentNo, String name) {
+        Long id = jdbc.queryForObject("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES (?, ?, 'test-hash', 'ADMIN', 'ACTIVE', 0)
+                RETURNING id
+                """, Long.class, studentNo, name);
+        if (id == null) {
+            throw new IllegalStateException("测试管理员创建失败");
+        }
+        return id;
+    }
+
     private String status(long id) {
         return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, id);
+    }
+
+    private String role(long id) {
+        return jdbc.queryForObject("SELECT role FROM users WHERE id = ?", String.class, id);
     }
 
     private int actionCount(String actionType) {

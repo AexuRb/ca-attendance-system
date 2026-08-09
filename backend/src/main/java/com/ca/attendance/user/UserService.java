@@ -138,6 +138,7 @@ public class UserService {
                 blankToNull(request.qq()), current.id(), current.id());
     }
 
+    @Transactional
     public UserSummary update(long id, UpdateUserRequest request) {
         AuthUser current = AuthContext.current();
         requireManageUsers();
@@ -151,6 +152,7 @@ public class UserService {
         if (!targetStatus.equals("ACTIVE") && !targetStatus.equals("DISABLED")) {
             throw ApiException.badRequest("账号状态只能是 ACTIVE 或 DISABLED");
         }
+        protectAdminContinuity(current, before, targetRole, targetStatus);
         jdbc.update("""
                 UPDATE users
                 SET name = ?, role = ?, status = ?, phone = ?, major = ?, grade = ?, qq = ?,
@@ -554,6 +556,28 @@ public class UserService {
         if ((newRole == Role.PRESIDENT || newRole == Role.MINISTER || newRole == Role.MEMBER)
                 && !(operator == Role.PRESIDENT || operator == Role.ADMIN)) {
             throw ApiException.forbidden("无权调整该角色");
+        }
+    }
+
+    private void protectAdminContinuity(AuthUser current, UserSummary before, Role targetRole, String targetStatus) {
+        if (before.role() != Role.ADMIN) {
+            return;
+        }
+        boolean roleChanged = targetRole != Role.ADMIN;
+        boolean disabled = !"ACTIVE".equals(targetStatus);
+        if (!roleChanged && !disabled) {
+            return;
+        }
+        if (before.id() == current.id()) {
+            throw ApiException.badRequest("不能停用或调整当前管理员账号的角色，请由另一名管理员操作");
+        }
+        Integer remainingActiveAdmins = jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM users
+                WHERE role = 'ADMIN' AND status = 'ACTIVE' AND id <> ?
+                """, Integer.class, before.id());
+        if (remainingActiveAdmins == null || remainingActiveAdmins == 0) {
+            throw ApiException.badRequest("系统必须保留至少一个启用的管理员账号");
         }
     }
 
