@@ -272,6 +272,7 @@ public class RepairCaseService {
         return created;
     }
 
+    @Transactional
     public RepairCaseItem update(long id, RepairCaseRequest request) {
         AuthUser current = AuthContext.current();
         requireManager(current);

@@ -4,6 +4,10 @@ import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,7 +18,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,6 +52,9 @@ class UserTransactionIntegrationTest {
     void setUp() {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_bulk_status");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_delete_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_create_user_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_reset_password_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_import_users_log");
         jdbc.update("DELETE FROM operation_logs");
         jdbc.update("DELETE FROM users WHERE student_no LIKE 'tx-%'");
 
@@ -75,6 +84,9 @@ class UserTransactionIntegrationTest {
         AuthContext.clear();
         jdbc.execute("DROP TRIGGER IF EXISTS fail_bulk_status");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_delete_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_create_user_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_reset_password_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_import_users_log");
     }
 
     @Test
@@ -125,6 +137,73 @@ class UserTransactionIntegrationTest {
                 targetId
         ));
         assertEquals(0, actionCount("DELETE_USER"));
+    }
+
+    @Test
+    void createRollsBackMemberWhenAuditLogFails() {
+        jdbc.execute("""
+                CREATE TRIGGER fail_create_user_log
+                BEFORE INSERT ON operation_logs
+                WHEN NEW.action_type = 'CREATE_USER'
+                BEGIN
+                  SELECT RAISE(ABORT, 'forced audit failure');
+                END
+                """);
+
+        assertThrows(DataAccessException.class, () -> users.create(new UserService.CreateUserRequest(
+                "tx-create-target",
+                "新增事务成员",
+                "MEMBER",
+                null,
+                null,
+                null,
+                null
+        )));
+
+        assertEquals(0, userCount("tx-create-target"));
+        assertEquals(0, actionCount("CREATE_USER"));
+    }
+
+    @Test
+    void resetPasswordRollsBackHashWhenAuditLogFails() {
+        long targetId = insertMember("tx-reset-target", "密码事务成员");
+        String originalHash = passwordHash(targetId);
+        jdbc.execute("""
+                CREATE TRIGGER fail_reset_password_log
+                BEFORE INSERT ON operation_logs
+                WHEN NEW.action_type = 'RESET_PASSWORD'
+                BEGIN
+                  SELECT RAISE(ABORT, 'forced audit failure');
+                END
+                """);
+
+        assertThrows(DataAccessException.class, () -> users.resetPassword(
+                targetId,
+                new UserService.ResetPasswordRequest("new-password", "密码事务测试")
+        ));
+
+        assertEquals(originalHash, passwordHash(targetId));
+        assertEquals(0, actionCount("RESET_PASSWORD"));
+    }
+
+    @Test
+    void importRollsBackMembersWhenAuditLogFails() throws Exception {
+        jdbc.execute("""
+                CREATE TRIGGER fail_import_users_log
+                BEFORE INSERT ON operation_logs
+                WHEN NEW.action_type = 'IMPORT_USERS'
+                BEGIN
+                  SELECT RAISE(ABORT, 'forced audit failure');
+                END
+                """);
+
+        assertThrows(DataAccessException.class, () -> users.importMembers(memberImportFile(
+                "tx-import-target",
+                "导入事务成员"
+        )));
+
+        assertEquals(0, userCount("tx-import-target"));
+        assertEquals(0, actionCount("IMPORT_USERS"));
     }
 
     @Test
@@ -210,6 +289,38 @@ class UserTransactionIntegrationTest {
 
     private String role(long id) {
         return jdbc.queryForObject("SELECT role FROM users WHERE id = ?", String.class, id);
+    }
+
+    private String passwordHash(long id) {
+        return jdbc.queryForObject("SELECT password_hash FROM users WHERE id = ?", String.class, id);
+    }
+
+    private int userCount(String studentNo) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM users WHERE student_no = ?",
+                Integer.class,
+                studentNo
+        );
+        return count == null ? 0 : count;
+    }
+
+    private MockMultipartFile memberImportFile(String studentNo, String name) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("成员");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("姓名");
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue(studentNo);
+            row.createCell(1).setCellValue(name);
+            workbook.write(output);
+            return new MockMultipartFile(
+                    "file",
+                    "members.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    output.toByteArray()
+            );
+        }
     }
 
     private int actionCount(String actionType) {

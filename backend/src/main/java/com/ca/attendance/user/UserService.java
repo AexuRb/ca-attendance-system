@@ -13,6 +13,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -70,6 +71,7 @@ public class UserService {
         return users.grades();
     }
 
+    @Transactional
     public UserSummary create(CreateUserRequest request) {
         AuthUser current = AuthContext.current();
         requireCreateUsers();
@@ -104,6 +106,7 @@ public class UserService {
         return created;
     }
 
+    @Transactional
     public ImportResult importMembers(MultipartFile file) {
         AuthUser current = AuthContext.current();
         RolePermissionPolicy.require(current.role(),
@@ -122,6 +125,8 @@ public class UserService {
             logs.log("IMPORT_USERS", "users", null, null, result, "批量导入成员");
             return result;
         } catch (ApiException ex) {
+            throw ex;
+        } catch (DataAccessException ex) {
             throw ex;
         } catch (Exception ex) {
             throw ApiException.badRequest("Excel 文件读取失败，请确认文件格式正确");
@@ -180,6 +185,7 @@ public class UserService {
         return after;
     }
 
+    @Transactional
     public void resetPassword(long id, ResetPasswordRequest request) {
         AuthUser current = AuthContext.current();
         requireManageUsers();

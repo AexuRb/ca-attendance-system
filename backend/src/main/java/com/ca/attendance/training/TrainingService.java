@@ -9,10 +9,12 @@ import com.ca.attendance.log.OperationLogService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
@@ -113,6 +115,7 @@ public class TrainingService {
         return querySessions(where.toString(), args.toArray());
     }
 
+    @Transactional
     public TrainingSessionItem create(SessionRequest request) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -141,6 +144,7 @@ public class TrainingService {
         return created;
     }
 
+    @Transactional
     public TrainingSessionItem update(long id, SessionRequest request) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -168,6 +172,7 @@ public class TrainingService {
         return after;
     }
 
+    @Transactional
     public void archive(long id) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -186,6 +191,7 @@ public class TrainingService {
         return queryParticipants(sessionId);
     }
 
+    @Transactional
     public TrainingParticipantItem addParticipant(long sessionId, ParticipantRequest request) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -202,6 +208,7 @@ public class TrainingService {
         }
     }
 
+    @Transactional
     public TrainingParticipantItem updateParticipant(long sessionId, long participantId, ParticipantRequest request) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -234,6 +241,7 @@ public class TrainingService {
         return after;
     }
 
+    @Transactional
     public void deleteParticipant(long sessionId, long participantId) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -243,6 +251,7 @@ public class TrainingService {
         logs.log("DELETE_TRAINING_PARTICIPANT", "training_participants", participantId, before, Map.of("deleted", true), "删除培训参与记录");
     }
 
+    @Transactional
     public ImportResult importParticipants(long sessionId, MultipartFile file) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -259,6 +268,8 @@ public class TrainingService {
             logs.log("IMPORT_TRAINING_PARTICIPANTS", "training_participants", sessionId, null, result, "导入培训参与名单");
             return result;
         } catch (ApiException ex) {
+            throw ex;
+        } catch (DataAccessException ex) {
             throw ex;
         } catch (Exception ex) {
             throw ApiException.badRequest("Excel 文件读取失败，请确认文件格式正确");
