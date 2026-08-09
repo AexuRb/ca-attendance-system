@@ -16,7 +16,7 @@
     "electron-builder": "26.15.3"
   },
   "overrides": {
-    "brace-expansion": "5.0.8"
+    "brace-expansion": "5.0.9"
   },
   "build": {
     "appId": "cn.cugb.computerassociation.attendance",
