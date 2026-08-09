@@ -2,6 +2,7 @@ package com.ca.attendance.stats;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.config.DatabaseMigrator;
 import com.ca.attendance.config.SQLiteDataSourceConfiguration;
@@ -24,6 +25,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class StatsServiceIntegrationTest {
     @TempDir
@@ -174,6 +177,35 @@ class StatsServiceIntegrationTest {
         assertEquals(new BigDecimal("1.50"), row.get("trainingHours"));
         assertEquals(new BigDecimal("3.50"), row.get("totalHours"));
         assertEquals(new BigDecimal("2.00"), cells.get(date.toString()).get(String.valueOf(memberId)));
+    }
+
+    @Test
+    void allRangeEndpointsRejectReversedDates() {
+        LocalDate from = LocalDate.of(2026, 8, 2);
+        LocalDate to = LocalDate.of(2026, 8, 1);
+
+        assertThrows(ApiException.class, () -> stats.summary(from, to));
+        assertThrows(ApiException.class, () -> stats.weeklyDetail(from, to));
+        assertThrows(ApiException.class, () -> stats.export(from, to));
+    }
+
+    @Test
+    void allRangeEndpointsRejectMoreThan366InclusiveDays() {
+        LocalDate from = LocalDate.of(2025, 1, 1);
+        LocalDate to = LocalDate.of(2026, 1, 2);
+
+        assertThrows(ApiException.class, () -> stats.summary(from, to));
+        assertThrows(ApiException.class, () -> stats.weeklyDetail(from, to));
+        assertThrows(ApiException.class, () -> stats.export(from, to));
+    }
+
+    @Test
+    void fullCalendarYearRemainsAvailable() {
+        LocalDate from = LocalDate.of(2025, 1, 1);
+        LocalDate to = LocalDate.of(2025, 12, 31);
+
+        assertDoesNotThrow(() -> stats.summary(from, to));
+        assertDoesNotThrow(() -> stats.weeklyDetail(from, to));
     }
 
     private long insertUser(String studentNo, String name, String role) {

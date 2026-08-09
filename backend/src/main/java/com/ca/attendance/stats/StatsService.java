@@ -16,11 +16,13 @@ import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
 @Service
 public class StatsService {
+    private static final long MAX_RANGE_DAYS = 366;
     private static final DateTimeFormatter EXPORT_DATE = DateTimeFormatter.ofPattern("M月d日");
     private static final String[] WEEK_LABELS = {
             "第一周", "第二周", "第三周", "第四周", "第五周", "第六周", "第七周", "第八周", "第九周", "第十周",
@@ -37,6 +39,7 @@ public class StatsService {
 
     public List<SummaryItem> summary(LocalDate from, LocalDate to) {
         requireManager();
+        validateRange(from, to);
         Map<Long, Map<String, Object>> rows = new LinkedHashMap<>();
         jdbc.queryForList("""
                 SELECT
@@ -84,6 +87,7 @@ public class StatsService {
 
     public Map<String, Object> weeklyDetail(LocalDate from, LocalDate to) {
         requireManager();
+        validateRange(from, to);
         Map<Integer, String> dutyWeekdays = new HashMap<>();
         jdbc.queryForList("""
                 SELECT weekday, weekday_name
@@ -234,9 +238,7 @@ public class StatsService {
         RolePermissionPolicy.require(AuthContext.current().role(),
                 RolePermissionPolicy.Permission.STATS_EXPORT,
                 "无权导出 Excel");
-        if (from.isAfter(to)) {
-            throw ApiException.badRequest("开始日期不能晚于结束日期");
-        }
+        validateRange(from, to);
 
         List<ExportDay> dutyDays = exportDays(from, to);
         List<ExportUserRow> userRows = exportUserRows(from, to);
@@ -660,6 +662,19 @@ public class StatsService {
             }
         }
         return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private void validateRange(LocalDate from, LocalDate to) {
+        if (from == null || to == null) {
+            throw ApiException.badRequest("开始日期和结束日期不能为空");
+        }
+        if (from.isAfter(to)) {
+            throw ApiException.badRequest("开始日期不能晚于结束日期");
+        }
+        long inclusiveDays = ChronoUnit.DAYS.between(from, to) + 1;
+        if (inclusiveDays > MAX_RANGE_DAYS) {
+            throw ApiException.badRequest("统计日期范围不能超过 366 天");
+        }
     }
 
     private record ExportDay(LocalDate date, String weekdayName, LocalDate weekStart) {
