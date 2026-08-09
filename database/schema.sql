@@ -207,6 +207,12 @@ CREATE TABLE duty_schedule_assignees (
 CREATE INDEX idx_duty_schedule_assignee_slot ON duty_schedule_assignees (slot_id, sort_order);
 CREATE INDEX idx_duty_schedule_assignee_user ON duty_schedule_assignees (user_id);
 
+CREATE TABLE repair_case_sequences (
+  sequence_date TEXT PRIMARY KEY,
+  last_value INTEGER NOT NULL CHECK (last_value >= 0),
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+
 CREATE TABLE repair_cases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   case_no TEXT NOT NULL UNIQUE,

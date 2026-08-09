@@ -109,7 +109,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(7, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(8, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
@@ -129,6 +129,11 @@ class SQLiteDatabaseIntegrationTest {
                 SELECT COUNT(*)
                 FROM sqlite_master
                 WHERE type = 'table' AND name = 'public_attendance_submissions'
+                """, Integer.class));
+        assertEquals(1, jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'table' AND name = 'repair_case_sequences'
                 """, Integer.class));
         assertEquals(0, jdbc.queryForObject("""
                 SELECT COUNT(*) FROM sqlite_master
@@ -219,7 +224,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(7, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(8, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(1, legacyJdbc.queryForObject(
                     "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
                     Integer.class
@@ -391,6 +396,25 @@ class SQLiteDatabaseIntegrationTest {
                 Integer.class,
                 repair.id()
         ));
+    }
+
+    @Test
+    void repairNumbersRemainMonotonicAfterPurgingAMiddleCase() {
+        OperationLogService logs = new OperationLogService(jdbc, objectMapper);
+        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backupService(), new UserRepository(jdbc));
+
+        RepairCaseItem first = createRepair(repairs, "编号测试一");
+        RepairCaseItem second = createRepair(repairs, "编号测试二");
+        RepairCaseItem third = createRepair(repairs, "编号测试三");
+        repairs.moveToRecycleBin(second.id());
+        repairs.purge(second.id(), second.caseNo());
+
+        RepairCaseItem fourth = createRepair(repairs, "编号测试四");
+
+        assertTrue(first.caseNo().endsWith("-0001"));
+        assertTrue(second.caseNo().endsWith("-0002"));
+        assertTrue(third.caseNo().endsWith("-0003"));
+        assertTrue(fourth.caseNo().endsWith("-0004"));
     }
 
     @Test
@@ -613,7 +637,7 @@ class SQLiteDatabaseIntegrationTest {
                 SET setting_value = 'keep-current'
                 WHERE setting_key = 'legacy_restore_test'
                 """);
-        byte[] legacyBytes = withoutAppSettings(Files.readAllBytes(backupPath));
+        byte[] legacyBytes = withoutTables(Files.readAllBytes(backupPath), List.of("app_settings"));
         MockMultipartFile upload = new MockMultipartFile(
                 "file",
                 "backup_legacy.zip",
@@ -629,6 +653,36 @@ class SQLiteDatabaseIntegrationTest {
                 WHERE setting_key = 'legacy_restore_test'
                 """, String.class));
         assertFalse(result.restoredRows().containsKey("app_settings"));
+    }
+
+    @Test
+    void legacyBackupWithoutRepairSequenceRebuildsTheNextCaseNumber() throws Exception {
+        RepairCaseService repairs = new RepairCaseService(
+                jdbc,
+                new OperationLogService(jdbc, objectMapper),
+                backupService(),
+                new UserRepository(jdbc)
+        );
+        createRepair(repairs, "旧备份编号一");
+        createRepair(repairs, "旧备份编号二");
+        createRepair(repairs, "旧备份编号三");
+
+        BackupService backups = backupService();
+        BackupService.BackupItem backup = backups.create();
+        Path backupPath = new StoragePaths(tempDirectory.toString()).backupDirectory().resolve(backup.filename());
+        byte[] legacyBytes = withoutTables(Files.readAllBytes(backupPath), List.of("repair_case_sequences"));
+        MockMultipartFile upload = new MockMultipartFile(
+                "file",
+                "backup_without_repair_sequences.zip",
+                "application/zip",
+                legacyBytes
+        );
+
+        BackupService.RestoreResult result = backups.restore(upload);
+        RepairCaseItem next = createRepair(repairs, "旧备份恢复后编号");
+
+        assertFalse(result.restoredRows().containsKey("repair_case_sequences"));
+        assertTrue(next.caseNo().endsWith("-0004"));
     }
 
     @Test
@@ -656,14 +710,39 @@ class SQLiteDatabaseIntegrationTest {
         return new BackupService(jdbc, objectMapper, transactions, new TokenService(12), storagePaths);
     }
 
+    private RepairCaseItem createRepair(RepairCaseService repairs, String ownerName) {
+        return repairs.create(new RepairCaseService.RepairCaseRequest(
+                "PERSONAL_DEVICE",
+                ownerName,
+                "13800000000",
+                null,
+                "笔记本电脑",
+                "测试品牌",
+                "测试型号",
+                null,
+                "电源适配器",
+                "无法开机",
+                null,
+                true,
+                true,
+                true,
+                "REPAIRING",
+                LocalDateTime.now(),
+                null,
+                "管理员",
+                null
+        ));
+    }
+
     @SuppressWarnings("unchecked")
-    private byte[] withoutAppSettings(byte[] source) throws Exception {
+    private byte[] withoutTables(byte[] source, List<String> omittedTables) throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
              ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
             ZipEntry entry;
             while ((entry = input.getNextEntry()) != null) {
-                if ("app_settings.json".equals(entry.getName())) {
+                String tableName = entry.getName().replaceFirst("\\.json$", "");
+                if (omittedTables.contains(tableName)) {
                     continue;
                 }
                 byte[] bytes = input.readAllBytes();
@@ -671,7 +750,7 @@ class SQLiteDatabaseIntegrationTest {
                     Map<String, Object> metadata = objectMapper.readValue(bytes, Map.class);
                     List<Object> tables = (List<Object>) metadata.get("tables");
                     metadata.put("tables", tables.stream()
-                            .filter(table -> !"app_settings".equals(String.valueOf(table)))
+                            .filter(table -> !omittedTables.contains(String.valueOf(table)))
                             .toList());
                     bytes = objectMapper.writeValueAsBytes(metadata);
                 }

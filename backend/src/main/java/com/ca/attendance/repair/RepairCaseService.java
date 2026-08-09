@@ -226,6 +226,7 @@ public class RepairCaseService {
         return users.searchActiveCandidates(keyword, 1000);
     }
 
+    @Transactional
     public RepairCaseItem create(RepairCaseRequest request) {
         AuthUser current = AuthContext.current();
         requireManager(current);
@@ -530,13 +531,19 @@ public class RepairCaseService {
     }
 
     private String nextCaseNo() {
-        String prefix = "JXWX" + LocalDate.now().format(CASE_DAY) + "-";
-        Integer count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM repair_cases WHERE case_no LIKE ?",
-                Integer.class,
-                prefix + "%"
-        );
-        return prefix + String.format("%04d", (count == null ? 0 : count) + 1);
+        String sequenceDate = LocalDate.now().format(CASE_DAY);
+        Integer sequence = jdbc.queryForObject("""
+                INSERT INTO repair_case_sequences (sequence_date, last_value)
+                VALUES (?, 1)
+                ON CONFLICT(sequence_date) DO UPDATE SET
+                  last_value = repair_case_sequences.last_value + 1,
+                  updated_at = datetime('now', 'localtime')
+                RETURNING last_value
+                """, Integer.class, sequenceDate);
+        if (sequence == null) {
+            throw ApiException.badRequest("维修编号生成失败");
+        }
+        return "JXWX" + sequenceDate + "-" + String.format("%04d", sequence);
     }
 
     private void writeWorkbook(Workbook wb, List<RepairCaseItem> rows, LocalDate start, LocalDate end) {

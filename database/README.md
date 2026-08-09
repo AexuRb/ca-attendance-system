@@ -19,6 +19,7 @@ backend/src/main/resources/db/sqlite/V4__public_submission_idempotency.sql
 backend/src/main/resources/db/sqlite/V5__minister_attendance_auto_approval.sql
 backend/src/main/resources/db/sqlite/V6__reserved.sql
 backend/src/main/resources/db/sqlite/V7__remove_schedule_adjustments.sql
+backend/src/main/resources/db/sqlite/V8__repair_case_sequences.sql
 ```
 
 本目录下的 `schema.sql` 是同一结构的便于审阅版本，不需要手动执行。
@@ -40,6 +41,7 @@ backend/src/main/resources/db/sqlite/V7__remove_schedule_adjustments.sql
 - 迁移整套系统前，应先关闭桌面应用，再复制完整应用根目录。
 - 应用运行期间不要直接复制 `attendance.db`，应使用后台的一键备份或完整迁移包。
 - 更新程序不会覆盖 `data/` 和 `backups/`。
-- 数据库当前结构版本为 7；旧数据库启动时会依次补齐维修回收站、值班资格快照、公共签到幂等和部长自动审核结构。
+- 数据库当前结构版本为 8；旧数据库启动时会依次补齐维修回收站、值班资格快照、公共签到幂等和部长自动审核结构。
 - V7 会删除旧版本曾使用的排班例外和调班表，固定周表数据不受影响。
+- V8 使用持久化每日序列生成维修编号，永久删除维修记录后也不会复用编号。
 - SQLite 文件未加密，请妥善保管数据库与备份文件。

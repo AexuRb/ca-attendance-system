@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 final class BackupSchema {
-    static final int SCHEMA_VERSION = 3;
+    static final int SCHEMA_VERSION = 4;
     static final int MAX_ROWS_PER_TABLE = 100_000;
     static final int MAX_TOTAL_ROWS = 250_000;
 
@@ -15,6 +15,7 @@ final class BackupSchema {
             "training_participants",
             "duty_schedule_slots",
             "duty_schedule_assignees",
+            "repair_case_sequences",
             "repair_cases",
             "duty_weekday_settings",
             "app_settings",
@@ -30,6 +31,7 @@ final class BackupSchema {
             "duty_schedule_slots",
             "training_participants",
             "training_sessions",
+            "repair_case_sequences",
             "repair_cases",
             "attendance_records",
             "app_settings",
@@ -43,6 +45,7 @@ final class BackupSchema {
             "training_participants",
             "duty_schedule_slots",
             "duty_schedule_assignees",
+            "repair_case_sequences",
             "repair_cases",
             "public_attendance_submissions"
     );
@@ -67,6 +70,9 @@ final class BackupSchema {
             )),
             Map.entry("duty_schedule_assignees", Set.of(
                     "id", "slot_id", "user_id", "student_no_snapshot", "name_snapshot", "sort_order", "created_at"
+            )),
+            Map.entry("repair_case_sequences", Set.of(
+                    "sequence_date", "last_value", "updated_at"
             )),
             Map.entry("repair_cases", Set.of(
                     "id", "case_no", "agreement_type", "owner_name", "owner_phone", "owner_org", "device_type",
@@ -106,6 +112,7 @@ final class BackupSchema {
             )),
             Map.entry("duty_schedule_slots", Set.of("id", "weekday", "title", "enabled", "status")),
             Map.entry("duty_schedule_assignees", Set.of("id", "slot_id", "name_snapshot", "sort_order")),
+            Map.entry("repair_case_sequences", Set.of("sequence_date", "last_value")),
             Map.entry("repair_cases", Set.of(
                     "id", "case_no", "agreement_type", "owner_name", "device_type",
                     "fault_description", "status", "received_at"
@@ -137,6 +144,7 @@ final class BackupSchema {
             Map.entry("training_participants", Set.of("created_at", "updated_at")),
             Map.entry("duty_schedule_slots", Set.of("created_at", "updated_at")),
             Map.entry("duty_schedule_assignees", Set.of("created_at")),
+            Map.entry("repair_case_sequences", Set.of("updated_at")),
             Map.entry("repair_cases", Set.of("received_at", "completed_at", "created_at", "updated_at", "deleted_at")),
             Map.entry("attendance_records", Set.of(
                     "check_in_time", "check_out_time", "check_in_reviewed_at", "check_out_reviewed_at",

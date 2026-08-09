@@ -15,6 +15,7 @@ final class DatabaseBackupExporter {
             new TableExport("training_participants", "SELECT * FROM training_participants ORDER BY session_id, student_no_snapshot"),
             new TableExport("duty_schedule_slots", "SELECT * FROM duty_schedule_slots ORDER BY weekday, start_time, id"),
             new TableExport("duty_schedule_assignees", "SELECT * FROM duty_schedule_assignees ORDER BY slot_id, sort_order, id"),
+            new TableExport("repair_case_sequences", "SELECT * FROM repair_case_sequences ORDER BY sequence_date"),
             new TableExport("repair_cases", "SELECT * FROM repair_cases ORDER BY received_at DESC, id DESC"),
             new TableExport("attendance_records", "SELECT * FROM attendance_records ORDER BY duty_date DESC, check_in_time DESC, id DESC"),
             new TableExport("public_attendance_submissions", "SELECT * FROM public_attendance_submissions ORDER BY created_at, request_id"),
