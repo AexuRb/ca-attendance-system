@@ -35,7 +35,7 @@ public class StatsService {
         this.jdbc = jdbc;
     }
 
-    public List<Map<String, Object>> summary(LocalDate from, LocalDate to) {
+    public List<SummaryItem> summary(LocalDate from, LocalDate to) {
         requireManager();
         Map<Long, Map<String, Object>> rows = new LinkedHashMap<>();
         jdbc.queryForList("""
@@ -43,10 +43,7 @@ public class StatsService {
                   r.user_id AS userId,
                   r.student_no_snapshot AS studentNo,
                   r.name_snapshot AS name,
-                  u.phone AS phone,
-                  u.major AS major,
                   u.grade AS grade,
-                  u.qq AS qq,
                   u.role AS role,
                   COUNT(*) AS attendanceCount,
                   COALESCE(SUM(r.valid_hours), 0) AS attendanceHours
@@ -54,7 +51,7 @@ public class StatsService {
                 JOIN users u ON u.id = r.user_id
                 WHERE r.effective_status = 'VALID'
                   AND r.duty_date BETWEEN ? AND ?
-                GROUP BY r.user_id, r.student_no_snapshot, r.name_snapshot, u.phone, u.major, u.grade, u.qq, u.role
+                GROUP BY r.user_id, r.student_no_snapshot, r.name_snapshot, u.grade, u.role
                 ORDER BY attendanceHours DESC, attendanceCount DESC, r.student_no_snapshot
                 """, from, to).forEach(row -> mergeSummaryRow(rows, row, false));
         jdbc.queryForList("""
@@ -62,10 +59,7 @@ public class StatsService {
                   p.user_id AS userId,
                   p.student_no_snapshot AS studentNo,
                   p.name_snapshot AS name,
-                  u.phone AS phone,
-                  u.major AS major,
                   u.grade AS grade,
-                  u.qq AS qq,
                   u.role AS role,
                   COUNT(*) AS trainingCount,
                   COALESCE(SUM(p.duration_hours), 0) AS trainingHours
@@ -76,7 +70,7 @@ public class StatsService {
                   AND s.training_date BETWEEN ? AND ?
                   AND p.user_id IS NOT NULL
                   AND p.duration_hours > 0
-                GROUP BY p.user_id, p.student_no_snapshot, p.name_snapshot, u.phone, u.major, u.grade, u.qq, u.role
+                GROUP BY p.user_id, p.student_no_snapshot, p.name_snapshot, u.grade, u.role
                 """, from, to).forEach(row -> mergeSummaryRow(rows, row, true));
         return rows.values().stream()
                 .sorted(Comparator
@@ -84,6 +78,7 @@ public class StatsService {
                         .reversed()
                         .thenComparing(row -> -number(row.get("attendanceCount")))
                         .thenComparing(row -> String.valueOf(row.get("studentNo"))))
+                .map(this::summaryItem)
                 .toList();
     }
 
@@ -459,10 +454,7 @@ public class StatsService {
             item.put("userId", userId);
             item.put("studentNo", row.get("studentNo"));
             item.put("name", row.get("name"));
-            item.put("phone", row.get("phone"));
-            item.put("major", row.get("major"));
             item.put("grade", row.get("grade"));
-            item.put("qq", row.get("qq"));
             item.put("role", row.get("role"));
             item.put("attendanceCount", 0);
             item.put("trainingCount", 0);
@@ -483,6 +475,22 @@ public class StatsService {
         merged.put("totalHours", decimal(merged.get("attendanceHours"))
                 .add(decimal(merged.get("trainingHours")))
                 .setScale(2, RoundingMode.HALF_UP));
+    }
+
+    private SummaryItem summaryItem(Map<String, Object> row) {
+        return new SummaryItem(
+                ((Number) row.get("userId")).longValue(),
+                String.valueOf(row.get("studentNo")),
+                String.valueOf(row.get("name")),
+                row.get("grade") == null ? null : String.valueOf(row.get("grade")),
+                String.valueOf(row.get("role")),
+                number(row.get("attendanceCount")),
+                number(row.get("trainingCount")),
+                decimal(row.get("attendanceHours")),
+                decimal(row.get("trainingHours")),
+                number(row.get("dutyCount")),
+                decimal(row.get("totalHours"))
+        );
     }
 
     private void mergeWeeklyUserRow(
@@ -658,5 +666,20 @@ public class StatsService {
     }
 
     private record ExportUserRow(String studentNo, String name, Map<LocalDate, BigDecimal> hoursByDate) {
+    }
+
+    public record SummaryItem(
+            long userId,
+            String studentNo,
+            String name,
+            String grade,
+            String role,
+            int attendanceCount,
+            int trainingCount,
+            BigDecimal attendanceHours,
+            BigDecimal trainingHours,
+            int dutyCount,
+            BigDecimal totalHours
+    ) {
     }
 }

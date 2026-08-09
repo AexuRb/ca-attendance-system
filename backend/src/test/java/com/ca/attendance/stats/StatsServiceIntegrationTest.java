@@ -6,6 +6,8 @@ import com.ca.attendance.common.Role;
 import com.ca.attendance.config.DatabaseMigrator;
 import com.ca.attendance.config.SQLiteDataSourceConfiguration;
 import com.ca.attendance.config.StoragePaths;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class StatsServiceIntegrationTest {
     @TempDir
@@ -83,16 +86,52 @@ class StatsServiceIntegrationTest {
                 VALUES (?, ?, 'member', '测试成员', 1.5)
                 """, sessionId, memberId);
 
-        List<Map<String, Object>> result = stats.summary(date, date);
+        List<StatsService.SummaryItem> result = stats.summary(date, date);
 
         assertEquals(1, result.size());
-        Map<String, Object> row = result.getFirst();
-        assertEquals("MEMBER", row.get("role"));
-        assertEquals(1, ((Number) row.get("attendanceCount")).intValue());
-        assertEquals(1, ((Number) row.get("trainingCount")).intValue());
-        assertEquals(new BigDecimal("2.00"), row.get("attendanceHours"));
-        assertEquals(new BigDecimal("1.50"), row.get("trainingHours"));
-        assertEquals(new BigDecimal("3.50"), row.get("totalHours"));
+        StatsService.SummaryItem row = result.getFirst();
+        assertEquals("MEMBER", row.role());
+        assertEquals(1, row.attendanceCount());
+        assertEquals(1, row.trainingCount());
+        assertEquals(new BigDecimal("2.00"), row.attendanceHours());
+        assertEquals(new BigDecimal("1.50"), row.trainingHours());
+        assertEquals(new BigDecimal("3.50"), row.totalHours());
+    }
+
+    @Test
+    void summaryDoesNotExposePrivateMemberFieldsToMinisters() {
+        LocalDate date = LocalDate.of(2026, 7, 24);
+        jdbc.update("""
+                UPDATE users
+                SET phone = '13800000000', major = '测试学院', qq = '123456'
+                WHERE id = ?
+                """, memberId);
+        jdbc.update("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  check_in_time, check_out_time, check_in_status, check_out_status,
+                  duration_minutes, valid_hours, effective_status
+                )
+                VALUES (?, 'member', '测试成员', ?, 5, ?, ?, 'APPROVED', 'APPROVED', 60, 1, 'VALID')
+                """, memberId, date, date.atTime(14, 0), date.atTime(15, 0));
+        AuthContext.set(new AuthUser(
+                memberId,
+                "minister",
+                "测试部长",
+                Role.MINISTER,
+                Instant.now().plusSeconds(3600)
+        ));
+
+        Object resultRow = stats.summary(date, date).getFirst();
+        Map<String, Object> payload = new ObjectMapper().convertValue(
+                resultRow,
+                new TypeReference<>() {
+                }
+        );
+
+        assertFalse(payload.containsKey("phone"));
+        assertFalse(payload.containsKey("major"));
+        assertFalse(payload.containsKey("qq"));
     }
 
     @Test

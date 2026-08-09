@@ -22,7 +22,7 @@ public class StatsController {
     }
 
     @GetMapping("/summary")
-    public List<Map<String, Object>> summary(
+    public List<StatsService.SummaryItem> summary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
