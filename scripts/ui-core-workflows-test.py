@@ -323,13 +323,11 @@ def main() -> None:
         )
         expect(page.get_by_role("heading", name="成员名册")).to_be_visible()
         expect(page.get_by_text("陈测试", exact=True)).to_be_visible()
-        page.locator("tbody tr").nth(1).locator(
-            "input[type='checkbox']"
-        ).check()
+        member_row = page.locator("tbody tr").filter(has_text="2025000001")
+        expect(member_row).to_have_count(1)
+        member_row.locator("input[type='checkbox']").check()
         expect(page.get_by_text("已选 1 人", exact=True)).to_be_visible()
-        page.locator("tbody tr").nth(1).get_by_role(
-            "button", name="编辑成员"
-        ).click()
+        member_row.get_by_role("button", name="编辑 陈测试").click()
         expect(page.get_by_role("heading", name="编辑成员")).to_be_visible()
         expect(page.locator("input[name='name']")).to_have_value("陈测试")
         page.get_by_role("button", name="取消").click()
@@ -503,6 +501,7 @@ def main() -> None:
         )
         expect(page.get_by_role("heading", name="维修事务")).to_be_visible()
         page.get_by_role("button", name="新建维修").click()
+        page.get_by_role("button", name="下一步").click()
         mobile_handler_picker = page.get_by_role(
             "textbox", name="选择维修负责人"
         )
@@ -523,6 +522,7 @@ def main() -> None:
         page.set_viewport_size({"width": 390, "height": 844})
         page.reload(wait_until="networkidle")
         page.get_by_role("button", name="新建维修").click()
+        page.get_by_role("button", name="下一步").click()
         expect(
             page.get_by_role("textbox", name="选择维修负责人")
         ).to_be_visible()

@@ -7,15 +7,17 @@
         :schedule-error="scheduleError"
         :schedule-count="scheduleCount"
         :weekday-label="weekdayLabel"
+        :now="currentDate"
       />
       <KioskAttendanceCourt
         v-model:query="query"
         :step="step"
-        :date-label="dateLabel"
         :busy="busy"
         :error="error"
+        :online="online"
         :lookup-result="lookupResult"
         :matches="matches"
+        :selecting-member-token="selectingMemberToken"
         :success-name="successName"
         :success-action="successAction"
         :success-time="successTime"
@@ -57,6 +59,7 @@ const {
   successName,
   successAction,
   successTime,
+  selectingMemberToken,
   lookup,
   selectMember,
   submitAttendance,
@@ -65,13 +68,6 @@ const {
 } = useKioskAttendance();
 
 const todayValue = computed(() => localDate(currentDate.value));
-const dateLabel = computed(() =>
-  new Intl.DateTimeFormat("zh-CN", {
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  }).format(currentDate.value),
-);
 const weekdayLabel = computed(() =>
   new Intl.DateTimeFormat("zh-CN", {
     weekday: "long",

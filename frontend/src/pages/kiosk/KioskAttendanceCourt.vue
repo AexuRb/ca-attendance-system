@@ -4,7 +4,7 @@
       <Transition
         name="kiosk-signal-step"
         mode="out-in"
-        @after-enter="focusInput"
+        @after-enter="focusCurrentStep"
       >
         <section
           v-if="step === 'input'"
@@ -12,14 +12,14 @@
           class="kiosk-focus-state kiosk-focus-input-state"
         >
           <header class="kiosk-signal-terminal-head">
-            <div>
-              <p class="kiosk-focus-eyebrow">ATTENDANCE</p>
-              <h1>签到 / 签退</h1>
-            </div>
-            <time>{{ dateLabel }}</time>
+            <h1>签到 / 签退</h1>
           </header>
 
-          <form class="kiosk-signal-form" @submit.prevent="$emit('lookup')">
+          <form
+            class="kiosk-signal-form"
+            :aria-busy="busy"
+            @submit.prevent="$emit('lookup')"
+          >
             <label class="sr-only" for="member-query">学号或姓名</label>
             <div class="kiosk-focus-query-row">
               <ScanLine aria-hidden="true" />
@@ -30,20 +30,24 @@
                 name="memberQuery"
                 autocomplete="off"
                 inputmode="text"
-                placeholder="学号或姓名"
+                maxlength="128"
+                placeholder="输入学号或姓名"
                 @input="onQueryInput"
               />
               <button type="submit" :disabled="busy || !query">
-                <LoaderCircle v-if="busy" class="spin" aria-hidden="true" />
+                <template v-if="busy">
+                  <LoaderCircle class="spin" aria-hidden="true" />
+                  <span class="sr-only">正在查询</span>
+                </template>
                 <template v-else>
                   <span>继续</span><ArrowRight aria-hidden="true" />
                 </template>
               </button>
             </div>
           </form>
-          <p class="kiosk-focus-hint">
+          <p class="kiosk-focus-hint" :class="{ offline: !online }">
             <i aria-hidden="true"></i>
-            <span>本机服务正常</span>
+            <span>{{ online ? "本机服务正常" : "连接中断，正在重试" }}</span>
             <span>·</span>
             <span>Enter 确认</span>
           </p>
@@ -61,13 +65,15 @@
           <button class="kiosk-focus-back" type="button" @click="$emit('reset')">
             <ArrowLeft aria-hidden="true" />重新输入
           </button>
-          <p class="kiosk-focus-eyebrow">IDENTITY</p>
           <h1>选择账号</h1>
           <div class="kiosk-focus-choice-list">
             <button
               v-for="member in matches"
               :key="member.memberToken"
+              ref="choiceButtons"
               type="button"
+              :disabled="busy"
+              :aria-busy="busy && selectingMemberToken === member.memberToken"
               @click="$emit('select-member', member.memberToken)"
             >
               <span class="kiosk-focus-avatar">{{ member.name.slice(0, 1) }}</span>
@@ -78,9 +84,18 @@
                   }}{{ member.grade ? ` · ${member.grade}` : "" }}</small
                 >
               </span>
-              <ChevronRight aria-hidden="true" />
+              <LoaderCircle
+                v-if="busy && selectingMemberToken === member.memberToken"
+                class="spin"
+                aria-hidden="true"
+              />
+              <ChevronRight v-else aria-hidden="true" />
             </button>
           </div>
+          <p v-if="error" class="kiosk-focus-error" role="alert">
+            <CircleAlert aria-hidden="true" />
+            <span>{{ error }}</span>
+          </p>
         </section>
 
         <section
@@ -89,11 +104,8 @@
           class="kiosk-focus-state kiosk-focus-confirm-state"
         >
           <header class="kiosk-signal-terminal-head">
-            <div>
-              <p class="kiosk-focus-eyebrow">IDENTITY</p>
-              <h1>确认身份</h1>
-            </div>
-            <time>{{ pendingAction }}</time>
+            <h1>确认身份</h1>
+            <span class="kiosk-focus-step-status">{{ pendingAction }}</span>
           </header>
           <div class="kiosk-focus-member-ticket">
             <span class="kiosk-focus-person-mark">{{
@@ -112,6 +124,7 @@
                 重新输入
               </button>
               <button
+                ref="confirmButton"
                 class="kiosk-focus-primary"
                 type="button"
                 :disabled="busy"
@@ -159,6 +172,7 @@
           </div>
           <div class="kiosk-focus-reset-progress" aria-hidden="true"><i></i></div>
           <button
+            ref="nextButton"
             class="kiosk-focus-secondary"
             type="button"
             @click="$emit('reset')"
@@ -193,11 +207,12 @@ import type { KioskStep } from "../../features/kiosk/types";
 const props = defineProps<{
   step: KioskStep;
   query: string;
-  dateLabel: string;
   busy: boolean;
   error: string;
+  online: boolean;
   lookupResult: AttendanceLookupResult | null;
   matches: AttendanceMemberOption[];
+  selectingMemberToken: string;
   successName: string;
   successAction: string;
   successTime: string;
@@ -213,21 +228,22 @@ const emit = defineEmits<{
 }>();
 
 const queryInput = ref<HTMLInputElement>();
+const choiceButtons = ref<HTMLButtonElement[]>([]);
+const confirmButton = ref<HTMLButtonElement>();
+const nextButton = ref<HTMLButtonElement>();
 const pendingAction = computed(() =>
   props.lookupResult?.action === "CHECK_OUT" ? "待签退" : "待签到",
 );
 
-onMounted(focusInput);
+onMounted(focusCurrentStep);
 watch(
   () => props.step,
-  (value) => {
-    if (value === "input") focusInput();
-  },
+  () => focusCurrentStep(),
 );
 watch(
   () => props.error,
   (value) => {
-    if (value && props.step === "input") focusInput();
+    if (value && props.step === "input") focusCurrentStep();
   },
 );
 
@@ -236,9 +252,11 @@ function onQueryInput(event: Event) {
   emit("clear-error");
 }
 
-async function focusInput() {
-  if (props.step !== "input") return;
+async function focusCurrentStep() {
   await nextTick();
-  queryInput.value?.focus();
+  if (props.step === "input") queryInput.value?.focus();
+  else if (props.step === "choose") choiceButtons.value[0]?.focus();
+  else if (props.step === "confirm") confirmButton.value?.focus();
+  else nextButton.value?.focus();
 }
 </script>

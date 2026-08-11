@@ -1,4 +1,8 @@
-import type { RepairCase } from "./repairTypes";
+import type {
+  AgreementType,
+  RepairCase,
+  StoredAgreementType,
+} from "./repairTypes";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -6,6 +10,20 @@ export function maskRepairPhone(value?: string): string {
   const normalized = value?.trim() || "";
   if (!normalized) return "未填写";
   return `**** **** ${normalized.slice(-4)}`;
+}
+
+export function repairAgreementFormType(
+  value: StoredAgreementType,
+): AgreementType {
+  return value === "DISCLAIMER" || value === "PUBLIC_DEVICE"
+    ? "DISCLAIMER"
+    : "REPAIR";
+}
+
+export function repairAgreementLabel(value: StoredAgreementType): string {
+  return repairAgreementFormType(value) === "DISCLAIMER"
+    ? "免责协议"
+    : "维修协议";
 }
 
 export function repairAgeDays(

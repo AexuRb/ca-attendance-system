@@ -12,10 +12,12 @@ import "./styles/kiosk.css";
 import "./styles/admin-shell.css";
 import "./styles/today.css";
 import "./styles/schedule.css";
+import "./styles/settings.css";
 import "./styles/admin-details.css";
 import "./styles/admin-interactions.css";
 import "./styles/kiosk-theme.css";
 import "./styles/admin-theme.css";
+import "./styles/admin-detail-polish.css";
 import "./styles/auth.css";
 
 setUnauthorizedHandler(() => {

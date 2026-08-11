@@ -55,8 +55,14 @@
             item.operatorStudentNo
           }}</small>
         </div>
-        <button class="icon-button" title="查看变更详情" @click="detail = item">
-          <Eye />
+        <button
+          class="icon-button"
+          title="查看变更详情"
+          aria-label="查看变更详情"
+          type="button"
+          @click="detail = item"
+        >
+          <Eye aria-hidden="true" />
         </button>
       </article>
     </div>
@@ -96,7 +102,7 @@
           </div>
           <div>
             <dt>操作类型</dt>
-            <dd>{{ actionLabel(detail.actionType) }}</dd>
+            <dd>{{ auditActionLabel(detail.actionType) }}</dd>
           </div>
           <div>
             <dt>对象</dt>
@@ -107,16 +113,32 @@
             <dd>{{ detail.reason || "—" }}</dd>
           </div>
         </dl>
-        <div class="diff-grid">
-          <section>
-            <h3>变更前</h3>
-            <pre>{{ pretty(detail.beforeData) }}</pre>
-          </section>
-          <section>
-            <h3>变更后</h3>
-            <pre>{{ pretty(detail.afterData) }}</pre>
-          </section>
+        <div v-if="detailRows.length" class="audit-diff-table" role="table">
+          <div class="audit-diff-head" role="row">
+            <strong role="columnheader">字段</strong>
+            <strong role="columnheader">修改前</strong>
+            <strong role="columnheader">修改后</strong>
+          </div>
+          <div v-for="row in detailRows" :key="row.key" role="row">
+            <strong role="cell">{{ row.label }}</strong>
+            <span role="cell">{{ row.before }}</span>
+            <span role="cell" class="after-value">{{ row.after }}</span>
+          </div>
         </div>
+        <EmptyState v-else title="这次操作没有可比较的字段" />
+        <details class="audit-raw-details">
+          <summary>查看原始数据</summary>
+          <div class="diff-grid">
+            <section>
+              <h3>变更前</h3>
+              <pre>{{ pretty(detail.beforeData) }}</pre>
+            </section>
+            <section>
+              <h3>变更后</h3>
+              <pre>{{ pretty(detail.afterData) }}</pre>
+            </section>
+          </div>
+        </details>
       </div>
       <template #footer
         ><button class="button primary" @click="detail = null">
@@ -157,6 +179,11 @@ import type {
   OperationLog,
   OperationLogPage,
 } from "../../features/audit/logTypes";
+import {
+  auditActionLabel,
+  auditTargetLabel,
+  buildAuditDiff,
+} from "../../features/audit/logDisplay";
 const { busy, run } = useAsyncTask();
 const items = ref<OperationLog[]>([]);
 const total = ref(0);
@@ -167,6 +194,11 @@ const clearOpen = ref(false);
 const filters = reactive({ keyword: "", actionType: "", from: "", to: "" });
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(total.value / pageSize)),
+);
+const detailRows = computed(() =>
+  detail.value
+    ? buildAuditDiff(detail.value.beforeData, detail.value.afterData)
+    : [],
 );
 onMounted(() => load());
 async function load(target = page.value) {
@@ -200,16 +232,7 @@ function params(
 }
 const date = (v: string) => v?.slice(0, 10);
 const time = (v: string) => v?.slice(11, 16);
-const actionLabels: Record<string, string> = {
-  CREATE: "新增",
-  UPDATE: "修改",
-  DELETE: "删除",
-  LOGIN: "登录",
-  RESTORE: "恢复",
-  EXPORT: "导出",
-};
-const actionLabel = (v: string) =>
-  actionLabels[v] || v;
+const actionLabel = auditActionLabel;
 const actionTone = (
   v: string,
 ): "neutral" | "info" | "success" | "danger" =>
@@ -220,8 +243,7 @@ const actionTone = (
       : v?.includes("UPDATE")
         ? "info"
         : "neutral";
-const targetLabel = (i: OperationLog) =>
-  `${i.targetType || "系统"}${i.targetId ? ` #${i.targetId}` : ""}`;
+const targetLabel = auditTargetLabel;
 function pretty(v?: string) {
   if (!v) return "无";
   try {

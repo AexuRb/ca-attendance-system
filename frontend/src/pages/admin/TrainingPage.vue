@@ -35,13 +35,15 @@
         </div>
         <button
           v-for="item in sessions"
-          :key="item.id"
+         :key="item.id"
           class="record-list-item"
           :class="{ active: selected?.id === item.id }"
+          type="button"
+          :aria-pressed="selected?.id === item.id"
           @click="select(item)"
         >
           <span class="record-date">{{ shortDate(item.trainingDate) }}</span
-          ><span
+          ><span class="record-list-copy"
             ><strong>{{ item.title }}</strong
             ><small>{{
               [item.speaker, item.location].filter(Boolean).join(" · ") ||
@@ -54,7 +56,7 @@
       <main class="detail-panel panel">
         <EmptyState v-if="!selected" title="请选择培训场次" />
         <template v-else>
-          <div class="detail-heading">
+          <div class="detail-heading training-detail-heading">
             <div>
               <p class="eyebrow">{{ selected.trainingDate }}</p>
               <h2>{{ selected.title }}</h2>
@@ -64,27 +66,35 @@
               <button
                 class="icon-button"
                 title="导出名单"
+                aria-label="导出名单"
+                type="button"
                 @click="downloadSession"
               >
-                <Download /></button
+                <Download aria-hidden="true" /></button
               ><button
                 class="icon-button"
                 title="导入名单"
+                aria-label="导入名单"
+                type="button"
                 @click="importOpen = true"
               >
-                <Upload /></button
+                <Upload aria-hidden="true" /></button
               ><button
                 class="icon-button"
                 title="编辑培训"
+                aria-label="编辑培训"
+                type="button"
                 @click="openSession(selected)"
               >
-                <Pencil /></button
+                <Pencil aria-hidden="true" /></button
               ><button
                 class="icon-button danger-ghost"
                 title="归档培训"
+                aria-label="归档培训"
+                type="button"
                 @click="deleteTarget = selected"
               >
-                <Trash2 />
+                <Trash2 aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -111,7 +121,7 @@
             </button>
           </div>
           <EmptyState v-if="!participants.length" title="暂无参与记录" />
-          <div v-else class="table-shell compact-table">
+          <div v-else class="table-shell compact-table training-participant-table">
             <table>
               <thead>
                 <tr>
@@ -123,25 +133,31 @@
               </thead>
               <tbody>
                 <tr v-for="item in participants" :key="item.id">
-                  <td>
+                  <td data-label="参与人">
                     <strong>{{ item.name }}</strong
                     ><small>{{ item.studentNo || "未关联账号" }}</small>
                   </td>
-                  <td>{{ hours(item.durationHours) }} 小时</td>
-                  <td>{{ item.remark || "—" }}</td>
-                  <td class="align-right row-actions">
+                  <td data-label="计入时长">
+                    {{ hours(item.durationHours) }} 小时
+                  </td>
+                  <td data-label="备注">{{ item.remark || "—" }}</td>
+                  <td data-label="操作" class="align-right row-actions">
                     <button
                       class="icon-button"
                       title="编辑"
+                      aria-label="编辑参与记录"
+                      type="button"
                       @click="openParticipant(item)"
                     >
-                      <Pencil /></button
+                      <Pencil aria-hidden="true" /></button
                     ><button
                       class="icon-button danger-ghost"
                       title="删除"
+                      aria-label="删除参与记录"
+                      type="button"
                       @click="participantDeleteTarget = item"
                     >
-                      <Trash2 />
+                      <Trash2 aria-hidden="true" />
                     </button>
                   </td>
                 </tr>
@@ -160,23 +176,52 @@
       ><div class="form-grid two">
         <label class="field span-2"
           ><span>培训标题</span
-          ><input v-model.trim="sessionForm.title" /></label
+          ><input
+            v-model.trim="sessionForm.title"
+            name="training-title"
+            autocomplete="off"
+          /></label
         ><label class="field"
           ><span>培训日期</span
-          ><input v-model="sessionForm.trainingDate" type="date" /></label
+          ><input
+            v-model="sessionForm.trainingDate"
+            name="training-date"
+            type="date"
+          /></label
         ><label class="field"
-          ><span>地点</span><input v-model.trim="sessionForm.location" /></label
+          ><span>地点</span
+          ><input
+            v-model.trim="sessionForm.location"
+            name="training-location"
+            autocomplete="off"
+          /></label
         ><label class="field"
           ><span>开始时间</span
-          ><input v-model="sessionForm.startTime" type="time" /></label
+          ><input
+            v-model="sessionForm.startTime"
+            name="training-start-time"
+            type="time"
+          /></label
         ><label class="field"
           ><span>结束时间</span
-          ><input v-model="sessionForm.endTime" type="time" /></label
+          ><input
+            v-model="sessionForm.endTime"
+            name="training-end-time"
+            type="time"
+          /></label
         ><label class="field"
           ><span>主讲人</span
-          ><input v-model.trim="sessionForm.speaker" /></label
+          ><input
+            v-model.trim="sessionForm.speaker"
+            name="training-speaker"
+            autocomplete="off"
+          /></label
         ><label class="field"
-          ><span>说明</span><input v-model.trim="sessionForm.description"
+          ><span>说明</span
+          ><input
+            v-model.trim="sessionForm.description"
+            name="training-description"
+            autocomplete="off"
         /></label>
       </div>
       <template #footer
@@ -199,19 +244,33 @@
       ><div class="form-grid">
         <label class="field"
           ><span>学号</span
-          ><input v-model.trim="participantForm.studentNo" /></label
+          ><input
+            v-model.trim="participantForm.studentNo"
+            name="participant-student-no"
+            autocomplete="off"
+          /></label
         ><label class="field"
-          ><span>姓名</span><input v-model.trim="participantForm.name" /></label
+          ><span>姓名</span
+          ><input
+            v-model.trim="participantForm.name"
+            name="participant-name"
+            autocomplete="off"
+          /></label
         ><label class="field"
           ><span>计入时长（小时）</span
           ><input
             v-model.number="participantForm.durationHours"
+            name="participant-duration"
             type="number"
             min="0"
             step="0.25" /></label
         ><label class="field"
           ><span>备注</span
-          ><textarea v-model.trim="participantForm.remark" rows="3" />
+          ><textarea
+            v-model.trim="participantForm.remark"
+            name="participant-remark"
+            rows="3"
+          />
         </label>
       </div>
       <template #footer
@@ -234,7 +293,13 @@
       ><div class="upload-zone">
         <Upload /><strong>选择培训名单 Excel</strong>
         <p>第一行默认作为主讲人记录</p>
-        <input type="file" accept=".xlsx,.xls" @change="pickImport" />
+        <input
+          type="file"
+          name="training-roster-file"
+          aria-label="选择培训名单 Excel"
+          accept=".xlsx,.xls"
+          @change="pickImport"
+        />
       </div>
       <template #footer
         ><button class="button secondary" @click="downloadTemplate">

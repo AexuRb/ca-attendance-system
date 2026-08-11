@@ -29,6 +29,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -56,7 +57,7 @@ class UserTransactionIntegrationTest {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_reset_password_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_import_users_log");
         jdbc.update("DELETE FROM operation_logs");
-        jdbc.update("DELETE FROM users WHERE student_no LIKE 'tx-%'");
+        jdbc.update("DELETE FROM users WHERE student_no LIKE 'tx-%' OR student_no = '9900000001'");
 
         List<Long> existingAdminIds = jdbc.queryForList(
                 "SELECT id FROM users WHERE student_no = 'tx-admin'",
@@ -198,12 +199,62 @@ class UserTransactionIntegrationTest {
                 """);
 
         assertThrows(DataAccessException.class, () -> users.importMembers(memberImportFile(
-                "tx-import-target",
+                "9900000097",
                 "导入事务成员"
         )));
 
-        assertEquals(0, userCount("tx-import-target"));
+        assertEquals(0, userCount("9900000097"));
         assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void presidentImportCannotModifyAdministratorProfile() throws Exception {
+        long protectedAdminId = insertAdmin("9900000001", "受保护管理员");
+        long presidentId = insertPresident("tx-president-import", "导入测试会长");
+        AuthContext.set(new AuthUser(
+                presidentId,
+                "tx-president-import",
+                "导入测试会长",
+                Role.PRESIDENT,
+                Instant.now().plusSeconds(3600)
+        ));
+
+        ApiException exception = assertThrows(ApiException.class, () -> users.importMembers(memberImportFile(
+                "9900000001",
+                "越权修改管理员"
+        )));
+
+        assertTrue(exception.getMessage().contains("管理员"));
+        assertTrue(exception.getMessage().contains("未写入"));
+        assertEquals("受保护管理员", name(protectedAdminId));
+    }
+
+    @Test
+    void importRejectsWholeWorkbookWhenAnyMemberRowIsInvalid() throws Exception {
+        MockMultipartFile file = memberImportFile(List.of(
+                new String[]{"9900000098", "原子导入成员"},
+                new String[]{"invalid-student-no", "无效成员"}
+        ));
+
+        ApiException exception = assertThrows(ApiException.class, () -> users.importMembers(file));
+
+        assertTrue(exception.getMessage().contains("未写入"));
+        assertEquals(0, userCount("9900000098"));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void administratorImportCanModifyAdministratorProfile() throws Exception {
+        long targetAdminId = insertAdmin("9900000001", "待更新管理员");
+
+        UserService.ImportResult result = users.importMembers(memberImportFile(
+                "9900000001",
+                "已更新管理员"
+        ));
+
+        assertEquals(1, result.updated());
+        assertEquals(0, result.skipped());
+        assertEquals("已更新管理员", name(targetAdminId));
     }
 
     @Test
@@ -283,12 +334,28 @@ class UserTransactionIntegrationTest {
         return id;
     }
 
+    private long insertPresident(String studentNo, String name) {
+        Long id = jdbc.queryForObject("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES (?, ?, 'test-hash', 'PRESIDENT', 'ACTIVE', 0)
+                RETURNING id
+                """, Long.class, studentNo, name);
+        if (id == null) {
+            throw new IllegalStateException("测试会长创建失败");
+        }
+        return id;
+    }
+
     private String status(long id) {
         return jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, id);
     }
 
     private String role(long id) {
         return jdbc.queryForObject("SELECT role FROM users WHERE id = ?", String.class, id);
+    }
+
+    private String name(long id) {
+        return jdbc.queryForObject("SELECT name FROM users WHERE id = ?", String.class, id);
     }
 
     private String passwordHash(long id) {
@@ -305,14 +372,21 @@ class UserTransactionIntegrationTest {
     }
 
     private MockMultipartFile memberImportFile(String studentNo, String name) throws Exception {
+        return memberImportFile(List.<String[]>of(new String[]{studentNo, name}));
+    }
+
+    private MockMultipartFile memberImportFile(List<String[]> members) throws Exception {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("成员");
             Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("学号");
             header.createCell(1).setCellValue("姓名");
-            Row row = sheet.createRow(1);
-            row.createCell(0).setCellValue(studentNo);
-            row.createCell(1).setCellValue(name);
+            for (int index = 0; index < members.size(); index++) {
+                String[] member = members.get(index);
+                Row row = sheet.createRow(index + 1);
+                row.createCell(0).setCellValue(member[0]);
+                row.createCell(1).setCellValue(member[1]);
+            }
             workbook.write(output);
             return new MockMultipartFile(
                     "file",

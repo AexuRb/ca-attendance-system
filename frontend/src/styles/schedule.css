@@ -1,6 +1,9 @@
 .schedule-matrix-shell {
   max-width: 100%;
   overflow: auto;
+  scrollbar-color: #9fc8d9 #edf5f8;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -9,8 +12,23 @@
 
 .schedule-matrix {
   display: grid;
-  width: max-content;
+  width: 100%;
   min-width: 100%;
+}
+
+.schedule-matrix-shell::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.schedule-matrix-shell::-webkit-scrollbar-track {
+  background: #edf5f8;
+}
+
+.schedule-matrix-shell::-webkit-scrollbar-thumb {
+  border: 2px solid #edf5f8;
+  border-radius: 6px;
+  background: #9fc8d9;
 }
 
 .schedule-matrix-corner,
@@ -24,7 +42,7 @@
   gap: 4px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line-strong);
-  padding: 12px 14px;
+  padding: 12px 10px;
   background: #f4f7f9;
 }
 
@@ -66,7 +84,7 @@
   gap: 8px;
   border-right: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line);
-  padding: 17px 14px;
+  padding: 16px 10px;
   background: #f8fafb;
 }
 
@@ -88,7 +106,7 @@
   gap: 8px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  padding: 10px;
+  padding: 8px;
   background: white;
 }
 
@@ -114,7 +132,7 @@
   border: 1px solid #cddfe7;
   border-left: 2px solid var(--blue-500);
   border-radius: var(--radius-sm);
-  padding: 10px;
+  padding: 8px;
   background: #fff;
   transition: border-color 0.2s;
 }
@@ -162,16 +180,16 @@
 .schedule-assignee-preview {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 9px;
+  gap: 4px;
+  margin-top: 8px;
 }
 
 .schedule-assignee-preview span {
   display: inline-flex;
-  min-height: 24px;
+  min-height: 22px;
   align-items: center;
   border-radius: 3px;
-  padding: 0 6px;
+  padding: 0 5px;
   background: var(--surface-blue);
   color: var(--blue-700);
   font-size: 11px;
@@ -193,7 +211,7 @@
   display: block;
   margin-top: 7px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -201,9 +219,9 @@
   display: flex;
   justify-content: flex-end;
   gap: 4px;
-  margin-top: 9px;
+  margin-top: 8px;
   border-top: 1px solid var(--line-soft);
-  padding-top: 8px;
+  padding-top: 7px;
 }
 
 .schedule-card-actions .icon-button {

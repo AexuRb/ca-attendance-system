@@ -10,12 +10,14 @@ import com.ca.attendance.config.StoragePaths;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -206,6 +208,31 @@ class StatsServiceIntegrationTest {
 
         assertDoesNotThrow(() -> stats.summary(from, to));
         assertDoesNotThrow(() -> stats.weeklyDetail(from, to));
+    }
+
+    @Test
+    void exportUsesStableReadableWidthsAndKeepsExcelTotalFormula() throws Exception {
+        LocalDate date = LocalDate.of(2026, 7, 24);
+        jdbc.update("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  check_in_time, check_out_time, check_in_status, check_out_status,
+                  duration_minutes, valid_hours, effective_status
+                )
+                VALUES (?, 'member', '测试成员', ?, 5, ?, ?, 'APPROVED', 'APPROVED', 120, 2, 'VALID')
+                """, memberId, date, date.atTime(14, 0), date.atTime(16, 0));
+
+        byte[] bytes = stats.export(date, date);
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
+            var sheet = workbook.getSheet("值班记录");
+            assertEquals(18 * 256, sheet.getColumnWidth(0));
+            assertEquals(14 * 256, sheet.getColumnWidth(1));
+            assertEquals(16 * 256, sheet.getColumnWidth(2));
+            assertEquals(14 * 256, sheet.getColumnWidth(3));
+            assertEquals("SUM(C3:C3)", sheet.getRow(2).getCell(3).getCellFormula());
+            assertEquals(true, workbook.getForceFormulaRecalculation());
+        }
     }
 
     private long insertUser(String studentNo, String name, String role) {

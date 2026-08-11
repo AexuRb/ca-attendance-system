@@ -8,11 +8,12 @@ const {
   APP_ORIGIN,
   REMOTE_ADMIN_PORT,
   backendLocations,
+  detectStartupConflict,
   ensureStorageLayout,
   postDesktopControl,
-  probeApplication,
   restoreApplicationWindow,
   resolveAppRoot,
+  selectSmokeScenario,
   shouldHideWindowOnClose,
   waitForApplication
 } = require('./runtime.cjs');
@@ -30,6 +31,7 @@ let serviceReady = false;
 let shuttingDown = false;
 let allowQuit = false;
 let credentialStore = null;
+const smokeScenario = selectSmokeScenario(process.env);
 
 function assertTrustedRenderer(event) {
   const sourceUrl = event.senderFrame?.url || event.sender?.getURL?.() || '';
@@ -125,8 +127,7 @@ function createTray() {
 }
 
 function scheduleSmokeTest() {
-  const traySmokeMs = Number(process.env.CA_ATTENDANCE_SMOKE_TRAY_MS || 0);
-  if (traySmokeMs >= 1000) {
+  if (smokeScenario?.kind === 'tray') {
     setTimeout(() => {
       mainWindow?.close();
       setTimeout(() => {
@@ -141,14 +142,28 @@ function scheduleSmokeTest() {
           app.quit();
         }, 250);
       }, 250);
-    }, traySmokeMs);
+    }, smokeScenario.delayMs);
     return;
   }
 
-  const smokeExitMs = Number(process.env.CA_ATTENDANCE_SMOKE_EXIT_MS || 0);
-  if (smokeExitMs >= 1000) {
-    writeDesktopLog(`scheduled smoke-test exit in ${smokeExitMs}ms`);
-    setTimeout(() => app.quit(), smokeExitMs);
+  if (smokeScenario?.kind === 'backend-crash') {
+    writeDesktopLog(`scheduled backend crash smoke-test in ${smokeScenario.delayMs}ms`);
+    setTimeout(() => {
+      if (!backendChild || backendChild.exitCode !== null) {
+        writeDesktopLog('backend crash smoke-test could not find a running backend');
+        process.exitCode = 1;
+        app.quit();
+        return;
+      }
+      writeDesktopLog(`backend crash smoke-test terminating pid=${backendChild.pid}`);
+      backendChild.kill();
+    }, smokeScenario.delayMs);
+    return;
+  }
+
+  if (smokeScenario?.kind === 'exit') {
+    writeDesktopLog(`scheduled smoke-test exit in ${smokeScenario.delayMs}ms`);
+    setTimeout(() => app.quit(), smokeScenario.delayMs);
   }
 }
 
@@ -253,11 +268,30 @@ function startBackend() {
     backendLog?.end();
     backendLog = null;
     if (!shuttingDown) {
+      if (smokeScenario?.kind === 'backend-crash') {
+        writeDesktopLog('backend crash smoke-test detected the unexpected exit');
+        process.exitCode = 0;
+        app.quit();
+        return;
+      }
       dialog.showErrorBox('本机服务已停止', `后端服务意外退出，请查看日志：${path.join(appRoot, 'logs', 'backend.log')}`);
       app.quit();
     }
   });
   writeDesktopLog(`backend started pid=${backendChild.pid}`);
+}
+
+function startupConflictMessage(conflict) {
+  switch (conflict?.kind) {
+    case 'APP_ALREADY_RUNNING':
+      return '本机服务已经在运行。请先从旧程序的托盘菜单中选择“完全退出”，再重新启动。';
+    case 'LOCAL_PORT_OCCUPIED':
+      return '8080 端口已被其他程序占用，请关闭占用程序后重试。';
+    case 'REMOTE_PORT_OCCUPIED':
+      return '8081 端口已被其他程序占用，远程管理连接器无法启动。请关闭占用程序后重试。';
+    default:
+      return '桌面服务端口不可用，请关闭占用程序后重试。';
+  }
 }
 
 async function waitForChildExit(timeoutMs) {
@@ -329,11 +363,9 @@ if (!hasSingleInstanceLock) {
     session.defaultSession.setPermissionCheckHandler(() => false);
     createSplashWindow();
 
-    const existing = await probeApplication();
-    if (existing.reachable) {
-      throw new Error(existing.matches
-        ? '本机服务已经在运行。请先关闭占用 8080 端口的旧程序，再重新启动。'
-        : '8080 端口已被其他程序占用，请关闭占用程序后重试。');
+    const startupConflict = await detectStartupConflict();
+    if (startupConflict) {
+      throw new Error(startupConflictMessage(startupConflict));
     }
 
     startBackend();

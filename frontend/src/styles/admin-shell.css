@@ -336,7 +336,7 @@
 
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .refined-admin-layout,
   .refined-admin-layout.section-collapsed {
     display: block;

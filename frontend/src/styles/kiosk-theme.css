@@ -788,12 +788,12 @@
 .kiosk-signal-caption h2 {
   margin: 0;
   color: var(--ink-800);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .kiosk-signal-caption span {
-  color: var(--ink-500);
-  font-size: 9px;
+  color: var(--ink-600);
+  font-size: 11px;
 }
 
 .kiosk-signal-track {
@@ -844,8 +844,10 @@
 
 .kiosk-signal-shift.current {
   border-color: #8dcce1;
-  background: white;
-  box-shadow: 0 12px 28px rgba(15, 75, 102, 0.09);
+  background: #fffdf8;
+  box-shadow:
+    inset 3px 0 #d9a43f,
+    0 12px 28px rgba(15, 75, 102, 0.09);
 }
 
 .kiosk-signal-shift.current > i {
@@ -858,19 +860,19 @@
 
 .kiosk-signal-shift time {
   color: var(--blue-700);
-  font: 700 10px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .kiosk-signal-shift strong {
   overflow: hidden;
-  font-size: 11px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .kiosk-signal-shift > span {
-  color: var(--ink-500);
-  font-size: 9px;
+  color: var(--ink-600);
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -885,7 +887,7 @@
   padding: 0 13px;
   background: white;
   color: var(--ink-600);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 @media (hover: hover) {
@@ -939,7 +941,9 @@
   position: relative;
   z-index: 1;
   width: min(880px, 100%);
-  min-height: 0;
+  min-height: 300px;
+  display: grid;
+  align-content: start;
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -980,7 +984,7 @@
 
 .kiosk-signal-shell .kiosk-focus-state h1 {
   max-width: none;
-  margin: 9px 0 0;
+  margin: 0;
   font-size: clamp(42px, 6vw, 72px);
   font-weight: 760;
   line-height: 1;
@@ -992,14 +996,23 @@
   font: 700 11px var(--font-mono);
 }
 
+.kiosk-focus-step-status {
+  align-self: end;
+  border-left: 2px solid #d9a43f;
+  padding: 2px 0 2px 10px;
+  color: var(--ink-600);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .kiosk-signal-form {
   position: relative;
-  margin-top: 34px;
+  margin-top: 28px;
   border: 1px solid #bddce8;
   border-radius: 8px;
   padding: 6px;
   background: #e4f3f8;
-  box-shadow: 0 24px 64px rgba(15, 75, 102, 0.11);
+  box-shadow: 0 18px 46px rgba(15, 75, 102, 0.08);
   animation: kiosk-form-enter 0.72s 0.11s var(--ease-out) both;
   transition:
     transform 0.48s cubic-bezier(0.32, 0.72, 0, 1),
@@ -1023,11 +1036,11 @@
 }
 
 .kiosk-signal-form:focus-within {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--blue-500);
   box-shadow:
-    0 0 0 5px rgba(56, 160, 195, 0.08),
-    0 28px 72px rgba(15, 75, 102, 0.14);
+    0 0 0 3px rgba(56, 160, 195, 0.07),
+    0 20px 52px rgba(15, 75, 102, 0.11);
 }
 
 .kiosk-signal-form:focus-within::before {
@@ -1046,6 +1059,7 @@
   padding: 0 8px 0 14px;
   background: white;
   box-shadow: none;
+  outline: 0;
 }
 
 .kiosk-signal-shell .kiosk-focus-query-row::before {
@@ -1069,7 +1083,7 @@
   border: 0;
   padding: 0 8px;
   box-shadow: none;
-  font: 700 clamp(22px, 3.2vw, 34px) var(--font-mono);
+  font: 700 clamp(22px, 3.2vw, 34px) var(--font-sans);
 }
 
 .kiosk-signal-shell .kiosk-focus-query-row input:focus {
@@ -1088,8 +1102,8 @@
   align-items: center;
   gap: 9px;
   margin-top: 12px;
-  color: var(--ink-500);
-  font-size: 9px;
+  color: var(--ink-600);
+  font-size: 11px;
   animation: kiosk-meta-enter 0.56s 0.24s var(--ease-out) both;
 }
 
@@ -1098,12 +1112,17 @@
   height: 7px;
 }
 
+.kiosk-signal-shell .kiosk-focus-hint.offline i {
+  background: var(--red-700);
+  box-shadow: 0 0 0 4px rgba(162, 70, 70, 0.1);
+}
+
 .kiosk-signal-shell .kiosk-focus-error {
   margin-top: 14px;
 }
 
 .kiosk-signal-shell .kiosk-focus-choice-state {
-  width: min(760px, 100%);
+  width: 100%;
 }
 
 .kiosk-signal-shell .kiosk-focus-choice-state h1 {
@@ -1113,7 +1132,7 @@
 .kiosk-signal-shell .kiosk-focus-choice-list {
   display: grid;
   gap: 8px;
-  margin-top: 26px;
+  margin-top: 22px;
 }
 
 .kiosk-signal-shell .kiosk-focus-choice-list > button {
@@ -1121,6 +1140,14 @@
   border-color: var(--line-strong);
   border-radius: 7px;
   background: white;
+}
+
+.kiosk-signal-shell .kiosk-focus-choice-list strong {
+  font-size: 14px;
+}
+
+.kiosk-signal-shell .kiosk-focus-choice-list small {
+  font-size: 11px;
 }
 
 .kiosk-signal-shell .kiosk-focus-member-ticket {
@@ -1141,6 +1168,9 @@
 .kiosk-signal-shell .kiosk-focus-person-mark {
   width: 58px;
   height: 58px;
+  display: grid;
+  place-items: center;
+  margin-top: 0;
   font-size: 18px;
 }
 
@@ -1148,9 +1178,9 @@
   font-size: 22px;
 }
 
-.kiosk-signal-shell .kiosk-focus-member-ticket span {
+.kiosk-signal-shell .kiosk-focus-member-ticket > div > span {
   margin-top: 5px;
-  font: 650 10px var(--font-mono);
+  font: 650 12px var(--font-mono);
 }
 
 .kiosk-signal-shell .kiosk-focus-action-row {
@@ -1175,7 +1205,8 @@
   align-items: center;
   gap: 8px;
   margin-top: 12px;
-  font-size: 9px;
+  color: var(--ink-600);
+  font-size: 11px;
 }
 
 .kiosk-signal-shell .kiosk-focus-confirm-note i {
@@ -1235,7 +1266,7 @@
   display: block;
   margin-top: 10px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   animation: kiosk-success-copy 0.65s 0.18s var(--ease-out) both;
 }
 
@@ -1277,7 +1308,7 @@
 
 .kiosk-signal-week-title {
   min-width: 110px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .kiosk-signal-week-days {
@@ -1292,14 +1323,14 @@
   place-items: center;
   align-content: center;
   border-radius: 5px;
-  color: var(--ink-500);
-  font-size: 8px;
+  color: var(--ink-600);
+  font-size: 10px;
 }
 
 .kiosk-signal-week-days article strong {
   margin-top: 4px;
   color: var(--ink-800);
-  font: 700 10px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .kiosk-signal-week-days article.today {
@@ -1322,7 +1353,7 @@
   padding: 0 13px;
   background: white;
   color: var(--ink-600);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   transition:
     transform 0.42s cubic-bezier(0.32, 0.72, 0, 1),
@@ -1340,14 +1371,14 @@
 
 .kiosk-signal-step-enter-active {
   transition:
-    opacity 0.48s,
-    transform 0.62s var(--ease-out);
+    opacity 0.28s,
+    transform 0.36s var(--ease-out);
 }
 
 .kiosk-signal-step-leave-active {
   transition:
-    opacity 0.16s ease-in,
-    transform 0.16s ease-in;
+    opacity 0.1s ease-in,
+    transform 0.1s ease-in;
 }
 
 .kiosk-signal-step-enter-from {
@@ -1526,7 +1557,7 @@
   }
 
   .kiosk-signal-track {
-    grid-auto-columns: minmax(235px, 1fr);
+    grid-auto-columns: minmax(280px, 1fr);
   }
 
   .kiosk-signal-shell .kiosk-focus-stage {
@@ -1589,6 +1620,23 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .kiosk-signal-shell .kiosk-focus-action-row .kiosk-focus-primary,
+  .kiosk-signal-shell .kiosk-focus-action-row .kiosk-focus-secondary {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 12px;
+  }
+
+  .kiosk-signal-shell .kiosk-focus-action-row .kiosk-focus-secondary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .kiosk-signal-shell .kiosk-focus-action-row .kiosk-focus-primary {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .kiosk-signal-shell .kiosk-focus-success-state {
     display: block;
   }
@@ -1610,12 +1658,14 @@
   }
 
   .kiosk-signal-week {
-    grid-template-columns: 100px 420px;
+    grid-template-columns: 88px minmax(0, 1fr);
+    overflow: hidden;
     padding: 8px 12px;
   }
 
   .kiosk-signal-week-days {
-    grid-template-columns: repeat(7, 56px);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
   }
 
   .kiosk-signal-admin {

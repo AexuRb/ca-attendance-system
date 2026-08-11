@@ -31,6 +31,8 @@ public class AttendanceRepository {
             rs.getInt("duty_weekday"),
             rs.getBoolean("is_duty_day"),
             rs.getBoolean("within_duty_period"),
+            rs.getBoolean("require_duty_day"),
+            rs.getBoolean("require_duty_period"),
             localDateTime(rs, "check_in_time"),
             localDateTime(rs, "check_out_time"),
             rs.getString("check_in_status"),
@@ -170,17 +172,19 @@ public class AttendanceRepository {
     }
 
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
-                              boolean isDutyDay, boolean withinDutyPeriod, Timestamp checkInTime, String checkInStatus,
-                              String effectiveStatus) {
+                              boolean isDutyDay, boolean withinDutyPeriod,
+                              boolean requireDutyDay, boolean requireDutyPeriod,
+                              Timestamp checkInTime, String checkInStatus, String effectiveStatus) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
                   user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
+                  require_duty_day, require_duty_period,
                   check_in_time, check_in_status, check_out_status, effective_status, source
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_SUBMITTED', ?, 'PUBLIC')
                 RETURNING id
                 """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, isDutyDay,
-                withinDutyPeriod, checkInTime, checkInStatus, effectiveStatus);
+                withinDutyPeriod, requireDutyDay, requireDutyPeriod, checkInTime, checkInStatus, effectiveStatus);
         return id == null ? 0 : id;
     }
 
@@ -235,15 +239,21 @@ public class AttendanceRepository {
     }
 
     public void manualUpdate(long id, LocalDate dutyDate, int dutyWeekday, boolean dutyDay,
-                             boolean withinDutyPeriod, Timestamp checkInTime, Timestamp checkOutTime,
+                             boolean withinDutyPeriod, boolean requireDutyDay, boolean requireDutyPeriod,
+                             Timestamp checkInTime, Timestamp checkOutTime,
                              String checkInStatus, String checkOutStatus, String reason, long operatorId) {
         jdbc.update("""
                     UPDATE attendance_records
                     SET duty_date = ?, duty_weekday = ?, is_duty_day = ?, within_duty_period = ?,
+                        require_duty_day = ?, require_duty_period = ?,
                         check_in_time = ?, check_out_time = ?, check_in_status = ?, check_out_status = ?,
+                        check_in_reviewed_by = NULL, check_out_reviewed_by = NULL,
+                        check_in_reviewed_at = NULL, check_out_reviewed_at = NULL,
+                        check_in_reject_reason = NULL, check_out_reject_reason = NULL,
                         source = 'ADMIN_MANUAL', manual_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ?
                 """, databaseDate(dutyDate), dutyWeekday, dutyDay, withinDutyPeriod,
+                requireDutyDay, requireDutyPeriod,
                 checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, operatorId, id);
     }
 

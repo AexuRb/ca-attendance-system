@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -85,6 +86,7 @@ final class BackupRestoreValidator {
     }
 
     private Set<String> validateMetadata(Map<String, Object> metadata) {
+        validateSchemaVersion(metadata.get("schemaVersion"));
         Object tables = metadata.get("tables");
         if (!(tables instanceof List<?> tableList)) {
             throw ApiException.badRequest("备份元数据缺少表信息");
@@ -97,6 +99,24 @@ final class BackupRestoreValidator {
             throw ApiException.badRequest("备份表信息不完整");
         }
         return tableNames;
+    }
+
+    private void validateSchemaVersion(Object value) {
+        if (value == null) {
+            return;
+        }
+        int schemaVersion;
+        try {
+            schemaVersion = new BigDecimal(String.valueOf(value)).intValueExact();
+        } catch (ArithmeticException | NumberFormatException ex) {
+            throw ApiException.badRequest("备份版本信息不正确");
+        }
+        if (schemaVersion < 1) {
+            throw ApiException.badRequest("备份版本信息不正确");
+        }
+        if (schemaVersion > BackupSchema.SCHEMA_VERSION) {
+            throw ApiException.badRequest("备份版本高于当前程序，请先升级程序后再恢复");
+        }
     }
 
     private List<LinkedHashMap<String, Object>> readRows(byte[] bytes, String table) {

@@ -1,10 +1,12 @@
 import {
   createRouter,
   createWebHashHistory,
+  type RouteLocationNormalized,
+  type RouteLocationRaw,
   type RouteRecordRaw,
 } from "vue-router";
 import { useSession } from "./session";
-import type { Role } from "../shared/types";
+import type { AccessContext, Role, UserSession } from "../shared/types";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -119,7 +121,25 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const session = useSession();
   await session.bootstrap();
-  const { state } = session;
+  return resolveRouteAccess(to, session.state);
+});
+
+interface RouteAccessState {
+  setup: { initialized: boolean };
+  access: AccessContext;
+  user: UserSession | null;
+}
+
+interface RouteAccessTarget {
+  name: RouteLocationNormalized["name"] | null;
+  fullPath: string;
+  meta: RouteLocationNormalized["meta"];
+}
+
+export function resolveRouteAccess(
+  to: RouteAccessTarget,
+  state: RouteAccessState,
+): RouteLocationRaw | true {
   if (
     !state.setup.initialized &&
     state.access.mode === "LOCAL" &&
@@ -144,4 +164,4 @@ router.beforeEach(async (to) => {
       : { name: "today" };
   }
   return true;
-});
+}

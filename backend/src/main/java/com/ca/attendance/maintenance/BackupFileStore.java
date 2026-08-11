@@ -63,7 +63,8 @@ final class BackupFileStore {
             }
             try (var stream = Files.list(directory)) {
                 return stream
-                        .filter(path -> path.getFileName().toString().endsWith(".zip"))
+                        .filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().matches(FILENAME_PATTERN))
                         .sorted(Comparator.comparing(this::lastModified).reversed())
                         .map(this::describe)
                         .toList();

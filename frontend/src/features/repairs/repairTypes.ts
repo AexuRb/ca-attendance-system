@@ -1,10 +1,14 @@
 export type RepairStatus = "REPAIRING" | "COMPLETED" | "CANCELED";
 export type AgreementType = "REPAIR" | "DISCLAIMER";
+export type StoredAgreementType =
+  | AgreementType
+  | "PERSONAL_DEVICE"
+  | "PUBLIC_DEVICE";
 
 export interface RepairCase {
   id: number;
   caseNo: string;
-  agreementType: AgreementType | "PUBLIC_DEVICE";
+  agreementType: StoredAgreementType;
   ownerName: string;
   ownerPhone: string;
   deviceType: string;

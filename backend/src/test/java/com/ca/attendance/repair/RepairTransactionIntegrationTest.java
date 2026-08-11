@@ -17,6 +17,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -24,7 +25,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -101,9 +104,36 @@ class RepairTransactionIntegrationTest {
         assertEquals("事务维修修改前", ownerName(repair.id()));
     }
 
+    @Test
+    void agreementsAreSelfContainedAndUseTheStoredAgreementType() {
+        RepairCaseItem repair = repairs.create(repairRequest("事务维修协议"));
+        RepairCaseService.AgreementFile repairFile = repairs.agreement(repair.id());
+        String repairHtml = new String(repairFile.bytes(), StandardCharsets.UTF_8);
+
+        assertTrue(repairFile.filename().startsWith("维修协议_"));
+        assertTrue(repairHtml.contains("计算机协会个人电脑维修协议书"));
+        assertTrue(repairHtml.contains(repair.caseNo()));
+        assertTrue(repairHtml.contains("事务维修协议"));
+        assertTrue(repairHtml.contains("window.print()"));
+        assertFalse(repairHtml.contains("http://"));
+        assertFalse(repairHtml.contains("https://"));
+
+        RepairCaseItem disclaimer = repairs.create(repairRequest("事务维修免责", "PUBLIC_DEVICE"));
+        RepairCaseService.AgreementFile disclaimerFile = repairs.agreement(disclaimer.id());
+        String disclaimerHtml = new String(disclaimerFile.bytes(), StandardCharsets.UTF_8);
+
+        assertTrue(disclaimerFile.filename().startsWith("免责协议_"));
+        assertTrue(disclaimerHtml.contains("计算机协会设备维修协议书"));
+        assertTrue(disclaimerHtml.contains(disclaimer.caseNo()));
+    }
+
     private RepairCaseService.RepairCaseRequest repairRequest(String ownerName) {
+        return repairRequest(ownerName, "PERSONAL_DEVICE");
+    }
+
+    private RepairCaseService.RepairCaseRequest repairRequest(String ownerName, String agreementType) {
         return new RepairCaseService.RepairCaseRequest(
-                "PERSONAL_DEVICE",
+                agreementType,
                 ownerName,
                 "13800000000",
                 null,

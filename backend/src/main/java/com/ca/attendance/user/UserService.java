@@ -122,6 +122,9 @@ public class UserService {
                 throw ApiException.badRequest("Excel 文件没有工作表");
             }
             ImportResult result = importMembersFromSheet(sheet, current);
+            if (!result.errors().isEmpty()) {
+                throw ApiException.badRequest(importFailureMessage("成员文件校验未通过", result.errors()));
+            }
             logs.log("IMPORT_USERS", "users", null, null, result, "批量导入成员");
             return result;
         } catch (ApiException ex) {
@@ -384,6 +387,11 @@ public class UserService {
             }
 
             if (userExists(studentNo)) {
+                if (userRole(studentNo) == Role.ADMIN && current.role() != Role.ADMIN) {
+                    skipped++;
+                    addImportIssue(issues, "第 " + (i + 1) + " 行：会长不能通过导入修改管理员账号");
+                    continue;
+                }
                 jdbc.update("""
                         UPDATE users
                         SET name = ?, phone = ?, major = ?, grade = ?, qq = COALESCE(?, qq),
@@ -423,6 +431,10 @@ public class UserService {
         }
 
         return new ImportResult(created, updated, skipped, issues);
+    }
+
+    private String importFailureMessage(String summary, List<String> issues) {
+        return summary + "，未写入任何成员：" + String.join("；", issues);
     }
 
     private int findHeaderRow(Sheet sheet, DataFormatter formatter) {
@@ -522,6 +534,11 @@ public class UserService {
     private boolean userExists(String studentNo) {
         Integer count = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE student_no = ?", Integer.class, studentNo);
         return count != null && count > 0;
+    }
+
+    private Role userRole(String studentNo) {
+        String role = jdbc.queryForObject("SELECT role FROM users WHERE student_no = ?", String.class, studentNo);
+        return Role.valueOf(role);
     }
 
     private void addImportIssue(List<String> issues, String issue) {

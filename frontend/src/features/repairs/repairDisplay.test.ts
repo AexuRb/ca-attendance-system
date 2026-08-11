@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   isLongRunningRepair,
   maskRepairPhone,
+  repairAgreementFormType,
+  repairAgreementLabel,
   repairAgeDays,
   repairAgeLabel,
 } from "./repairDisplay";
@@ -28,5 +30,14 @@ describe("repair display helpers", () => {
     expect(
       isLongRunningRepair(repairing, new Date("2026-07-27T08:00:00")),
     ).toBe(true);
+  });
+
+  it("maps current and stored agreement types consistently", () => {
+    expect(repairAgreementLabel("REPAIR")).toBe("维修协议");
+    expect(repairAgreementLabel("PERSONAL_DEVICE")).toBe("维修协议");
+    expect(repairAgreementLabel("DISCLAIMER")).toBe("免责协议");
+    expect(repairAgreementLabel("PUBLIC_DEVICE")).toBe("免责协议");
+    expect(repairAgreementFormType("PERSONAL_DEVICE")).toBe("REPAIR");
+    expect(repairAgreementFormType("PUBLIC_DEVICE")).toBe("DISCLAIMER");
   });
 });

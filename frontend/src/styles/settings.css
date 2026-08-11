@@ -1,0 +1,136 @@
+.attendance-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.attendance-policy-option {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 86px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.attendance-policy-option:has(input:not(:disabled)) {
+  cursor: pointer;
+}
+
+.attendance-policy-option:has(input:not(:disabled)):hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--blue-600) 38%, var(--line));
+}
+
+.attendance-policy-option.selected {
+  border-color: color-mix(in srgb, var(--blue-600) 48%, var(--line));
+  background: color-mix(in srgb, var(--blue-600) 5%, var(--surface));
+}
+
+.attendance-policy-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  color: var(--blue-600);
+  border: 1px solid color-mix(in srgb, var(--blue-600) 22%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--blue-600) 7%, var(--surface));
+}
+
+.attendance-policy-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.attendance-policy-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.attendance-policy-copy strong {
+  color: var(--ink-950);
+  font-size: 14px;
+}
+
+.attendance-policy-copy small,
+.setting-readonly-note {
+  color: var(--ink-600);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.attendance-policy-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+}
+
+.attendance-policy-switch input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.attendance-policy-switch i {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.attendance-policy-switch i::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  content: "";
+  border-radius: 50%;
+  background: var(--muted);
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.attendance-policy-switch input:checked + i {
+  border-color: var(--blue-600);
+  background: var(--blue-600);
+}
+
+.attendance-policy-switch input:checked + i::after {
+  background: #fff;
+  transform: translateX(18px);
+}
+
+.attendance-policy-switch input:focus-visible + i {
+  outline: 3px solid color-mix(in srgb, var(--blue-600) 24%, transparent);
+  outline-offset: 2px;
+}
+
+.attendance-policy-switch input:disabled + i {
+  opacity: 0.58;
+}
+
+.setting-readonly-note {
+  margin: 10px 0 0;
+}
+
+@media (max-width: 760px) {
+  .attendance-policy-grid {
+    grid-template-columns: 1fr;
+  }
+}

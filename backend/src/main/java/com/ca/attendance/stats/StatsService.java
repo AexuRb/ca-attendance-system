@@ -24,6 +24,10 @@ import java.util.*;
 public class StatsService {
     private static final long MAX_RANGE_DAYS = 366;
     private static final DateTimeFormatter EXPORT_DATE = DateTimeFormatter.ofPattern("M月d日");
+    private static final int STUDENT_NO_COLUMN_WIDTH = 18 * 256;
+    private static final int NAME_COLUMN_WIDTH = 14 * 256;
+    private static final int DAY_COLUMN_WIDTH = 16 * 256;
+    private static final int TOTAL_COLUMN_WIDTH = 14 * 256;
     private static final String[] WEEK_LABELS = {
             "第一周", "第二周", "第三周", "第四周", "第五周", "第六周", "第七周", "第八周", "第九周", "第十周",
             "第十一周", "第十二周", "第十三周", "第十四周", "第十五周", "第十六周", "第十七周", "第十八周",
@@ -303,14 +307,14 @@ public class StatsService {
             }
 
             sheet.createFreezePane(2, 2);
-            for (int i = 0; i <= totalCol; i++) {
-                sheet.autoSizeColumn(i);
-                int width = sheet.getColumnWidth(i);
-                sheet.setColumnWidth(i, Math.min(Math.max(width + 512, 10 * 256), 22 * 256));
+            sheet.setColumnWidth(0, STUDENT_NO_COLUMN_WIDTH);
+            sheet.setColumnWidth(1, NAME_COLUMN_WIDTH);
+            for (int i = firstDayCol; i < totalCol; i++) {
+                sheet.setColumnWidth(i, DAY_COLUMN_WIDTH);
             }
+            sheet.setColumnWidth(totalCol, TOTAL_COLUMN_WIDTH);
 
             wb.setForceFormulaRecalculation(true);
-            wb.getCreationHelper().createFormulaEvaluator().evaluateAll();
             wb.write(out);
             return out.toByteArray();
         } catch (Exception ex) {

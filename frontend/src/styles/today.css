@@ -146,6 +146,11 @@
   animation-delay: 0.08s;
 }
 
+.today-records-panel.is-empty,
+.today-schedule-panel.is-empty {
+  min-height: 260px;
+}
+
 .today-page .section-heading {
   min-height: 68px;
   padding: 15px 19px;
@@ -363,6 +368,11 @@
   .today-records-panel,
   .today-schedule-panel {
     min-height: 330px;
+  }
+
+  .today-records-panel.is-empty,
+  .today-schedule-panel.is-empty {
+    min-height: 240px;
   }
 }
 

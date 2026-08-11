@@ -196,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import {
   ChevronLeft,
@@ -220,6 +220,7 @@ import {
   attendancePageQuery,
   attendanceActionAccess,
   localDateTimeInput,
+  manualCheckoutStatus,
   totalAttendancePages,
   type AttendanceActionAccess,
   type AttendanceRecordItem,
@@ -251,6 +252,12 @@ const canCreate = computed(() =>
   ["PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
 );
 const canReviewStatus = canCreate;
+watch(
+  () => form.checkOutTime,
+  (value) => {
+    form.checkOutStatus = manualCheckoutStatus(form.checkOutStatus, value);
+  },
+);
 const totalPages = computed(() =>
   totalAttendancePages(total.value, pageSize),
 );

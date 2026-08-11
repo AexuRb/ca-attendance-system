@@ -109,7 +109,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(8, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(9, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
@@ -204,6 +204,60 @@ class SQLiteDatabaseIntegrationTest {
     }
 
     @Test
+    void versionNinePreservesReviewBasedEligibilityForLegacyRecords() throws Exception {
+        StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v8-attendance").toString());
+        try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
+            try (Connection connection = legacyDataSource.getConnection()) {
+                for (String resource : List.of(
+                        "db/sqlite/V1__initial_schema.sql",
+                        "db/sqlite/V2__repair_recycle_bin.sql",
+                        "db/sqlite/V3__attendance_duty_period.sql",
+                        "db/sqlite/V4__public_submission_idempotency.sql",
+                        "db/sqlite/V5__minister_attendance_auto_approval.sql",
+                        "db/sqlite/V6__reserved.sql",
+                        "db/sqlite/V7__remove_schedule_adjustments.sql",
+                        "db/sqlite/V8__repair_case_sequences.sql"
+                )) {
+                    ScriptUtils.executeSqlScript(connection, new ClassPathResource(resource));
+                }
+                try (Statement statement = connection.createStatement()) {
+                    statement.execute("PRAGMA user_version = 8");
+                }
+            }
+
+            JdbcTemplate legacyJdbc = new JdbcTemplate(legacyDataSource);
+            long memberId = requiredId(legacyJdbc.queryForObject("""
+                    INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                    VALUES ('legacy-policy-member', '旧规则成员', 'test-hash', 'MEMBER', 'ACTIVE', 0)
+                    RETURNING id
+                    """, Long.class));
+            LocalDate date = LocalDate.of(2026, 8, 10);
+            long recordId = requiredId(legacyJdbc.queryForObject("""
+                    INSERT INTO attendance_records (
+                      user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                      is_duty_day, within_duty_period, check_in_time, check_out_time,
+                      check_in_status, check_out_status, duration_minutes, valid_hours, effective_status
+                    )
+                    VALUES (?, 'legacy-policy-member', '旧规则成员', ?, 1, 0, 0, ?, ?,
+                            'APPROVED', 'APPROVED', 0, 0, 'INVALID')
+                    RETURNING id
+                    """, Long.class, memberId, date, date.atTime(14, 0), date.atTime(16, 0)));
+
+            new DatabaseMigrator(legacyDataSource).run();
+
+            assertEquals(9, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(0, legacyJdbc.queryForObject(
+                    "SELECT require_duty_day FROM attendance_records WHERE id = ?", Integer.class, recordId));
+            assertEquals(0, legacyJdbc.queryForObject(
+                    "SELECT require_duty_period FROM attendance_records WHERE id = ?", Integer.class, recordId));
+            assertEquals("VALID", legacyJdbc.queryForObject(
+                    "SELECT effective_status FROM attendance_records WHERE id = ?", String.class, recordId));
+            assertEquals(2, legacyJdbc.queryForObject(
+                    "SELECT valid_hours FROM attendance_records WHERE id = ?", Integer.class, recordId));
+        }
+    }
+
+    @Test
     void migratesVersionOneRepairRowsWithoutDataLoss() throws Exception {
         StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v1").toString());
         try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
@@ -224,7 +278,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(8, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(9, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(1, legacyJdbc.queryForObject(
                     "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
                     Integer.class
@@ -262,6 +316,8 @@ class SQLiteDatabaseIntegrationTest {
                 today.getDayOfWeek().getValue(),
                 true,
                 true,
+                false,
+                false,
                 Timestamp.valueOf(LocalDateTime.of(today, LocalTime.of(14, 0))),
                 "PENDING",
                 "PENDING"
@@ -540,8 +596,19 @@ class SQLiteDatabaseIntegrationTest {
                 Map.of("keyword", "测试成员"),
                 "成员/自定义清单.xlsx"
         ));
+        CustomExportService.ExportPreview membersPreview = exports.preview(new CustomExportService.ExportRequest(
+                "members",
+                List.of("name", "studentNo"),
+                Map.of("keyword", "测试成员"),
+                "预览不使用文件名"
+        ));
         assertEquals("成员_自定义清单.xlsx", members.filename());
         assertEquals(1, members.rowCount());
+        assertEquals(1, membersPreview.totalRows());
+        assertEquals(List.of("name", "studentNo"), membersPreview.fields().stream()
+                .map(CustomExportService.FieldOption::id)
+                .toList());
+        assertEquals(List.of("测试成员", "20240001"), List.copyOf(membersPreview.rows().getFirst().values()));
         try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(members.bytes()))) {
             Sheet sheet = workbook.getSheetAt(0);
             assertEquals("姓名", sheet.getRow(3).getCell(0).getStringCellValue());

@@ -132,6 +132,45 @@ class AttendanceTransactionIntegrationTest {
     }
 
     @Test
+    void approvalReasonIsNotStoredAsARejectReason() {
+        long recordId = insertRecord("PENDING", "APPROVED", "PENDING");
+
+        attendance.review(recordId, "CHECK_IN", "APPROVE", "管理员确认通过");
+
+        assertEquals("APPROVED", text(recordId, "check_in_status"));
+        assertNull(value(recordId, "check_in_reject_reason"));
+    }
+
+    @Test
+    void manualUpdateClearsStaleReviewMetadata() {
+        long recordId = insertRecord("APPROVED", "APPROVED", "VALID");
+        jdbc.update("""
+                UPDATE attendance_records
+                SET check_in_reviewed_by = ?, check_out_reviewed_by = ?,
+                    check_in_reviewed_at = datetime('now', 'localtime'),
+                    check_out_reviewed_at = datetime('now', 'localtime'),
+                    check_in_reject_reason = '旧签到原因',
+                    check_out_reject_reason = '旧签退原因'
+                WHERE id = ?
+                """, adminId, adminId, recordId);
+
+        attendance.manualUpdate(recordId, new AttendanceService.ManualUpdateRequest(
+                DUTY_DATE.atTime(14, 5),
+                DUTY_DATE.atTime(16, 5),
+                "APPROVED",
+                "APPROVED",
+                "重新核对记录"
+        ));
+
+        assertNull(value(recordId, "check_in_reviewed_by"));
+        assertNull(value(recordId, "check_out_reviewed_by"));
+        assertNull(value(recordId, "check_in_reviewed_at"));
+        assertNull(value(recordId, "check_out_reviewed_at"));
+        assertNull(value(recordId, "check_in_reject_reason"));
+        assertNull(value(recordId, "check_out_reject_reason"));
+    }
+
+    @Test
     void bulkReviewRollsBackEarlierRecordsWhenLaterAuditLogFails() {
         long firstId = insertRecord("PENDING", "APPROVED", "PENDING");
         long secondId = insertRecord("PENDING", "APPROVED", "PENDING");

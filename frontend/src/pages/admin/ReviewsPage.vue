@@ -1,5 +1,5 @@
 <template>
-  <div class="page-stack">
+  <div class="page-stack reviews-page">
     <PageHeader
       title="签到审核"
       description="逐项确认成员提交的签到与签退。"

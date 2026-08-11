@@ -99,6 +99,11 @@ public class DutyScheduleService {
                 WHERE s.status = 'ACTIVE'
                   AND s.enabled = 1
                   AND s.weekday = ?
+                  AND EXISTS (
+                    SELECT 1
+                    FROM duty_weekday_settings w
+                    WHERE w.weekday = s.weekday AND w.enabled = 1
+                  )
                 ORDER BY COALESCE(s.start_time, '00:00:00'), s.id
                 """, monday, date.getDayOfWeek().getValue());
     }
@@ -108,6 +113,11 @@ public class DutyScheduleService {
         return slots("""
                 WHERE s.status = 'ACTIVE'
                   AND s.enabled = 1
+                  AND EXISTS (
+                    SELECT 1
+                    FROM duty_weekday_settings w
+                    WHERE w.weekday = s.weekday AND w.enabled = 1
+                  )
                 ORDER BY s.weekday, COALESCE(s.start_time, '00:00:00'), s.id
                 """, monday);
     }
@@ -272,6 +282,7 @@ public class DutyScheduleService {
         if (weekday < 1 || weekday > 7) {
             throw ApiException.badRequest("星期必须在 1 到 7 之间");
         }
+        requireEnabledWeekday(weekday);
         LocalTime startTime = request.startTime() == null && fallback != null ? fallback.startTime() : request.startTime();
         LocalTime endTime = request.endTime() == null && fallback != null ? fallback.endTime() : request.endTime();
         if (startTime != null && endTime != null && endTime.isBefore(startTime)) {
@@ -306,6 +317,17 @@ public class DutyScheduleService {
                 .anyMatch(period -> selectedKey.equals(period.startTime() + "-" + period.endTime()));
         if (!matched) {
             throw ApiException.badRequest("排班时间必须使用值班设置中已有的时间段");
+        }
+    }
+
+    private void requireEnabledWeekday(int weekday) {
+        Integer enabled = jdbc.queryForObject(
+                "SELECT enabled FROM duty_weekday_settings WHERE weekday = ?",
+                Integer.class,
+                weekday
+        );
+        if (enabled == null || enabled != 1) {
+            throw ApiException.badRequest(weekdayName(weekday) + "当前未启用，请先在设置中启用该值班星期");
         }
     }
 

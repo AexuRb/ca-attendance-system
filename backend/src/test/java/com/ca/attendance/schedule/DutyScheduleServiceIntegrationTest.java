@@ -9,6 +9,7 @@ import com.ca.attendance.config.SQLiteDataSourceConfiguration;
 import com.ca.attendance.config.StoragePaths;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.settings.DutyPeriodService;
+import com.ca.attendance.settings.DutyWeekdayService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterEach;
@@ -19,6 +20,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -34,6 +36,7 @@ class DutyScheduleServiceIntegrationTest {
     private JdbcTemplate jdbc;
     private DutyScheduleService schedules;
     private DutyPeriodService periods;
+    private DutyWeekdayService weekdays;
     private long ministerId;
 
     @BeforeEach
@@ -52,6 +55,7 @@ class DutyScheduleServiceIntegrationTest {
 
         periods = new DutyPeriodService(jdbc, objectMapper, logs);
         periods.update(List.of(new DutyPeriodService.DutyPeriodRequest("14:00", "16:00")));
+        weekdays = new DutyWeekdayService(jdbc, logs);
         schedules = new DutyScheduleService(jdbc, logs, periods);
     }
 
@@ -124,9 +128,47 @@ class DutyScheduleServiceIntegrationTest {
         assertTrue(overlap.getMessage().contains("不能重叠"));
     }
 
+    @Test
+    void createRejectsAWeekdayThatIsNotEnabledInSettings() {
+        ApiException disabledWeekday = assertThrows(
+                ApiException.class,
+                () -> schedules.create(request(7, "1001"))
+        );
+
+        assertTrue(disabledWeekday.getMessage().contains("未启用"));
+    }
+
+    @Test
+    void weekdaySettingsCannotDisableAReferencedFixedSchedule() {
+        schedules.create(request("1001"));
+
+        ApiException conflict = assertThrows(
+                ApiException.class,
+                () -> weekdays.update(List.of(2, 3, 4, 5))
+        );
+
+        assertTrue(conflict.getMessage().contains("固定排班"));
+        assertTrue(weekdays.isDutyWeekday(1));
+    }
+
+    @Test
+    void publicScheduleQueriesHideLegacySlotsOnDisabledWeekdays() {
+        LocalDate monday = LocalDate.of(2026, 8, 10);
+        schedules.create(request("1001"));
+        jdbc.update("UPDATE duty_weekday_settings SET enabled = 0 WHERE weekday = 1");
+
+        assertTrue(schedules.today(monday).isEmpty());
+        assertTrue(schedules.week(monday).isEmpty());
+        assertEquals(1, schedules.list().size());
+    }
+
     private DutyScheduleService.SlotRequest request(String studentNo) {
+        return request(1, studentNo);
+    }
+
+    private DutyScheduleService.SlotRequest request(int weekday, String studentNo) {
         return new DutyScheduleService.SlotRequest(
-                1,
+                weekday,
                 LocalTime.of(14, 0),
                 LocalTime.of(16, 0),
                 "部长值班",

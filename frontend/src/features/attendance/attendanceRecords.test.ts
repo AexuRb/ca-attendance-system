@@ -3,6 +3,7 @@ import {
   attendanceActionAccess,
   attendancePageQuery,
   localDateTimeInput,
+  manualCheckoutStatus,
   totalAttendancePages,
 } from "./attendanceRecords";
 
@@ -33,6 +34,16 @@ describe("attendance records", () => {
     expect(localDateTimeInput(new Date(2026, 6, 29, 9, 7))).toBe(
       "2026-07-29T09:07",
     );
+  });
+
+  it("keeps checkout time and submission status consistent", () => {
+    expect(manualCheckoutStatus("NOT_SUBMITTED", "2026-08-10T16:00")).toBe(
+      "APPROVED",
+    );
+    expect(manualCheckoutStatus("REJECTED", "2026-08-10T16:00")).toBe(
+      "REJECTED",
+    );
+    expect(manualCheckoutStatus("APPROVED", "")).toBe("NOT_SUBMITTED");
   });
 
   it("limits minister actions to this week's member and minister records", () => {

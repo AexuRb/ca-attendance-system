@@ -930,6 +930,185 @@
   gap: 18px;
 }
 
+.repair-editor-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 20px;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  background: #f8fbfd;
+}
+
+.repair-editor-steps button {
+  position: relative;
+  display: grid;
+  min-height: 54px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--ink-600);
+  text-align: left;
+  transition:
+    color 0.18s,
+    background 0.18s;
+}
+
+.repair-editor-steps button + button {
+  border-left: 1px solid var(--admin-line);
+}
+
+.repair-editor-steps button::after {
+  position: absolute;
+  inset: auto 14px -1px;
+  height: 2px;
+  background: var(--blue-500);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.24s var(--ease-out);
+}
+
+.repair-editor-steps button.active {
+  background: #edf7fb;
+  color: var(--blue-700);
+}
+
+.repair-editor-steps button.active::after {
+  transform: scaleX(1);
+}
+
+.repair-editor-steps button > span {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid #c7dde8;
+  border-radius: 50%;
+  background: white;
+  font: 700 10px var(--font-mono);
+}
+
+.repair-editor-steps button.active > span {
+  border-color: var(--blue-600);
+  background: var(--blue-600);
+  color: white;
+}
+
+.repair-editor-steps button > strong {
+  font-size: 12px;
+}
+
+.repair-editor-body {
+  min-height: 322px;
+  gap: 18px;
+}
+
+.repair-editor-body section {
+  gap: 10px;
+}
+
+.repair-editor-body section + section {
+  padding-top: 16px;
+}
+
+.repair-editor-body .form-grid {
+  column-gap: 16px;
+  row-gap: 12px;
+}
+
+.audit-diff-table {
+  display: grid;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  background: white;
+}
+
+.audit-diff-table > div {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.7fr) repeat(2, minmax(0, 1fr));
+}
+
+.audit-diff-table > div + div {
+  border-top: 1px solid var(--admin-line-soft);
+}
+
+.audit-diff-table > div > * {
+  min-width: 0;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.audit-diff-table > div > * + * {
+  border-left: 1px solid var(--admin-line-soft);
+}
+
+.audit-diff-table .audit-diff-head {
+  background: #f3f8fa;
+  color: var(--ink-600);
+  font-size: 11px;
+}
+
+.audit-diff-table > div:not(.audit-diff-head) > strong {
+  background: #fbfdfe;
+  color: var(--ink-700);
+  font-size: 11px;
+}
+
+.audit-diff-table > div:not(.audit-diff-head) > span {
+  color: var(--ink-600);
+  font: 11px/1.5 var(--font-mono);
+}
+
+.audit-diff-table .after-value {
+  background: #edf8f4;
+  color: #1d6654;
+}
+
+.audit-raw-details {
+  margin-top: 14px;
+  border-top: 1px solid var(--admin-line-soft);
+  padding-top: 12px;
+}
+
+.audit-raw-details summary {
+  width: fit-content;
+  color: var(--blue-700);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 620px) {
+  .repair-editor-steps button {
+    min-height: 58px;
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .repair-editor-steps button > span {
+    width: 24px;
+    height: 24px;
+  }
+
+  .repair-editor-body {
+    min-height: 0;
+  }
+
+  .audit-diff-table > div {
+    grid-template-columns: 88px repeat(2, minmax(0, 1fr));
+  }
+
+  .audit-diff-table > div > * {
+    padding: 9px 8px;
+  }
+}
+
 .refined-admin-layout .repair-column {
   border-color: #d7e6ed;
   border-radius: 6px;

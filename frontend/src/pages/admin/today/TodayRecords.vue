@@ -1,5 +1,8 @@
 <template>
-  <section class="panel today-records-panel">
+  <section
+    class="panel today-records-panel"
+    :class="{ 'is-empty': !records.length }"
+  >
     <div class="section-heading">
       <div>
         <h2>今日值班记录</h2>

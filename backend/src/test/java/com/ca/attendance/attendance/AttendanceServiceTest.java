@@ -7,10 +7,14 @@ import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.settings.DutyPeriodService;
+import com.ca.attendance.settings.AttendancePolicyService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -27,6 +31,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,6 +53,15 @@ class AttendanceServiceTest {
     private PublicSubmissionRepository submissions;
     @Mock
     private PublicMemberSelectionService selections;
+    @Mock
+    private AttendancePolicyService policies;
+
+    @BeforeEach
+    void defaultAttendancePolicy() {
+        lenient().when(policies.current()).thenReturn(
+                new AttendancePolicyService.AttendancePolicy(false, false)
+        );
+    }
 
     @AfterEach
     void clearAuthContext() {
@@ -63,7 +78,8 @@ class AttendanceServiceTest {
         when(users.findActiveByStudentNo("20230001")).thenReturn(Optional.of(member));
         when(records.findOpenToday(eq(1L), any(LocalDate.class))).thenReturn(Optional.empty());
         when(records.insertCheckIn(eq(1L), eq("20230001"), eq("张三"), any(LocalDate.class), anyInt(),
-                eq(true), eq(true), any(Timestamp.class), eq("PENDING"), eq("INCOMPLETE"))).thenReturn(10L);
+                eq(true), eq(true), eq(false), eq(false), any(Timestamp.class),
+                eq("PENDING"), eq("INCOMPLETE"))).thenReturn(10L);
         when(records.findById(10L)).thenReturn(Optional.of(record(10L, null, "PENDING", "NOT_SUBMITTED")));
 
         when(submissions.findByRequestId("kiosk-check-in-001")).thenReturn(Optional.empty());
@@ -86,7 +102,8 @@ class AttendanceServiceTest {
         when(users.findActiveByStudentNo("20230002")).thenReturn(Optional.of(minister));
         when(records.findOpenToday(eq(2L), any(LocalDate.class))).thenReturn(Optional.empty());
         when(records.insertCheckIn(eq(2L), eq("20230002"), eq("测试部长"), any(LocalDate.class), anyInt(),
-                eq(true), eq(true), any(Timestamp.class), eq("AUTO_APPROVED"), eq("INCOMPLETE"))).thenReturn(11L);
+                eq(true), eq(true), eq(false), eq(false), any(Timestamp.class),
+                eq("AUTO_APPROVED"), eq("INCOMPLETE"))).thenReturn(11L);
         when(records.findById(11L)).thenReturn(Optional.of(record(
                 11L, 2L, LocalDateTime.now().minusMinutes(1), null, "AUTO_APPROVED", "NOT_SUBMITTED", true
         )));
@@ -106,6 +123,40 @@ class AttendanceServiceTest {
         service.recompute(20L);
 
         verify(records).updateEffective(20L, 154, 3, "VALID");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "29, 0",
+            "30, 1",
+            "89, 1",
+            "90, 2"
+    })
+    void recomputeUsesTheDocumentedRoundingBoundaries(int minutes, int expectedHours) {
+        AttendanceService service = service();
+        long recordId = 100L + minutes;
+        LocalDateTime checkIn = LocalDateTime.of(2026, 8, 10, 14, 0);
+        when(records.findById(recordId)).thenReturn(Optional.of(
+                record(recordId, checkIn, checkIn.plusMinutes(minutes), "APPROVED", "APPROVED")
+        ));
+
+        service.recompute(recordId);
+
+        verify(records).updateEffective(recordId, minutes, expectedHours, "VALID");
+    }
+
+    @Test
+    void recomputeAcceptsAChronologicallyLaterSubsecondCheckout() {
+        AttendanceService service = service();
+        LocalDateTime checkIn = LocalDateTime.of(2026, 8, 10, 14, 0, 0, 100_000_000);
+        LocalDateTime checkOut = checkIn.plusNanos(250_000_000);
+        when(records.findById(21L)).thenReturn(Optional.of(
+                record(21L, checkIn, checkOut, "APPROVED", "APPROVED")
+        ));
+
+        service.recompute(21L);
+
+        verify(records).updateEffective(21L, 0, 0, "VALID");
     }
 
     @Test
@@ -141,7 +192,7 @@ class AttendanceServiceTest {
         service.delete(31L, "重复签到记录");
 
         assertThat(updated.checkInTime()).isEqualTo(checkIn.plusMinutes(5));
-        verify(records).manualUpdate(eq(31L), any(LocalDate.class), anyInt(), eq(true), eq(true),
+        verify(records).manualUpdate(eq(31L), any(LocalDate.class), anyInt(), eq(true), eq(true), eq(false), eq(false),
                 any(Timestamp.class), any(Timestamp.class),
                 eq("AUTO_APPROVED"), eq("AUTO_APPROVED"), eq("修正签到时间"), eq(2L));
         verify(backups).createSystemBackup(contains("测试部长"));
@@ -220,8 +271,53 @@ class AttendanceServiceTest {
                 checkIn, null, "APPROVED", "APPROVED", "清除错误签退"
         ));
 
-        verify(records).manualUpdate(eq(35L), any(LocalDate.class), anyInt(), eq(true), eq(true),
+        verify(records).manualUpdate(eq(35L), any(LocalDate.class), anyInt(), eq(true), eq(true), eq(false), eq(false),
                 any(Timestamp.class), isNull(), eq("APPROVED"), eq("NOT_SUBMITTED"), eq("清除错误签退"), eq(3L));
+    }
+
+    @Test
+    void ministerCannotReviewOwnPendingRecord() {
+        AttendanceService service = service();
+        AuthContext.set(new AuthUser(2L, "minister", "测试部长", Role.MINISTER, Instant.now().plusSeconds(3600)));
+        AttendanceRecord ownRecord = record(
+                37L,
+                2L,
+                Role.MINISTER,
+                LocalDateTime.now().minusHours(1),
+                null,
+                "PENDING",
+                "NOT_SUBMITTED",
+                true
+        );
+        when(records.findById(37L)).thenReturn(Optional.of(ownRecord));
+
+        assertThatThrownBy(() -> service.review(37L, "CHECK_IN", "APPROVE", ""))
+                .hasMessageContaining("不能审核自己的记录");
+
+        verify(records, never()).updateReview(anyLong(), anyString(), anyString(), anyLong(), any());
+    }
+
+    @Test
+    void checkoutTimeCannotBeSavedAsNotSubmitted() {
+        AttendanceService service = service();
+        AuthContext.set(new AuthUser(3L, "president", "测试会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
+        LocalDateTime checkIn = LocalDate.now().atTime(14, 0);
+        LocalDateTime checkOut = checkIn.plusHours(2);
+        when(records.findById(36L)).thenReturn(Optional.of(
+                record(36L, 1L, checkIn, null, "APPROVED", "NOT_SUBMITTED", true)
+        ));
+
+        assertThatThrownBy(() -> service.manualUpdate(36L, new AttendanceService.ManualUpdateRequest(
+                checkIn,
+                checkOut,
+                "APPROVED",
+                "NOT_SUBMITTED",
+                "补充签退时间"
+        ))).hasMessageContaining("已有签退时间");
+
+        verify(records, never()).manualUpdate(anyLong(), any(), anyInt(), anyBoolean(), anyBoolean(),
+                anyBoolean(), anyBoolean(),
+                any(), any(), anyString(), anyString(), anyString(), anyLong());
     }
 
     @Test
@@ -233,7 +329,8 @@ class AttendanceServiceTest {
         when(users.findActiveByStudentNo("20230001")).thenReturn(Optional.of(member));
         when(records.findOpenToday(eq(1L), any(LocalDate.class))).thenReturn(Optional.empty());
         when(records.insertCheckIn(eq(1L), eq("20230001"), eq("张三"), any(LocalDate.class), anyInt(),
-                eq(true), eq(false), any(Timestamp.class), eq("PENDING"), eq("INCOMPLETE"))).thenReturn(40L);
+                eq(true), eq(false), eq(false), eq(false), any(Timestamp.class),
+                eq("PENDING"), eq("INCOMPLETE"))).thenReturn(40L);
         when(records.findById(40L)).thenReturn(Optional.of(
                 record(40L, LocalDateTime.now().minusMinutes(1), null, "PENDING", "NOT_SUBMITTED", false)
         ));
@@ -256,6 +353,44 @@ class AttendanceServiceTest {
         service.recompute(41L);
 
         verify(records).updateEffective(41L, 120, 2, "VALID");
+    }
+
+    @Test
+    void enforcedDutyPeriodKeepsAnApprovedOutsideRecordInvalid() {
+        AttendanceService service = service();
+        LocalDateTime checkIn = LocalDateTime.of(2026, 8, 10, 20, 0);
+        LocalDateTime checkOut = checkIn.plusHours(2);
+        when(records.findById(42L)).thenReturn(Optional.of(
+                record(42L, 1L, Role.MEMBER, checkIn, checkOut,
+                        "APPROVED", "APPROVED", true, false, false, true)
+        ));
+
+        service.recompute(42L);
+
+        verify(records).updateEffective(42L, 0, 0, "INVALID");
+    }
+
+    @Test
+    void publicCheckInSnapshotsTheCurrentEligibilityRules() {
+        AttendanceService service = service();
+        UserSummary member = user(1L, "20230001", "张三", Role.MEMBER);
+        when(policies.current()).thenReturn(new AttendancePolicyService.AttendancePolicy(true, true));
+        when(weekdays.isDutyWeekday(anyInt())).thenReturn(false);
+        when(periods.contains(any())).thenReturn(false);
+        when(users.findActiveByStudentNo("20230001")).thenReturn(Optional.of(member));
+        when(records.findOpenToday(eq(1L), any(LocalDate.class))).thenReturn(Optional.empty());
+        when(records.insertCheckIn(eq(1L), eq("20230001"), eq("张三"), any(LocalDate.class), anyInt(),
+                eq(false), eq(false), eq(true), eq(true), any(Timestamp.class),
+                eq("PENDING"), eq("INCOMPLETE"))).thenReturn(43L);
+        when(records.findById(43L)).thenReturn(Optional.of(
+                record(43L, 1L, Role.MEMBER, LocalDateTime.now(), null,
+                        "PENDING", "NOT_SUBMITTED", false, false, true, true)
+        ));
+
+        AttendanceService.SubmitResponse response = service.submitPublic("20230001", "strict-policy-check-in");
+
+        assertThat(response.message()).contains("不计入有效时长");
+        verify(records).updateEffective(43L, 0, 0, "INVALID");
     }
 
     @Test
@@ -322,7 +457,7 @@ class AttendanceServiceTest {
     }
 
     private AttendanceService service() {
-        return new AttendanceService(users, records, weekdays, periods, logs, backups, submissions, selections);
+        return new AttendanceService(users, records, weekdays, periods, logs, backups, submissions, selections, policies);
     }
 
     private UserSummary user(long id, String studentNo, String name, Role role) {
@@ -351,6 +486,15 @@ class AttendanceServiceTest {
 
     private AttendanceRecord record(long id, long userId, Role userRole, LocalDateTime checkInTime, LocalDateTime checkOutTime,
                                     String checkInStatus, String checkOutStatus, boolean withinDutyPeriod) {
+        return record(id, userId, userRole, checkInTime, checkOutTime,
+                checkInStatus, checkOutStatus, true, withinDutyPeriod, false, false);
+    }
+
+    private AttendanceRecord record(long id, long userId, Role userRole,
+                                    LocalDateTime checkInTime, LocalDateTime checkOutTime,
+                                    String checkInStatus, String checkOutStatus,
+                                    boolean dutyDay, boolean withinDutyPeriod,
+                                    boolean requireDutyDay, boolean requireDutyPeriod) {
         return new AttendanceRecord(
                 id,
                 userId,
@@ -359,8 +503,10 @@ class AttendanceServiceTest {
                 "张三",
                 checkInTime.toLocalDate(),
                 checkInTime.getDayOfWeek().getValue(),
-                true,
+                dutyDay,
                 withinDutyPeriod,
+                requireDutyDay,
+                requireDutyPeriod,
                 checkInTime,
                 checkOutTime,
                 checkInStatus,

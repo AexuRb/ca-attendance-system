@@ -231,7 +231,7 @@
             >
               <Download /></button
             ><button
-              v-if="isAdmin"
+              v-if="canDeleteBackups"
               class="icon-button danger-ghost"
               title="删除备份"
               @click="deleteBackupTarget = item"
@@ -283,7 +283,7 @@
                 <button class="button text" @click="restoreRepair(item)">
                   <ArchiveRestore />恢复</button
                 ><button
-                  v-if="isAdmin"
+                  v-if="canViewRecycle"
                   class="button text danger-text"
                   @click="purgeTarget = item"
                 >
@@ -347,9 +347,11 @@ import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import RestoreBackupDialog from "../../features/maintenance/RestoreBackupDialog.vue";
 import {
+  canDeleteBackup,
   canRestoreBackup,
   canViewRepairRecycleBin,
 } from "../../features/maintenance/dataPermissions";
+import { exportSelectionFingerprint } from "../../features/maintenance/dataExportState";
 import { api, del, get, post, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
@@ -375,6 +377,7 @@ const request = reactive<ExportRequest>({
   filename: "",
 });
 const preview = ref<ExportPreview | null>(null);
+const previewSelection = computed(() => exportSelectionFingerprint(request));
 const previewing = ref(false);
 const summary = ref<MaintenanceSummary | null>(null);
 const backups = ref<BackupItem[]>([]);
@@ -382,7 +385,7 @@ const recycle = ref<RecycledRepairCase[]>([]);
 const deleteBackupTarget = ref<BackupItem | null>(null);
 const purgeTarget = ref<RecycledRepairCase | null>(null);
 const restoreTarget = ref<File | null>(null);
-const isAdmin = computed(() => user.value?.role === "ADMIN");
+const canDeleteBackups = computed(() => canDeleteBackup(user.value?.role));
 const canRestore = computed(() => canRestoreBackup(user.value?.role));
 const canViewRecycle = computed(() =>
   canViewRepairRecycleBin(user.value?.role),
@@ -407,6 +410,13 @@ watch(tab, async (value) => {
   if (value === "backups") await loadBackups();
   if (value === "recycle") await loadRecycle();
 });
+watch(
+  previewSelection,
+  () => {
+    preview.value = null;
+  },
+  { flush: "sync" },
+);
 function selectSource(source: ExportSource) {
   request.source = source.id;
   request.fields = source.fields

@@ -46,6 +46,42 @@ class BackupRestoreValidatorTest {
         assertTrue(error.getMessage().contains("unexpected_secret"));
     }
 
+    @Test
+    void rejectsBackupsFromANewerSchemaVersion() throws Exception {
+        Map<String, byte[]> entries = requiredEmptyEntries();
+        entries.put("metadata.json", objectMapper.writeValueAsBytes(Map.of(
+                "schemaVersion", BackupSchema.SCHEMA_VERSION + 1,
+                "tables", List.of("users", "attendance_records", "operation_logs", "duty_weekday_settings")
+        )));
+
+        ApiException error = assertThrows(ApiException.class, () -> validator.parse(entries));
+
+        assertTrue(error.getMessage().contains("版本高于当前程序"));
+    }
+
+    @Test
+    void rejectsArchivesMissingARequiredTableEntry() throws Exception {
+        Map<String, byte[]> entries = requiredEmptyEntries();
+        entries.remove("attendance_records.json");
+
+        ApiException error = assertThrows(ApiException.class, () -> validator.parse(entries));
+
+        assertTrue(error.getMessage().contains("缺少 attendance_records.json"));
+    }
+
+    @Test
+    void rejectsNonIntegralSchemaVersions() throws Exception {
+        Map<String, byte[]> entries = requiredEmptyEntries();
+        entries.put("metadata.json", objectMapper.writeValueAsBytes(Map.of(
+                "schemaVersion", 4.5,
+                "tables", List.of("users", "attendance_records", "operation_logs", "duty_weekday_settings")
+        )));
+
+        ApiException error = assertThrows(ApiException.class, () -> validator.parse(entries));
+
+        assertTrue(error.getMessage().contains("版本信息不正确"));
+    }
+
     private Map<String, byte[]> requiredEmptyEntries() throws Exception {
         List<String> requiredTables = List.of(
                 "users",

@@ -10,6 +10,7 @@ import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.settings.DutyWeekdayService;
+import com.ca.attendance.settings.AttendancePolicyService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
 import org.springframework.stereotype.Service;
@@ -36,9 +37,11 @@ public class AttendanceService {
     private final BackupService backups;
     private final PublicSubmissionRepository submissions;
     private final PublicMemberSelectionService selections;
+    private final AttendancePolicyService policies;
     public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays,
                              DutyPeriodService periods, OperationLogService logs, BackupService backups,
-                             PublicSubmissionRepository submissions, PublicMemberSelectionService selections) {
+                             PublicSubmissionRepository submissions, PublicMemberSelectionService selections,
+                             AttendancePolicyService policies) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
@@ -47,6 +50,7 @@ public class AttendanceService {
         this.backups = backups;
         this.submissions = submissions;
         this.selections = selections;
+        this.policies = policies;
     }
 
     public PublicLookupResponse lookup(String studentNo) {
@@ -58,7 +62,7 @@ public class AttendanceService {
         if (user == null) {
             return missingLookup(dutyDay, withinDutyPeriod, "学号不存在或账号已停用");
         }
-        return lookupResponse(user, today, dutyDay, withinDutyPeriod);
+        return lookupResponse(user, today, dutyDay, withinDutyPeriod, policies.current());
     }
 
     public PublicLookupResponse lookupByInput(String input) {
@@ -76,12 +80,12 @@ public class AttendanceService {
         if (keyword.startsWith("sel_")) {
             UserSummary selected = users.findActiveByStudentNo(selections.resolve(keyword))
                     .orElseThrow(() -> ApiException.badRequest("身份确认已失效，请重新查询"));
-            return lookupResponse(selected, today, dutyDay, withinDutyPeriod);
+            return lookupResponse(selected, today, dutyDay, withinDutyPeriod, policies.current());
         }
 
         var byStudentNo = users.findActiveByStudentNo(keyword);
         if (byStudentNo.isPresent()) {
-            return lookupResponse(byStudentNo.get(), today, dutyDay, withinDutyPeriod);
+            return lookupResponse(byStudentNo.get(), today, dutyDay, withinDutyPeriod, policies.current());
         }
 
         if (keyword.length() < 2) {
@@ -92,7 +96,7 @@ public class AttendanceService {
             return missingLookup(dutyDay, withinDutyPeriod, "未找到该学号或姓名，或账号已停用");
         }
         if (sameNameUsers.size() == 1) {
-            return lookupResponse(sameNameUsers.get(0), today, dutyDay, withinDutyPeriod);
+            return lookupResponse(sameNameUsers.get(0), today, dutyDay, withinDutyPeriod, policies.current());
         }
 
         List<PublicMemberOption> matches = sameNameUsers.stream()
@@ -103,17 +107,27 @@ public class AttendanceService {
                         user.grade()
                 ))
                 .toList();
-        String message = dutyDay && withinDutyPeriod
-                ? "找到多位同名成员，请选择自己的账号"
-                : "当前不在值班时间，仍可选择成员签到签退";
+        String message = lookupMessage(
+                dutyDay,
+                withinDutyPeriod,
+                policies.current(),
+                "找到多位同名成员，请选择自己的账号",
+                "当前不在值班时间，仍可选择成员签到签退"
+        );
         return new PublicLookupResponse(false, dutyDay, withinDutyPeriod, null, null, null, null, message, matches);
     }
 
-    private PublicLookupResponse lookupResponse(UserSummary user, LocalDate today, boolean dutyDay, boolean withinDutyPeriod) {
+    private PublicLookupResponse lookupResponse(UserSummary user, LocalDate today, boolean dutyDay,
+                                                boolean withinDutyPeriod,
+                                                AttendancePolicyService.AttendancePolicy policy) {
         String action = records.findOpenToday(user.id(), today).isPresent() ? "CHECK_OUT" : "CHECK_IN";
-        String message = dutyDay && withinDutyPeriod
-                ? "请确认姓名后提交"
-                : "当前不在值班时间，仍可提交，是否计入有效时长由审核结果决定";
+        String message = lookupMessage(
+                dutyDay,
+                withinDutyPeriod,
+                policy,
+                "请确认姓名后提交",
+                "当前不在值班时间，仍可提交，是否计入有效时长由审核结果决定"
+        );
         return new PublicLookupResponse(
                 true,
                 dutyDay,
@@ -176,12 +190,15 @@ public class AttendanceService {
 
         var open = records.findOpenToday(user.id(), today);
         if (open.isEmpty()) {
+            AttendancePolicyService.AttendancePolicy policy = policies.current();
             long id = records.insertCheckIn(
                     user.id(), user.studentNo(), user.name(), today, weekday, dutyDay, withinDutyPeriod,
+                    policy.requireDutyDay(), policy.requireDutyPeriod(),
                     Timestamp.valueOf(now), pendingOrAuto, "INCOMPLETE");
             recompute(id);
             SubmitResponse response = new SubmitResponse(id, "CHECK_IN", maskStudentNo(user.studentNo()), user.name(), now, pendingOrAuto,
-                    submissionMessage("签到", dutyDay, withinDutyPeriod));
+                    submissionMessage("签到", dutyDay, withinDutyPeriod,
+                            policy.requireDutyDay(), policy.requireDutyPeriod()));
             saveSubmissionReceipt(normalizedRequestId, user.studentNo(), response);
             return response;
         }
@@ -190,7 +207,8 @@ public class AttendanceService {
         records.updateCheckOut(record.id(), Timestamp.valueOf(now), pendingOrAuto);
         recompute(record.id());
         SubmitResponse response = new SubmitResponse(record.id(), "CHECK_OUT", maskStudentNo(user.studentNo()), user.name(), now, pendingOrAuto,
-                submissionMessage("签退", record.dutyDay(), record.withinDutyPeriod()));
+                submissionMessage("签退", record.dutyDay(), record.withinDutyPeriod(),
+                        record.requireDutyDay(), record.requireDutyPeriod()));
         saveSubmissionReceipt(normalizedRequestId, user.studentNo(), response);
         return response;
     }
@@ -273,7 +291,8 @@ public class AttendanceService {
         if (ReviewStatus.REJECTED.name().equals(status) && (reason == null || reason.isBlank())) {
             throw ApiException.badRequest("驳回时必须填写原因");
         }
-        records.updateReview(id, normalizedPart, status, current.id(), reason);
+        String storedRejectReason = ReviewStatus.REJECTED.name().equals(status) ? reason.trim() : null;
+        records.updateReview(id, normalizedPart, status, current.id(), storedRejectReason);
         recompute(id);
         AttendanceRecord after = records.findById(id).orElseThrow();
         logs.log("REVIEW_ATTENDANCE", "attendance_records", id, record, after, reviewReason(normalizedPart, status, reason));
@@ -389,17 +408,18 @@ public class AttendanceService {
         boolean withinDutyPeriod = periods.contains(request.checkInTime().toLocalTime());
         String checkInStatus = current.role() == Role.MINISTER
                 ? ReviewStatus.AUTO_APPROVED.name()
-                : normalizeReviewStatus(request.checkInStatus(), "签到审核状态");
+                : normalizeSubmittedReviewStatus(request.checkInStatus(), "签到审核状态");
         String checkOutStatus;
         if (request.checkOutTime() == null) {
             checkOutStatus = ReviewStatus.NOT_SUBMITTED.name();
         } else if (current.role() == Role.MINISTER) {
             checkOutStatus = ReviewStatus.AUTO_APPROVED.name();
         } else {
-            checkOutStatus = normalizeReviewStatus(request.checkOutStatus(), "签退审核状态");
+            checkOutStatus = normalizeSubmittedReviewStatus(request.checkOutStatus(), "签退审核状态");
         }
         records.manualUpdate(
                 id, dutyDate, dutyWeekday, dutyDay, withinDutyPeriod,
+                before.requireDutyDay(), before.requireDutyPeriod(),
                 Timestamp.valueOf(request.checkInTime()),
                 request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
                 checkInStatus, checkOutStatus, request.reason().trim(), current.id());
@@ -484,9 +504,16 @@ public class AttendanceService {
         }
     }
 
-    private String normalizeReviewStatus(String status, String fieldName) {
+    private String normalizeSubmittedReviewStatus(String status, String fieldName) {
         try {
-            return ReviewStatus.valueOf(status == null ? "" : status.trim().toUpperCase()).name();
+            ReviewStatus normalized = ReviewStatus.valueOf(status == null ? "" : status.trim().toUpperCase());
+            if (normalized == ReviewStatus.NOT_SUBMITTED) {
+                String message = fieldName.startsWith("签到")
+                        ? fieldName + "不能为未提交"
+                        : "已有签退时间时，" + fieldName + "不能为未提交";
+                throw ApiException.badRequest(message);
+            }
+            return normalized.name();
         } catch (IllegalArgumentException ex) {
             throw ApiException.badRequest(fieldName + "不正确");
         }
@@ -496,6 +523,11 @@ public class AttendanceService {
         AttendanceRecord record = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
         if (ReviewStatus.REJECTED.name().equals(record.checkInStatus())
                 || ReviewStatus.REJECTED.name().equals(record.checkOutStatus())) {
+            records.updateEffective(id, 0, 0, "INVALID");
+            return;
+        }
+        if ((record.requireDutyDay() && !record.dutyDay())
+                || (record.requireDutyPeriod() && !record.withinDutyPeriod())) {
             records.updateEffective(id, 0, 0, "INVALID");
             return;
         }
@@ -510,7 +542,7 @@ public class AttendanceService {
             return;
         }
         Duration duration = Duration.between(record.checkInTime(), record.checkOutTime());
-        if (duration.toSeconds() <= 0) {
+        if (duration.isNegative() || duration.isZero()) {
             records.updateEffective(id, 0, 0, "INVALID");
             return;
         }
@@ -523,14 +555,31 @@ public class AttendanceService {
         return ReviewStatus.APPROVED.name().equals(status) || ReviewStatus.AUTO_APPROVED.name().equals(status);
     }
 
-    private String submissionMessage(String action, boolean dutyDay, boolean withinDutyPeriod) {
+    private String submissionMessage(String action, boolean dutyDay, boolean withinDutyPeriod,
+                                     boolean requireDutyDay, boolean requireDutyPeriod) {
         if (!dutyDay) {
+            if (requireDutyDay) {
+                return action + "已提交；今日不是值班日，按当前规则不计入有效时长";
+            }
             return action + "已提交；今日不是值班日，是否计入有效时长由审核结果决定";
         }
         if (!withinDutyPeriod) {
+            if (requireDutyPeriod) {
+                return action + "已提交；当前不在值班时段，按当前规则不计入有效时长";
+            }
             return action + "已提交；当前不在值班时段，是否计入有效时长由审核结果决定";
         }
         return action + "提交成功";
+    }
+
+    private String lookupMessage(boolean dutyDay, boolean withinDutyPeriod,
+                                 AttendancePolicyService.AttendancePolicy policy,
+                                 String normalMessage, String relaxedMessage) {
+        if ((!dutyDay && policy.requireDutyDay())
+                || (!withinDutyPeriod && policy.requireDutyPeriod())) {
+            return "当前不符合有效时长规则，仍可提交，但本次不计入有效时长";
+        }
+        return dutyDay && withinDutyPeriod ? normalMessage : relaxedMessage;
     }
 
     private String reviewReason(String part, String status, String reason) {

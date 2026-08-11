@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { router } from "./router";
+import { resolveRouteAccess, router } from "./router";
+import type { Role } from "../shared/types";
 
 describe("admin route permissions", () => {
   const route = (name: string) =>
@@ -28,4 +29,52 @@ describe("admin route permissions", () => {
   it("limits logs to administrators", () => {
     expect(route("logs")?.meta.roles).toEqual(["ADMIN"]);
   });
+
+  it.each([
+    ["MINISTER", "members", "today"],
+    ["PRESIDENT", "logs", "today"],
+    ["MEMBER", "repairs", "profile"],
+  ] as const)(
+    "redirects %s away from the %s route",
+    (role, target, fallback) => {
+      const destination = resolveRouteAccess(
+        router.resolve({ name: target }),
+        localState(role),
+      );
+
+      expect(destination).toEqual({ name: fallback });
+    },
+  );
+
+  it("redirects the remote entry away from the kiosk", () => {
+    const destination = resolveRouteAccess(router.resolve({ name: "kiosk" }), {
+      setup: { initialized: true },
+      access: {
+        mode: "REMOTE_ADMIN",
+        kioskAvailable: false,
+        allowedRemoteRoles: ["PRESIDENT", "ADMIN"],
+      },
+      user: null,
+    });
+
+    expect(destination).toEqual({ name: "login" });
+  });
+
+  function localState(role: Role) {
+    return {
+      setup: { initialized: true },
+      access: {
+        mode: "LOCAL" as const,
+        kioskAvailable: true,
+        allowedRemoteRoles: [],
+      },
+      user: {
+        id: 1,
+        studentNo: `test-${role.toLowerCase()}`,
+        name: `${role} 测试账号`,
+        role,
+        mustChangePassword: false,
+      },
+    };
+  }
 });

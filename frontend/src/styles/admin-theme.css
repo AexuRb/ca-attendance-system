@@ -705,11 +705,69 @@
     max-width: none;
     justify-content: flex-start;
   }
+
+  .refined-admin-layout .member-table table {
+    min-width: 720px;
+  }
+
+  .refined-admin-layout .member-table th:last-child,
+  .refined-admin-layout .member-table td:last-child {
+    position: sticky;
+    z-index: 5;
+    right: 0;
+    min-width: 86px;
+    background: white;
+    box-shadow: -10px 0 18px -18px rgba(21, 67, 91, 0.72);
+  }
+
+  .refined-admin-layout .member-table th:last-child {
+    z-index: 7;
+    background: #f4f8fb;
+  }
+
+  .refined-admin-layout .member-table tr:hover td:last-child {
+    background: #f8fbfd;
+  }
+
+  .refined-admin-layout .member-table tr.is-selected td:last-child {
+    background: #eef8fd;
+  }
+
+  .refined-admin-layout .export-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    padding-top: 0;
+  }
+
+  .refined-admin-layout .export-steps button {
+    min-height: 52px;
+    border-right: 1px solid var(--admin-line-soft);
+  }
+
+  .refined-admin-layout .export-steps button:nth-of-type(2n) {
+    border-right: 0;
+  }
+
+  .refined-admin-layout .export-steps button.active::after {
+    inset: auto 12px 0;
+    width: auto;
+    height: 2px;
+  }
 }
 
 @media (max-width: 680px) {
   .refined-admin-layout .filter-bar {
     grid-template-columns: 1fr;
+  }
+
+  .refined-admin-layout .reviews-page .filter-bar {
+    grid-template-columns: minmax(0, 1fr) 38px;
+    align-items: center;
+  }
+
+  .refined-admin-layout .reviews-page .filter-bar .icon-button {
+    width: 38px;
+    justify-self: end;
   }
 }
 

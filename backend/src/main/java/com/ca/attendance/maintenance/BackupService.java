@@ -8,6 +8,7 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.config.StoragePaths;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -110,11 +111,18 @@ public class BackupService {
         );
         Map<String, byte[]> entries = archiveReader.readEntries(file, restoreValidator.supportedEntries());
         BackupRestorePayload payload = restoreValidator.parse(entries);
-        BackupItem safetyBackup = create();
 
         RestoreResult result = transactions.execute(status -> {
+            BackupItem safetyBackup = createBackup(
+                    current.studentNo(),
+                    current.name(),
+                    "恢复前安全备份"
+            );
             try {
                 return restorePayload(payload, safetyBackup, current);
+            } catch (DataAccessException ex) {
+                status.setRollbackOnly();
+                throw ApiException.badRequest("备份数据不符合当前数据库约束，未修改现有数据");
             } catch (RuntimeException ex) {
                 status.setRollbackOnly();
                 throw ex;

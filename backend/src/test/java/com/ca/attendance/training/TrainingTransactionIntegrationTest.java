@@ -2,6 +2,7 @@ package com.ca.attendance.training;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -20,6 +21,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
@@ -31,6 +33,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -178,6 +181,33 @@ class TrainingTransactionIntegrationTest {
         assertEquals(0, participantCount(session.id()));
     }
 
+    @Test
+    void participantImportRejectsWholeWorkbookWhenAnyRowIsInvalid() throws Exception {
+        TrainingSessionItem session = trainings.create(sessionRequest("事务培训原子导入"));
+
+        ApiException exception = assertThrows(ApiException.class, () -> trainings.importParticipants(
+                session.id(),
+                participantImportFileWithInvalidTrailingRow()
+        ));
+
+        assertTrue(exception.getMessage().contains("未写入"));
+        assertEquals(0, participantCount(session.id()));
+        assertEquals(0, actionCount("IMPORT_TRAINING_PARTICIPANTS"));
+    }
+
+    @Test
+    void sessionTemplatePrefillsSpeakerAsFirstParticipant() throws Exception {
+        TrainingSessionItem session = trainings.create(sessionRequest("事务培训主讲人模板"));
+        TrainingService.ExportFile template = trainings.exportSessionImportTemplate(session.id());
+
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(template.bytes()))) {
+            Row speaker = workbook.getSheetAt(0).getRow(1);
+            assertEquals("事务测试主讲人", speaker.getCell(1).getStringCellValue());
+            assertEquals(2.0, speaker.getCell(2).getNumericCellValue());
+            assertEquals("主讲人", speaker.getCell(3).getStringCellValue());
+        }
+    }
+
     private TrainingService.SessionRequest sessionRequest(String title) {
         return new TrainingService.SessionRequest(
                 title,
@@ -222,6 +252,30 @@ class TrainingTransactionIntegrationTest {
         }
     }
 
+    private MockMultipartFile participantImportFileWithInvalidTrailingRow() throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("参与名单");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("姓名");
+            header.createCell(2).setCellValue("时长");
+            Row valid = sheet.createRow(1);
+            valid.createCell(0).setCellValue("9900000105");
+            valid.createCell(1).setCellValue("原子导入成员");
+            valid.createCell(2).setCellValue(2);
+            Row invalid = sheet.createRow(2);
+            invalid.createCell(0).setCellValue("9900000106");
+            invalid.createCell(2).setCellValue(2);
+            workbook.write(output);
+            return new MockMultipartFile(
+                    "file",
+                    "participants-invalid.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    output.toByteArray()
+            );
+        }
+    }
+
     private void failAudit(String actionType) {
         dropAuditTrigger();
         jdbc.execute("""
@@ -260,6 +314,15 @@ class TrainingTransactionIntegrationTest {
                 Integer.class,
                 sessionId
         );
+    }
+
+    private int actionCount(String actionType) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = ?",
+                Integer.class,
+                actionType
+        );
+        return count == null ? 0 : count;
     }
 
     private String participantName(long participantId) {

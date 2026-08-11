@@ -1,0 +1,202 @@
+/* Narrow, page-specific refinements kept separate from the base admin layers. */
+.refined-admin-layout .primary-nav {
+  overflow: clip;
+}
+
+.refined-admin-layout .primary-nav a.active::after {
+  right: 0;
+}
+
+.refined-admin-layout .record-list-item {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+}
+
+.refined-admin-layout .record-list-copy {
+  min-width: 0;
+}
+
+.refined-admin-layout .record-list-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.refined-admin-layout .record-list-item b {
+  white-space: nowrap;
+}
+
+.refined-admin-layout .training-detail-heading > div:first-child {
+  min-width: 0;
+}
+
+.refined-admin-layout .training-detail-heading h2,
+.refined-admin-layout .training-detail-heading span {
+  overflow-wrap: anywhere;
+}
+
+.refined-admin-layout .training-detail-heading h2 {
+  text-wrap: balance;
+}
+
+.refined-admin-layout .training-detail-heading span {
+  text-wrap: pretty;
+}
+
+@media (max-width: 820px) {
+  .refined-admin-layout .split-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .refined-admin-layout .record-list {
+    max-height: 300px;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .refined-admin-layout .training-detail-heading {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px 14px;
+  }
+
+  .refined-admin-layout .training-detail-heading .row-actions {
+    display: grid;
+    grid-template-columns: repeat(4, 40px);
+    justify-content: start;
+  }
+
+  .refined-admin-layout .training-detail-heading h2 {
+    font-size: 22px;
+    line-height: 1.18;
+  }
+
+  .refined-admin-layout .training-participant-table {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .refined-admin-layout .training-participant-table table,
+  .refined-admin-layout .training-participant-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .refined-admin-layout .training-participant-table thead {
+    display: none;
+  }
+
+  .refined-admin-layout .training-participant-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .refined-admin-layout .training-participant-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px 16px;
+    border: 1px solid var(--admin-line);
+    border-radius: 6px;
+    padding: 14px;
+    background: #fff;
+  }
+
+  .refined-admin-layout .training-participant-table td {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+    border: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+    text-align: left;
+  }
+
+  .refined-admin-layout .training-participant-table td::before {
+    color: var(--ink-500);
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .refined-admin-layout .training-participant-table td:first-child {
+    grid-column: 1 / -1;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--admin-line-soft);
+  }
+
+  .refined-admin-layout .training-participant-table td:nth-child(3) {
+    grid-column: 1;
+  }
+
+  .refined-admin-layout .training-participant-table td:last-child {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: auto;
+    align-items: center;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid var(--admin-line-soft);
+  }
+
+  .refined-admin-layout .training-participant-table td:last-child::before {
+    margin-right: auto;
+  }
+
+  .refined-admin-layout .period-editor {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .refined-admin-layout .period-editor article {
+    grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr);
+    grid-template-areas:
+      "order order delete"
+      "start arrow end"
+      "duration duration toggle";
+    align-items: end;
+    gap: 12px 8px;
+    min-height: 0;
+    border: 1px solid var(--admin-line);
+    border-radius: 6px;
+    padding: 12px;
+    background: #fff;
+  }
+
+  .refined-admin-layout .period-order {
+    grid-area: order;
+  }
+
+  .refined-admin-layout .period-start {
+    grid-area: start;
+  }
+
+  .refined-admin-layout .period-arrow {
+    grid-area: arrow;
+    align-self: center;
+    justify-self: center;
+  }
+
+  .refined-admin-layout .period-end {
+    grid-area: end;
+  }
+
+  .refined-admin-layout .period-editor article > .period-duration {
+    display: block;
+    grid-area: duration;
+  }
+
+  .refined-admin-layout .period-enabled-toggle {
+    grid-area: toggle;
+    grid-column: auto;
+    justify-self: end;
+  }
+
+  .refined-admin-layout .period-delete {
+    grid-area: delete;
+    justify-self: end;
+  }
+}

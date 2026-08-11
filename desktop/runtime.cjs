@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const http = require('node:http');
+const net = require('node:net');
 const path = require('node:path');
 
 const APP_HOST = '127.0.0.1';
@@ -33,6 +34,21 @@ function shouldHideWindowOnClose({ allowQuit = false, shuttingDown = false } = {
   return !allowQuit && !shuttingDown;
 }
 
+function selectSmokeScenario(environment = {}) {
+  const candidates = [
+    ['tray', environment.CA_ATTENDANCE_SMOKE_TRAY_MS],
+    ['backend-crash', environment.CA_ATTENDANCE_SMOKE_BACKEND_CRASH_MS],
+    ['exit', environment.CA_ATTENDANCE_SMOKE_EXIT_MS]
+  ];
+  for (const [kind, rawDelay] of candidates) {
+    const delayMs = Number(rawDelay || 0);
+    if (Number.isFinite(delayMs) && delayMs >= 1000) {
+      return { kind, delayMs };
+    }
+  }
+  return null;
+}
+
 function restoreApplicationWindow(window) {
   if (!window || window.isDestroyed()) {
     return false;
@@ -47,7 +63,13 @@ function restoreApplicationWindow(window) {
   return true;
 }
 
-function backendLocations({ isPackaged, resourcesPath, moduleDirectory }) {
+function backendLocations({
+  isPackaged,
+  resourcesPath,
+  moduleDirectory,
+  javaHome = process.env.JAVA_HOME,
+  fileExists = fs.existsSync
+}) {
   if (isPackaged) {
     return {
       java: path.join(resourcesPath, 'runtime', 'bin', 'java.exe'),
@@ -56,9 +78,14 @@ function backendLocations({ isPackaged, resourcesPath, moduleDirectory }) {
   }
 
   const repoRoot = path.resolve(moduleDirectory, '..');
-  const javaHome = process.env.JAVA_HOME?.trim();
+  const bundledJava = path.join(repoRoot, 'runtime', 'temurin-21', 'bin', 'java.exe');
+  const configuredJavaHome = String(javaHome || '').trim();
   return {
-    java: javaHome ? path.join(javaHome, 'bin', 'java.exe') : 'java',
+    java: fileExists(bundledJava)
+      ? bundledJava
+      : configuredJavaHome
+        ? path.join(configuredJavaHome, 'bin', 'java.exe')
+        : 'java',
     jar: path.join(repoRoot, 'backend', 'target', 'attendance-backend.jar')
   };
 }
@@ -130,6 +157,41 @@ async function probeApplication() {
   }
 }
 
+function isLoopbackPortInUse(port, { timeoutMs = 800 } = {}) {
+  return new Promise(resolve => {
+    const socket = net.createConnection({ host: APP_HOST, port });
+    let settled = false;
+
+    function finish(inUse) {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(inUse);
+    }
+
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+}
+
+async function detectStartupConflict({
+  probeApplicationFn = probeApplication,
+  isPortInUseFn = isLoopbackPortInUse
+} = {}) {
+  const existing = await probeApplicationFn();
+  if (existing.reachable) {
+    return existing.matches
+      ? { kind: 'APP_ALREADY_RUNNING', port: APP_PORT }
+      : { kind: 'LOCAL_PORT_OCCUPIED', port: APP_PORT };
+  }
+  if (await isPortInUseFn(REMOTE_ADMIN_PORT)) {
+    return { kind: 'REMOTE_PORT_OCCUPIED', port: REMOTE_ADMIN_PORT };
+  }
+  return null;
+}
+
 async function waitForApplication({ timeoutMs = 60000, intervalMs = 350 } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -163,12 +225,15 @@ module.exports = {
   APP_PORT,
   REMOTE_ADMIN_PORT,
   backendLocations,
+  detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,
+  isLoopbackPortInUse,
   postDesktopControl,
   probeApplication,
   restoreApplicationWindow,
   resolveAppRoot,
+  selectSmokeScenario,
   shouldHideWindowOnClose,
   waitForApplication
 };

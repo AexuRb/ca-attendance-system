@@ -5,7 +5,7 @@
       role="grid"
       aria-label="固定周排班表"
       :style="{
-        gridTemplateColumns: `142px repeat(${visibleWeekdays.length}, minmax(176px, 1fr))`,
+        gridTemplateColumns: `minmax(118px, 0.84fr) repeat(${visibleWeekdays.length}, minmax(112px, 1fr))`,
       }"
     >
       <div class="schedule-matrix-corner" role="columnheader">

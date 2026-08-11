@@ -265,6 +265,9 @@ public class TrainingService {
                 throw ApiException.badRequest("Excel 文件没有工作表");
             }
             ImportResult result = importSheet(sessionId, sheet, current.id());
+            if (!result.errors().isEmpty()) {
+                throw ApiException.badRequest(importFailureMessage(result.errors()));
+            }
             logs.log("IMPORT_TRAINING_PARTICIPANTS", "training_participants", sessionId, null, result, "导入培训参与名单");
             return result;
         } catch (ApiException ex) {
@@ -387,7 +390,7 @@ public class TrainingService {
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
-        int rowLimit = Math.min(sheet.getLastRowNum(), startRow + MAX_EXCEL_ROWS);
+        int rowLimit = Math.min(sheet.getLastRowNum(), startRow + MAX_EXCEL_ROWS - 1);
 
         for (int i = startRow; i <= rowLimit; i++) {
             Row row = sheet.getRow(i);
@@ -432,6 +435,10 @@ public class TrainingService {
             addIssue(errors, "文件超过 " + MAX_EXCEL_ROWS + " 行，后续行已跳过");
         }
         return new ImportResult(created, updated, skipped, errors);
+    }
+
+    private String importFailureMessage(List<String> errors) {
+        return "培训名单校验未通过，未写入任何记录：" + String.join("；", errors);
     }
 
     private void writeImportTemplateWorkbook(Workbook wb, TrainingSessionItem session) {

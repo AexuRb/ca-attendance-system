@@ -1,5 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { get, post } from "../../shared/api";
+import { ApiError, get, post } from "../../shared/api";
 import {
   canConfirmAttendance,
   type AttendanceLookupResult,
@@ -35,6 +35,7 @@ export function useKioskAttendance() {
   const successName = ref("");
   const successAction = ref("");
   const successTime = ref("");
+  const selectingMemberToken = ref("");
 
   let resetTimer: number | undefined;
   let lookupRetryTimer: number | undefined;
@@ -43,6 +44,8 @@ export function useKioskAttendance() {
   let scheduleRequest: Promise<void> | undefined;
   let lastScheduleRefreshAt = 0;
   let submissionAttempt: SubmissionAttempt | null = null;
+  let pendingLookupQuery: string | null = null;
+  let disposed = false;
 
   const scheduleCount = computed(
     () =>
@@ -53,6 +56,7 @@ export function useKioskAttendance() {
   );
 
   onMounted(() => {
+    disposed = false;
     currentDate.value = new Date();
     void loadSchedule();
     refreshTimer = window.setInterval(
@@ -62,9 +66,13 @@ export function useKioskAttendance() {
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
   });
-  onBeforeUnmount(clearTimers);
+  onBeforeUnmount(() => {
+    disposed = true;
+    clearTimers();
+  });
 
   function loadSchedule(): Promise<void> {
+    if (disposed) return Promise.resolve();
     if (scheduleRequest) return scheduleRequest;
     window.clearTimeout(scheduleRetryTimer);
     scheduleRequest = (async () => {
@@ -73,16 +81,20 @@ export function useKioskAttendance() {
           get<ScheduleDay>("/api/public/schedules/today"),
           get<ScheduleDay[]>("/api/public/schedules/week"),
         ]);
+        if (disposed) return;
         todaySchedule.value = today;
         weekSchedule.value = week;
         scheduleError.value = "";
         online.value = true;
         lastScheduleRefreshAt = Date.now();
       } catch (cause) {
+        if (disposed) return;
         scheduleError.value =
           cause instanceof Error ? cause.message : "排班暂时不可用";
-        online.value = false;
-        scheduleRetryTimer = window.setTimeout(() => void loadSchedule(), 3000);
+        online.value = !isNetworkError(cause);
+        if (isRetryableError(cause)) {
+          scheduleRetryTimer = window.setTimeout(() => void loadSchedule(), 3000);
+        }
       }
     })().finally(() => {
       scheduleRequest = undefined;
@@ -113,17 +125,24 @@ export function useKioskAttendance() {
     }
   }
 
-  async function lookup(selectionToken?: string) {
-    const lookupQuery = selectionToken || query.value;
+  async function lookup() {
+    await performLookup(query.value, "");
+  }
+
+  async function performLookup(lookupQuery: string, selectedToken: string) {
     if (!lookupQuery || busy.value) return;
     window.clearTimeout(lookupRetryTimer);
+    pendingLookupQuery = lookupQuery;
+    selectingMemberToken.value = selectedToken;
     busy.value = true;
     error.value = "";
     try {
       const result = await get<AttendanceLookupResult>(
         `/api/public/attendance/lookup?query=${encodeURIComponent(lookupQuery)}`,
       );
+      if (disposed) return;
       online.value = true;
+      pendingLookupQuery = null;
       if (result.matches?.length) {
         matches.value = result.matches;
         step.value = "choose";
@@ -136,19 +155,31 @@ export function useKioskAttendance() {
         error.value = `${message}。请检查学号，或联系管理员确认账号是否停用。`;
       }
     } catch (cause) {
-      online.value = false;
+      if (disposed) return;
       const message = cause instanceof Error ? cause.message : "查询失败";
-      error.value = `${message}。已保留输入，连接恢复后将自动重试。`;
-      lookupRetryTimer = window.setTimeout(() => {
-        if (step.value === "input" && query.value) lookup();
-      }, RETRY_DELAY);
+      if (isNetworkError(cause)) {
+        online.value = false;
+        error.value = "本机服务暂时无法连接。已保留当前输入，连接恢复后将自动重试。";
+        lookupRetryTimer = window.setTimeout(() => {
+          if (!disposed && pendingLookupQuery === lookupQuery) {
+            void performLookup(lookupQuery, selectedToken);
+          }
+        }, RETRY_DELAY);
+      } else {
+        online.value = true;
+        pendingLookupQuery = null;
+        error.value = message;
+      }
     } finally {
-      busy.value = false;
+      if (!disposed) {
+        busy.value = false;
+        selectingMemberToken.value = "";
+      }
     }
   }
 
   async function selectMember(memberToken: string) {
-    await lookup(memberToken);
+    await performLookup(memberToken, memberToken);
   }
 
   async function submitAttendance() {
@@ -181,8 +212,12 @@ export function useKioskAttendance() {
       step.value = "success";
       resetTimer = window.setTimeout(reset, RESET_DELAY);
     } catch (cause) {
-      online.value = false;
-      error.value = cause instanceof Error ? cause.message : "提交失败";
+      const networkError = isNetworkError(cause);
+      online.value = !networkError;
+      const message = cause instanceof Error ? cause.message : "提交失败";
+      error.value = networkError
+        ? "本机服务暂时无法连接。当前确认已保留，请重新提交。"
+        : message;
       step.value = "confirm";
     } finally {
       busy.value = false;
@@ -190,12 +225,15 @@ export function useKioskAttendance() {
   }
 
   function clearError() {
+    window.clearTimeout(lookupRetryTimer);
+    pendingLookupQuery = null;
     error.value = "";
   }
 
   function reset() {
     window.clearTimeout(resetTimer);
     window.clearTimeout(lookupRetryTimer);
+    pendingLookupQuery = null;
     query.value = "";
     lookupResult.value = null;
     matches.value = [];
@@ -203,6 +241,7 @@ export function useKioskAttendance() {
     successName.value = "";
     successAction.value = "";
     successTime.value = "";
+    selectingMemberToken.value = "";
     submissionAttempt = null;
     step.value = "input";
   }
@@ -232,12 +271,21 @@ export function useKioskAttendance() {
     successName,
     successAction,
     successTime,
+    selectingMemberToken,
     lookup,
     selectMember,
     submitAttendance,
     clearError,
     reset,
   };
+}
+
+function isNetworkError(cause: unknown) {
+  return cause instanceof ApiError && cause.network;
+}
+
+function isRetryableError(cause: unknown) {
+  return isNetworkError(cause) || (cause instanceof ApiError && cause.status >= 500);
 }
 
 function localDateKey(date: Date) {

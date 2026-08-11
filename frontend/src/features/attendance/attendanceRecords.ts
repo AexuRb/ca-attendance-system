@@ -5,6 +5,10 @@ export interface AttendanceRecordItem {
   studentNo: string;
   name: string;
   dutyDate: string;
+  dutyDay: boolean;
+  withinDutyPeriod: boolean;
+  requireDutyDay: boolean;
+  requireDutyPeriod: boolean;
   checkInTime?: string;
   checkOutTime?: string;
   checkInStatus: string;
@@ -67,6 +71,14 @@ export function localDateTimeInput(value: Date): string {
     ":",
     String(value.getMinutes()).padStart(2, "0"),
   ].join("");
+}
+
+export function manualCheckoutStatus(
+  currentStatus: string,
+  checkOutTime: string,
+): string {
+  if (!checkOutTime) return "NOT_SUBMITTED";
+  return currentStatus === "NOT_SUBMITTED" ? "APPROVED" : currentStatus;
 }
 
 export function attendanceActionAccess(

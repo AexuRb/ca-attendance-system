@@ -1,19 +1,96 @@
 const fs = require('node:fs');
+const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   REMOTE_ADMIN_PORT,
+  backendLocations,
+  detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,
+  isLoopbackPortInUse,
   restoreApplicationWindow,
+  selectSmokeScenario,
   shouldHideWindowOnClose,
   resolveAppRoot
 } = require('../runtime.cjs');
 
 test('reserves a separate loopback port for the remote admin tunnel', () => {
   assert.equal(REMOTE_ADMIN_PORT, 8081);
+});
+
+test('prefers the repository Temurin runtime when running the desktop from source', () => {
+  const repoRoot = path.join(path.parse(process.cwd()).root, 'test-repo');
+  const moduleDirectory = path.join(repoRoot, 'desktop');
+  const expectedJava = path.join(repoRoot, 'runtime', 'temurin-21', 'bin', 'java.exe');
+  const locations = backendLocations({
+    isPackaged: false,
+    resourcesPath: '',
+    moduleDirectory,
+    javaHome: '',
+    fileExists: candidate => candidate === expectedJava
+  });
+
+  assert.equal(locations.java, expectedJava);
+  assert.equal(locations.jar, path.join(repoRoot, 'backend', 'target', 'attendance-backend.jar'));
+});
+
+test('selects only explicit desktop smoke scenarios with safe delays', () => {
+  assert.deepEqual(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_TRAY_MS: '1800' }), {
+    kind: 'tray',
+    delayMs: 1800
+  });
+  assert.deepEqual(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_BACKEND_CRASH_MS: '2200' }), {
+    kind: 'backend-crash',
+    delayMs: 2200
+  });
+  assert.deepEqual(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_EXIT_MS: '1500' }), {
+    kind: 'exit',
+    delayMs: 1500
+  });
+  assert.equal(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_EXIT_MS: '999' }), null);
+  assert.equal(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_EXIT_MS: 'not-a-number' }), null);
+});
+
+test('detects local and remote startup port conflicts before spawning the backend', async () => {
+  assert.deepEqual(await detectStartupConflict({
+    probeApplicationFn: async () => ({ reachable: true, matches: true }),
+    isPortInUseFn: async () => false
+  }), { kind: 'APP_ALREADY_RUNNING', port: 8080 });
+
+  assert.deepEqual(await detectStartupConflict({
+    probeApplicationFn: async () => ({ reachable: true, matches: false }),
+    isPortInUseFn: async () => false
+  }), { kind: 'LOCAL_PORT_OCCUPIED', port: 8080 });
+
+  assert.deepEqual(await detectStartupConflict({
+    probeApplicationFn: async () => ({ reachable: false, matches: false }),
+    isPortInUseFn: async port => port === REMOTE_ADMIN_PORT
+  }), { kind: 'REMOTE_PORT_OCCUPIED', port: REMOTE_ADMIN_PORT });
+
+  assert.equal(await detectStartupConflict({
+    probeApplicationFn: async () => ({ reachable: false, matches: false }),
+    isPortInUseFn: async () => false
+  }), null);
+});
+
+test('checks whether a loopback port is accepting connections', async () => {
+  const server = net.createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const port = server.address().port;
+
+  try {
+    assert.equal(await isLoopbackPortInUse(port), true);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+
+  assert.equal(await isLoopbackPortInUse(port), false);
 });
 
 test('resolves the data root above an installed app directory', () => {

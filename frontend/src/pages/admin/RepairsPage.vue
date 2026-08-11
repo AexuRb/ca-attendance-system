@@ -53,7 +53,7 @@
             <div>
               <span class="case-no">{{ item.caseNo }}</span
               ><StatusBadge
-                :label="agreementLabel(item.agreementType)"
+                :label="repairAgreementLabel(item.agreementType)"
                 tone="info"
               />
             </div>
@@ -114,16 +114,20 @@
                   v-if="canManage"
                   class="icon-button"
                   title="编辑"
+                  aria-label="编辑维修事务"
+                  type="button"
                   @click="openEditor(item)"
                 >
-                  <Pencil /></button
+                  <Pencil aria-hidden="true" /></button
                 ><button
                   v-if="canDelete"
                   class="icon-button danger-ghost"
                   title="移入回收站"
+                  aria-label="将维修事务移入回收站"
+                  type="button"
                   @click="deleteTarget = item"
                 >
-                  <Trash2 />
+                  <Trash2 aria-hidden="true" />
                 </button>
               </div>
             </footer>
@@ -138,63 +142,88 @@
     <ModalDialog
       :open="editorOpen"
       :title="form.id ? '编辑维修事务' : '新建维修事务'"
-      size="xl"
+      size="lg"
       @close="editorOpen = false"
-      ><div class="form-sections">
-        <section>
-          <h3>协议与联系人</h3>
-          <div class="form-grid two">
-            <label class="field"
-              ><span>协议类型</span
-              ><select v-model="form.agreementType">
-                <option value="REPAIR">维修协议</option>
-                <option value="DISCLAIMER">免责协议</option>
-              </select></label
-            ><label class="field"
-              ><span>状态</span
-              ><select v-model="form.status">
-                <option value="REPAIRING">进行中</option>
-                <option value="COMPLETED">已完成</option>
-                <option value="CANCELED">已取消</option>
-              </select></label
-            ><label class="field"
-              ><span>联系人</span><input v-model.trim="form.ownerName" /></label
-            ><label class="field"
-              ><span>联系电话</span><input v-model.trim="form.ownerPhone"
-            /></label>
-          </div>
-        </section>
-        <section>
-          <h3>设备与故障</h3>
-          <div class="form-grid two">
-            <label class="field"
-              ><span>设备类型</span
-              ><input
-                v-model.trim="form.deviceType"
-                placeholder="笔记本电脑、台式机等" /></label
-            ><label class="field"
-              ><span>品牌型号</span
-              ><input
-                v-model.trim="form.deviceBrand"
-                placeholder="品牌" /></label
-            ><label class="field"
-              ><span>具体型号</span
-              ><input v-model.trim="form.deviceModel" /></label
-            ><label class="field"
-              ><span>附件</span
-              ><input
-                v-model.trim="form.accessories"
-                placeholder="电源、鼠标等" /></label
-            ><label class="field span-2"
-              ><span>故障描述</span
-              ><textarea v-model.trim="form.faultDescription" rows="3" /></label
-            ><label class="field span-2"
-              ><span>维修说明</span
-              ><textarea v-model.trim="form.serviceDescription" rows="3" />
-            </label>
-          </div>
-        </section>
-        <section>
+    >
+      <nav class="repair-editor-steps" aria-label="维修事务填写步骤">
+        <button
+          type="button"
+          :class="{ active: repairStep === 1 }"
+          :aria-current="repairStep === 1 ? 'step' : undefined"
+          @click="repairStep = 1"
+        >
+          <span>1</span>
+          <strong>设备与联系人</strong>
+        </button>
+        <button
+          type="button"
+          :class="{ active: repairStep === 2 }"
+          :aria-current="repairStep === 2 ? 'step' : undefined"
+          @click="repairStep = 2"
+        >
+          <span>2</span>
+          <strong>受理与确认</strong>
+        </button>
+      </nav>
+      <div class="form-sections repair-editor-body">
+        <template v-if="repairStep === 1">
+          <section>
+            <h3>协议与联系人</h3>
+            <div class="form-grid two">
+              <label class="field"
+                ><span>协议类型</span
+                ><select v-model="form.agreementType">
+                  <option value="REPAIR">维修协议</option>
+                  <option value="DISCLAIMER">免责协议</option>
+                </select></label
+              ><label class="field"
+                ><span>状态</span
+                ><select v-model="form.status">
+                  <option value="REPAIRING">进行中</option>
+                  <option value="COMPLETED">已完成</option>
+                  <option value="CANCELED">已取消</option>
+                </select></label
+              ><label class="field"
+                ><span>联系人</span><input v-model.trim="form.ownerName" /></label
+              ><label class="field"
+                ><span>联系电话</span><input v-model.trim="form.ownerPhone"
+              /></label>
+            </div>
+          </section>
+          <section>
+            <h3>设备与故障</h3>
+            <div class="form-grid two">
+              <label class="field"
+                ><span>设备类型</span
+                ><input
+                  v-model.trim="form.deviceType"
+                  placeholder="笔记本电脑、台式机等" /></label
+              ><label class="field"
+                ><span>品牌型号</span
+                ><input
+                  v-model.trim="form.deviceBrand"
+                  placeholder="品牌" /></label
+              ><label class="field"
+                ><span>具体型号</span
+                ><input v-model.trim="form.deviceModel" /></label
+              ><label class="field"
+                ><span>附件</span
+                ><input
+                  v-model.trim="form.accessories"
+                  placeholder="电源、鼠标等" /></label
+              ><label class="field span-2"
+                ><span>故障描述</span
+                ><textarea
+                  v-model.trim="form.faultDescription"
+                  rows="2" /></label
+              ><label class="field span-2"
+                ><span>维修说明</span
+                ><textarea v-model.trim="form.serviceDescription" rows="2" />
+              </label>
+            </div>
+          </section>
+        </template>
+        <section v-else>
           <h3>受理信息</h3>
           <div class="form-grid two">
             <label class="field"
@@ -236,14 +265,36 @@
           </div>
         </section>
       </div>
-      <template #footer
-        ><button class="button secondary" @click="editorOpen = false">
-          取消</button
-        ><button class="button primary" :disabled="!validForm" @click="save">
+      <template #footer>
+        <button class="button secondary" @click="editorOpen = false">
+          取消
+        </button>
+        <button
+          v-if="repairStep === 2"
+          class="button secondary"
+          type="button"
+          @click="repairStep = 1"
+        >
+          <ArrowLeft />上一步
+        </button>
+        <button
+          v-if="repairStep === 1"
+          class="button primary"
+          type="button"
+          @click="repairStep = 2"
+        >
+          下一步<ArrowRight />
+        </button>
+        <button
+          v-else
+          class="button primary"
+          :disabled="!validForm"
+          @click="save"
+        >
           保存事务
-        </button></template
-      ></ModalDialog
-    >
+        </button>
+      </template>
+    </ModalDialog>
     <ConfirmDialog
       :open="Boolean(deleteTarget)"
       title="移入维修回收站"
@@ -267,6 +318,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import {
+  ArrowLeft,
+  ArrowRight,
   Download,
   Eye,
   EyeOff,
@@ -286,10 +339,16 @@ import AccountPicker from "../../features/accounts/AccountPicker.vue";
 import { api, del, get, post, put, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { canExportRepairs } from "../../features/repairs/repairPermissions";
+import {
+  canDeleteRepairs,
+  canExportRepairs,
+  canManageRepairs,
+} from "../../features/repairs/repairPermissions";
 import {
   isLongRunningRepair,
   maskRepairPhone,
+  repairAgreementFormType,
+  repairAgreementLabel,
   repairAgeLabel,
 } from "../../features/repairs/repairDisplay";
 import type { AccountCandidate } from "../../features/accounts/accountCandidates";
@@ -302,6 +361,7 @@ const { user } = useSession();
 const { run } = useAsyncTask();
 const cases = ref<RepairCase[]>([]);
 const editorOpen = ref(false);
+const repairStep = ref<1 | 2>(1);
 const deleteTarget = ref<RepairCase | null>(null);
 const agreementOpen = ref(false);
 const agreementTarget = ref<RepairCase | null>(null);
@@ -347,12 +407,8 @@ const columns: Array<{
   { status: "COMPLETED", label: "已完成", tone: "green" },
   { status: "CANCELED", label: "已取消", tone: "gray" },
 ];
-const canManage = computed(() =>
-  ["MINISTER", "PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
-);
-const canDelete = computed(() =>
-  ["PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
-);
+const canManage = computed(() => canManageRepairs(user.value?.role));
+const canDelete = computed(() => canDeleteRepairs(user.value?.role));
 const canExport = computed(() => canExportRepairs(user.value?.role));
 const validForm = computed(
   () =>
@@ -375,13 +431,13 @@ async function load() {
 const casesByStatus = (status: RepairStatus) =>
   cases.value.filter((i) => i.status === status);
 function openEditor(item?: RepairCase) {
+  repairStep.value = 1;
   Object.assign(
     form,
     item
       ? {
           ...item,
-          agreementType:
-            item.agreementType === "PUBLIC_DEVICE" ? "DISCLAIMER" : "REPAIR",
+          agreementType: repairAgreementFormType(item.agreementType),
           receivedAt: toInput(item.receivedAt),
           completedAt: toInput(item.completedAt),
         }
@@ -493,8 +549,6 @@ async function exportCases() {
 const deviceName = (i: RepairCase) =>
   [i.deviceBrand, i.deviceModel, i.deviceType].filter(Boolean).join(" ") ||
   "未命名设备";
-const agreementLabel = (v: string) =>
-  v === "DISCLAIMER" ? "免责协议" : "维修协议";
 const dateTime = (v?: string) => v?.replace("T", " ").slice(0, 16) || "—";
 const toInput = (v?: string) => v?.slice(0, 16) || "";
 const phoneVisible = (id: number) => revealedPhones.value.has(id);

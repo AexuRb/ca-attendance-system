@@ -48,7 +48,7 @@ mvn package
 target/attendance-backend.jar
 ```
 
-集成测试使用临时 SQLite 文件，覆盖结构迁移、核心业务写入、备份恢复、首次初始化和桌面管理员恢复，不依赖本机真实数据。
+集成测试使用临时 SQLite 文件，覆盖结构迁移、核心业务写入、全表备份恢复、异常回滚、首次初始化和桌面管理员恢复，不依赖本机真实数据。数据安全演练步骤见 [`docs/数据安全演练记录.md`](../docs/数据安全演练记录.md)。
 
 ## 认证
 
@@ -145,6 +145,7 @@ Authorization: Bearer <token>
 | --- | --- | --- |
 | `GET/PUT` | `/api/settings/weekdays` | 查询或修改值班星期 |
 | `GET/PUT` | `/api/settings/duty-periods` | 查询或修改值班时间段 |
+| `GET/PUT` | `/api/settings/attendance-policy` | 查看有效时长限制；仅管理员可修改 |
 | `GET` | `/api/logs` | 管理员查询操作日志 |
 | `GET` | `/api/logs/export` | 管理员导出日志 |
 | `DELETE` | `/api/logs` | 管理员清空日志 |

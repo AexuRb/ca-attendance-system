@@ -8,10 +8,13 @@ import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class DutyWeekdayService {
@@ -46,18 +49,66 @@ public class DutyWeekdayService {
         return normalized;
     }
 
+    @Transactional
     public void update(List<Integer> enabledWeekdays) {
         AuthUser current = AuthContext.current();
         RolePermissionPolicy.require(current.role(),
                 RolePermissionPolicy.Permission.DUTY_SETTINGS_MANAGE,
                 "无权调整值班星期");
+        Set<Integer> normalized = normalizeWeekdays(enabledWeekdays);
+        validateActiveScheduleReferences(normalized);
         List<Map<String, Object>> before = list();
         for (int i = 1; i <= 7; i++) {
-            boolean enabled = enabledWeekdays != null && enabledWeekdays.contains(i);
+            boolean enabled = normalized.contains(i);
             jdbc.update("UPDATE duty_weekday_settings SET enabled = ?, updated_by = ?, updated_at = datetime('now', 'localtime') WHERE weekday = ?",
                     enabled, current.id(), i);
         }
         logs.log("UPDATE_DUTY_WEEKDAYS", "duty_weekday_settings", null, before, list(), "调整值班星期");
+    }
+
+    private Set<Integer> normalizeWeekdays(List<Integer> enabledWeekdays) {
+        Set<Integer> normalized = new LinkedHashSet<>();
+        if (enabledWeekdays == null) {
+            return normalized;
+        }
+        for (Integer weekday : enabledWeekdays) {
+            if (weekday == null || weekday < 1 || weekday > 7) {
+                throw ApiException.badRequest("值班星期必须在 1 到 7 之间");
+            }
+            normalized.add(weekday);
+        }
+        return normalized;
+    }
+
+    private void validateActiveScheduleReferences(Set<Integer> enabledWeekdays) {
+        List<Integer> referenced = jdbc.queryForList("""
+                SELECT DISTINCT weekday
+                FROM duty_schedule_slots
+                WHERE status = 'ACTIVE'
+                  AND enabled = 1
+                ORDER BY weekday
+                """, Integer.class);
+        List<String> conflicts = referenced.stream()
+                .filter(weekday -> !enabledWeekdays.contains(weekday))
+                .map(this::weekdayName)
+                .toList();
+        if (!conflicts.isEmpty()) {
+            throw ApiException.badRequest(
+                    "值班星期仍被固定排班使用，请先调整对应排班：" + String.join("、", conflicts));
+        }
+    }
+
+    private String weekdayName(int weekday) {
+        return switch (weekday) {
+            case 1 -> "星期一";
+            case 2 -> "星期二";
+            case 3 -> "星期三";
+            case 4 -> "星期四";
+            case 5 -> "星期五";
+            case 6 -> "星期六";
+            case 7 -> "星期日";
+            default -> "未知星期";
+        };
     }
 
     public void requireManager() {

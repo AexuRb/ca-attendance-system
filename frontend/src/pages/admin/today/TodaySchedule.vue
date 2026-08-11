@@ -1,5 +1,8 @@
 <template>
-  <section class="panel today-schedule-panel">
+  <section
+    class="panel today-schedule-panel"
+    :class="{ 'is-empty': !schedule?.slots?.length }"
+  >
     <div class="section-heading">
       <div>
         <h2>今日部长排班</h2>
