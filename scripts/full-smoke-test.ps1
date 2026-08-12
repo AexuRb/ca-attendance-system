@@ -458,7 +458,9 @@ try {
     Invoke-Json GET "/api/attendance/open?from=$today&to=$today" | Out-Null
     $records = @(Invoke-Json GET "/api/attendance?from=$today&to=$today&studentNo=$memberNo")
     Assert-True ($records.Count -ge 1) "后台记录查询未找到公共签到记录"
-    $pending = @(Invoke-Json GET "/api/attendance/reviews/pending")
+    $pendingQueue = Invoke-Json GET "/api/attendance/reviews/pending"
+    $pending = @($pendingQueue.items)
+    Assert-True ($pendingQueue.recordCount -ge 1 -and $pendingQueue.itemCount -ge 2) "待审核队列计数不正确"
     Assert-True (@($pending | Where-Object { $_.id -eq $checkIn.recordId }).Count -ge 1) "待审核列表未找到公共签到记录"
     $bulkReview = Invoke-Json POST "/api/attendance/reviews/bulk" @{ ids = @($checkIn.recordId); part = "ALL" }
     Assert-True ($bulkReview.reviewed -ge 2) "批量审核没有通过签到签退"
@@ -604,8 +606,9 @@ try {
         status = "COMPLETED"; receivedAt = $repair.receivedAt; completedAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss");
         handlerUserId = $minister.id; handlerName = $ministerName; remark = "烟测维修完成"
     } | Out-Null
-    $repairList = @(Invoke-Json GET "/api/repairs?keyword=$suffix&status=ALL&from=$today&to=$today")
-    Assert-True ($repairList.Count -ge 1) "维修列表未找到新维修"
+    $repairPage = Invoke-Json GET "/api/repairs?keyword=$suffix&status=COMPLETED&from=$today&to=$today&page=1&pageSize=30"
+    Assert-True ($repairPage.total -ge 1) "维修分页总数未包含新维修"
+    Assert-True (@($repairPage.items | Where-Object { $_.id -eq $repair.id }).Count -eq 1) "维修列表未找到新维修"
     $agreementPath = New-TempPath "repair-agreement.html"
     Invoke-Download "/api/repairs/$($repair.id)/agreement" $agreementPath | Out-Null
     Assert-True ((Get-Content -LiteralPath $agreementPath -Raw) -like "*$($repair.caseNo)*") "维修协议未包含编号"
@@ -613,8 +616,8 @@ try {
     Invoke-Download "/api/repairs/export?status=ALL&from=$today&to=$today" $repairExport | Out-Null
     Assert-Xlsx $repairExport
     Invoke-Json DELETE "/api/repairs/$($repair.id)" | Out-Null
-    $repairAfterDelete = @(Invoke-Json GET "/api/repairs?keyword=$suffix&status=ALL&from=$today&to=$today")
-    Assert-True ($repairAfterDelete.Count -eq 0) "软删除后的维修事务仍出现在普通列表"
+    $repairAfterDelete = Invoke-Json GET "/api/repairs?keyword=$suffix&status=COMPLETED&from=$today&to=$today&page=1&pageSize=30"
+    Assert-True ($repairAfterDelete.total -eq 0 -and @($repairAfterDelete.items).Count -eq 0) "软删除后的维修事务仍出现在普通列表"
     $repairRecycle = @(Invoke-Json GET "/api/repairs/recycle-bin")
     Assert-True (@($repairRecycle | Where-Object { $_.id -eq $repair.id }).Count -eq 1) "维修回收站未找到软删除事务"
     Invoke-Json POST "/api/repairs/$($repair.id)/restore" @{} | Out-Null
@@ -626,7 +629,7 @@ try {
         newPassword = "Minister$suffix"
     } -Token $ministerLogin.token | Out-Null
     $ministerLogin = Invoke-Json POST "/api/auth/login" @{ studentNo = $ministerNo; password = "Minister$suffix" } -Token $null
-    Invoke-Json GET "/api/repairs?status=ALL" -Token $ministerLogin.token | Out-Null
+    Invoke-Json GET "/api/repairs?status=REPAIRING&page=1&pageSize=30" -Token $ministerLogin.token | Out-Null
     Invoke-Json GET "/api/repairs/handler-candidates" -Token $ministerLogin.token | Out-Null
     Invoke-Json DELETE "/api/repairs/$($repair.id)" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null
     Invoke-Json GET "/api/repairs/recycle-bin" -Token $ministerLogin.token -ExpectedStatus @(403) | Out-Null

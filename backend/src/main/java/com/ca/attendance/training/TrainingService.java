@@ -53,9 +53,6 @@ public class TrainingService {
             rs.getString("status"),
             rs.getLong("participant_count"),
             rs.getBigDecimal("total_duration_hours"),
-            rs.getLong("present_count"),
-            rs.getLong("absent_count"),
-            rs.getLong("leave_count"),
             rs.getString("created_by_name"),
             rs.getString("updated_by_name"),
             localDateTime(rs, "created_at"),
@@ -68,10 +65,8 @@ public class TrainingService {
             nullableLong(rs, "user_id"),
             rs.getString("student_no_snapshot"),
             rs.getString("name_snapshot"),
-            rs.getString("attendance_status"),
             rs.getBigDecimal("duration_hours"),
             rs.getString("remark"),
-            rs.getString("source"),
             rs.getString("created_by_name"),
             rs.getString("updated_by_name"),
             localDateTime(rs, "created_at"),
@@ -219,14 +214,13 @@ public class TrainingService {
         try {
             jdbc.update("""
                     UPDATE training_participants
-                    SET user_id = ?, student_no_snapshot = ?, name_snapshot = ?, attendance_status = ?,
+                    SET user_id = ?, student_no_snapshot = ?, name_snapshot = ?, attendance_status = 'PRESENT',
                         duration_hours = ?, remark = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ? AND session_id = ?
                     """,
                     values.userId(),
                     values.studentNo(),
                     values.name(),
-                    values.status(),
                     values.durationHours(),
                     values.remark(),
                     current.id(),
@@ -299,17 +293,35 @@ public class TrainingService {
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
         List<TrainingParticipantItem> rows = queryParticipants(sessionId);
         String filename = "培训名单_" + cleanFilename(session.title()) + "_" + session.trainingDate() + ".xlsx";
-        return new ExportFile(filename, workbookBytes(wb -> writeSessionWorkbook(wb, session, rows)));
+        byte[] bytes = workbookBytes(wb -> writeSessionWorkbook(wb, session, rows));
+        logs.logExport("TRAINING_SESSION", "培训名单", Map.of("sessionId", sessionId), rows.size(), filename);
+        return new ExportFile(filename, bytes);
     }
 
     public ExportFile exportSummary(String keyword, String status, LocalDate from, LocalDate to) {
         AuthUser current = AuthContext.current();
         requireExportTrainings(current);
-        List<TrainingSessionItem> sessions = list(keyword, status, from, to);
         LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
         LocalDate end = to == null ? LocalDate.now() : to;
+        List<TrainingSessionItem> sessions = list(keyword, status, start, end);
+        List<Map<String, Object>> memberRows = queryTrainingMemberSummary(start, end);
         String filename = "培训统计_" + start + "_" + end + ".xlsx";
-        return new ExportFile(filename, workbookBytes(wb -> writeSummaryWorkbook(wb, sessions, start, end)));
+        byte[] bytes = workbookBytes(wb -> writeSummaryWorkbook(wb, sessions, memberRows, start, end));
+        Map<String, Object> filters = new LinkedHashMap<>();
+        filters.put("from", start.toString());
+        filters.put("to", end.toString());
+        if (keyword != null && !keyword.isBlank()) {
+            filters.put("keyword", keyword.trim());
+        }
+        logs.logExport(
+                "TRAINING_SUMMARY",
+                "培训统计",
+                filters,
+                sessions.size() + memberRows.size(),
+                filename,
+                Map.of("sessionRows", sessions.size(), "memberRows", memberRows.size())
+        );
+        return new ExportFile(filename, bytes);
     }
 
     public Map<String, Object> myHours(LocalDate from, LocalDate to) {
@@ -352,7 +364,6 @@ public class TrainingService {
                   s.end_time,
                   s.location,
                   s.speaker,
-                  p.attendance_status,
                   p.duration_hours,
                   p.remark
                 FROM training_participants p
@@ -370,7 +381,6 @@ public class TrainingService {
                 localTime(rs, "end_time"),
                 rs.getString("location"),
                 rs.getString("speaker"),
-                rs.getString("attendance_status"),
                 rs.getBigDecimal("duration_hours"),
                 rs.getString("remark")
         ), current.id(), databaseDate(start), databaseDate(end));
@@ -417,7 +427,7 @@ public class TrainingService {
             }
             ParticipantValues values;
             try {
-                values = participantValues(new ParticipantRequest(studentNo, name, parseDuration(duration, defaultDuration), "PRESENT", remark), "IMPORT", defaultDuration, null);
+                values = participantValues(new ParticipantRequest(studentNo, name, parseDuration(duration, defaultDuration), remark), "IMPORT", defaultDuration, null);
             } catch (ApiException ex) {
                 skipped++;
                 addIssue(errors, "第 " + (i + 1) + " 行：" + ex.getMessage());
@@ -537,7 +547,8 @@ public class TrainingService {
         autosize(sheet, headers.length);
     }
 
-    private void writeSummaryWorkbook(Workbook wb, List<TrainingSessionItem> sessions, LocalDate from, LocalDate to) {
+    private void writeSummaryWorkbook(Workbook wb, List<TrainingSessionItem> sessions,
+                                      List<Map<String, Object>> memberRows, LocalDate from, LocalDate to) {
         CellStyle titleStyle = titleStyle(wb);
         CellStyle headerStyle = headerStyle(wb);
         CellStyle textStyle = textStyle(wb);
@@ -576,18 +587,6 @@ public class TrainingService {
             cell.setCellValue(memberHeaders[i]);
             cell.setCellStyle(headerStyle);
         }
-        List<Map<String, Object>> memberRows = jdbc.queryForList("""
-                SELECT p.student_no_snapshot AS studentNo,
-                       p.name_snapshot AS name,
-                       COUNT(*) AS trainingCount,
-                       COALESCE(SUM(p.duration_hours), 0) AS durationHours
-                FROM training_participants p
-                JOIN training_sessions s ON s.id = p.session_id
-                WHERE s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
-                GROUP BY p.student_no_snapshot, p.name_snapshot
-                ORDER BY durationHours DESC, trainingCount DESC, p.student_no_snapshot
-                """, from, to);
         for (int i = 0; i < memberRows.size(); i++) {
             Map<String, Object> item = memberRows.get(i);
             Row row = memberSheet.createRow(i + 1);
@@ -602,16 +601,29 @@ public class TrainingService {
         autosize(memberSheet, memberHeaders.length);
     }
 
+    private List<Map<String, Object>> queryTrainingMemberSummary(LocalDate from, LocalDate to) {
+        return jdbc.queryForList("""
+                SELECT p.student_no_snapshot AS studentNo,
+                       p.name_snapshot AS name,
+                       COUNT(*) AS trainingCount,
+                       COALESCE(SUM(p.duration_hours), 0) AS durationHours
+                FROM training_participants p
+                JOIN training_sessions s ON s.id = p.session_id
+                WHERE s.status <> 'ARCHIVED'
+                  AND s.training_date BETWEEN ? AND ?
+                  AND p.duration_hours > 0
+                GROUP BY p.student_no_snapshot, p.name_snapshot
+                ORDER BY durationHours DESC, trainingCount DESC, p.student_no_snapshot
+                """, from, to);
+    }
+
     private List<TrainingSessionItem> querySessions(String where, Object... args) {
         return jdbc.query("""
                 SELECT s.*,
                        cb.name AS created_by_name,
                        ub.name AS updated_by_name,
-                       (SELECT COUNT(*) FROM training_participants p WHERE p.session_id = s.id) AS participant_count,
-                       (SELECT COALESCE(SUM(p.duration_hours), 0) FROM training_participants p WHERE p.session_id = s.id) AS total_duration_hours,
-                       (SELECT COUNT(*) FROM training_participants p WHERE p.session_id = s.id AND p.attendance_status = 'PRESENT') AS present_count,
-                       (SELECT COUNT(*) FROM training_participants p WHERE p.session_id = s.id AND p.attendance_status = 'ABSENT') AS absent_count,
-                       (SELECT COUNT(*) FROM training_participants p WHERE p.session_id = s.id AND p.attendance_status = 'LEAVE') AS leave_count
+                       (SELECT COUNT(*) FROM training_participants p WHERE p.session_id = s.id AND p.duration_hours > 0) AS participant_count,
+                       (SELECT COALESCE(SUM(p.duration_hours), 0) FROM training_participants p WHERE p.session_id = s.id) AS total_duration_hours
                 FROM training_sessions s
                 LEFT JOIN users cb ON cb.id = s.created_by
                 LEFT JOIN users ub ON ub.id = s.updated_by
@@ -670,7 +682,7 @@ public class TrainingService {
                 values.userId(),
                 values.studentNo(),
                 values.name(),
-                values.status(),
+                "PRESENT",
                 values.durationHours(),
                 values.remark(),
                 values.source(),
@@ -683,13 +695,12 @@ public class TrainingService {
     private void updateParticipantByStudent(long sessionId, ParticipantValues values, Long operatorId) {
         jdbc.update("""
                 UPDATE training_participants
-                SET user_id = ?, name_snapshot = ?, attendance_status = ?, duration_hours = ?, remark = ?,
+                SET user_id = ?, name_snapshot = ?, attendance_status = 'PRESENT', duration_hours = ?, remark = ?,
                     source = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE session_id = ? AND student_no_snapshot = ?
                 """,
                 values.userId(),
                 values.name(),
-                values.status(),
                 values.durationHours(),
                 values.remark(),
                 values.source(),
@@ -726,7 +737,6 @@ public class TrainingService {
                 user == null ? null : user.id(),
                 studentNo,
                 name,
-                parseParticipantStatus(request.attendanceStatus()),
                 normalizedDuration(request.durationHours(), defaultDuration, fallbackDuration),
                 trimToNull(request.remark(), 500),
                 source
@@ -843,24 +853,6 @@ public class TrainingService {
             return "";
         }
         return clean(formatter.formatCellValue(row.getCell(index)));
-    }
-
-    private String parseParticipantStatus(String value) {
-        if (value == null || value.isBlank()) {
-            return "PRESENT";
-        }
-        String text = value.trim().toUpperCase(Locale.ROOT);
-        if (text.equals("PRESENT") || text.contains("出席") || text.contains("已到") || text.contains("签到")
-                || text.contains("参加") || text.equals("到")) {
-            return "PRESENT";
-        }
-        if (text.equals("ABSENT") || text.contains("缺席") || text.contains("未到") || text.contains("未参加")) {
-            return "ABSENT";
-        }
-        if (text.equals("LEAVE") || text.contains("请假")) {
-            return "LEAVE";
-        }
-        throw ApiException.badRequest("参与状态只能是出席、缺席或请假");
     }
 
     private BigDecimal normalizedDuration(BigDecimal requested, BigDecimal defaultDuration, BigDecimal fallbackDuration) {
@@ -991,15 +983,6 @@ public class TrainingService {
         }
     }
 
-    private String participantStatusText(String status) {
-        return switch (status) {
-            case "PRESENT" -> "出席";
-            case "ABSENT" -> "缺席";
-            case "LEAVE" -> "请假";
-            default -> status;
-        };
-    }
-
     private String sessionStatusText(String status) {
         return switch (status) {
             case "PLANNED" -> "计划中";
@@ -1008,10 +991,6 @@ public class TrainingService {
             case "ARCHIVED" -> "已归档";
             default -> status;
         };
-    }
-
-    private String sourceText(String source) {
-        return "IMPORT".equals(source) ? "导入" : "手动";
     }
 
     private int number(Object value) {
@@ -1088,7 +1067,7 @@ public class TrainingService {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record ParticipantRequest(String studentNo, String name, BigDecimal durationHours, String attendanceStatus, String remark) {
+    public record ParticipantRequest(String studentNo, String name, BigDecimal durationHours, String remark) {
     }
 
     public record ImportResult(int created, int updated, int skipped, List<String> errors) {
@@ -1109,7 +1088,7 @@ public class TrainingService {
     ) {
     }
 
-    private record ParticipantValues(Long userId, String studentNo, String name, String status, BigDecimal durationHours, String remark, String source) {
+    private record ParticipantValues(Long userId, String studentNo, String name, BigDecimal durationHours, String remark, String source) {
     }
 
     private record UserRef(long id, String studentNo, String name) {

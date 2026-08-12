@@ -18,14 +18,6 @@
           v-model.trim="filters.keyword"
           placeholder="编号、联系人、设备或故障" /></label
       ><label
-        ><span>状态</span
-        ><select v-model="filters.status">
-          <option value="ALL">全部状态</option>
-          <option value="REPAIRING">进行中</option>
-          <option value="COMPLETED">已完成</option>
-          <option value="CANCELED">已取消</option>
-        </select></label
-      ><label
         ><span>开始日期</span
         ><input v-model="filters.from" type="date" /></label
       ><label
@@ -41,11 +33,11 @@
         <div class="repair-column-head">
           <span :data-tone="column.tone"></span
           ><strong>{{ column.label }}</strong
-          ><b>{{ casesByStatus(column.status).length }}</b>
+          ><b>{{ boardColumns[column.status].total }}</b>
         </div>
         <div class="repair-card-list">
           <article
-            v-for="item in casesByStatus(column.status)"
+            v-for="item in boardColumns[column.status].items"
             :key="item.id"
             class="repair-card"
             :class="{ 'is-long-running': isLongRunningRepair(item) }"
@@ -133,9 +125,53 @@
             </footer>
           </article>
           <EmptyState
-            v-if="!casesByStatus(column.status).length"
+            v-if="
+              !boardColumns[column.status].loading &&
+              !boardColumns[column.status].error &&
+              !boardColumns[column.status].items.length
+            "
             title="暂无事务"
           />
+          <div
+            v-if="boardColumns[column.status].error"
+            class="repair-column-feedback"
+            role="alert"
+          >
+            <span>{{ boardColumns[column.status].error }}</span>
+            <button
+              class="button text"
+              type="button"
+              @click="retryColumn(column.status)"
+            >
+              重试
+            </button>
+          </div>
+          <div
+            v-if="
+              !boardColumns[column.status].error &&
+              (boardColumns[column.status].loading ||
+                boardColumns[column.status].hasMore)
+            "
+            class="repair-column-more"
+          >
+            <button
+              class="button secondary"
+              type="button"
+              :disabled="boardColumns[column.status].loading"
+              @click="loadMore(column.status)"
+            >
+              <LoaderCircle
+                v-if="boardColumns[column.status].loading"
+                class="spin"
+                aria-hidden="true"
+              />
+              {{
+                boardColumns[column.status].loading
+                  ? "加载中"
+                  : `加载更多（${boardColumns[column.status].items.length}/${boardColumns[column.status].total}）`
+              }}
+            </button>
+          </div>
         </div>
       </section>
     </div>
@@ -324,6 +360,7 @@ import {
   Eye,
   EyeOff,
   FileText,
+  LoaderCircle,
   Pencil,
   Plus,
   Search,
@@ -351,6 +388,8 @@ import {
   repairAgreementLabel,
   repairAgeLabel,
 } from "../../features/repairs/repairDisplay";
+import { fetchRepairPage } from "../../features/repairs/repairApi";
+import { useRepairBoard } from "../../features/repairs/useRepairBoard";
 import type { AccountCandidate } from "../../features/accounts/accountCandidates";
 import type {
   RepairCase,
@@ -359,7 +398,13 @@ import type {
 } from "../../features/repairs/repairTypes";
 const { user } = useSession();
 const { run } = useAsyncTask();
-const cases = ref<RepairCase[]>([]);
+const {
+  columns: boardColumns,
+  loadAll: loadBoard,
+  loadMore,
+  refresh: refreshColumns,
+  retry: retryColumn,
+} = useRepairBoard(fetchRepairPage);
 const editorOpen = ref(false);
 const repairStep = ref<1 | 2>(1);
 const deleteTarget = ref<RepairCase | null>(null);
@@ -374,7 +419,6 @@ const revealedPhones = ref(new Set<number>());
 const now = new Date();
 const filters = reactive({
   keyword: "",
-  status: "ALL",
   from: `${now.getFullYear()}-01-01`,
   to: localDate(now),
 });
@@ -423,13 +467,8 @@ onMounted(async () => {
   await Promise.all([load(), loadHandlerCandidates()]);
 });
 async function load() {
-  const p = new URLSearchParams();
-  Object.entries(filters).forEach(([k, v]) => v && p.set(k, v));
-  const value = await run(() => get<RepairCase[]>(`/api/repairs?${p}`));
-  if (value) cases.value = value;
+  await loadBoard({ ...filters });
 }
-const casesByStatus = (status: RepairStatus) =>
-  cases.value.filter((i) => i.status === status);
 function openEditor(item?: RepairCase) {
   repairStep.value = 1;
   Object.assign(
@@ -480,6 +519,7 @@ function openEditor(item?: RepairCase) {
   editorOpen.value = true;
 }
 async function save() {
+  const previousStatus = form.id ? findLoadedCase(form.id)?.status : null;
   const payload = {
     ...form,
     handlerUserId: selectedHandler.value?.id || null,
@@ -489,11 +529,22 @@ async function save() {
     completedAt: form.completedAt || null,
   };
   const value = form.id
-    ? await run(() => put(`/api/repairs/${form.id}`, payload), "维修事务已更新")
-    : await run(() => post("/api/repairs", payload), "维修事务已创建");
+    ? await run<RepairCase>(
+        () => put(`/api/repairs/${form.id}`, payload),
+        "维修事务已更新",
+      )
+    : await run<RepairCase>(
+        () => post("/api/repairs", payload),
+        "维修事务已创建",
+      );
   if (value) {
     editorOpen.value = false;
-    await load();
+    await refreshColumns(
+      [previousStatus, value.status].filter(
+        (status): status is RepairStatus => Boolean(status),
+      ),
+      { ...filters },
+    );
   }
 }
 async function loadHandlerCandidates() {
@@ -505,12 +556,12 @@ async function loadHandlerCandidates() {
 async function remove() {
   const target = deleteTarget.value;
   if (!target) return;
-  await run(
+  const removed = await run(
     () => del(`/api/repairs/${target.id}`),
     "已移入维修回收站",
   );
   deleteTarget.value = null;
-  await load();
+  if (removed) await refreshColumns([target.status], { ...filters });
 }
 async function preview(item: RepairCase) {
   agreementTarget.value = item;
@@ -541,10 +592,16 @@ function closeAgreement() {
 async function exportCases() {
   const p = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => v && p.set(k, v));
+  p.set("status", "ALL");
   downloadBlob(
     await get(`/api/repairs/export?${p}`),
     `维修事务_${filters.from}_${filters.to}.xlsx`,
   );
+}
+function findLoadedCase(id: number) {
+  return columns
+    .flatMap((column) => boardColumns[column.status].items)
+    .find((item) => item.id === id);
 }
 const deviceName = (i: RepairCase) =>
   [i.deviceBrand, i.deviceModel, i.deviceType].filter(Boolean).join(" ") ||

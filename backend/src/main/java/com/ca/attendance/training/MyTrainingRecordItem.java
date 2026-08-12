@@ -13,7 +13,6 @@ public record MyTrainingRecordItem(
         LocalTime endTime,
         String location,
         String speaker,
-        String attendanceStatus,
         BigDecimal durationHours,
         String remark
 ) {

@@ -154,7 +154,6 @@ CREATE TABLE training_participants (
 );
 
 CREATE INDEX idx_training_participants_user ON training_participants (user_id);
-CREATE INDEX idx_training_participants_status ON training_participants (attendance_status);
 CREATE INDEX idx_training_participants_created_by ON training_participants (created_by);
 CREATE INDEX idx_training_participants_updated_by ON training_participants (updated_by);
 

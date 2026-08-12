@@ -6,8 +6,6 @@ import java.util.Set;
 
 final class BackupSchema {
     static final int SCHEMA_VERSION = 4;
-    static final int MAX_ROWS_PER_TABLE = 100_000;
-    static final int MAX_TOTAL_ROWS = 250_000;
 
     static final List<String> RESTORE_TABLE_ORDER = List.of(
             "users",

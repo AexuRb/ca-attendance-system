@@ -7,6 +7,7 @@ import com.ca.attendance.common.Role;
 import com.ca.attendance.config.DatabaseMigrator;
 import com.ca.attendance.config.SQLiteDataSourceConfiguration;
 import com.ca.attendance.config.StoragePaths;
+import com.ca.attendance.log.OperationLogService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
@@ -55,7 +56,7 @@ class StatsServiceIntegrationTest {
                 Role.ADMIN,
                 Instant.now().plusSeconds(3600)
         ));
-        stats = new StatsService(jdbc);
+        stats = new StatsService(jdbc, new OperationLogService(jdbc, new ObjectMapper()));
     }
 
     @AfterEach
@@ -86,10 +87,16 @@ class StatsServiceIntegrationTest {
                 """, Long.class, date));
         jdbc.update("""
                 INSERT INTO training_participants (
-                  session_id, user_id, student_no_snapshot, name_snapshot, duration_hours
+                  session_id, user_id, student_no_snapshot, name_snapshot, attendance_status, duration_hours
                 )
-                VALUES (?, ?, 'member', '测试成员', 1.5)
+                VALUES (?, ?, 'member', '测试成员', 'ABSENT', 1.5)
                 """, sessionId, memberId);
+        jdbc.update("""
+                INSERT INTO training_participants (
+                  session_id, user_id, student_no_snapshot, name_snapshot, attendance_status, duration_hours
+                )
+                VALUES (?, NULL, 'zero-hours', '零时长记录', 'LEAVE', 0)
+                """, sessionId);
 
         List<StatsService.SummaryItem> result = stats.summary(date, date);
 
@@ -222,7 +229,7 @@ class StatsServiceIntegrationTest {
                 VALUES (?, 'member', '测试成员', ?, 5, ?, ?, 'APPROVED', 'APPROVED', 120, 2, 'VALID')
                 """, memberId, date, date.atTime(14, 0), date.atTime(16, 0));
 
-        byte[] bytes = stats.export(date, date);
+        byte[] bytes = stats.export(date, date).bytes();
 
         try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
             var sheet = workbook.getSheet("值班记录");

@@ -1015,6 +1015,27 @@ td small {
   gap: 10px;
   padding: 10px;
 }
+
+.repair-column-more,
+.repair-column-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 4px;
+}
+
+.repair-column-more .button {
+  width: 100%;
+}
+
+.repair-column-feedback {
+  flex-direction: column;
+  gap: 6px;
+  color: var(--danger);
+  text-align: center;
+  font-size: 13px;
+}
 .repair-card {
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1809,4 +1830,28 @@ td small {
   .settlement-steps > div {
     min-width: 68px;
   }
+}
+.field-error {
+  display: block;
+  margin-top: 5px;
+  color: var(--red-700);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.field [aria-invalid="true"] {
+  border-color: var(--red-700);
+  box-shadow: 0 0 0 3px rgba(185, 62, 62, 0.08);
+}
+
+.field-hint {
+  color: var(--ink-500);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.reset-password-default {
+  border-left: 3px solid var(--blue-500);
+  padding: 9px 11px;
+  background: var(--surface-blue);
 }

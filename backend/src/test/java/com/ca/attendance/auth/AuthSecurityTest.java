@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class AuthSecurityTest {
@@ -120,6 +121,29 @@ class AuthSecurityTest {
         service.changePassword("old-password", "new-password");
 
         verify(tokenService).revokeUser(1L);
+    }
+
+    @Test
+    void changingPasswordRejectsAnInvalidNewPasswordBeforeUpdatingTheAccount() {
+        AuthContext.set(new AuthUser(1L, "legacy-admin", "管理员", Role.ADMIN,
+                java.time.Instant.now().plusSeconds(3600)));
+        when(users.findLoginByStudentNo("legacy-admin")).thenReturn(Optional.of(
+                new UserRepository.UserLoginRow(
+                        1L, "legacy-admin", "管理员", "old-hash", Role.ADMIN, "ACTIVE", false
+                )
+        ));
+        when(passwords.matches("old-password", "old-hash")).thenReturn(true);
+        AuthService service = new AuthService(
+                users, jdbc, passwords, tokenService,
+                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(), logs
+        );
+
+        assertThatThrownBy(() -> service.changePassword("old-password", "12345"))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("6 至 64");
+
+        verifyNoInteractions(jdbc);
+        verify(tokenService, never()).revokeUser(1L);
     }
 
     @Test

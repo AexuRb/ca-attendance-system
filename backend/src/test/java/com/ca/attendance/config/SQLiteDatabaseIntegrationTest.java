@@ -109,7 +109,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(9, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(10, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
@@ -245,7 +245,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(9, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(10, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(0, legacyJdbc.queryForObject(
                     "SELECT require_duty_day FROM attendance_records WHERE id = ?", Integer.class, recordId));
             assertEquals(0, legacyJdbc.queryForObject(
@@ -254,6 +254,76 @@ class SQLiteDatabaseIntegrationTest {
                     "SELECT effective_status FROM attendance_records WHERE id = ?", String.class, recordId));
             assertEquals(2, legacyJdbc.queryForObject(
                     "SELECT valid_hours FROM attendance_records WHERE id = ?", Integer.class, recordId));
+        }
+    }
+
+    @Test
+    void versionTenNormalizesLegacyTrainingStatusesWithoutChangingHours() throws Exception {
+        StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v9-training").toString());
+        try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
+            try (Connection connection = legacyDataSource.getConnection()) {
+                for (String resource : List.of(
+                        "db/sqlite/V1__initial_schema.sql",
+                        "db/sqlite/V2__repair_recycle_bin.sql",
+                        "db/sqlite/V3__attendance_duty_period.sql",
+                        "db/sqlite/V4__public_submission_idempotency.sql",
+                        "db/sqlite/V5__minister_attendance_auto_approval.sql",
+                        "db/sqlite/V6__reserved.sql",
+                        "db/sqlite/V7__remove_schedule_adjustments.sql",
+                        "db/sqlite/V8__repair_case_sequences.sql",
+                        "db/sqlite/V9__attendance_eligibility_policy.sql"
+                )) {
+                    ScriptUtils.executeSqlScript(connection, new ClassPathResource(resource));
+                }
+                try (Statement statement = connection.createStatement()) {
+                    statement.execute("PRAGMA user_version = 9");
+                }
+            }
+
+            JdbcTemplate legacyJdbc = new JdbcTemplate(legacyDataSource);
+            long sessionId = requiredId(legacyJdbc.queryForObject("""
+                    INSERT INTO training_sessions (title, training_date, status)
+                    VALUES ('旧培训状态迁移', '2026-08-12', 'COMPLETED')
+                    RETURNING id
+                    """, Long.class));
+            legacyJdbc.batchUpdate("""
+                    INSERT INTO training_participants (
+                      session_id, student_no_snapshot, name_snapshot, attendance_status, duration_hours
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """, List.of(
+                    new Object[]{sessionId, "legacy-present", "出席记录", "PRESENT", "1.25"},
+                    new Object[]{sessionId, "legacy-absent", "缺席记录", "ABSENT", "2.50"},
+                    new Object[]{sessionId, "legacy-leave", "请假记录", "LEAVE", "0.75"},
+                    new Object[]{sessionId, "legacy-zero", "零时长记录", "ABSENT", "0.00"}
+            ));
+            BigDecimal before = legacyJdbc.queryForObject(
+                    "SELECT SUM(duration_hours) FROM training_participants WHERE session_id = ?",
+                    BigDecimal.class,
+                    sessionId
+            );
+
+            new DatabaseMigrator(legacyDataSource).run();
+
+            BigDecimal after = legacyJdbc.queryForObject(
+                    "SELECT SUM(duration_hours) FROM training_participants WHERE session_id = ?",
+                    BigDecimal.class,
+                    sessionId
+            );
+            assertEquals(10, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(0, before.compareTo(after));
+            assertEquals(4, legacyJdbc.queryForObject(
+                    "SELECT COUNT(*) FROM training_participants WHERE session_id = ? AND attendance_status = 'PRESENT'",
+                    Integer.class,
+                    sessionId
+            ));
+            assertEquals("0.75", legacyJdbc.queryForObject(
+                    "SELECT CAST(duration_hours AS TEXT) FROM training_participants WHERE student_no_snapshot = 'legacy-leave'",
+                    String.class
+            ));
+            assertEquals(0, legacyJdbc.queryForObject(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = 'idx_training_participants_status'",
+                    Integer.class
+            ));
         }
     }
 
@@ -278,7 +348,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(9, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(10, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(1, legacyJdbc.queryForObject(
                     "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
                     Integer.class
@@ -360,7 +430,7 @@ class SQLiteDatabaseIntegrationTest {
         ));
         TrainingParticipantItem participant = trainings.addParticipant(
                 session.id(),
-                new TrainingService.ParticipantRequest("20240001", "测试成员", new BigDecimal("2.00"), null, null)
+                new TrainingService.ParticipantRequest("20240001", "测试成员", new BigDecimal("2.00"), null)
         );
         assertTrue(session.id() > 0);
         assertEquals(new BigDecimal("2"), participant.durationHours().stripTrailingZeros());
@@ -620,7 +690,7 @@ class SQLiteDatabaseIntegrationTest {
                 "members", List.of("passwordHash"), Map.of(), "非法字段"
         )));
         assertTrue(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'EXPORT_CUSTOM_DATA'",
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'EXPORT_DATA'",
                 Integer.class
         ) >= 7);
     }
@@ -671,7 +741,7 @@ class SQLiteDatabaseIntegrationTest {
         try (ZipOutputStream zip = new ZipOutputStream(compressed, StandardCharsets.UTF_8)) {
             zip.putNextEntry(new ZipEntry("metadata.json"));
             byte[] block = new byte[8192];
-            int blocks = (16 * 1024 * 1024 / block.length) + 1;
+            int blocks = (128 * 1024 * 1024 / block.length) + 1;
             for (int index = 0; index < blocks; index++) {
                 zip.write(block);
             }

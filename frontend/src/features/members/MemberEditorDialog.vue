@@ -6,7 +6,13 @@
     size="lg"
     @close="$emit('close')"
   >
-    <form id="member-editor-form" class="form-grid two" @submit.prevent="submit">
+    <form
+      ref="formElement"
+      id="member-editor-form"
+      class="form-grid two"
+      novalidate
+      @submit.prevent="submit"
+    >
       <label class="field">
         <span>学号</span>
         <input
@@ -14,8 +20,14 @@
           name="studentNo"
           autocomplete="off"
           :disabled="Boolean(member)"
+          inputmode="numeric"
+          pattern="[0-9]{6,32}"
+          minlength="6"
+          maxlength="32"
           required
+          :aria-invalid="Boolean(errors.studentNo)"
         />
+        <small v-if="errors.studentNo" class="field-error" role="alert">{{ errors.studentNo }}</small>
       </label>
       <label class="field">
         <span>姓名</span>
@@ -23,8 +35,11 @@
           v-model.trim="form.name"
           name="name"
           autocomplete="name"
+          maxlength="64"
           required
+          :aria-invalid="Boolean(errors.name)"
         />
+        <small v-if="errors.name" class="field-error" role="alert">{{ errors.name }}</small>
       </label>
       <label class="field">
         <span>角色</span>
@@ -56,24 +71,30 @@
           v-model.trim="form.phone"
           name="phone"
           autocomplete="tel"
+          maxlength="64"
+          :aria-invalid="Boolean(errors.phone)"
         />
+        <small v-if="errors.phone" class="field-error" role="alert">{{ errors.phone }}</small>
       </label>
       <label class="field">
         <span>学院</span>
-        <input v-model.trim="form.major" name="major" />
+        <input v-model.trim="form.major" name="major" maxlength="128" :aria-invalid="Boolean(errors.major)" />
+        <small v-if="errors.major" class="field-error" role="alert">{{ errors.major }}</small>
       </label>
       <label class="field">
         <span>年级</span>
-        <select v-model="form.grade" name="grade">
+        <select v-model="form.grade" name="grade" :aria-invalid="Boolean(errors.grade)">
           <option value="">暂不填写</option>
           <option v-for="grade in gradeChoices" :key="grade" :value="grade">
             {{ grade }}
           </option>
         </select>
+        <small v-if="errors.grade" class="field-error" role="alert">{{ errors.grade }}</small>
       </label>
       <label class="field">
         <span>QQ</span>
-        <input v-model.trim="form.qq" name="qq" inputmode="numeric" />
+        <input v-model.trim="form.qq" name="qq" inputmode="numeric" maxlength="32" :aria-invalid="Boolean(errors.qq)" />
+        <small v-if="errors.qq" class="field-error" role="alert">{{ errors.qq }}</small>
       </label>
       <label v-if="member" class="field span-2">
         <span>修改原因</span>
@@ -82,8 +103,11 @@
           name="reason"
           rows="3"
           placeholder="用于操作日志"
+          maxlength="500"
           required
+          :aria-invalid="Boolean(errors.reason)"
         />
+        <small v-if="errors.reason" class="field-error" role="alert">{{ errors.reason }}</small>
       </label>
     </form>
     <template #footer>
@@ -94,7 +118,7 @@
         class="button primary"
         type="submit"
         form="member-editor-form"
-        :disabled="busy || !canSubmit"
+        :disabled="busy"
       >
         {{ member ? "保存修改" : "新增成员" }}
       </button>
@@ -103,8 +127,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
+import {
+  focusFirstInvalid,
+  validateMemberInput,
+  type InputErrors,
+} from "../../shared/validation/userInput";
 import type {
   MemberRole,
   MemberStatus,
@@ -147,12 +176,8 @@ const form = reactive({
   qq: "",
   reason: "",
 });
-const canSubmit = computed(
-  () =>
-    Boolean(form.studentNo && form.name) &&
-    (!props.member || Boolean(form.reason.trim())),
-);
-
+const formElement = ref<HTMLFormElement | null>(null);
+const errors = reactive<InputErrors>({});
 watch(
   () => [props.open, props.member] as const,
   ([open, member]) => {
@@ -168,12 +193,22 @@ watch(
       qq: member?.qq || "",
       reason: member ? "更新成员资料" : "",
     });
+    Object.keys(errors).forEach((key) => delete errors[key]);
   },
   { immediate: true },
 );
 
 function submit() {
-  if (!canSubmit.value) return;
+  const nextErrors = validateMemberInput(form, {
+    validateStudentNo: !props.member,
+    requireReason: Boolean(props.member),
+  });
+  Object.keys(errors).forEach((key) => delete errors[key]);
+  Object.assign(errors, nextErrors);
+  if (Object.keys(errors).length) {
+    focusFirstInvalid(formElement.value, errors);
+    return;
+  }
   emit("save", { ...form });
 }
 </script>

@@ -49,13 +49,13 @@ public class StatsController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        String filename = "值班记录_" + from + "_" + to + ".xlsx";
+        StatsService.ExportFile file = stats.export(from, to);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(filename, StandardCharsets.UTF_8)
+                        .filename(file.filename(), StandardCharsets.UTF_8)
                         .build()
                         .toString())
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(stats.export(from, to));
+                .body(file.bytes());
     }
 }

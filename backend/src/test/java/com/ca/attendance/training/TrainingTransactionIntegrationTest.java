@@ -226,7 +226,6 @@ class TrainingTransactionIntegrationTest {
                 studentNo,
                 name,
                 new BigDecimal("2.0"),
-                "PRESENT",
                 null
         );
     }

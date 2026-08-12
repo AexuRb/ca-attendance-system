@@ -40,6 +40,7 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -141,6 +142,8 @@ class BackupRecoveryIntegrationTest {
                 "SELECT title FROM training_sessions WHERE id = 301", String.class));
         assertEquals(memberId, jdbc.queryForObject(
                 "SELECT user_id FROM training_participants WHERE id = 302", Long.class));
+        assertEquals("PRESENT", jdbc.queryForObject(
+                "SELECT attendance_status FROM training_participants WHERE id = 302", String.class));
         assertEquals(401L, jdbc.queryForObject(
                 "SELECT slot_id FROM duty_schedule_assignees WHERE id = 402", Long.class));
         assertEquals("JXWX20260810-0007", jdbc.queryForObject(
@@ -157,6 +160,24 @@ class BackupRecoveryIntegrationTest {
         ));
         assertEquals("ok", jdbc.queryForObject("PRAGMA integrity_check", String.class));
         assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM pragma_foreign_key_check", Integer.class));
+    }
+
+    @Test
+    void everyGeneratedBackupCanBeReadByTheSameVersion() throws Exception {
+        String largeReason = "可恢复性边界数据".repeat(1024 * 1024);
+        jdbc.update("""
+                INSERT INTO operation_logs (
+                  operator_user_id, operator_student_no, operator_name, action_type, target_type, reason
+                ) VALUES (?, '1004231224', '测试管理员', 'BACKUP_CONTRACT_TEST', 'maintenance_backups', ?)
+                """, adminId, largeReason);
+
+        BackupService.BackupItem source = backups.create();
+
+        assertDoesNotThrow(() -> backups.restore(upload(source)));
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'BACKUP_CONTRACT_TEST'",
+                Integer.class
+        ));
     }
 
     @Test
@@ -235,7 +256,7 @@ class BackupRecoveryIntegrationTest {
                 INSERT INTO training_participants (
                   id, session_id, user_id, student_no_snapshot, name_snapshot, attendance_status,
                   duration_hours, remark, source, created_by, updated_by
-                ) VALUES (302, 301, ?, '2026000001', '演练成员', 'PRESENT', 2, '已完成', 'MANUAL', ?, ?)
+                ) VALUES (302, 301, ?, '2026000001', '演练成员', 'LEAVE', 2, '已完成', 'MANUAL', ?, ?)
                 """, memberId, adminId, adminId);
         jdbc.update("""
                 INSERT INTO duty_schedule_slots (

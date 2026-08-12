@@ -25,7 +25,6 @@ export interface TrainingProfileRecord {
   endTime?: string;
   location?: string;
   speaker?: string;
-  attendanceStatus: string;
   durationHours: number;
   remark?: string;
 }
@@ -41,15 +40,6 @@ export function attendanceStatusMeta(status?: string): StatusMeta {
     PENDING: { label: "待审核", tone: "warning" },
     INVALID: { label: "无效", tone: "danger" },
     INCOMPLETE: { label: "未完成", tone: "neutral" },
-  };
-  return states[status || ""] || { label: status || "未知", tone: "neutral" };
-}
-
-export function trainingStatusMeta(status?: string): StatusMeta {
-  const states: Record<string, StatusMeta> = {
-    PRESENT: { label: "出席", tone: "success" },
-    LEAVE: { label: "请假", tone: "warning" },
-    ABSENT: { label: "缺席", tone: "danger" },
   };
   return states[status || ""] || { label: status || "未知", tone: "neutral" };
 }

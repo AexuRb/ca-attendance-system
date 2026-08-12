@@ -5,6 +5,10 @@ server:
 spring:
   application:
     name: attendance-backend
+  servlet:
+    multipart:
+      max-file-size: 128MB
+      max-request-size: 130MB
 
 app:
   storage:

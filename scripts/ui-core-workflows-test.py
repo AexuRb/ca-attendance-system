@@ -192,7 +192,6 @@ TRAINING_RECORDS = [
         "endTime": "15:30:00",
         "location": "协会活动室",
         "speaker": "陈测试",
-        "attendanceStatus": "PRESENT",
         "durationHours": 1.5,
         "remark": "主讲人",
     }
@@ -353,7 +352,8 @@ def main() -> None:
         expect(page.get_by_text("待审核", exact=True)).to_be_visible()
         page.get_by_role("button", name="培训 1").click()
         expect(page.get_by_text("网络基础培训", exact=True)).to_be_visible()
-        expect(page.get_by_text("出席", exact=True)).to_be_visible()
+        expect(page.get_by_text("陈测试", exact=True)).to_be_visible()
+        expect(page.get_by_text("1.5 小时", exact=True)).to_be_visible()
         page.get_by_role("button", name="修改密码").click()
         expect(page.get_by_role("heading", name="修改登录密码")).to_be_visible()
         page.get_by_role("button", name="取消").click()

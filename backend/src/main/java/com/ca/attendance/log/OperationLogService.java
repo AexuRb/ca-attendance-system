@@ -8,6 +8,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Service
 public class OperationLogService {
     private final JdbcTemplate jdbc;
@@ -37,6 +40,27 @@ public class OperationLogService {
                 toJson(afterData),
                 reason
         );
+    }
+
+    public void logExport(String exportType, String exportLabel, Map<String, ?> filters,
+                          int rowCount, String filename) {
+        logExport(exportType, exportLabel, filters, rowCount, filename, Map.of());
+    }
+
+    public void logExport(String exportType, String exportLabel, Map<String, ?> filters,
+                          int rowCount, String filename, Map<String, ?> details) {
+        AuthUser operator = AuthContext.current();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("exportType", exportType);
+        payload.put("exportLabel", exportLabel);
+        payload.put("operatorRole", operator.role().name());
+        payload.put("filters", filters == null ? Map.of() : filters);
+        payload.put("rows", Math.max(0, rowCount));
+        payload.put("filename", filename);
+        if (details != null && !details.isEmpty()) {
+            payload.put("details", details);
+        }
+        log("EXPORT_DATA", "data_exports", null, null, payload, "导出" + exportLabel);
     }
 
     public void logRemoteAuthentication(boolean success, UserRepository.UserLoginRow user, String attemptedAccount,

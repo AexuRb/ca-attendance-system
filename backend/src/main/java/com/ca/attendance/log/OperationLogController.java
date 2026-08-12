@@ -36,14 +36,14 @@ public class OperationLogController {
                                          @RequestParam(required = false) String actionType,
                                          @RequestParam(required = false) String from,
                                          @RequestParam(required = false) String to) {
-        String filename = "操作日志.xlsx";
+        OperationLogQueryService.ExportFile file = logs.export(keyword, actionType, from, to);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(filename, StandardCharsets.UTF_8)
+                        .filename(file.filename(), StandardCharsets.UTF_8)
                         .build()
                         .toString())
                 .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(logs.export(keyword, actionType, from, to));
+                .body(file.bytes());
     }
 
     @DeleteMapping

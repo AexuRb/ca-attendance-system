@@ -7,7 +7,7 @@
       <template #actions
         ><button
           class="button secondary"
-          :disabled="busy || !records.length"
+          :disabled="busy || !pendingItemCount"
           @click="bulkConfirmOpen = true"
         >
           <CheckCheck />全部通过
@@ -15,9 +15,16 @@
       >
     </PageHeader>
     <div class="filter-bar">
-      <span class="filter-summary"
-        ><ListChecks />{{ records.length }} 条待处理</span
-      ><button class="icon-button" title="刷新" aria-label="刷新" @click="load">
+      <span class="filter-summary">
+        <ListChecks />
+        <span>
+          {{ pendingItemCount }} 项待审核
+          <small v-if="queueTruncated">
+            当前显示最近 {{ records.length }} 条，共 {{ pendingRecordCount }} 条记录
+          </small>
+        </span>
+      </span>
+      <button class="icon-button" title="刷新" aria-label="刷新" @click="load">
         <RefreshCw :class="{ spin: busy }" />
       </button>
     </div>
@@ -110,7 +117,7 @@
     <ConfirmDialog
       :open="bulkConfirmOpen"
       title="通过全部待审核记录"
-      :message="`将处理当前列表中的 ${records.length} 条记录，并通过其中所有待审核的签到和签退。`"
+      :message="`将通过全部 ${pendingItemCount} 项待审核，涉及 ${pendingRecordCount} 条记录。提交时将按数据库中的最新待审核范围处理。`"
       confirm-label="全部通过"
       @cancel="bulkConfirmOpen = false"
       @confirm="bulkApprove"
@@ -146,21 +153,27 @@ import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { get, post } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { notify } from "../../shared/composables/useToast";
-import {
-  buildBulkApprovalRequest,
-  type PendingReviewRecord,
-} from "../../features/attendance/reviewBulkApproval";
+import { buildBulkApprovalRequest } from "../../features/attendance/reviewBulkApproval";
 
 interface BulkReviewResult {
+  matched: number;
   reviewed: number;
   skipped: number;
   errors: string[];
 }
 
+interface PendingReviewQueue {
+  items: ReviewRecord[];
+  recordCount: number;
+  itemCount: number;
+  truncated: boolean;
+}
+
 type ReviewPart = "CHECK_IN" | "CHECK_OUT";
 type ReviewAction = "APPROVE" | "REJECT";
 
-interface ReviewRecord extends PendingReviewRecord {
+interface ReviewRecord {
+  id: number;
   studentNo: string;
   name: string;
   dutyDate: string;
@@ -171,8 +184,11 @@ interface ReviewRecord extends PendingReviewRecord {
 }
 
 const records = ref<ReviewRecord[]>([]);
+const pendingRecordCount = ref(0);
+const pendingItemCount = ref(0);
+const queueTruncated = ref(false);
 const { busy, run } = useAsyncTask();
-const rejectTarget = ref<PendingReviewRecord | null>(null);
+const rejectTarget = ref<ReviewRecord | null>(null);
 const rejectPart = ref<ReviewPart>("CHECK_IN");
 const rejectReason = ref("");
 const bulkConfirmOpen = ref(false);
@@ -180,9 +196,13 @@ const bulkErrors = ref<string[]>([]);
 onMounted(load);
 async function load() {
   const value = await run(() =>
-    get<ReviewRecord[]>("/api/attendance/reviews/pending"),
+    get<PendingReviewQueue>("/api/attendance/reviews/pending"),
   );
-  if (value) records.value = value;
+  if (!value) return;
+  records.value = value.items;
+  pendingRecordCount.value = value.recordCount;
+  pendingItemCount.value = value.itemCount;
+  queueTruncated.value = value.truncated;
 }
 async function review(
   id: number,
@@ -204,7 +224,7 @@ async function bulkApprove() {
   const result = await run(() =>
     post<BulkReviewResult>(
       "/api/attendance/reviews/bulk",
-      buildBulkApprovalRequest(records.value),
+      buildBulkApprovalRequest(),
     ),
   );
   if (!result) {
@@ -218,7 +238,10 @@ async function bulkApprove() {
       "warning",
     );
   } else {
-    notify(`已通过 ${result.reviewed} 项审核`, "success");
+    notify(
+      `已处理 ${result.matched} 条记录，通过 ${result.reviewed} 项审核`,
+      "success",
+    );
   }
   await load();
 }

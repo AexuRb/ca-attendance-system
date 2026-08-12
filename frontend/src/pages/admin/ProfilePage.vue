@@ -38,26 +38,32 @@
             <h2>联系信息</h2>
           </div>
         </div>
-        <form class="form-grid" @submit.prevent="save">
+        <form ref="profileForm" class="form-grid" novalidate @submit.prevent="save">
           <label class="field">
             <span>手机</span>
             <input
               v-model.trim="profile.phone"
-              name="tel"
+              name="phone"
               autocomplete="tel"
+              maxlength="64"
+              :aria-invalid="Boolean(profileErrors.phone)"
             />
+            <small v-if="profileErrors.phone" class="field-error" role="alert">{{ profileErrors.phone }}</small>
           </label>
           <label class="field">
             <span>QQ</span>
-            <input v-model.trim="profile.qq" name="qq" inputmode="numeric" />
+            <input v-model.trim="profile.qq" name="qq" inputmode="numeric" maxlength="32" :aria-invalid="Boolean(profileErrors.qq)" />
+            <small v-if="profileErrors.qq" class="field-error" role="alert">{{ profileErrors.qq }}</small>
           </label>
           <label class="field">
             <span>学院</span>
-            <input v-model.trim="profile.major" name="college" />
+            <input v-model.trim="profile.major" name="college" maxlength="128" :aria-invalid="Boolean(profileErrors.college)" />
+            <small v-if="profileErrors.college" class="field-error" role="alert">{{ profileErrors.college }}</small>
           </label>
           <label class="field">
             <span>年级</span>
-            <input v-model.trim="profile.grade" name="grade" />
+            <input v-model.trim="profile.grade" name="grade" maxlength="16" :aria-invalid="Boolean(profileErrors.grade)" />
+            <small v-if="profileErrors.grade" class="field-error" role="alert">{{ profileErrors.grade }}</small>
           </label>
           <div class="form-actions">
             <button class="button primary" type="submit" :disabled="busy">
@@ -156,7 +162,6 @@
                 <th>日期 / 时间</th>
                 <th>地点 / 主讲</th>
                 <th>时长</th>
-                <th>出勤</th>
               </tr>
             </thead>
             <tbody>
@@ -181,14 +186,6 @@
                   <small>{{ record.speaker || "未填写主讲人" }}</small>
                 </td>
                 <td>{{ number(record.durationHours) }} 小时</td>
-                <td>
-                  <StatusBadge
-                    :label="
-                      trainingStatusMeta(record.attendanceStatus).label
-                    "
-                    :tone="trainingStatusMeta(record.attendanceStatus).tone"
-                  />
-                </td>
               </tr>
             </tbody>
           </table>
@@ -221,7 +218,6 @@ import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ProfilePasswordDialog from "../../features/profile/ProfilePasswordDialog.vue";
 import {
   attendanceStatusMeta,
-  trainingStatusMeta,
   totalAttendanceHours,
   type AttendanceProfileRecord,
   type TrainingProfileRecord,
@@ -229,6 +225,11 @@ import {
 import { get, put, setToken } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import {
+  focusFirstInvalid,
+  validateProfileInput,
+  type InputErrors,
+} from "../../shared/validation/userInput";
 
 const router = useRouter();
 const { state, user, refreshUser } = useSession();
@@ -240,6 +241,8 @@ const passwordOpen = ref(false);
 const from = ref(startOfYear());
 const to = ref(date(new Date()));
 const profile = reactive({ phone: "", qq: "", major: "", grade: "" });
+const profileForm = ref<HTMLFormElement | null>(null);
+const profileErrors = reactive<InputErrors>({});
 
 const activeRecords = computed(() =>
   activeRecordTab.value === "attendance"
@@ -288,6 +291,18 @@ async function loadRecords() {
 }
 
 async function save() {
+  const nextErrors = validateProfileInput({
+    phone: profile.phone,
+    qq: profile.qq,
+    college: profile.major,
+    grade: profile.grade,
+  });
+  Object.keys(profileErrors).forEach((key) => delete profileErrors[key]);
+  Object.assign(profileErrors, nextErrors);
+  if (Object.keys(profileErrors).length) {
+    focusFirstInvalid(profileForm.value, profileErrors);
+    return;
+  }
   const result = await run(
     () => put("/api/me/profile", profile),
     "个人资料已保存",

@@ -1,12 +1,7 @@
-export interface PendingReviewRecord {
-  id: number;
-}
-
-export function buildBulkApprovalRequest(
-  records: readonly PendingReviewRecord[],
-) {
+export function buildBulkApprovalRequest() {
   return {
-    ids: [...new Set(records.map((record) => record.id))],
+    ids: [],
     part: "ALL" as const,
+    scope: "ALL_PENDING" as const,
   };
 }

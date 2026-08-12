@@ -190,6 +190,9 @@
           <li v-for="issue in importResult.errors" :key="issue">{{ issue }}</li>
         </ul>
       </div>
+      <div v-if="importError" class="form-error member-import-error" role="alert">
+        {{ importError }}
+      </div>
       <template #footer>
         <a
           class="button secondary"
@@ -217,18 +220,17 @@
       @confirm="applyBulkStatus"
     />
 
-    <ConfirmDialog
+    <MemberPasswordResetDialog
       :open="Boolean(resetTarget)"
-      title="重置成员密码"
-      :message="`将 ${resetTarget?.name || ''} 的密码恢复为学号后六位。`"
-      confirm-label="确认重置"
-      @cancel="resetTarget = null"
+      :member="resetTarget"
+      :busy="busy"
+      @close="resetTarget = null"
       @confirm="resetPassword"
     />
     <ConfirmDialog
       :open="Boolean(deleteTarget)"
       title="删除成员"
-      :message="`将删除 ${deleteTarget?.name || ''} 的账号。系统会先自动备份，删除后只能通过整库备份恢复；已有业务记录时请改为停用。`"
+      :message="`仅可永久删除从未参与业务的空白账号。将删除 ${deleteTarget?.name || ''} 的账号，系统会先自动备份；如已有历史记录，请改为停用账号。`"
       confirm-label="删除成员"
       danger
       require-reason
@@ -257,6 +259,7 @@ import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import MemberEditorDialog from "../../features/members/MemberEditorDialog.vue";
+import MemberPasswordResetDialog from "../../features/members/MemberPasswordResetDialog.vue";
 import BulkMemberStatusDialog from "../../features/members/BulkMemberStatusDialog.vue";
 import MemberFilters from "../../features/members/MemberFilters.vue";
 import MemberRowActions from "../../features/members/MemberRowActions.vue";
@@ -275,7 +278,7 @@ import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useSession } from "../../app/session";
 
 const { user } = useSession();
-const { busy, run } = useAsyncTask();
+const { busy, error: taskError, run } = useAsyncTask();
 const members = ref<MemberSummary[]>([]);
 const grades = ref<string[]>([]);
 const total = ref(0);
@@ -293,6 +296,7 @@ const bulkResult = ref<BulkStatusResult | null>(null);
 const resetTarget = ref<MemberSummary | null>(null);
 const deleteTarget = ref<MemberSummary | null>(null);
 const filters = reactive({ keyword: "", role: "", status: "", grade: "" });
+const importError = computed(() => (importOpen.value ? taskError.value : ""));
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(total.value / pageSize)),
@@ -462,6 +466,7 @@ async function applyBulkStatus(reason: string) {
 }
 
 function openImport() {
+  taskError.value = "";
   importResult.value = null;
   importFile.value = null;
   importOpen.value = true;
@@ -470,6 +475,7 @@ function openImport() {
 function pickFile(event: Event) {
   importFile.value = (event.target as HTMLInputElement).files?.[0] || null;
   importResult.value = null;
+  taskError.value = "";
 }
 
 async function importMembers() {
@@ -486,24 +492,29 @@ async function importMembers() {
   await Promise.all([load(1), loadGrades()]);
 }
 
-async function resetPassword() {
+async function resetPassword(newPassword: string) {
   if (!resetTarget.value) return;
-  await run(
-    () =>
-      post(`/api/users/${resetTarget.value?.id}/reset-password`, {
+  const result = await run(
+    async () => {
+      await post(`/api/users/${resetTarget.value?.id}/reset-password`, {
+        newPassword: newPassword || undefined,
         reason: "后台重置密码",
-      }),
+      });
+      return true;
+    },
     "密码已重置",
   );
+  if (!result) return;
   resetTarget.value = null;
 }
 
 async function remove(reason: string) {
   if (!deleteTarget.value) return;
-  await run(
+  const removed = await run(
     () => del(`/api/users/${deleteTarget.value?.id}`, { reason }),
     "成员已删除",
   );
+  if (removed === undefined) return;
   deleteTarget.value = null;
   await load();
 }

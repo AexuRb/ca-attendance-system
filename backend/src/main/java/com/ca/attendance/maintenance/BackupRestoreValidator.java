@@ -1,11 +1,14 @@
 package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -16,7 +19,7 @@ import java.util.Set;
 final class BackupRestoreValidator {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
-    private static final TypeReference<List<LinkedHashMap<String, Object>>> ROWS_TYPE = new TypeReference<>() {
+    private static final TypeReference<LinkedHashMap<String, Object>> ROW_TYPE = new TypeReference<>() {
     };
 
     private final ObjectMapper objectMapper;
@@ -25,33 +28,29 @@ final class BackupRestoreValidator {
         this.objectMapper = objectMapper;
     }
 
-    BackupRestorePayload parse(Map<String, byte[]> entries) {
-        validateRequiredEntries(entries);
-        Map<String, Object> metadata = readMetadata(entries.get("metadata.json"));
+    BackupRestorePayload parse(ExtractedBackupArchive archive) {
+        validateRequiredEntries(archive.names());
+        Map<String, Object> metadata = readMetadata(archive.entry("metadata.json"));
         Set<String> tableNames = validateMetadata(metadata);
 
-        Map<String, List<LinkedHashMap<String, Object>>> rows = new LinkedHashMap<>();
+        Map<String, Path> tableFiles = new LinkedHashMap<>();
         int totalRows = 0;
         for (String table : BackupSchema.RESTORE_TABLE_ORDER) {
-            byte[] tableBytes = entries.get(table + ".json");
-            if (tableBytes == null) {
+            Path tableFile = archive.entry(table + ".json");
+            if (tableFile == null) {
                 if (tableNames.contains(table) || !BackupSchema.OPTIONAL_RESTORE_TABLES.contains(table)) {
                     throw ApiException.badRequest("备份文件缺少 " + table + ".json");
                 }
                 continue;
             }
-            List<LinkedHashMap<String, Object>> tableRows = readRows(tableBytes, table);
-            if (tableRows.size() > BackupSchema.MAX_ROWS_PER_TABLE) {
-                throw ApiException.badRequest(table + " 数据行数过多");
-            }
-            totalRows += tableRows.size();
-            if (totalRows > BackupSchema.MAX_TOTAL_ROWS) {
+            int tableRows = validateTable(tableFile, table);
+            totalRows += tableRows;
+            if (totalRows > BackupArchiveLimits.MAX_TOTAL_ROWS) {
                 throw ApiException.badRequest("备份文件包含的数据行数过多");
             }
-            validateRows(table, tableRows);
-            rows.put(table, List.copyOf(tableRows));
+            tableFiles.put(table, tableFile);
         }
-        return new BackupRestorePayload(Collections.unmodifiableMap(rows));
+        return new BackupRestorePayload(Collections.unmodifiableMap(new LinkedHashMap<>(tableFiles)));
     }
 
     Set<String> supportedEntries() {
@@ -62,7 +61,7 @@ final class BackupRestoreValidator {
         return Set.copyOf(entries);
     }
 
-    private void validateRequiredEntries(Map<String, byte[]> entries) {
+    private void validateRequiredEntries(Set<String> entries) {
         Set<String> required = new LinkedHashSet<>();
         required.add("metadata.json");
         for (String table : BackupSchema.RESTORE_TABLE_ORDER) {
@@ -71,15 +70,15 @@ final class BackupRestoreValidator {
             }
         }
         for (String name : required) {
-            if (!entries.containsKey(name)) {
+            if (!entries.contains(name)) {
                 throw ApiException.badRequest("备份文件缺少 " + name);
             }
         }
     }
 
-    private Map<String, Object> readMetadata(byte[] bytes) {
+    private Map<String, Object> readMetadata(Path path) {
         try {
-            return objectMapper.readValue(bytes, MAP_TYPE);
+            return objectMapper.readValue(path.toFile(), MAP_TYPE);
         } catch (IOException ex) {
             throw ApiException.badRequest("备份元数据格式不正确");
         }
@@ -119,31 +118,48 @@ final class BackupRestoreValidator {
         }
     }
 
-    private List<LinkedHashMap<String, Object>> readRows(byte[] bytes, String table) {
-        try {
-            return objectMapper.readValue(bytes, ROWS_TYPE);
+    private int validateTable(Path path, String table) {
+        try (JsonParser parser = objectMapper.getFactory().createParser(path.toFile())) {
+            if (parser.nextToken() != JsonToken.START_ARRAY) {
+                throw ApiException.badRequest(table + " 数据格式不正确");
+            }
+            int rowCount = 0;
+            JsonToken token;
+            while ((token = parser.nextToken()) != JsonToken.END_ARRAY) {
+                if (token != JsonToken.START_OBJECT) {
+                    throw ApiException.badRequest(table + " 数据格式不正确");
+                }
+                rowCount++;
+                if (rowCount > BackupArchiveLimits.MAX_ROWS_PER_TABLE) {
+                    throw ApiException.badRequest(table + " 数据行数过多");
+                }
+                validateRow(table, rowCount, objectMapper.readValue(parser, ROW_TYPE));
+            }
+            if (parser.nextToken() != null) {
+                throw ApiException.badRequest(table + " 数据格式不正确");
+            }
+            return rowCount;
+        } catch (ApiException ex) {
+            throw ex;
         } catch (IOException ex) {
             throw ApiException.badRequest(table + " 数据格式不正确");
         }
     }
 
-    private void validateRows(String table, List<LinkedHashMap<String, Object>> rows) {
+    private void validateRow(String table, int rowNumber, Map<String, Object> row) {
         Set<String> allowedColumns = BackupSchema.TABLE_COLUMNS.get(table);
         Set<String> requiredKeys = BackupSchema.REQUIRED_KEYS.get(table);
-        for (int index = 0; index < rows.size(); index++) {
-            Map<String, Object> row = rows.get(index);
-            if (!allowedColumns.containsAll(row.keySet())) {
-                Set<String> unknownColumns = new LinkedHashSet<>(row.keySet());
-                unknownColumns.removeAll(allowedColumns);
-                throw ApiException.badRequest(table + " 包含未知字段：" + String.join("、", unknownColumns));
-            }
-            if (!row.keySet().containsAll(requiredKeys)) {
-                Set<String> missingKeys = new LinkedHashSet<>(requiredKeys);
-                missingKeys.removeAll(row.keySet());
-                throw ApiException.badRequest(
-                        table + " 第 " + (index + 1) + " 行缺少字段：" + String.join("、", missingKeys)
-                );
-            }
+        if (!allowedColumns.containsAll(row.keySet())) {
+            Set<String> unknownColumns = new LinkedHashSet<>(row.keySet());
+            unknownColumns.removeAll(allowedColumns);
+            throw ApiException.badRequest(table + " 包含未知字段：" + String.join("、", unknownColumns));
+        }
+        if (!row.keySet().containsAll(requiredKeys)) {
+            Set<String> missingKeys = new LinkedHashSet<>(requiredKeys);
+            missingKeys.removeAll(row.keySet());
+            throw ApiException.badRequest(
+                    table + " 第 " + rowNumber + " 行缺少字段：" + String.join("、", missingKeys)
+            );
         }
     }
 }

@@ -41,6 +41,8 @@ class UserServiceTest {
     private BackupService backups;
     @Mock
     private TokenService tokens;
+    @Mock
+    private UserDeletionHistoryGuard deletionHistory;
 
     @BeforeEach
     void setAuthUser() {
@@ -54,7 +56,7 @@ class UserServiceTest {
 
     @Test
     void bulkDisableCreatesSafetyBackupBeforeChangingUsers() {
-        UserService service = new UserService(users, jdbc, passwordEncoder, logs, backups, tokens);
+        UserService service = new UserService(users, jdbc, passwordEncoder, logs, backups, tokens, deletionHistory);
         BackupService.BackupItem backup = new BackupService.BackupItem("backup_test.zip", 100L, Instant.now());
         UserSummary target = user(2L, "20230002", "李四", Role.MEMBER, "ACTIVE");
 
@@ -75,7 +77,7 @@ class UserServiceTest {
 
     @Test
     void presidentCannotAppointAdministrator() {
-        UserService service = new UserService(users, jdbc, passwordEncoder, logs, backups, tokens);
+        UserService service = new UserService(users, jdbc, passwordEncoder, logs, backups, tokens, deletionHistory);
         AuthContext.set(new AuthUser(3L, "president", "测试会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
 
         assertThatThrownBy(() -> service.create(new UserService.CreateUserRequest(

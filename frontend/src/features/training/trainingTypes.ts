@@ -10,9 +10,6 @@ export interface TrainingSession {
   status: string;
   participantCount: number;
   totalDurationHours: number;
-  presentCount: number;
-  absentCount: number;
-  leaveCount: number;
   createdByName?: string;
   updatedByName?: string;
   createdAt: string;
@@ -25,10 +22,8 @@ export interface TrainingParticipant {
   userId?: number;
   studentNo?: string;
   name: string;
-  attendanceStatus: string;
   durationHours: number;
   remark?: string;
-  source?: string;
 }
 
 export interface TrainingSessionForm {

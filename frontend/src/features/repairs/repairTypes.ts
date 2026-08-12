@@ -51,3 +51,17 @@ export interface RepairCaseForm {
   handlerName: string;
   remark: string;
 }
+
+export interface RepairPage {
+  items: RepairCase[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+export interface RepairFilters {
+  keyword: string;
+  from: string;
+  to: string;
+}

@@ -152,7 +152,7 @@ class UserTransactionIntegrationTest {
                 """);
 
         assertThrows(DataAccessException.class, () -> users.create(new UserService.CreateUserRequest(
-                "tx-create-target",
+                "9900000096",
                 "新增事务成员",
                 "MEMBER",
                 null,
@@ -161,7 +161,7 @@ class UserTransactionIntegrationTest {
                 null
         )));
 
-        assertEquals(0, userCount("tx-create-target"));
+        assertEquals(0, userCount("9900000096"));
         assertEquals(0, actionCount("CREATE_USER"));
     }
 
@@ -244,6 +244,77 @@ class UserTransactionIntegrationTest {
     }
 
     @Test
+    void createAndImportApplyTheSameNewAccountRule() throws Exception {
+        ApiException createError = assertThrows(ApiException.class, () -> users.create(
+                new UserService.CreateUserRequest(
+                        "12345", "短学号成员", "MEMBER", null, null, null, null
+                )
+        ));
+        ApiException importError = assertThrows(ApiException.class, () -> users.importMembers(
+                memberImportFile("12345", "短学号成员")
+        ));
+
+        assertTrue(createError.getMessage().contains("6 至 32 位纯数字"));
+        assertTrue(importError.getMessage().contains("第 2 行"));
+        assertTrue(importError.getMessage().contains("6 至 32 位纯数字"));
+        assertTrue(importError.getMessage().contains("未写入任何成员"));
+        assertEquals(0, userCount("12345"));
+    }
+
+    @Test
+    void importReportsOversizedNameByRowAndWritesNothing() throws Exception {
+        MockMultipartFile file = memberImportFile(List.of(
+                new String[]{"9900000088", "合法成员"},
+                new String[]{"9900000089", "名".repeat(65)}
+        ));
+
+        ApiException exception = assertThrows(ApiException.class, () -> users.importMembers(file));
+
+        assertTrue(exception.getMessage().contains("第 3 行"));
+        assertTrue(exception.getMessage().contains("姓名不能超过 64"));
+        assertEquals(0, userCount("9900000088"));
+        assertEquals(0, userCount("9900000089"));
+    }
+
+    @Test
+    void historicalAccountRequiresExplicitPasswordWhenReset() {
+        long targetId = insertMember("legacy", "历史短账号");
+        String before = passwordHash(targetId);
+
+        ApiException exception = assertThrows(ApiException.class, () -> users.resetPassword(
+                targetId,
+                new UserService.ResetPasswordRequest(null, "默认重置测试")
+        ));
+        assertTrue(exception.getMessage().contains("手动输入"));
+        assertEquals(before, passwordHash(targetId));
+
+        users.resetPassword(
+                targetId,
+                new UserService.ResetPasswordRequest("manual-password", "手动重置测试")
+        );
+        assertTrue(!before.equals(passwordHash(targetId)));
+    }
+
+    @Test
+    void profileAndMemberUpdatesRejectOversizedFields() {
+        long targetId = insertMember("9900000087", "字段边界成员");
+
+        ApiException memberError = assertThrows(ApiException.class, () -> users.update(
+                targetId,
+                new UserService.UpdateUserRequest(
+                        "字段边界成员", "MEMBER", "ACTIVE", "1".repeat(65),
+                        null, null, null, "字段边界测试"
+                )
+        ));
+        ApiException profileError = assertThrows(ApiException.class, () -> users.updateProfile(
+                new UserService.ProfileRequest(null, "院".repeat(129), null, null)
+        ));
+
+        assertTrue(memberError.getMessage().contains("联系方式不能超过 64"));
+        assertTrue(profileError.getMessage().contains("学院不能超过 128"));
+    }
+
+    @Test
     void administratorImportCanModifyAdministratorProfile() throws Exception {
         long targetAdminId = insertAdmin("9900000001", "待更新管理员");
 
@@ -255,6 +326,20 @@ class UserTransactionIntegrationTest {
         assertEquals(1, result.updated());
         assertEquals(0, result.skipped());
         assertEquals("已更新管理员", name(targetAdminId));
+    }
+
+    @Test
+    void importCanUpdateAnExistingHistoricalAccountWithoutMigratingItsIdentifier() throws Exception {
+        long targetId = insertMember("legacy-member", "历史成员");
+
+        UserService.ImportResult result = users.importMembers(memberImportFile(
+                "legacy-member",
+                "历史成员新姓名"
+        ));
+
+        assertEquals(1, result.updated());
+        assertEquals("历史成员新姓名", name(targetId));
+        assertEquals(1, userCount("legacy-member"));
     }
 
     @Test

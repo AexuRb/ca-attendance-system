@@ -171,16 +171,15 @@ class AttendanceTransactionIntegrationTest {
     }
 
     @Test
-    void bulkReviewRollsBackEarlierRecordsWhenLaterAuditLogFails() {
+    void bulkReviewRollsBackEarlierRecordsWhenLaterUpdateFails() {
         long firstId = insertRecord("PENDING", "APPROVED", "PENDING");
         long secondId = insertRecord("PENDING", "APPROVED", "PENDING");
         jdbc.execute("""
-                CREATE TRIGGER fail_second_bulk_review_log
-                BEFORE INSERT ON operation_logs
-                WHEN NEW.action_type = 'REVIEW_ATTENDANCE'
-                  AND NEW.target_id = %d
+                CREATE TRIGGER fail_second_bulk_review_update
+                BEFORE UPDATE OF check_in_status ON attendance_records
+                WHEN OLD.id = %d AND NEW.check_in_status = 'APPROVED'
                 BEGIN
-                  SELECT RAISE(ABORT, 'forced bulk review audit failure');
+                  SELECT RAISE(ABORT, 'forced bulk review update failure');
                 END
                 """.formatted(secondId));
 
@@ -193,6 +192,24 @@ class AttendanceTransactionIntegrationTest {
         assertEquals("PENDING", text(firstId, "effective_status"));
         assertEquals("PENDING", text(secondId, "effective_status"));
         assertEquals(0, actionCount("REVIEW_ATTENDANCE"));
+        assertEquals(0, actionCount("BULK_REVIEW_ATTENDANCE"));
+    }
+
+    @Test
+    void bulkReviewRollsBackRecordsWhenSummaryAuditLogFails() {
+        long firstId = insertRecord("PENDING", "APPROVED", "PENDING");
+        long secondId = insertRecord("PENDING", "APPROVED", "PENDING");
+        failAuditFor("BULK_REVIEW_ATTENDANCE");
+
+        assertThrows(DataAccessException.class, () -> attendance.bulkReview(
+                new AttendanceService.BulkReviewRequest(List.of(firstId, secondId), "CHECK_IN")
+        ));
+
+        assertEquals("PENDING", text(firstId, "check_in_status"));
+        assertEquals("PENDING", text(secondId, "check_in_status"));
+        assertEquals("PENDING", text(firstId, "effective_status"));
+        assertEquals("PENDING", text(secondId, "effective_status"));
+        assertEquals(0, actionCount("BULK_REVIEW_ATTENDANCE"));
     }
 
     private long insertUser(String studentNo, String name, String role) {
@@ -250,6 +267,7 @@ class AttendanceTransactionIntegrationTest {
     private void dropFailureTriggers() {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_attendance_audit_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_second_bulk_review_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_second_bulk_review_update");
     }
 
     private Object value(long recordId, String column) {

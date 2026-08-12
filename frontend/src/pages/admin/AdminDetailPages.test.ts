@@ -76,6 +76,8 @@ describe("TrainingPage details", () => {
     expect(participantCells.map((cell) => cell.attributes("data-label"))).toEqual(
       ["参与人", "计入时长", "备注", "操作"],
     );
+    expect(wrapper.text()).not.toContain("出勤");
+    expect(wrapper.text()).not.toContain("来源");
   });
 });
 

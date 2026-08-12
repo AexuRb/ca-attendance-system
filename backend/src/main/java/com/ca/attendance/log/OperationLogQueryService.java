@@ -19,7 +19,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.ca.attendance.common.JdbcTime.localDateTime;
 
@@ -29,6 +31,7 @@ public class OperationLogQueryService {
 
     private final JdbcTemplate jdbc;
     private final BackupService backups;
+    private final OperationLogService logs;
 
     private final RowMapper<LogItem> mapper = (rs, rowNum) -> new LogItem(
             rs.getLong("id"),
@@ -44,9 +47,10 @@ public class OperationLogQueryService {
             localDateTime(rs, "created_at")
     );
 
-    public OperationLogQueryService(JdbcTemplate jdbc, BackupService backups) {
+    public OperationLogQueryService(JdbcTemplate jdbc, BackupService backups, OperationLogService logs) {
         this.jdbc = jdbc;
         this.backups = backups;
+        this.logs = logs;
     }
 
     public LogPage search(String keyword, String actionType, String from, String to, int page, int pageSize) {
@@ -87,7 +91,7 @@ public class OperationLogQueryService {
         return new ClearResult(deleted, safetyBackup);
     }
 
-    public byte[] export(String keyword, String actionType, String from, String to) {
+    public ExportFile export(String keyword, String actionType, String from, String to) {
         requireOperationLogs("只有管理员可以导出操作日志");
         QueryParts query = buildWhere(keyword, actionType, from, to);
         List<LogItem> items = jdbc.query("""
@@ -102,6 +106,7 @@ public class OperationLogQueryService {
                 ORDER BY created_at DESC, id DESC
                 """, mapper, query.args().toArray());
 
+        byte[] bytes;
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("操作日志");
             CellStyle headerStyle = headerStyle(wb);
@@ -132,9 +137,23 @@ public class OperationLogQueryService {
                 sheet.setColumnWidth(i, Math.min(Math.max(sheet.getColumnWidth(i) + 512, 12 * 256), 50 * 256));
             }
             wb.write(out);
-            return out.toByteArray();
+            bytes = out.toByteArray();
         } catch (Exception ex) {
             throw ApiException.badRequest("导出操作日志失败");
+        }
+        Map<String, Object> filters = new LinkedHashMap<>();
+        putFilter(filters, "keyword", keyword);
+        putFilter(filters, "actionType", actionType);
+        putFilter(filters, "from", from);
+        putFilter(filters, "to", to);
+        String filename = "操作日志.xlsx";
+        logs.logExport("OPERATION_LOGS", "操作日志", filters, items.size(), filename);
+        return new ExportFile(filename, bytes, items.size());
+    }
+
+    private void putFilter(Map<String, Object> filters, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            filters.put(key, value.trim());
         }
     }
 
@@ -256,6 +275,9 @@ public class OperationLogQueryService {
     }
 
     public record ClearResult(int deleted, BackupService.BackupItem safetyBackup) {
+    }
+
+    public record ExportFile(String filename, byte[] bytes, int rowCount) {
     }
 
     public record LogItem(

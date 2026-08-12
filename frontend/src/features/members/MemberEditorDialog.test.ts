@@ -28,6 +28,44 @@ function accountControls() {
 }
 
 describe("MemberEditorDialog", () => {
+  it("shows field errors and does not submit an invalid new member", async () => {
+    const wrapper = mount(MemberEditorDialog, {
+      attachTo: document.body,
+      global: { stubs: { Teleport: true } },
+      props: {
+        open: true,
+        member: null,
+        operatorRole: "ADMIN",
+        gradeChoices: [],
+      },
+    });
+
+    await wrapper.get('input[name="studentNo"]').setValue("12A");
+    await wrapper.get('input[name="name"]').setValue(" ");
+    await wrapper.get("form").trigger("submit");
+
+    expect(document.body.textContent).toContain("6 至 32 位纯数字");
+    expect(document.body.textContent).toContain("姓名不能为空");
+    expect(wrapper.emitted("save")).toBeUndefined();
+  });
+
+  it("allows an unchanged historical account to be edited", async () => {
+    const wrapper = mount(MemberEditorDialog, {
+      attachTo: document.body,
+      global: { stubs: { Teleport: true } },
+      props: {
+        open: true,
+        member: admin,
+        operatorRole: "ADMIN",
+        gradeChoices: [],
+      },
+    });
+
+    await wrapper.get("form").trigger("submit");
+
+    expect(wrapper.emitted("save")).toHaveLength(1);
+  });
+
   it("locks role and status when editing the current administrator", () => {
     mount(MemberEditorDialog, {
       attachTo: document.body,

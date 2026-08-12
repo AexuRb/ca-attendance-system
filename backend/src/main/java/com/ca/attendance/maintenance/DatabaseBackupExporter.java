@@ -1,14 +1,16 @@
 package com.ca.attendance.maintenance;
 
+import org.springframework.jdbc.core.ColumnMapRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.LinkedHashMap;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Collections;
+import java.util.stream.Stream;
 
-final class DatabaseBackupExporter {
+final class DatabaseBackupExporter implements BackupTableSource {
     private static final List<TableExport> TABLES = List.of(
             new TableExport("users", "SELECT * FROM users ORDER BY id"),
             new TableExport("training_sessions", "SELECT * FROM training_sessions ORDER BY training_date DESC, id DESC"),
@@ -32,14 +34,26 @@ final class DatabaseBackupExporter {
         this.transactions = transactions;
     }
 
-    Map<String, List<Map<String, Object>>> capture() {
-        return transactions.execute(status -> {
-            Map<String, List<Map<String, Object>>> tables = new LinkedHashMap<>();
-            for (TableExport table : TABLES) {
-                tables.put(table.name(), jdbc.queryForList(table.sql()));
-            }
-            return Collections.unmodifiableMap(new LinkedHashMap<>(tables));
-        });
+    @Override
+    public void writeTables(TableWriter writer) throws IOException {
+        try {
+            transactions.executeWithoutResult(status -> {
+                try {
+                    for (TableExport table : TABLES) {
+                        try (Stream<Map<String, Object>> rows = jdbc.queryForStream(
+                                table.sql(),
+                                new ColumnMapRowMapper()
+                        )) {
+                            writer.write(table.name(), rows);
+                        }
+                    }
+                } catch (IOException ex) {
+                    throw new UncheckedIOException(ex);
+                }
+            });
+        } catch (UncheckedIOException ex) {
+            throw ex.getCause();
+        }
     }
 
     List<String> tableNames() {

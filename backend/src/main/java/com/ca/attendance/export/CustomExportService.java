@@ -84,19 +84,13 @@ public class CustomExportService {
                 prepared.filters(),
                 rows
         ));
-        logs.log(
-                "EXPORT_CUSTOM_DATA",
-                "custom_exports",
-                null,
-                null,
-                Map.of(
-                        "source", prepared.source().id(),
-                        "fields", prepared.fields().stream().map(FieldOption::id).toList(),
-                        "filters", prepared.filters(),
-                        "rows", rows.size(),
-                        "filename", filename
-                ),
-                "自定义导出 " + prepared.source().label()
+        logs.logExport(
+                "CUSTOM_" + prepared.source().id().toUpperCase(Locale.ROOT),
+                "自定义导出·" + prepared.source().label(),
+                prepared.filters(),
+                rows.size(),
+                filename,
+                Map.of("fields", prepared.fields().stream().map(FieldOption::id).toList())
         );
         return new ExportFile(filename, bytes, rows.size());
     }

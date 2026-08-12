@@ -21,13 +21,18 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
+import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class AttendanceService {
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int BULK_REVIEW_BATCH_SIZE = 200;
 
     private final UserRepository users;
     private final AttendanceRepository records;
@@ -250,10 +255,29 @@ public class AttendanceService {
 
     public List<AttendanceRecord> pending() {
         AuthUser current = AuthContext.current();
+        requireReviewAccess(current);
+        return records.pendingForReviewer(current.id(), current.role() == Role.MINISTER);
+    }
+
+    @Transactional(readOnly = true)
+    public PendingReviewQueue pendingQueue() {
+        AuthUser current = AuthContext.current();
+        requireReviewAccess(current);
+        boolean minister = current.role() == Role.MINISTER;
+        AttendanceRepository.PendingReviewSummary summary = records.pendingSummary(current.id(), minister);
+        List<AttendanceRecord> items = records.pendingForReviewer(current.id(), minister);
+        return new PendingReviewQueue(
+                items,
+                summary.recordCount(),
+                summary.itemCount(),
+                summary.recordCount() > items.size()
+        );
+    }
+
+    private void requireReviewAccess(AuthUser current) {
         RolePermissionPolicy.require(current.role(),
                 RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
                 "无权查看待审核记录");
-        return records.pendingForReviewer(current.id(), current.role() == Role.MINISTER);
     }
 
     public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
@@ -300,49 +324,80 @@ public class AttendanceService {
 
     @Transactional
     public BulkReviewResult bulkReview(BulkReviewRequest request) {
-        RolePermissionPolicy.require(AuthContext.current().role(),
+        AuthUser current = AuthContext.current();
+        RolePermissionPolicy.require(current.role(),
                 RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
                 "无权审核");
-        if (request.ids() == null || request.ids().isEmpty()) {
+        boolean allPending = "ALL_PENDING".equals(normalizeBulkScope(request.scope()));
+        Set<Long> requestedIds = validBulkIds(request.ids());
+        if (!allPending && requestedIds.isEmpty()) {
             throw ApiException.badRequest("请选择要审核的记录");
         }
 
         List<String> parts = bulkParts(request.part());
-        int reviewed = 0;
+        records.acquireReviewWriteLock(current.id());
+        List<AttendanceRecord> candidates = allPending
+                ? records.allPendingForReviewer(current.id(), current.role() == Role.MINISTER)
+                : findBulkCandidates(requestedIds);
+        int matched = candidates.size();
         int skipped = 0;
         List<String> errors = new ArrayList<>();
+        if (!allPending && requestedIds.size() > candidates.size()) {
+            Set<Long> foundIds = candidates.stream().map(AttendanceRecord::id).collect(java.util.stream.Collectors.toSet());
+            requestedIds.stream()
+                    .filter(id -> !foundIds.contains(id))
+                    .forEach(id -> errors.add("记录 #" + id + " 不存在"));
+            skipped += requestedIds.size() - candidates.size();
+        }
 
-        for (Long id : request.ids().stream().filter(item -> item != null && item > 0).distinct().limit(500).toList()) {
-            AttendanceRecord first = records.findById(id).orElse(null);
-            if (first == null) {
+        List<Long> checkInIds = new ArrayList<>();
+        List<Long> checkOutIds = new ArrayList<>();
+        List<Long> touchedIds = new ArrayList<>();
+        for (AttendanceRecord candidate : candidates) {
+            if (current.role() == Role.MINISTER && current.id() == candidate.userId()) {
                 skipped++;
-                errors.add("记录 #" + id + " 不存在");
+                errors.add(candidate.name() + "（" + candidate.studentNo() + "）：部长不能审核自己的记录");
                 continue;
             }
-
             boolean touched = false;
-            for (String part : parts) {
-                AttendanceRecord current = records.findById(id).orElse(null);
-                if (current == null) {
-                    break;
-                }
-                String status = "CHECK_IN".equals(part) ? current.checkInStatus() : current.checkOutStatus();
-                if (!ReviewStatus.PENDING.name().equals(status)) {
-                    continue;
-                }
-                try {
-                    review(id, part, "APPROVE", "批量审核通过");
-                    reviewed++;
-                    touched = true;
-                } catch (ApiException ex) {
-                    errors.add(first.name() + "（" + first.studentNo() + "）：" + ex.getMessage());
-                }
+            if (parts.contains("CHECK_IN") && ReviewStatus.PENDING.name().equals(candidate.checkInStatus())) {
+                checkInIds.add(candidate.id());
+                touched = true;
             }
-            if (!touched) {
+            if (parts.contains("CHECK_OUT") && ReviewStatus.PENDING.name().equals(candidate.checkOutStatus())) {
+                checkOutIds.add(candidate.id());
+                touched = true;
+            }
+            if (touched) {
+                touchedIds.add(candidate.id());
+            } else {
                 skipped++;
             }
         }
-        return new BulkReviewResult(reviewed, skipped, errors);
+
+        approveInBatches(checkInIds, current.id(), true);
+        approveInBatches(checkOutIds, current.id(), false);
+        recomputeInBatches(touchedIds);
+
+        BulkReviewResult result = new BulkReviewResult(
+                matched,
+                checkInIds.size() + checkOutIds.size(),
+                skipped,
+                errors
+        );
+        logs.log(
+                "BULK_REVIEW_ATTENDANCE",
+                "attendance_records",
+                null,
+                Map.of(
+                        "scope", allPending ? "ALL_PENDING" : "SELECTED",
+                        "part", request.part(),
+                        "requested", allPending ? matched : requestedIds.size()
+                ),
+                result,
+                "批量审核通过"
+        );
+        return result;
     }
 
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
@@ -607,6 +662,100 @@ public class AttendanceService {
         return List.of(normalizePart(normalized));
     }
 
+    private String normalizeBulkScope(String scope) {
+        String normalized = scope == null || scope.isBlank()
+                ? "SELECTED"
+                : scope.trim().toUpperCase();
+        if (!normalized.equals("SELECTED") && !normalized.equals("ALL_PENDING")) {
+            throw ApiException.badRequest("批量审核范围只能是 SELECTED 或 ALL_PENDING");
+        }
+        return normalized;
+    }
+
+    private Set<Long> validBulkIds(List<Long> ids) {
+        if (ids == null) {
+            return Set.of();
+        }
+        return ids.stream()
+                .filter(id -> id != null && id > 0)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private List<AttendanceRecord> findBulkCandidates(Set<Long> ids) {
+        List<Long> orderedIds = List.copyOf(ids);
+        List<AttendanceRecord> candidates = new ArrayList<>(orderedIds.size());
+        for (int start = 0; start < orderedIds.size(); start += BULK_REVIEW_BATCH_SIZE) {
+            int end = Math.min(start + BULK_REVIEW_BATCH_SIZE, orderedIds.size());
+            candidates.addAll(records.findAllByIds(orderedIds.subList(start, end)));
+        }
+        return candidates;
+    }
+
+    private void approveInBatches(List<Long> ids, long reviewerId, boolean checkIn) {
+        for (int start = 0; start < ids.size(); start += BULK_REVIEW_BATCH_SIZE) {
+            int end = Math.min(start + BULK_REVIEW_BATCH_SIZE, ids.size());
+            List<Long> batch = ids.subList(start, end);
+            int[] counts = checkIn
+                    ? records.approveCheckIns(batch, reviewerId)
+                    : records.approveCheckOuts(batch, reviewerId);
+            requireCompleteBatch(counts, batch.size(), "批量审核时有记录状态发生变化");
+        }
+    }
+
+    private void recomputeInBatches(List<Long> ids) {
+        for (int start = 0; start < ids.size(); start += BULK_REVIEW_BATCH_SIZE) {
+            int end = Math.min(start + BULK_REVIEW_BATCH_SIZE, ids.size());
+            List<AttendanceRecord> reviewedRecords = records.findAllByIds(ids.subList(start, end));
+            if (reviewedRecords.size() != end - start) {
+                throw ApiException.conflict("批量审核时有记录已不存在，操作已回滚");
+            }
+            List<AttendanceRepository.EffectiveUpdate> updates = reviewedRecords.stream()
+                    .map(this::effectiveUpdate)
+                    .toList();
+            int[] counts = records.batchUpdateEffective(updates);
+            requireCompleteBatch(counts, updates.size(), "批量审核时有效时长更新失败");
+        }
+    }
+
+    private AttendanceRepository.EffectiveUpdate effectiveUpdate(AttendanceRecord record) {
+        if (ReviewStatus.REJECTED.name().equals(record.checkInStatus())
+                || ReviewStatus.REJECTED.name().equals(record.checkOutStatus())) {
+            return new AttendanceRepository.EffectiveUpdate(record.id(), 0, 0, "INVALID");
+        }
+        if ((record.requireDutyDay() && !record.dutyDay())
+                || (record.requireDutyPeriod() && !record.withinDutyPeriod())) {
+            return new AttendanceRepository.EffectiveUpdate(record.id(), 0, 0, "INVALID");
+        }
+        if (record.checkOutTime() == null || ReviewStatus.NOT_SUBMITTED.name().equals(record.checkOutStatus())) {
+            return new AttendanceRepository.EffectiveUpdate(record.id(), 0, 0, "INCOMPLETE");
+        }
+        if (!approved(record.checkInStatus()) || !approved(record.checkOutStatus())) {
+            return new AttendanceRepository.EffectiveUpdate(record.id(), 0, 0, "PENDING");
+        }
+        Duration duration = Duration.between(record.checkInTime(), record.checkOutTime());
+        if (duration.isNegative() || duration.isZero()) {
+            return new AttendanceRepository.EffectiveUpdate(record.id(), 0, 0, "INVALID");
+        }
+        long minutes = duration.toMinutes();
+        return new AttendanceRepository.EffectiveUpdate(
+                record.id(),
+                (int) minutes,
+                (int) ((minutes + 30) / 60),
+                "VALID"
+        );
+    }
+
+    private void requireCompleteBatch(int[] counts, int expected, String message) {
+        if (counts.length != expected) {
+            throw ApiException.conflict(message + "，操作已回滚");
+        }
+        for (int count : counts) {
+            if (count != 1 && count != Statement.SUCCESS_NO_INFO) {
+                throw ApiException.conflict(message + "，操作已回滚");
+            }
+        }
+    }
+
     public record PublicLookupResponse(
             boolean exists,
             boolean dutyDay,
@@ -656,9 +805,20 @@ public class AttendanceService {
     ) {
     }
 
-    public record BulkReviewRequest(List<Long> ids, String part) {
+    public record PendingReviewQueue(
+            List<AttendanceRecord> items,
+            long recordCount,
+            long itemCount,
+            boolean truncated
+    ) {
     }
 
-    public record BulkReviewResult(int reviewed, int skipped, List<String> errors) {
+    public record BulkReviewRequest(List<Long> ids, String part, String scope) {
+        public BulkReviewRequest(List<Long> ids, String part) {
+            this(ids, part, "SELECTED");
+        }
+    }
+
+    public record BulkReviewResult(int matched, int reviewed, int skipped, List<String> errors) {
     }
 }

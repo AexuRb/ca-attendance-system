@@ -47,6 +47,6 @@ public class AuthController {
                                @NotBlank @Size(max = 128) String password) {
     }
 
-    public record ChangePasswordRequest(@NotBlank String oldPassword, @NotBlank @Size(min = 6, max = 64) String newPassword) {
+    public record ChangePasswordRequest(@NotBlank String oldPassword, String newPassword) {
     }
 }

@@ -10,6 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -87,25 +88,70 @@ public class AttendanceRepository {
     }
 
     public List<AttendanceRecord> pendingForReviewer(long reviewerId, boolean minister) {
-        if (minister) {
-            return jdbc.query("""
-                    SELECT ar.*, u.role AS user_role
-                    FROM attendance_records ar
-                    JOIN users u ON u.id = ar.user_id
-                    WHERE (ar.check_in_status = 'PENDING' OR ar.check_out_status = 'PENDING')
-                      AND ar.user_id <> ?
-                    ORDER BY ar.duty_date DESC, ar.check_in_time DESC
-                    LIMIT 500
-                    """, mapper, reviewerId);
+        return pendingForReviewer(reviewerId, minister, true);
+    }
+
+    public List<AttendanceRecord> allPendingForReviewer(long reviewerId, boolean minister) {
+        return pendingForReviewer(reviewerId, minister, false);
+    }
+
+    public PendingReviewSummary pendingSummary(long reviewerId, boolean minister) {
+        List<Object> args = new ArrayList<>();
+        String reviewerClause = reviewerClause(minister, reviewerId, args);
+        return jdbc.queryForObject("""
+                SELECT COUNT(*) AS record_count,
+                       COALESCE(SUM(
+                         CASE WHEN ar.check_in_status = 'PENDING' THEN 1 ELSE 0 END
+                         + CASE WHEN ar.check_out_status = 'PENDING' THEN 1 ELSE 0 END
+                       ), 0) AS item_count
+                FROM attendance_records ar
+                WHERE (ar.check_in_status = 'PENDING' OR ar.check_out_status = 'PENDING')
+                """ + reviewerClause, (resultSet, rowNum) -> new PendingReviewSummary(
+                resultSet.getLong("record_count"),
+                resultSet.getLong("item_count")
+        ), args.toArray());
+    }
+
+    public void acquireReviewWriteLock(long reviewerId) {
+        jdbc.update("UPDATE users SET updated_at = updated_at WHERE id = ?", reviewerId);
+    }
+
+    public List<AttendanceRecord> findAllByIds(List<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
         }
+        String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
         return jdbc.query("""
                 SELECT ar.*, u.role AS user_role
                 FROM attendance_records ar
                 JOIN users u ON u.id = ar.user_id
-                WHERE ar.check_in_status = 'PENDING' OR ar.check_out_status = 'PENDING'
-                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
-                LIMIT 500
-                """, mapper);
+                WHERE ar.id IN (%s)
+                ORDER BY ar.id
+                """.formatted(placeholders), mapper, ids.toArray());
+    }
+
+    public int[] approveCheckIns(List<Long> ids, long reviewerId) {
+        return batchApprove(ids, reviewerId, true);
+    }
+
+    public int[] approveCheckOuts(List<Long> ids, long reviewerId) {
+        return batchApprove(ids, reviewerId, false);
+    }
+
+    public int[] batchUpdateEffective(List<EffectiveUpdate> updates) {
+        return jdbc.batchUpdate("""
+                UPDATE attendance_records
+                SET duration_minutes = ?, valid_hours = ?, effective_status = ?,
+                    updated_at = datetime('now', 'localtime')
+                WHERE id = ?
+                """, updates.stream()
+                .map(update -> new Object[]{
+                        update.durationMinutes(),
+                        update.validHours(),
+                        update.effectiveStatus(),
+                        update.id()
+                })
+                .toList());
     }
 
     public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
@@ -266,6 +312,44 @@ public class AttendanceRepository {
         return result.wasNull() ? null : value;
     }
 
+    private List<AttendanceRecord> pendingForReviewer(long reviewerId, boolean minister, boolean limited) {
+        List<Object> args = new ArrayList<>();
+        String reviewerClause = reviewerClause(minister, reviewerId, args);
+        return jdbc.query("""
+                SELECT ar.*, u.role AS user_role
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                WHERE (ar.check_in_status = 'PENDING' OR ar.check_out_status = 'PENDING')
+                """ + reviewerClause + """
+
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
+                """ + (limited ? " LIMIT 500" : ""), mapper, args.toArray());
+    }
+
+    private String reviewerClause(boolean minister, long reviewerId, List<Object> args) {
+        if (!minister) {
+            return "";
+        }
+        args.add(reviewerId);
+        return " AND ar.user_id <> ?";
+    }
+
+    private int[] batchApprove(List<Long> ids, long reviewerId, boolean checkIn) {
+        String columnPrefix = checkIn ? "check_in" : "check_out";
+        return jdbc.batchUpdate("""
+                UPDATE attendance_records
+                SET %1$s_status = 'APPROVED',
+                    %1$s_reviewed_by = ?,
+                    %1$s_reviewed_at = datetime('now', 'localtime'),
+                    %1$s_reject_reason = NULL,
+                    updated_by = ?,
+                    updated_at = datetime('now', 'localtime')
+                WHERE id = ? AND %1$s_status = 'PENDING'
+                """.formatted(columnPrefix), ids.stream()
+                .map(id -> new Object[]{reviewerId, reviewerId, id})
+                .toList());
+    }
+
     private SearchQuery searchQuery(LocalDate from, LocalDate to, String studentNo, String status) {
         String keywordLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
         String effectiveStatus = status == null || status.isBlank() ? "%" : status;
@@ -283,6 +367,12 @@ public class AttendanceRepository {
     }
 
     public record AttendancePage(List<AttendanceRecord> items, long total, int page, int pageSize) {
+    }
+
+    public record PendingReviewSummary(long recordCount, long itemCount) {
+    }
+
+    public record EffectiveUpdate(long id, int durationMinutes, int validHours, String effectiveStatus) {
     }
 
     private record SearchQuery(String where, List<Object> args) {

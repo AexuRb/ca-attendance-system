@@ -47,6 +47,7 @@ const actionLabels: Record<string, string> = {
   RESTORE_REPAIR_CASE: "恢复维修事务",
   PURGE_REPAIR_CASE: "彻底删除维修事务",
   EXPORT_CUSTOM_DATA: "自定义导出数据",
+  EXPORT_DATA: "导出业务数据",
   REMOTE_LOGIN_SUCCESS: "远程登录成功",
   REMOTE_LOGIN_FAILURE: "远程登录失败",
   SEED_DEMO_DATA: "初始化演示数据",
@@ -64,6 +65,7 @@ const targetLabels: Record<string, string> = {
   system: "系统",
   remote_auth: "远程登录",
   custom_export: "数据导出",
+  data_exports: "数据导出",
 };
 
 const fieldLabels: Record<string, string> = {
@@ -87,6 +89,21 @@ const fieldLabels: Record<string, string> = {
   checkInStatus: "签到审核",
   checkOutStatus: "签退审核",
   effectiveStatus: "有效状态",
+  exportType: "导出类型",
+  exportLabel: "导出内容",
+  operatorRole: "操作人角色",
+  filters: "筛选条件",
+  rows: "数据行数",
+  filename: "文件名",
+  details: "导出详情",
+  fields: "导出字段",
+  sessionRows: "培训场次行数",
+  memberRows: "成员统计行数",
+  from: "开始日期",
+  to: "结束日期",
+  keyword: "关键词",
+  actionType: "操作类型",
+  source: "数据源",
   validHours: "有效时长",
   durationMinutes: "分钟数",
   durationHours: "时长",
@@ -139,6 +156,18 @@ const valueLabels: Record<string, string> = {
   PERSONAL_DEVICE: "维修协议",
   DISCLAIMER: "免责协议",
   PUBLIC_DEVICE: "免责协议",
+  ATTENDANCE_STATS: "值班统计",
+  TRAINING_SESSION: "培训名单",
+  TRAINING_SUMMARY: "培训统计",
+  REPAIR_CASES: "维修事务",
+  OPERATION_LOGS: "操作日志",
+  CUSTOM_MEMBERS: "自定义导出成员",
+  CUSTOM_ATTENDANCE: "自定义导出值班记录",
+  CUSTOM_TRAINING: "自定义导出培训记录",
+  CUSTOM_TRAININGS: "自定义导出培训记录",
+  CUSTOM_SCHEDULE: "自定义导出部长排班",
+  CUSTOM_REPAIRS: "自定义导出维修事务",
+  CUSTOM_LOGS: "自定义导出操作日志",
 };
 
 export function auditActionLabel(value?: string) {
@@ -209,9 +238,15 @@ function formatAuditValue(value: unknown, key: string): string {
       )
       .filter(Boolean);
     if (names.length === value.length && names.length) return names.join("、");
+    if (key === "fields") {
+      return value
+        .map((item) => typeof item === "string" ? fieldLabels[item] || item : compactValue(item))
+        .join("、") || "—";
+    }
     return value.map((item) => compactValue(item)).join("、") || "—";
   }
 
+  if (typeof value === "object") return formatAuditObject(value as Record<string, unknown>);
   return compactValue(value);
 }
 
@@ -247,4 +282,12 @@ function compactValue(value: unknown) {
   if (typeof value === "boolean") return value ? "是" : "否";
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function formatAuditObject(value: Record<string, unknown>) {
+  const entries = Object.entries(value);
+  if (!entries.length) return "无";
+  return entries
+    .map(([key, item]) => `${fieldLabels[key] || key}：${formatAuditValue(item, key)}`)
+    .join("；");
 }

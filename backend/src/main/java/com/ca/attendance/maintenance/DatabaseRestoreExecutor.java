@@ -2,11 +2,15 @@ package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.JdbcTime;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.sql.Timestamp;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -17,6 +21,8 @@ import java.util.Map;
 import java.util.Set;
 
 final class DatabaseRestoreExecutor {
+    private static final TypeReference<LinkedHashMap<String, Object>> ROW_TYPE = new TypeReference<>() {
+    };
     private final JdbcTemplate jdbc;
     private final ObjectMapper objectMapper;
 
@@ -35,7 +41,7 @@ final class DatabaseRestoreExecutor {
         }
         for (String table : BackupSchema.RESTORE_TABLE_ORDER) {
             if (shouldRestore(payload, table)) {
-                restoredRows.put(table, restoreTable(table, payload.rows().get(table)));
+                restoredRows.put(table, restoreTable(table, payload.tableFiles().get(table)));
             }
         }
         synchronizeRepairCaseSequences();
@@ -58,33 +64,51 @@ final class DatabaseRestoreExecutor {
                 """);
     }
 
-    private int restoreTable(String table, List<? extends Map<String, Object>> rows) {
-        if (rows == null || rows.isEmpty()) {
+    private int restoreTable(String table, java.nio.file.Path tableFile) {
+        if (tableFile == null) {
             return 0;
         }
-        int count = 0;
-        for (Map<String, Object> row : rows) {
-            List<String> columns = new ArrayList<>(row.keySet());
-            String columnSql = columns.stream().map(this::quote).reduce((left, right) -> left + ", " + right).orElse("");
-            String placeholders = columns.stream().map(column -> "?").reduce((left, right) -> left + ", " + right).orElse("");
-            Object[] values = columns.stream()
-                    .map(column -> restoreValue(table, column, row.get(column)))
-                    .toArray();
-            jdbc.update("INSERT INTO " + table + " (" + columnSql + ") VALUES (" + placeholders + ")", values);
-            count++;
+        try (JsonParser parser = objectMapper.getFactory().createParser(tableFile.toFile())) {
+            if (parser.nextToken() != JsonToken.START_ARRAY) {
+                throw ApiException.badRequest(table + " 数据格式不正确");
+            }
+            int count = 0;
+            JsonToken token;
+            while ((token = parser.nextToken()) != JsonToken.END_ARRAY) {
+                Map<String, Object> row = objectMapper.readValue(parser, ROW_TYPE);
+                insertRow(table, row);
+                count++;
+            }
+            return count;
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (IOException ex) {
+            throw ApiException.badRequest(table + " 数据格式不正确");
         }
-        return count;
+    }
+
+    private void insertRow(String table, Map<String, Object> row) {
+        List<String> columns = new ArrayList<>(row.keySet());
+        String columnSql = columns.stream().map(this::quote).reduce((left, right) -> left + ", " + right).orElse("");
+        String placeholders = columns.stream().map(column -> "?").reduce((left, right) -> left + ", " + right).orElse("");
+        Object[] values = columns.stream()
+                .map(column -> restoreValue(table, column, row.get(column)))
+                .toArray();
+        jdbc.update("INSERT INTO " + table + " (" + columnSql + ") VALUES (" + placeholders + ")", values);
     }
 
     private boolean shouldRestore(BackupRestorePayload payload, String table) {
-        return payload.rows().containsKey(table) || !BackupSchema.OPTIONAL_RESTORE_TABLES.contains(table);
+        return payload.tableFiles().containsKey(table) || !BackupSchema.OPTIONAL_RESTORE_TABLES.contains(table);
     }
 
     private boolean shouldClear(BackupRestorePayload payload, String table) {
-        return !"app_settings".equals(table) || payload.rows().containsKey(table);
+        return !"app_settings".equals(table) || payload.tableFiles().containsKey(table);
     }
 
     private Object restoreValue(String table, String column, Object value) {
+        if ("training_participants".equals(table) && "attendance_status".equals(column)) {
+            return "PRESENT";
+        }
         if (value == null) {
             return null;
         }

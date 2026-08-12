@@ -29,11 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 @Service
 public class UserService {
-    private static final Pattern STUDENT_NO_PATTERN = Pattern.compile("\\d{1,32}");
     private static final int IMPORT_ISSUE_LIMIT = 20;
     private static final int MAX_PAGE_SIZE = 100;
 
@@ -43,15 +41,18 @@ public class UserService {
     private final OperationLogService logs;
     private final BackupService backups;
     private final TokenService tokens;
+    private final UserDeletionHistoryGuard deletionHistory;
 
     public UserService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder,
-                       OperationLogService logs, BackupService backups, TokenService tokens) {
+                       OperationLogService logs, BackupService backups, TokenService tokens,
+                       UserDeletionHistoryGuard deletionHistory) {
         this.users = users;
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
         this.logs = logs;
         this.backups = backups;
         this.tokens = tokens;
+        this.deletionHistory = deletionHistory;
     }
 
     public List<UserSummary> search(String keyword, String role, String status, String grade) {
@@ -77,8 +78,13 @@ public class UserService {
         requireCreateUsers();
         Role role = parseRole(request.role() == null || request.role().isBlank() ? "MEMBER" : request.role());
         validateRoleAssignment(current.role(), null, role);
-        String studentNo = required(request.studentNo(), "学号不能为空");
-        String password = studentNo.length() <= 6 ? studentNo : studentNo.substring(studentNo.length() - 6);
+        String studentNo = UserInputPolicy.newStudentNo(request.studentNo());
+        String password = UserInputPolicy.defaultPassword(studentNo);
+        String name = UserInputPolicy.name(request.name());
+        String phone = UserInputPolicy.phone(request.phone());
+        String college = UserInputPolicy.college(request.major());
+        String grade = normalizeGrade(request.grade());
+        String qq = UserInputPolicy.qq(request.qq());
         try {
             jdbc.update("""
                     INSERT INTO users (
@@ -88,13 +94,13 @@ public class UserService {
                     VALUES (?, ?, ?, ?, 'ACTIVE', ?, ?, ?, ?, 1, ?, ?)
                     """,
                     studentNo,
-                    required(request.name(), "姓名不能为空"),
+                    name,
                     passwordEncoder.encode(password),
                     role.name(),
-                    blankToNull(request.phone()),
-                    blankToNull(request.major()),
-                    normalizeGrade(request.grade()),
-                    blankToNull(request.qq()),
+                    phone,
+                    college,
+                    grade,
+                    qq,
                     current.id(),
                     current.id()
             );
@@ -138,12 +144,15 @@ public class UserService {
 
     public void updateProfile(ProfileRequest request) {
         AuthUser current = AuthContext.current();
+        String phone = UserInputPolicy.phone(request.phone());
+        String college = UserInputPolicy.college(request.major());
+        String grade = normalizeGrade(request.grade());
+        String qq = UserInputPolicy.qq(request.qq());
         jdbc.update("""
                 UPDATE users
                 SET phone = ?, major = ?, grade = ?, qq = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
-                """, blankToNull(request.phone()), blankToNull(request.major()), normalizeGrade(request.grade()),
-                blankToNull(request.qq()), current.id(), current.id());
+                """, phone, college, grade, qq, current.id(), current.id());
     }
 
     @Transactional
@@ -161,6 +170,12 @@ public class UserService {
             throw ApiException.badRequest("账号状态只能是 ACTIVE 或 DISABLED");
         }
         protectAdminContinuity(current, before, targetRole, targetStatus);
+        String name = UserInputPolicy.name(request.name() == null ? before.name() : request.name());
+        String phone = UserInputPolicy.phone(request.phone() == null ? before.phone() : request.phone());
+        String college = UserInputPolicy.college(request.major() == null ? before.major() : request.major());
+        String grade = normalizeGrade(request.grade() == null ? before.grade() : request.grade());
+        String qq = UserInputPolicy.qq(request.qq() == null ? before.qq() : request.qq());
+        String reason = UserInputPolicy.reason(request.reason());
         jdbc.update("""
                 UPDATE users
                 SET name = ?, role = ?, status = ?, phone = ?, major = ?, grade = ?, qq = ?,
@@ -169,13 +184,13 @@ public class UserService {
                     updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """,
-                required(request.name() == null ? before.name() : request.name(), "姓名不能为空"),
+                name,
                 targetRole.name(),
                 targetStatus,
-                blankToNull(request.phone() == null ? before.phone() : request.phone()),
-                blankToNull(request.major() == null ? before.major() : request.major()),
-                normalizeGrade(request.grade() == null ? before.grade() : request.grade()),
-                blankToNull(request.qq() == null ? before.qq() : request.qq()),
+                phone,
+                college,
+                grade,
+                qq,
                 targetStatus,
                 targetStatus,
                 current.id(),
@@ -184,7 +199,7 @@ public class UserService {
         );
         tokens.revokeUser(id);
         UserSummary after = users.findSummaryById(id).orElseThrow();
-        logs.log("UPDATE_USER", "users", id, before, after, request.reason() == null ? "修改成员信息" : request.reason());
+        logs.log("UPDATE_USER", "users", id, before, after, reason == null ? "修改成员信息" : reason);
         return after;
     }
 
@@ -198,8 +213,11 @@ public class UserService {
         }
         String password = request.newPassword();
         if (password == null || password.isBlank()) {
-            password = target.studentNo().substring(Math.max(0, target.studentNo().length() - 6));
+            password = UserInputPolicy.defaultPassword(target.studentNo());
+        } else {
+            password = UserInputPolicy.password(password);
         }
+        String reason = UserInputPolicy.reason(request.reason());
         jdbc.update("""
                 UPDATE users
                 SET password_hash = ?, must_change_password = 1, updated_by = ?, updated_at = datetime('now', 'localtime')
@@ -207,7 +225,7 @@ public class UserService {
                 """, passwordEncoder.encode(password), current.id(), id);
         tokens.revokeUser(id);
         logs.log("RESET_PASSWORD", "users", id, Map.of("studentNo", target.studentNo()), Map.of("mustChangePassword", true),
-                request.reason() == null ? "重置密码" : request.reason());
+                reason == null ? "重置密码" : reason);
     }
 
     @Transactional
@@ -219,32 +237,40 @@ public class UserService {
         if (current.id() == id) {
             throw ApiException.badRequest("不能删除当前登录账号");
         }
-        UserSummary target = users.findSummaryById(id).orElseThrow(() -> ApiException.notFound("用户不存在"));
-        Integer recordCount = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM attendance_records WHERE user_id = ?",
-                Integer.class,
-                id
-        );
-        if (recordCount != null && recordCount > 0) {
-            throw ApiException.badRequest("该成员已有值班记录，不能删除，请改为停用账号");
-        }
-        if (reason == null || reason.isBlank()) {
+        String normalizedReason = UserInputPolicy.reason(reason);
+        if (normalizedReason == null) {
             throw ApiException.badRequest("删除成员必须填写原因");
         }
+        int locked = jdbc.update("UPDATE users SET updated_at = updated_at WHERE id = ?", id);
+        if (locked != 1) {
+            throw ApiException.notFound("用户不存在或已被删除");
+        }
+        UserSummary target = users.findSummaryById(id).orElseThrow(() -> ApiException.notFound("用户不存在"));
+        rejectDeletionWithHistory(id, target.studentNo());
         BackupService.BackupItem safetyBackup = backups.create();
         int deleted = jdbc.update("DELETE FROM users WHERE id = ?", id);
         if (deleted != 1) {
             throw ApiException.notFound("用户不存在或已被删除");
         }
         logs.log("DELETE_USER", "users", id, target, Map.of("deleted", true),
-                reason.trim() + "；删除前自动备份：" + safetyBackup.filename());
+                normalizedReason + "；删除前自动备份：" + safetyBackup.filename());
         tokens.revokeUser(id);
+    }
+
+    private void rejectDeletionWithHistory(long id, String studentNo) {
+        List<String> references = deletionHistory.findReferences(id, studentNo);
+        if (!references.isEmpty()) {
+            throw ApiException.conflict(
+                    "该成员已有" + String.join("、", references) + "，不能永久删除，请改为停用账号"
+            );
+        }
     }
 
     @Transactional
     public BulkStatusResult bulkStatus(BulkStatusRequest request) {
         AuthUser current = AuthContext.current();
         requireManageUsers();
+        String reason = UserInputPolicy.reason(request.reason());
         List<Long> targetIds = request.ids() == null || request.ids().isEmpty()
                 ? users.searchIds(request.keyword(), request.role(), request.statusFilter(), request.grade())
                 : request.ids();
@@ -326,7 +352,7 @@ public class UserService {
         logs.log("BULK_UPDATE_USER_STATUS", "users", null,
                 Map.of("ids", seenIds, "targetStatus", targetStatus),
                 result,
-                bulkStatusReason(request.reason(), safetyBackup));
+                bulkStatusReason(reason, safetyBackup));
         changes.forEach(target -> tokens.revokeUser(target.id()));
         return result;
     }
@@ -360,15 +386,27 @@ public class UserService {
                 continue;
             }
 
-            String studentNo = candidate.studentNo().replaceAll("\\s+", "");
-            if (candidate.name().isBlank() || studentNo.isBlank()) {
+            String studentNo;
+            String name;
+            String phone;
+            String college;
+            String grade;
+            String qq;
+            boolean existing;
+            try {
+                studentNo = UserInputPolicy.accountReference(candidate.studentNo());
+                existing = userExists(studentNo);
+                if (!existing) {
+                    studentNo = UserInputPolicy.newStudentNo(studentNo);
+                }
+                name = UserInputPolicy.name(candidate.name());
+                phone = UserInputPolicy.phone(candidate.phone());
+                college = UserInputPolicy.college(candidate.major());
+                grade = normalizeGrade(candidate.grade());
+                qq = UserInputPolicy.qq(candidate.qq());
+            } catch (ApiException ex) {
                 skipped++;
-                addImportIssue(issues, "第 " + (i + 1) + " 行：缺少姓名或学号");
-                continue;
-            }
-            if (!STUDENT_NO_PATTERN.matcher(studentNo).matches()) {
-                skipped++;
-                addImportIssue(issues, "第 " + (i + 1) + " 行：学号格式不正确");
+                addImportIssue(issues, "第 " + (i + 1) + " 行：" + ex.getMessage());
                 continue;
             }
             if (!seenStudentNos.add(studentNo)) {
@@ -377,16 +415,7 @@ public class UserService {
                 continue;
             }
 
-            String grade;
-            try {
-                grade = normalizeGrade(candidate.grade());
-            } catch (ApiException ex) {
-                skipped++;
-                addImportIssue(issues, "第 " + (i + 1) + " 行：" + ex.getMessage());
-                continue;
-            }
-
-            if (userExists(studentNo)) {
+            if (existing) {
                 if (userRole(studentNo) == Role.ADMIN && current.role() != Role.ADMIN) {
                     skipped++;
                     addImportIssue(issues, "第 " + (i + 1) + " 行：会长不能通过导入修改管理员账号");
@@ -398,17 +427,17 @@ public class UserService {
                             updated_by = ?, updated_at = datetime('now', 'localtime')
                         WHERE student_no = ?
                         """,
-                        candidate.name(),
-                        blankToNull(candidate.phone()),
-                        blankToNull(candidate.major()),
+                        name,
+                        phone,
+                        college,
                         grade,
-                        blankToNull(candidate.qq()),
+                        qq,
                         current.id(),
                         studentNo
                 );
                 updated++;
             } else {
-                String password = studentNo.length() <= 6 ? studentNo : studentNo.substring(studentNo.length() - 6);
+                String password = UserInputPolicy.defaultPassword(studentNo);
                 jdbc.update("""
                         INSERT INTO users (
                           student_no, name, password_hash, role, status, phone, major, grade, qq,
@@ -417,12 +446,12 @@ public class UserService {
                         VALUES (?, ?, ?, 'MEMBER', 'ACTIVE', ?, ?, ?, ?, 1, ?, ?)
                         """,
                         studentNo,
-                        candidate.name(),
+                        name,
                         passwordEncoder.encode(password),
-                        blankToNull(candidate.phone()),
-                        blankToNull(candidate.major()),
+                        phone,
+                        college,
                         grade,
-                        blankToNull(candidate.qq()),
+                        qq,
                         current.id(),
                         current.id()
                 );
@@ -612,19 +641,8 @@ public class UserService {
         }
     }
 
-    private String required(String value, String message) {
-        if (value == null || value.isBlank()) {
-            throw ApiException.badRequest(message);
-        }
-        return value.trim();
-    }
-
-    private String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
     private String normalizeGrade(String value) {
-        String text = blankToNull(value);
+        String text = UserInputPolicy.grade(value);
         if (text == null) {
             return null;
         }

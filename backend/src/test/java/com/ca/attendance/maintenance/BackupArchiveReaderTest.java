@@ -2,10 +2,14 @@ package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,16 +22,28 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BackupArchiveReaderTest {
-    private final BackupArchiveReader reader = new BackupArchiveReader();
+    @TempDir
+    Path tempDirectory;
+
+    private BackupArchiveReader reader;
+
+    @BeforeEach
+    void setUp() {
+        reader = new BackupArchiveReader(tempDirectory);
+    }
 
     @Test
     void readsOnlySupportedTopLevelEntries() throws Exception {
         byte[] metadata = "{}".getBytes(StandardCharsets.UTF_8);
         MockMultipartFile upload = zipUpload(Map.of("metadata.json", metadata));
 
-        Map<String, byte[]> entries = reader.readEntries(upload, Set.of("metadata.json"));
-
-        assertArrayEquals(metadata, entries.get("metadata.json"));
+        Path extractedDirectory;
+        try (ExtractedBackupArchive archive = reader.extract(upload, Set.of("metadata.json"))) {
+            extractedDirectory = archive.directory();
+            assertArrayEquals(metadata, Files.readAllBytes(archive.entry("metadata.json")));
+            assertTrue(Files.isDirectory(extractedDirectory));
+        }
+        assertTrue(Files.notExists(extractedDirectory));
     }
 
     @Test
@@ -36,7 +52,7 @@ class BackupArchiveReaderTest {
 
         ApiException error = assertThrows(
                 ApiException.class,
-                () -> reader.readEntries(upload, Set.of("users.json"))
+                () -> reader.extract(upload, Set.of("users.json"))
         );
 
         assertTrue(error.getMessage().contains("结构不正确"));
@@ -48,7 +64,7 @@ class BackupArchiveReaderTest {
 
         ApiException error = assertThrows(
                 ApiException.class,
-                () -> reader.readEntries(upload, Set.of("users.json"))
+                () -> reader.extract(upload, Set.of("users.json"))
         );
 
         assertTrue(error.getMessage().contains("不支持的条目"));
@@ -67,7 +83,7 @@ class BackupArchiveReaderTest {
 
         ApiException error = assertThrows(
                 ApiException.class,
-                () -> reader.readEntries(upload, Set.of("metadata.json"))
+                () -> reader.extract(upload, Set.of("metadata.json"))
         );
 
         assertTrue(error.getMessage().contains("重复条目"));
@@ -85,10 +101,13 @@ class BackupArchiveReaderTest {
 
         ApiException error = assertThrows(
                 ApiException.class,
-                () -> reader.readEntries(zipUpload(entries), supported)
+                () -> reader.extract(zipUpload(entries), supported)
         );
 
         assertTrue(error.getMessage().contains("过多条目"));
+        try (var children = Files.list(tempDirectory)) {
+            assertTrue(children.findAny().isEmpty(), "失败的解压不应遗留临时目录");
+        }
     }
 
     private MockMultipartFile zipUpload(Map<String, byte[]> entries) throws Exception {

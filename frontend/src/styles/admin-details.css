@@ -836,6 +836,13 @@
   color: var(--blue-600);
 }
 
+.refined-admin-layout .filter-summary small {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-500);
+  font-size: 10px;
+}
+
 .refined-admin-layout .review-list {
   display: grid;
   border-top: 1px solid #c9e0eb;

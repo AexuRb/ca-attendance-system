@@ -109,27 +109,27 @@ public class BackupService {
                 RolePermissionPolicy.Permission.BACKUP_ADMIN,
                 "只有管理员可以恢复备份"
         );
-        Map<String, byte[]> entries = archiveReader.readEntries(file, restoreValidator.supportedEntries());
-        BackupRestorePayload payload = restoreValidator.parse(entries);
-
-        RestoreResult result = transactions.execute(status -> {
-            BackupItem safetyBackup = createBackup(
-                    current.studentNo(),
-                    current.name(),
-                    "恢复前安全备份"
-            );
-            try {
-                return restorePayload(payload, safetyBackup, current);
-            } catch (DataAccessException ex) {
-                status.setRollbackOnly();
-                throw ApiException.badRequest("备份数据不符合当前数据库约束，未修改现有数据");
-            } catch (RuntimeException ex) {
-                status.setRollbackOnly();
-                throw ex;
-            }
-        });
-        tokenService.revokeAll();
-        return result;
+        try (ExtractedBackupArchive archive = archiveReader.extract(file, restoreValidator.supportedEntries())) {
+            BackupRestorePayload payload = restoreValidator.parse(archive);
+            RestoreResult result = transactions.execute(status -> {
+                BackupItem safetyBackup = createBackup(
+                        current.studentNo(),
+                        current.name(),
+                        "恢复前安全备份"
+                );
+                try {
+                    return restorePayload(payload, safetyBackup, current);
+                } catch (DataAccessException ex) {
+                    status.setRollbackOnly();
+                    throw ApiException.badRequest("备份数据不符合当前数据库约束，未修改现有数据");
+                } catch (RuntimeException ex) {
+                    status.setRollbackOnly();
+                    throw ex;
+                }
+            });
+            tokenService.revokeAll();
+            return result;
+        }
     }
 
     private synchronized BackupItem createBackup(
@@ -143,7 +143,7 @@ public class BackupService {
             archiveWriter.write(
                     pending.temporary(),
                     metadata(operatorStudentNo, operatorName, reason),
-                    exporter.capture(),
+                    exporter,
                     BACKUP_README
             );
             files.publish(pending);

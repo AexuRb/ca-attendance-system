@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,6 +46,7 @@ import static com.ca.attendance.common.JdbcTime.localDateTime;
 
 @Service
 public class RepairCaseService {
+    private static final int MAX_PAGE_SIZE = 100;
     private static final DateTimeFormatter CASE_DAY = DateTimeFormatter.BASIC_ISO_DATE;
     private static final DateTimeFormatter HUMAN_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final DateTimeFormatter AGREEMENT_DATE = DateTimeFormatter.ofPattern("yyyy 年 MM 月 dd 日");
@@ -173,52 +175,29 @@ public class RepairCaseService {
         requireManager(AuthContext.current());
         LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
         LocalDate end = to == null ? LocalDate.now() : to;
-        if (start.isAfter(end)) {
-            throw ApiException.badRequest("开始日期不能晚于结束日期");
-        }
+        RepairQuery query = buildQuery(keyword, status, start, end, true);
+        return queryCases(query.where(), query.args().toArray());
+    }
 
-        List<Object> args = new ArrayList<>();
-        args.add(Timestamp.valueOf(start.atStartOfDay()));
-        args.add(Timestamp.valueOf(end.plusDays(1).atStartOfDay()));
-        StringBuilder where = new StringBuilder("""
-                WHERE r.deleted_at IS NULL
-                  AND r.received_at >= ?
-                  AND r.received_at < ?
-                """);
-
-        String normalizedStatus = status == null || status.isBlank() ? "" : status.trim().toUpperCase(Locale.ROOT);
-        if (normalizedStatus.isBlank()) {
-            appendInProgressFilter(where);
-        } else if (!"ALL".equals(normalizedStatus)) {
-            String parsedStatus = parseStatus(normalizedStatus);
-            if ("REPAIRING".equals(parsedStatus)) {
-                appendInProgressFilter(where);
-            } else {
-                where.append("AND r.status = ?\n");
-                args.add(parsedStatus);
-            }
+    public RepairPage page(String keyword, String status, LocalDate from, LocalDate to, int page, int pageSize) {
+        requireManager(AuthContext.current());
+        LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
+        LocalDate end = to == null ? LocalDate.now() : to;
+        if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status.trim())) {
+            throw ApiException.badRequest("分页查询必须指定维修状态");
         }
-
-        if (keyword != null && !keyword.isBlank()) {
-            where.append("""
-                    AND (
-                      r.case_no LIKE ?
-                      OR r.owner_name LIKE ?
-                      OR r.owner_phone LIKE ?
-                      OR r.device_type LIKE ?
-                      OR r.device_brand LIKE ?
-                      OR r.device_model LIKE ?
-                      OR r.fault_description LIKE ?
-                      OR r.service_description LIKE ?
-                      OR r.handler_name_snapshot LIKE ?
-                    )
-                    """);
-            String like = "%" + keyword.trim() + "%";
-            for (int i = 0; i < 9; i++) {
-                args.add(like);
-            }
-        }
-        return queryCases(where.toString(), args.toArray());
+        int safePage = Math.max(1, page);
+        int safePageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+        RepairQuery query = buildQuery(keyword, status, start, end, false);
+        Long totalValue = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM repair_cases r " + query.where(),
+                Long.class,
+                query.args().toArray()
+        );
+        long total = totalValue == null ? 0 : totalValue;
+        List<RepairCaseItem> items = queryCasesPage(
+                query.where(), query.args(), safePageSize, (safePage - 1) * safePageSize);
+        return new RepairPage(items, total, safePage, safePageSize, (long) safePage * safePageSize < total);
     }
 
     public List<UserRepository.UserCandidate> handlerCandidates(String keyword) {
@@ -323,7 +302,16 @@ public class RepairCaseService {
         LocalDate end = to == null ? LocalDate.now() : to;
         List<RepairCaseItem> rows = list(keyword, status, start, end);
         String filename = "维修事务_" + start + "_" + end + ".xlsx";
-        return new ExportFile(filename, workbookBytes(wb -> writeWorkbook(wb, rows, start, end)));
+        byte[] bytes = workbookBytes(wb -> writeWorkbook(wb, rows, start, end));
+        Map<String, Object> filters = new LinkedHashMap<>();
+        filters.put("from", start.toString());
+        filters.put("to", end.toString());
+        filters.put("status", status == null || status.isBlank() ? "IN_PROGRESS" : status.trim().toUpperCase(Locale.ROOT));
+        if (keyword != null && !keyword.isBlank()) {
+            filters.put("keyword", keyword.trim());
+        }
+        logs.logExport("REPAIR_CASES", "维修事务", filters, rows.size(), filename);
+        return new ExportFile(filename, bytes);
     }
 
     public AgreementFile agreement(long id) {
@@ -407,6 +395,21 @@ public class RepairCaseService {
     }
 
     private List<RepairCaseItem> queryCases(String where, Object... args) {
+        return queryCases(where, List.of(args), null, null);
+    }
+
+    private List<RepairCaseItem> queryCasesPage(String where, List<Object> args, int limit, int offset) {
+        return queryCases(where, args, limit, offset);
+    }
+
+    private List<RepairCaseItem> queryCases(String where, List<Object> args, Integer limit, Integer offset) {
+        List<Object> queryArgs = new ArrayList<>(args);
+        String pagination = "";
+        if (limit != null && offset != null) {
+            pagination = "\nLIMIT ? OFFSET ?";
+            queryArgs.add(limit);
+            queryArgs.add(offset);
+        }
         return jdbc.query("""
                 SELECT r.*,
                        cb.name AS created_by_name,
@@ -430,7 +433,60 @@ public class RepairCaseService {
                   END,
                   r.received_at DESC,
                   r.id DESC
-                """, mapper, args);
+                """ + pagination, mapper, queryArgs.toArray());
+    }
+
+    private RepairQuery buildQuery(String keyword, String status, LocalDate start, LocalDate end,
+                                   boolean allowAllStatuses) {
+        if (start.isAfter(end)) {
+            throw ApiException.badRequest("开始日期不能晚于结束日期");
+        }
+        List<Object> args = new ArrayList<>();
+        args.add(Timestamp.valueOf(start.atStartOfDay()));
+        args.add(Timestamp.valueOf(end.plusDays(1).atStartOfDay()));
+        StringBuilder where = new StringBuilder("""
+                WHERE r.deleted_at IS NULL
+                  AND r.received_at >= ?
+                  AND r.received_at < ?
+                """);
+
+        String normalizedStatus = status == null || status.isBlank() ? "" : status.trim().toUpperCase(Locale.ROOT);
+        if (normalizedStatus.isBlank()) {
+            appendInProgressFilter(where);
+        } else if ("ALL".equals(normalizedStatus)) {
+            if (!allowAllStatuses) {
+                throw ApiException.badRequest("分页查询必须指定维修状态");
+            }
+        } else {
+            String parsedStatus = parseStatus(normalizedStatus);
+            if ("REPAIRING".equals(parsedStatus)) {
+                appendInProgressFilter(where);
+            } else {
+                where.append("AND r.status = ?\n");
+                args.add(parsedStatus);
+            }
+        }
+
+        if (keyword != null && !keyword.isBlank()) {
+            where.append("""
+                    AND (
+                      r.case_no LIKE ?
+                      OR r.owner_name LIKE ?
+                      OR r.owner_phone LIKE ?
+                      OR r.device_type LIKE ?
+                      OR r.device_brand LIKE ?
+                      OR r.device_model LIKE ?
+                      OR r.fault_description LIKE ?
+                      OR r.service_description LIKE ?
+                      OR r.handler_name_snapshot LIKE ?
+                    )
+                    """);
+            String like = "%" + keyword.trim() + "%";
+            for (int i = 0; i < 9; i++) {
+                args.add(like);
+            }
+        }
+        return new RepairQuery(where.toString(), args);
     }
 
     private void appendInProgressFilter(StringBuilder where) {
@@ -1265,6 +1321,9 @@ public class RepairCaseService {
     public record ExportFile(String filename, byte[] bytes) {
     }
 
+    public record RepairPage(List<RepairCaseItem> items, long total, int page, int pageSize, boolean hasMore) {
+    }
+
     public record AgreementFile(String filename, byte[] bytes) {
     }
 
@@ -1293,6 +1352,9 @@ public class RepairCaseService {
             String handlerName,
             String remark
     ) {
+    }
+
+    private record RepairQuery(String where, List<Object> args) {
     }
 
     private record HandlerSelection(Long userId, String name) {

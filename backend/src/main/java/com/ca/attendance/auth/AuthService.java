@@ -4,6 +4,7 @@ import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.user.UserRepository;
+import com.ca.attendance.user.UserInputPolicy;
 import com.ca.attendance.user.UserSummary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -81,8 +82,9 @@ public class AuthService {
         if (!passwordEncoder.matches(oldPassword, user.passwordHash())) {
             throw ApiException.badRequest("原密码错误");
         }
+        String validatedPassword = UserInputPolicy.password(newPassword);
         jdbc.update("UPDATE users SET password_hash = ?, must_change_password = 0, updated_by = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
-                passwordEncoder.encode(newPassword), current.id(), current.id());
+                passwordEncoder.encode(validatedPassword), current.id(), current.id());
         tokenService.revokeUser(current.id());
     }
 

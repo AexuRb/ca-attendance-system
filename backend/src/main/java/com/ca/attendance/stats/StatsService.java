@@ -3,6 +3,7 @@ package com.ca.attendance.stats;
 import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.log.OperationLogService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.ss.util.CellReference;
@@ -36,9 +37,11 @@ public class StatsService {
     };
 
     private final JdbcTemplate jdbc;
+    private final OperationLogService logs;
 
-    public StatsService(JdbcTemplate jdbc) {
+    public StatsService(JdbcTemplate jdbc, OperationLogService logs) {
         this.jdbc = jdbc;
+        this.logs = logs;
     }
 
     public List<SummaryItem> summary(LocalDate from, LocalDate to) {
@@ -238,7 +241,7 @@ public class StatsService {
         return result;
     }
 
-    public byte[] export(LocalDate from, LocalDate to) {
+    public ExportFile export(LocalDate from, LocalDate to) {
         RolePermissionPolicy.require(AuthContext.current().role(),
                 RolePermissionPolicy.Permission.STATS_EXPORT,
                 "无权导出 Excel");
@@ -247,6 +250,7 @@ public class StatsService {
         List<ExportDay> dutyDays = exportDays(from, to);
         List<ExportUserRow> userRows = exportUserRows(from, to);
 
+        byte[] bytes;
         try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("值班记录");
             CellStyle weekStyle = weekHeaderStyle(wb);
@@ -316,10 +320,14 @@ public class StatsService {
 
             wb.setForceFormulaRecalculation(true);
             wb.write(out);
-            return out.toByteArray();
+            bytes = out.toByteArray();
         } catch (Exception ex) {
             throw ApiException.badRequest("导出 Excel 失败");
         }
+        String filename = "值班记录_" + from + "_" + to + ".xlsx";
+        logs.logExport("ATTENDANCE_STATS", "值班统计",
+                Map.of("from", from.toString(), "to", to.toString()), userRows.size(), filename);
+        return new ExportFile(filename, bytes, userRows.size());
     }
 
     private List<ExportDay> exportDays(LocalDate from, LocalDate to) {
@@ -574,6 +582,9 @@ public class StatsService {
             case SATURDAY -> "星期六";
             case SUNDAY -> "星期日";
         };
+    }
+
+    public record ExportFile(String filename, byte[] bytes, int rowCount) {
     }
 
     private LocalDate toLocalDate(Object rawDate) {

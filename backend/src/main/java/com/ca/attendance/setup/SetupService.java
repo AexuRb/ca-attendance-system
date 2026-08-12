@@ -2,6 +2,7 @@ package com.ca.attendance.setup;
 
 import com.ca.attendance.auth.AuthService;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.user.UserInputPolicy;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -37,9 +38,9 @@ public class SetupService {
     }
 
     public AuthService.LoginResponse initialize(SetupRequest request) {
-        String account = request.account().trim();
-        String name = request.name().trim();
-        String password = request.password();
+        String account = UserInputPolicy.newStudentNo(request.account());
+        String name = UserInputPolicy.name(request.name());
+        String password = UserInputPolicy.password(request.password());
 
         transactions.executeWithoutResult(status -> {
             Integer userCount = jdbc.queryForObject("SELECT COUNT(*) FROM users", Integer.class);

@@ -44,6 +44,8 @@ class SetupServiceIntegrationTest {
         dataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(paths);
         new DatabaseMigrator(dataSource).run();
         jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("DELETE FROM operation_logs");
+        jdbc.update("DELETE FROM users");
 
         PasswordEncoder passwords = new BCryptPasswordEncoder();
         TokenService tokens = new TokenService(12);
@@ -73,7 +75,7 @@ class SetupServiceIntegrationTest {
         assertEquals(0, setup.status().userCount());
 
         AuthService.LoginResponse login = setup.initialize(
-                new SetupService.SetupRequest("admin_2026", "首位管理员", "12345678")
+                new SetupService.SetupRequest("1004231224", "首位管理员", "12345678")
         );
 
         assertNotNull(login.token());
@@ -87,7 +89,25 @@ class SetupServiceIntegrationTest {
         ));
 
         assertThrows(ApiException.class, () -> setup.initialize(
-                new SetupService.SetupRequest("second_admin", "第二位管理员", "12345678")
+                new SetupService.SetupRequest("1004231225", "第二位管理员", "12345678")
         ));
+    }
+
+    @Test
+    void rejectsInvalidAdministratorInputBeforeWritingAnything() {
+        ApiException accountError = assertThrows(ApiException.class, () -> setup.initialize(
+                new SetupService.SetupRequest("admin", "管理员", "12345678")
+        ));
+        ApiException nameError = assertThrows(ApiException.class, () -> setup.initialize(
+                new SetupService.SetupRequest("1004231224", " ", "12345678")
+        ));
+        ApiException passwordError = assertThrows(ApiException.class, () -> setup.initialize(
+                new SetupService.SetupRequest("1004231224", "管理员", "12345")
+        ));
+
+        assertTrue(accountError.getMessage().contains("纯数字"));
+        assertTrue(nameError.getMessage().contains("姓名不能为空"));
+        assertTrue(passwordError.getMessage().contains("6 至 64"));
+        assertEquals(0, setup.status().userCount());
     }
 }

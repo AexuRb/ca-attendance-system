@@ -30,11 +30,15 @@ public class RepairCaseController {
     }
 
     @GetMapping
-    public List<RepairCaseItem> list(@RequestParam(required = false) String keyword,
-                                     @RequestParam(required = false) String status,
-                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                     @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return repairs.list(keyword, status, from, to);
+    public RepairCaseService.RepairPage list(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "REPAIRING") String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "30") int pageSize
+    ) {
+        return repairs.page(keyword, status, from, to, page, pageSize);
     }
 
     @GetMapping("/handler-candidates")

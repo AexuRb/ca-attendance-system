@@ -1,5 +1,6 @@
 # Local configuration and secrets
 local-config.bat
+local_config.bat
 .env
 .env.*
 
@@ -11,6 +12,18 @@ logs/
 materials/
 tasks/
 *.sql.gz
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
 
 # Build output and dependencies
 backend/target/

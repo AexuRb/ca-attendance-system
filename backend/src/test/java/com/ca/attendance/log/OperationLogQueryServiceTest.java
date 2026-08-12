@@ -26,6 +26,8 @@ class OperationLogQueryServiceTest {
     private JdbcTemplate jdbc;
     @Mock
     private BackupService backups;
+    @Mock
+    private OperationLogService logs;
 
     @BeforeEach
     void setAuthUser() {
@@ -39,7 +41,7 @@ class OperationLogQueryServiceTest {
 
     @Test
     void clearCreatesSafetyBackupBeforeDeletingLogs() {
-        OperationLogQueryService service = new OperationLogQueryService(jdbc, backups);
+        OperationLogQueryService service = new OperationLogQueryService(jdbc, backups, logs);
         BackupService.BackupItem backup = new BackupService.BackupItem("backup_logs.zip", 100L, Instant.now());
 
         when(backups.create()).thenReturn(backup);

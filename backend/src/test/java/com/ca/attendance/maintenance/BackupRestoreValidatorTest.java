@@ -3,28 +3,47 @@ package com.ca.attendance.maintenance;
 import com.ca.attendance.common.ApiException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.io.TempDir;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BackupRestoreValidatorTest {
+    @TempDir
+    Path tempDirectory;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final BackupRestoreValidator validator = new BackupRestoreValidator(objectMapper);
+    private BackupArchiveReader reader;
+
+    @BeforeEach
+    void setUp() {
+        reader = new BackupArchiveReader(tempDirectory);
+    }
 
     @Test
     void acceptsLegacyArchiveWithoutOptionalTables() throws Exception {
         Map<String, byte[]> entries = requiredEmptyEntries();
 
-        BackupRestorePayload payload = validator.parse(entries);
+        try (ExtractedBackupArchive archive = extract(entries)) {
+            BackupRestorePayload payload = validator.parse(archive);
 
-        assertTrue(payload.rows().containsKey("users"));
-        assertFalse(payload.rows().containsKey("app_settings"));
-        assertFalse(payload.rows().containsKey("training_sessions"));
+            assertTrue(payload.tableFiles().containsKey("users"));
+            assertFalse(payload.tableFiles().containsKey("app_settings"));
+            assertFalse(payload.tableFiles().containsKey("training_sessions"));
+        }
     }
 
     @Test
@@ -40,7 +59,7 @@ class BackupRestoreValidatorTest {
         user.put("unexpected_secret", "should-not-be-restored");
         entries.put("users.json", objectMapper.writeValueAsBytes(List.of(user)));
 
-        ApiException error = assertThrows(ApiException.class, () -> validator.parse(entries));
+        ApiException error = assertInvalid(entries);
 
         assertTrue(error.getMessage().contains("未知字段"));
         assertTrue(error.getMessage().contains("unexpected_secret"));
@@ -54,7 +73,7 @@ class BackupRestoreValidatorTest {
                 "tables", List.of("users", "attendance_records", "operation_logs", "duty_weekday_settings")
         )));
 
-        ApiException error = assertThrows(ApiException.class, () -> validator.parse(entries));
+        ApiException error = assertInvalid(entries);
 
         assertTrue(error.getMessage().contains("版本高于当前程序"));
     }
@@ -64,7 +83,7 @@ class BackupRestoreValidatorTest {
         Map<String, byte[]> entries = requiredEmptyEntries();
         entries.remove("attendance_records.json");
 
-        ApiException error = assertThrows(ApiException.class, () -> validator.parse(entries));
+        ApiException error = assertInvalid(entries);
 
         assertTrue(error.getMessage().contains("缺少 attendance_records.json"));
     }
@@ -77,7 +96,7 @@ class BackupRestoreValidatorTest {
                 "tables", List.of("users", "attendance_records", "operation_logs", "duty_weekday_settings")
         )));
 
-        ApiException error = assertThrows(ApiException.class, () -> validator.parse(entries));
+        ApiException error = assertInvalid(entries);
 
         assertTrue(error.getMessage().contains("版本信息不正确"));
     }
@@ -95,5 +114,28 @@ class BackupRestoreValidatorTest {
             entries.put(table + ".json", objectMapper.writeValueAsBytes(List.of()));
         }
         return entries;
+    }
+
+    private ApiException assertInvalid(Map<String, byte[]> entries) {
+        return assertThrows(ApiException.class, () -> {
+            try (ExtractedBackupArchive archive = extract(entries)) {
+                validator.parse(archive);
+            }
+        });
+    }
+
+    private ExtractedBackupArchive extract(Map<String, byte[]> entries) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            for (Map.Entry<String, byte[]> entry : entries.entrySet()) {
+                zip.putNextEntry(new ZipEntry(entry.getKey()));
+                zip.write(entry.getValue());
+                zip.closeEntry();
+            }
+        }
+        return reader.extract(
+                new MockMultipartFile("file", "backup_test.zip", "application/zip", output.toByteArray()),
+                validator.supportedEntries()
+        );
     }
 }

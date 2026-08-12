@@ -56,8 +56,8 @@ public class AttendanceController {
     }
 
     @GetMapping("/reviews/pending")
-    public List<AttendanceRecord> pending() {
-        return attendance.pending();
+    public AttendanceService.PendingReviewQueue pending() {
+        return attendance.pendingQueue();
     }
 
     @GetMapping("/open")

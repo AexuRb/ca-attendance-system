@@ -14,6 +14,37 @@ describe("audit log display", () => {
     expect(
       auditTargetLabel({ targetType: "duty_schedule_slots", targetId: 12 }),
     ).toBe("固定排班 #12");
+    expect(auditActionLabel("EXPORT_DATA")).toBe("导出业务数据");
+    expect(auditTargetLabel({ targetType: "data_exports" })).toBe(
+      "数据导出",
+    );
+  });
+
+  it("renders export audit filters and details in readable language", () => {
+    const rows = buildAuditDiff(
+      undefined,
+      JSON.stringify({
+        exportType: "TRAINING_SUMMARY",
+        operatorRole: "ADMIN",
+        filters: { from: "2026-08-01", to: "2026-08-10" },
+        rows: 12,
+        details: { sessionRows: 5, memberRows: 7 },
+        filename: "培训统计.xlsx",
+      }),
+    );
+
+    expect(rows).toContainEqual({
+      key: "filters",
+      label: "筛选条件",
+      before: "—",
+      after: "开始日期：2026-08-01；结束日期：2026-08-10",
+    });
+    expect(rows).toContainEqual({
+      key: "details",
+      label: "导出详情",
+      before: "—",
+      after: "培训场次行数：5；成员统计行数：7",
+    });
   });
 
   it("labels attendance policy changes in plain language", () => {
