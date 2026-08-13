@@ -933,10 +933,6 @@
   min-height: 62px;
 }
 
-.refined-admin-layout .repair-board {
-  gap: 18px;
-}
-
 .repair-editor-steps {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1114,62 +1110,6 @@
   .audit-diff-table > div > * {
     padding: 9px 8px;
   }
-}
-
-.refined-admin-layout .repair-column {
-  border-color: #d7e6ed;
-  border-radius: 6px;
-  background: #f8fbfc;
-}
-
-.refined-admin-layout .repair-card {
-  border-color: #d9e7ed;
-  border-radius: 5px;
-  box-shadow: none;
-}
-
-.refined-admin-layout .repair-card.is-long-running {
-  border-left: 3px solid #d39a30;
-}
-
-.refined-admin-layout .repair-card:hover {
-  border-color: #8fc4dc;
-  box-shadow: 0 8px 20px rgba(31, 94, 128, 0.08);
-}
-
-.refined-admin-layout .repair-card-timing {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 10px;
-  color: var(--ink-500);
-  font-size: 11px;
-}
-
-.refined-admin-layout .repair-card-timing span[data-attention="true"] {
-  color: var(--amber-700);
-  font-weight: 750;
-}
-
-.refined-admin-layout .repair-card-timing time {
-  font-family: var(--font-mono);
-  white-space: nowrap;
-}
-
-.refined-admin-layout .repair-contact {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.refined-admin-layout .repair-contact > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .refined-admin-layout .repair-phone-toggle {

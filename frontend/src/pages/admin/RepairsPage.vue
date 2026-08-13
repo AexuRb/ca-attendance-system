@@ -4,339 +4,148 @@
       title="维修事务"
       description="维护维修受理过程、协议与交付状态。"
       ><template #actions
-        ><button v-if="canExport" class="button secondary" @click="exportCases">
-          <Download />导出</button
+        ><button v-if="canExport" class="button secondary" :disabled="isPending('export-repairs')" @click="exportCases">
+          <Download />{{ isPending('export-repairs') ? "正在导出" : "导出" }}</button
         ><button v-if="canManage" class="button primary" @click="openEditor()">
           <Plus />新建维修
         </button></template
       ></PageHeader
     >
-    <form class="filter-bar" @submit.prevent="load">
-      <label class="filter-grow"
-        ><span>搜索事务</span
-        ><input
-          v-model.trim="filters.keyword"
-          placeholder="编号、联系人、设备或故障" /></label
-      ><label
-        ><span>开始日期</span
-        ><input v-model="filters.from" type="date" /></label
-      ><label
-        ><span>结束日期</span><input v-model="filters.to" type="date" /></label
-      ><button class="button secondary" type="submit"><Search />查询</button>
-    </form>
-    <div class="repair-board">
-      <section
-        v-for="column in columns"
-        :key="column.status"
-        class="repair-column"
-      >
-        <div class="repair-column-head">
-          <span :data-tone="column.tone"></span
-          ><strong>{{ column.label }}</strong
-          ><b>{{ boardColumns[column.status].total }}</b>
-        </div>
-        <div class="repair-card-list">
-          <article
-            v-for="item in boardColumns[column.status].items"
-            :key="item.id"
-            class="repair-card"
-            :class="{ 'is-long-running': isLongRunningRepair(item) }"
-          >
-            <div>
-              <span class="case-no">{{ item.caseNo }}</span
-              ><StatusBadge
-                :label="repairAgreementLabel(item.agreementType)"
-                tone="info"
-              />
-            </div>
-            <div class="repair-card-timing">
-              <span :data-attention="isLongRunningRepair(item)">
-                {{ repairAgeLabel(item) }}
-              </span>
-              <time :datetime="item.updatedAt">
-                更新于 {{ dateTime(item.updatedAt) }}
-              </time>
-            </div>
-            <h3>{{ deviceName(item) }}</h3>
-            <p>{{ item.faultDescription }}</p>
-            <dl>
-              <div>
-                <dt>联系人</dt>
-                <dd class="repair-contact">
-                  <span>
-                    {{ item.ownerName }} ·
-                    {{
-                      phoneVisible(item.id)
-                        ? item.ownerPhone
-                        : maskRepairPhone(item.ownerPhone)
-                    }}
-                  </span>
-                  <button
-                    class="repair-phone-toggle"
-                    type="button"
-                    :aria-label="
-                      phoneVisible(item.id) ? '隐藏完整电话' : '显示完整电话'
-                    "
-                    :title="
-                      phoneVisible(item.id) ? '隐藏完整电话' : '显示完整电话'
-                    "
-                    :aria-pressed="phoneVisible(item.id)"
-                    @click="togglePhone(item.id)"
-                  >
-                    <EyeOff v-if="phoneVisible(item.id)" aria-hidden="true" />
-                    <Eye v-else aria-hidden="true" />
-                  </button>
-                </dd>
-              </div>
-              <div>
-                <dt>负责人</dt>
-                <dd>{{ item.handlerName || "待分配" }}</dd>
-              </div>
-              <div>
-                <dt>受理时间</dt>
-                <dd>{{ dateTime(item.receivedAt) }}</dd>
-              </div>
-            </dl>
-            <footer>
-              <button class="button text" @click="preview(item)">
-                <FileText />协议
-              </button>
-              <div>
-                <button
-                  v-if="canManage"
-                  class="icon-button"
-                  title="编辑"
-                  aria-label="编辑维修事务"
-                  type="button"
-                  @click="openEditor(item)"
-                >
-                  <Pencil aria-hidden="true" /></button
-                ><button
-                  v-if="canDelete"
-                  class="icon-button danger-ghost"
-                  title="移入回收站"
-                  aria-label="将维修事务移入回收站"
-                  type="button"
-                  @click="deleteTarget = item"
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
-              </div>
-            </footer>
-          </article>
-          <EmptyState
-            v-if="
-              !boardColumns[column.status].loading &&
-              !boardColumns[column.status].error &&
-              !boardColumns[column.status].items.length
-            "
-            title="暂无事务"
+    <form class="repair-filter-shell" @submit.prevent="load">
+      <div class="repair-search-row">
+        <Search aria-hidden="true" />
+        <label>
+          <span class="sr-only">搜索维修事务</span>
+          <input
+            v-model.trim="filters.keyword"
+            type="search"
+            name="repair-search"
+            placeholder="搜索编号、联系人、设备或故障"
+            autocomplete="off"
           />
-          <div
-            v-if="boardColumns[column.status].error"
-            class="repair-column-feedback"
-            role="alert"
-          >
-            <span>{{ boardColumns[column.status].error }}</span>
-            <button
-              class="button text"
-              type="button"
-              @click="retryColumn(column.status)"
-            >
-              重试
-            </button>
-          </div>
-          <div
-            v-if="
-              !boardColumns[column.status].error &&
-              (boardColumns[column.status].loading ||
-                boardColumns[column.status].hasMore)
-            "
-            class="repair-column-more"
-          >
-            <button
-              class="button secondary"
-              type="button"
-              :disabled="boardColumns[column.status].loading"
-              @click="loadMore(column.status)"
-            >
-              <LoaderCircle
-                v-if="boardColumns[column.status].loading"
-                class="spin"
-                aria-hidden="true"
-              />
-              {{
-                boardColumns[column.status].loading
-                  ? "加载中"
-                  : `加载更多（${boardColumns[column.status].items.length}/${boardColumns[column.status].total}）`
-              }}
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-    <ModalDialog
-      :open="editorOpen"
-      :title="form.id ? '编辑维修事务' : '新建维修事务'"
-      size="lg"
-      @close="editorOpen = false"
-    >
-      <nav class="repair-editor-steps" aria-label="维修事务填写步骤">
+        </label>
+        <button class="button secondary small" type="submit">搜索</button>
         <button
+          class="button text small repair-filter-toggle"
           type="button"
-          :class="{ active: repairStep === 1 }"
-          :aria-current="repairStep === 1 ? 'step' : undefined"
-          @click="repairStep = 1"
+          :aria-expanded="filterOpen"
+          aria-controls="repair-date-filters"
+          @click="filterOpen = !filterOpen"
         >
-          <span>1</span>
-          <strong>设备与联系人</strong>
+          <SlidersHorizontal aria-hidden="true" />日期
         </button>
-        <button
-          type="button"
-          :class="{ active: repairStep === 2 }"
-          :aria-current="repairStep === 2 ? 'step' : undefined"
-          @click="repairStep = 2"
-        >
-          <span>2</span>
-          <strong>受理与确认</strong>
-        </button>
-      </nav>
-      <div class="form-sections repair-editor-body">
-        <template v-if="repairStep === 1">
-          <section>
-            <h3>协议与联系人</h3>
-            <div class="form-grid two">
-              <label class="field"
-                ><span>协议类型</span
-                ><select v-model="form.agreementType">
-                  <option value="REPAIR">维修协议</option>
-                  <option value="DISCLAIMER">免责协议</option>
-                </select></label
-              ><label class="field"
-                ><span>状态</span
-                ><select v-model="form.status">
-                  <option value="REPAIRING">进行中</option>
-                  <option value="COMPLETED">已完成</option>
-                  <option value="CANCELED">已取消</option>
-                </select></label
-              ><label class="field"
-                ><span>联系人</span><input v-model.trim="form.ownerName" /></label
-              ><label class="field"
-                ><span>联系电话</span><input v-model.trim="form.ownerPhone"
-              /></label>
-            </div>
-          </section>
-          <section>
-            <h3>设备与故障</h3>
-            <div class="form-grid two">
-              <label class="field"
-                ><span>设备类型</span
-                ><input
-                  v-model.trim="form.deviceType"
-                  placeholder="笔记本电脑、台式机等" /></label
-              ><label class="field"
-                ><span>品牌型号</span
-                ><input
-                  v-model.trim="form.deviceBrand"
-                  placeholder="品牌" /></label
-              ><label class="field"
-                ><span>具体型号</span
-                ><input v-model.trim="form.deviceModel" /></label
-              ><label class="field"
-                ><span>附件</span
-                ><input
-                  v-model.trim="form.accessories"
-                  placeholder="电源、鼠标等" /></label
-              ><label class="field span-2"
-                ><span>故障描述</span
-                ><textarea
-                  v-model.trim="form.faultDescription"
-                  rows="2" /></label
-              ><label class="field span-2"
-                ><span>维修说明</span
-                ><textarea v-model.trim="form.serviceDescription" rows="2" />
-              </label>
-            </div>
-          </section>
-        </template>
-        <section v-else>
-          <h3>受理信息</h3>
-          <div class="form-grid two">
-            <label class="field"
-              ><span>受理时间</span
-              ><input v-model="form.receivedAt" type="datetime-local" /></label
-            ><label class="field"
-              ><span>完成时间</span
-              ><input v-model="form.completedAt" type="datetime-local" /></label
-            ><div class="field span-2">
-              <span>负责人账号</span>
-              <AccountPicker
-                v-model="selectedHandler"
-                :candidates="handlerCandidates"
-                aria-label="选择维修负责人"
-                placeholder="搜索姓名或学号"
-              />
-            </div>
-            <label class="field"
-              ><span>备注</span><input v-model.trim="form.remark"
-            /></label>
-          </div>
-          <div class="check-row">
-            <label
-              ><input
-                v-model="form.dataBackupConfirmed"
-                type="checkbox"
-              />已确认数据备份</label
-            ><label
-              ><input
-                v-model="form.riskAcknowledged"
-                type="checkbox"
-              />已确认维修风险</label
-            ><label
-              ><input
-                v-model="form.privacyAcknowledged"
-                type="checkbox"
-              />已确认隐私事项</label
-            >
-          </div>
-        </section>
       </div>
-      <template #footer>
-        <button class="button secondary" @click="editorOpen = false">
-          取消
-        </button>
+      <Transition name="filter-expand">
+        <div v-if="filterOpen" id="repair-date-filters" class="repair-date-filters">
+          <label><span>开始日期</span><input v-model="filters.from" type="date" /></label>
+          <label><span>结束日期</span><input v-model="filters.to" type="date" /></label>
+          <button class="button secondary small" type="submit">应用筛选</button>
+        </div>
+      </Transition>
+    </form>
+
+    <RepairStatusTabs
+      :active-status="activeStatus"
+      :counts="statusCounts"
+      @change="setStatus"
+    />
+
+    <section
+      class="repair-workspace"
+      :aria-labelledby="activeStatus === 'REPAIRING' ? 'repair-active-title' : 'repair-history-title'"
+      :aria-busy="repairPage.loading"
+    >
+      <header class="repair-workspace-heading">
+        <div>
+          <p class="eyebrow">{{ activeStatus === "REPAIRING" ? "WORK QUEUE" : "ARCHIVE" }}</p>
+          <h2 :id="activeStatus === 'REPAIRING' ? 'repair-active-title' : 'repair-history-title'">
+            {{ activeStatus === "REPAIRING" ? "进行中工作队列" : activeStatus === "COMPLETED" ? "已完成档案" : "已取消档案" }}
+          </h2>
+        </div>
+        <span>共 {{ repairPage.total }} 项</span>
+      </header>
+
+      <ActiveRepairGrid
+        v-if="activeStatus === 'REPAIRING'"
+        :items="repairPage.items"
+        :loading="repairPage.loading"
+        :error="repairPage.error"
+        :revealed-phones="revealedPhones"
+        :can-manage="canManage"
+        :can-delete="canDelete"
+        @view="detailTarget = $event"
+        @preview="preview"
+        @edit="openEditor"
+        @delete="requestDelete"
+        @toggle-phone="togglePhone"
+        @retry="retry"
+      />
+      <RepairHistoryTable
+        v-else
+        :items="repairPage.items"
+        :status="historyStatus"
+        :loading="repairPage.loading"
+        :error="repairPage.error"
+        :revealed-phones="revealedPhones"
+        @view="detailTarget = $event"
+        @preview="preview"
+        @toggle-phone="togglePhone"
+        @retry="retry"
+      />
+
+      <footer
+        v-if="repairPage.total && !repairPage.error"
+        class="repair-workspace-pagination"
+      >
         <button
-          v-if="repairStep === 2"
-          class="button secondary"
+          class="button secondary small"
           type="button"
-          @click="repairStep = 1"
+          :disabled="repairPage.page <= 1 || repairPage.loading"
+          @click="setPage(repairPage.page - 1)"
         >
-          <ArrowLeft />上一步
+          <ArrowLeft aria-hidden="true" />上一页
         </button>
+        <span>第 {{ repairPage.page }} / {{ repairTotalPages }} 页 · 共 {{ repairPage.total }} 项</span>
         <button
-          v-if="repairStep === 1"
-          class="button primary"
+          class="button secondary small"
           type="button"
-          @click="repairStep = 2"
+          :disabled="!repairPage.hasMore || repairPage.loading"
+          @click="setPage(repairPage.page + 1)"
         >
-          下一步<ArrowRight />
+          下一页<ArrowRight aria-hidden="true" />
         </button>
-        <button
-          v-else
-          class="button primary"
-          :disabled="!validForm"
-          @click="save"
-        >
-          保存事务
-        </button>
-      </template>
-    </ModalDialog>
+      </footer>
+    </section>
+
+    <RepairDetailDrawer
+      :open="Boolean(detailTarget)"
+      :item="detailTarget"
+      :phone-visible="Boolean(detailTarget && phoneVisible(detailTarget.id))"
+      :can-manage="canManage"
+      :can-delete="canDelete"
+      @close="detailTarget = null"
+      @preview="preview"
+      @edit="editFromDetail"
+      @delete="requestDelete"
+      @toggle-phone="togglePhone"
+    />
+    <RepairEditorDialog
+      :open="editorOpen"
+      :form="form"
+      :handler="selectedHandler"
+      :candidates="handlerCandidates"
+      :pending="isPending('save-repair')"
+      @update:handler="selectedHandler = $event"
+      @close="closeEditor"
+      @save="save"
+    />
     <ConfirmDialog
       :open="Boolean(deleteTarget)"
       title="移入维修回收站"
       :message="`将 ${deleteTarget?.caseNo || ''} 移入回收站，管理员可在数据页面恢复。`"
       confirm-label="移入回收站"
       danger
+      :pending="isPending('delete-repair')"
       @cancel="deleteTarget = null"
       @confirm="remove"
     />
@@ -349,47 +158,51 @@
       @close="closeAgreement"
       @retry="loadAgreement"
     />
+    <ConfirmDialog
+      :open="unsaved.confirmOpen.value"
+      title="放弃未保存修改"
+      message="当前维修事务还有未保存的内容，放弃后无法恢复。"
+      confirm-label="放弃修改"
+      danger
+      @cancel="unsaved.cancel"
+      @confirm="unsaved.discard"
+    />
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import {
   ArrowLeft,
   ArrowRight,
   Download,
-  Eye,
-  EyeOff,
-  FileText,
-  LoaderCircle,
-  Pencil,
   Plus,
   Search,
-  Trash2,
+  SlidersHorizontal,
 } from "@lucide/vue";
 import PageHeader from "../../shared/ui/PageHeader.vue";
-import EmptyState from "../../shared/ui/EmptyState.vue";
-import StatusBadge from "../../shared/ui/StatusBadge.vue";
-import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AgreementDialog from "../../shared/ui/AgreementDialog.vue";
-import AccountPicker from "../../features/accounts/AccountPicker.vue";
+import ActiveRepairGrid from "../../features/repairs/ActiveRepairGrid.vue";
+import RepairEditorDialog from "../../features/repairs/RepairEditorDialog.vue";
+import RepairDetailDrawer from "../../features/repairs/RepairDetailDrawer.vue";
+import RepairHistoryTable from "../../features/repairs/RepairHistoryTable.vue";
+import RepairStatusTabs from "../../features/repairs/RepairStatusTabs.vue";
 import { api, del, get, post, put, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import {
   canDeleteRepairs,
   canExportRepairs,
   canManageRepairs,
 } from "../../features/repairs/repairPermissions";
 import {
-  isLongRunningRepair,
-  maskRepairPhone,
   repairAgreementFormType,
-  repairAgreementLabel,
-  repairAgeLabel,
 } from "../../features/repairs/repairDisplay";
 import { fetchRepairPage } from "../../features/repairs/repairApi";
-import { useRepairBoard } from "../../features/repairs/useRepairBoard";
+import { useRepairWorkspace } from "../../features/repairs/useRepairWorkspace";
 import type { AccountCandidate } from "../../features/accounts/accountCandidates";
 import type {
   RepairCase,
@@ -397,31 +210,45 @@ import type {
   RepairStatus,
 } from "../../features/repairs/repairTypes";
 const { user } = useSession();
-const { run } = useAsyncTask();
+const task = useAsyncTask();
+const actions = usePendingActions();
+const { isPending } = actions;
+const route = useRoute();
+const router = useRouter();
+const now = new Date();
+const workspace = useRepairWorkspace({
+  loadPage: fetchRepairPage,
+  defaults: {
+    from: `${now.getFullYear()}-01-01`,
+    to: localDate(now),
+  },
+  initialQuery: route.query,
+  onQueryChange: updateRouteQuery,
+});
 const {
-  columns: boardColumns,
-  loadAll: loadBoard,
-  loadMore,
-  refresh: refreshColumns,
-  retry: retryColumn,
-} = useRepairBoard(fetchRepairPage);
+  activeStatus,
+  filters,
+  counts: statusCounts,
+  page: repairPage,
+  applyFilters: load,
+  setStatus,
+  setPage,
+  retry,
+  refreshAfterMutation,
+} = workspace;
 const editorOpen = ref(false);
-const repairStep = ref<1 | 2>(1);
+const filterOpen = ref(false);
 const deleteTarget = ref<RepairCase | null>(null);
+const detailTarget = ref<RepairCase | null>(null);
 const agreementOpen = ref(false);
 const agreementTarget = ref<RepairCase | null>(null);
 const agreementHtml = ref("");
 const agreementLoading = ref(false);
 const agreementError = ref("");
+let agreementRequestVersion = 0;
 const handlerCandidates = ref<AccountCandidate[]>([]);
 const selectedHandler = ref<AccountCandidate | null>(null);
 const revealedPhones = ref(new Set<number>());
-const now = new Date();
-const filters = reactive({
-  keyword: "",
-  from: `${now.getFullYear()}-01-01`,
-  to: localDate(now),
-});
 const form = reactive<RepairCaseForm>({
   id: null,
   agreementType: "REPAIR",
@@ -442,35 +269,37 @@ const form = reactive<RepairCaseForm>({
   handlerName: "",
   remark: "",
 });
-const columns: Array<{
-  status: RepairStatus;
-  label: string;
-  tone: string;
-}> = [
-  { status: "REPAIRING", label: "进行中", tone: "blue" },
-  { status: "COMPLETED", label: "已完成", tone: "green" },
-  { status: "CANCELED", label: "已取消", tone: "gray" },
-];
 const canManage = computed(() => canManageRepairs(user.value?.role));
 const canDelete = computed(() => canDeleteRepairs(user.value?.role));
 const canExport = computed(() => canExportRepairs(user.value?.role));
-const validForm = computed(
-  () =>
-    form.ownerName &&
-    form.ownerPhone &&
-    form.deviceType &&
-    form.faultDescription &&
-    form.receivedAt &&
-    selectedHandler.value,
+const historyStatus = computed(
+  () => activeStatus.value as Exclude<RepairStatus, "REPAIRING">,
+);
+const repairTotalPages = computed(() =>
+  Math.max(1, Math.ceil(repairPage.total / repairPage.pageSize)),
+);
+const editorBaseline = ref("");
+const unsaved = useUnsavedChanges(
+  () => editorOpen.value && editorSnapshot() !== editorBaseline.value,
 );
 onMounted(async () => {
-  await Promise.all([load(), loadHandlerCandidates()]);
+  await Promise.all([workspace.initialize(), loadHandlerCandidates()]);
 });
-async function load() {
-  await loadBoard({ ...filters });
+watch(
+  () => route.query,
+  async (query) => {
+    if (sameQuery(query, workspace.currentQuery())) return;
+    await workspace.restoreQuery(query);
+  },
+);
+async function updateRouteQuery(
+  query: Record<string, string>,
+  mode: "push" | "replace",
+) {
+  if (sameQuery(route.query, query)) return;
+  await router[mode]({ query });
 }
 function openEditor(item?: RepairCase) {
-  repairStep.value = 1;
   Object.assign(
     form,
     item
@@ -516,7 +345,21 @@ function openEditor(item?: RepairCase) {
     : handlerCandidates.value.find(
         (candidate) => candidate.id === user.value?.id,
       ) || null;
+  editorBaseline.value = editorSnapshot();
   editorOpen.value = true;
+}
+function closeEditor() {
+  unsaved.request(() => {
+    editorOpen.value = false;
+  });
+}
+function editFromDetail(item: RepairCase) {
+  detailTarget.value = null;
+  openEditor(item);
+}
+function requestDelete(item: RepairCase) {
+  detailTarget.value = null;
+  deleteTarget.value = item;
 }
 async function save() {
   const previousStatus = form.id ? findLoadedCase(form.id)?.status : null;
@@ -528,27 +371,25 @@ async function save() {
     deviceSerial: null,
     completedAt: form.completedAt || null,
   };
-  const value = form.id
-    ? await run<RepairCase>(
-        () => put(`/api/repairs/${form.id}`, payload),
-        "维修事务已更新",
-      )
-    : await run<RepairCase>(
-        () => post("/api/repairs", payload),
-        "维修事务已创建",
-      );
+  const value = await actions.run("save-repair", () =>
+    form.id
+      ? task.run<RepairCase>(
+          () => put(`/api/repairs/${form.id}`, payload),
+          "维修事务已更新",
+        )
+      : task.run<RepairCase>(
+          () => post("/api/repairs", payload),
+          "维修事务已创建",
+        ),
+  );
   if (value) {
+    editorBaseline.value = editorSnapshot();
     editorOpen.value = false;
-    await refreshColumns(
-      [previousStatus, value.status].filter(
-        (status): status is RepairStatus => Boolean(status),
-      ),
-      { ...filters },
-    );
+    await refreshAfterMutation(previousStatus, value.status);
   }
 }
 async function loadHandlerCandidates() {
-  const value = await run(() =>
+  const value = await task.run(() =>
     get<AccountCandidate[]>("/api/repairs/handler-candidates"),
   );
   if (value) handlerCandidates.value = value;
@@ -556,12 +397,19 @@ async function loadHandlerCandidates() {
 async function remove() {
   const target = deleteTarget.value;
   if (!target) return;
-  const removed = await run(
-    () => del(`/api/repairs/${target.id}`),
-    "已移入维修回收站",
+  const removed = await actions.run("delete-repair", () =>
+    task.run(
+      async () => {
+        await del(`/api/repairs/${target.id}`);
+        return true;
+      },
+      "已移入维修回收站",
+    ),
   );
-  deleteTarget.value = null;
-  if (removed) await refreshColumns([target.status], { ...filters });
+  if (removed) {
+    deleteTarget.value = null;
+    await refreshAfterMutation(target.status, null);
+  }
 }
 async function preview(item: RepairCase) {
   agreementTarget.value = item;
@@ -569,23 +417,36 @@ async function preview(item: RepairCase) {
   await loadAgreement();
 }
 async function loadAgreement() {
-  if (!agreementTarget.value) return;
+  const target = agreementTarget.value;
+  if (!target) return;
+  const version = ++agreementRequestVersion;
   agreementLoading.value = true;
   agreementError.value = "";
   try {
     const blob = await api<Blob>(
-      `/api/repairs/${agreementTarget.value.id}/agreement`,
+      `/api/repairs/${target.id}/agreement`,
     );
-    agreementHtml.value = await blob.text();
+    const html = await blob.text();
+    if (
+      version === agreementRequestVersion &&
+      agreementOpen.value &&
+      agreementTarget.value?.id === target.id
+    ) {
+      agreementHtml.value = html;
+    }
   } catch (cause) {
-    agreementError.value =
-      cause instanceof Error ? cause.message : "协议暂时无法预览";
+    if (version === agreementRequestVersion && agreementOpen.value) {
+      agreementError.value =
+        cause instanceof Error ? cause.message : "协议暂时无法预览";
+    }
   } finally {
-    agreementLoading.value = false;
+    if (version === agreementRequestVersion) agreementLoading.value = false;
   }
 }
 function closeAgreement() {
+  agreementRequestVersion += 1;
   agreementOpen.value = false;
+  agreementTarget.value = null;
   agreementHtml.value = "";
   agreementError.value = "";
 }
@@ -593,20 +454,20 @@ async function exportCases() {
   const p = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => v && p.set(k, v));
   p.set("status", "ALL");
-  downloadBlob(
-    await get(`/api/repairs/export?${p}`),
-    `维修事务_${filters.from}_${filters.to}.xlsx`,
-  );
+  await actions.run("export-repairs", async () => {
+    const blob = await task.run(() => get<Blob>(`/api/repairs/export?${p}`));
+    if (blob) downloadBlob(blob, `维修事务_${filters.from}_${filters.to}.xlsx`);
+  });
 }
+onBeforeRouteLeave(
+  () =>
+    new Promise<boolean>((resolve) => {
+      unsaved.request(() => resolve(true), () => resolve(false));
+    }),
+);
 function findLoadedCase(id: number) {
-  return columns
-    .flatMap((column) => boardColumns[column.status].items)
-    .find((item) => item.id === id);
+  return repairPage.items.find((item) => item.id === id);
 }
-const deviceName = (i: RepairCase) =>
-  [i.deviceBrand, i.deviceModel, i.deviceType].filter(Boolean).join(" ") ||
-  "未命名设备";
-const dateTime = (v?: string) => v?.replace("T", " ").slice(0, 16) || "—";
 const toInput = (v?: string) => v?.slice(0, 16) || "";
 const phoneVisible = (id: number) => revealedPhones.value.has(id);
 function togglePhone(id: number) {
@@ -617,5 +478,20 @@ function togglePhone(id: number) {
 }
 function localDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function editorSnapshot() {
+  return JSON.stringify({ form, handlerId: selectedHandler.value?.id || null });
+}
+function sameQuery(
+  current: Record<string, unknown>,
+  next: Record<string, string>,
+) {
+  const currentEntries = Object.entries(current)
+    .filter(([, value]) => typeof value === "string" && value)
+    .sort(([left], [right]) => left.localeCompare(right));
+  const nextEntries = Object.entries(next).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+  return JSON.stringify(currentEntries) === JSON.stringify(nextEntries);
 }
 </script>

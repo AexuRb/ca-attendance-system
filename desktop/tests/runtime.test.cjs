@@ -10,6 +10,7 @@ const {
   detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,
+  isRequestedWindowSize,
   isLoopbackPortInUse,
   restoreApplicationWindow,
   selectSmokeScenario,
@@ -49,6 +50,10 @@ test('selects only explicit desktop smoke scenarios with safe delays', () => {
   assert.deepEqual(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_EXIT_MS: '1500' }), {
     kind: 'exit',
     delayMs: 1500
+  });
+  assert.deepEqual(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_RESIZE_MS: '1600' }), {
+    kind: 'resize',
+    delayMs: 1600
   });
   assert.equal(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_EXIT_MS: '999' }), null);
   assert.equal(selectSmokeScenario({ CA_ATTENDANCE_SMOKE_EXIT_MS: 'not-a-number' }), null);
@@ -165,6 +170,17 @@ test('restores and focuses a hidden or minimized application window', () => {
 
   assert.equal(restoreApplicationWindow(window), true);
   assert.deepEqual(calls, ['restore', 'show', 'focus']);
+});
+
+test('accepts only operating-system window frame differences within two pixels', () => {
+  assert.equal(isRequestedWindowSize(
+    { width: 1081, height: 722 },
+    { width: 1080, height: 720 }
+  ), true);
+  assert.equal(isRequestedWindowSize(
+    { width: 1083, height: 720 },
+    { width: 1080, height: 720 }
+  ), false);
 });
 
 test('does not try to restore a destroyed application window', () => {

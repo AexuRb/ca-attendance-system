@@ -1,5 +1,5 @@
 import { api } from "../../shared/api";
-import type { RepairPageRequest } from "./useRepairBoard";
+import type { RepairPageRequest } from "./useRepairWorkspace";
 import type { RepairPage } from "./repairTypes";
 
 export function fetchRepairPage(request: RepairPageRequest) {

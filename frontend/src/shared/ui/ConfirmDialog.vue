@@ -1,22 +1,27 @@
 <template>
-  <ModalDialog :open="open" :title="title" size="sm" @close="$emit('cancel')">
+  <ModalDialog :open="open" :title="title" size="sm" @close="cancel">
     <p class="confirm-copy">{{ message }}</p>
     <label v-if="requireReason" class="field">
       <span>操作原因</span>
       <textarea v-model="reason" rows="3" placeholder="请说明原因" autofocus />
     </label>
     <template #footer>
-      <button class="button secondary" type="button" @click="$emit('cancel')">
+      <button
+        class="button secondary"
+        type="button"
+        :disabled="pending"
+        @click="cancel"
+      >
         取消
       </button>
       <button
         class="button"
         :class="danger ? 'danger' : 'primary'"
         type="button"
-        :disabled="requireReason && !reason.trim()"
+        :disabled="pending || (requireReason && !reason.trim())"
         @click="$emit('confirm', reason.trim())"
       >
-        {{ confirmLabel || "确认" }}
+        {{ pending ? pendingLabel || "处理中..." : confirmLabel || "确认" }}
       </button>
     </template>
   </ModalDialog>
@@ -32,9 +37,14 @@ const props = defineProps<{
   confirmLabel?: string;
   danger?: boolean;
   requireReason?: boolean;
+  pending?: boolean;
+  pendingLabel?: string;
 }>();
-defineEmits<{ cancel: []; confirm: [reason: string] }>();
+const emit = defineEmits<{ cancel: []; confirm: [reason: string] }>();
 const reason = ref("");
+function cancel() {
+  if (!props.pending) emit("cancel");
+}
 watch(
   () => props.open,
   (value) => {

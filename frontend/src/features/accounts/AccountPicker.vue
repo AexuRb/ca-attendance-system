@@ -4,7 +4,10 @@
       <Search aria-hidden="true" />
       <input
         v-model.trim="keyword"
+        :name="inputName"
         :aria-label="ariaLabel"
+        :aria-invalid="invalid || undefined"
+        :aria-describedby="describedBy"
         :placeholder="placeholder"
         autocomplete="off"
       />
@@ -78,10 +81,16 @@ const props = withDefaults(
     modelValue: AccountCandidate | null;
     ariaLabel?: string;
     placeholder?: string;
+    inputName?: string;
+    invalid?: boolean;
+    describedBy?: string;
   }>(),
   {
     ariaLabel: "选择账号",
     placeholder: "搜索姓名或学号",
+    inputName: undefined,
+    invalid: false,
+    describedBy: undefined,
   },
 );
 const emit = defineEmits<{

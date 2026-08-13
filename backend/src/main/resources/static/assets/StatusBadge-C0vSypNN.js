@@ -1,1 +1,0 @@
-import{F as e,Q as t,j as n,z as r}from"./index-B4WZoW_u.js";var i=[`data-tone`],a=e({__name:`StatusBadge`,props:{label:{},tone:{}},setup(e){return(a,o)=>(r(),n(`span`,{class:`status-badge`,"data-tone":e.tone},t(e.label),9,i))}});export{a as t};

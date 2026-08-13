@@ -40,6 +40,27 @@ class SeedScaleTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "users"):
             SeedScale(users=0)
 
+    def test_reports_special_training_and_repair_distributions(self):
+        scale = SeedScale(
+            users=80,
+            attendance=100,
+            trainings=200,
+            training_participants_per_session=10,
+            training_participant_counts=(0, 1, 30, 72, 3_000),
+            repairs=1_100,
+            repair_status_counts=(8, 1_050, 42),
+            logs=100,
+        )
+
+        self.assertEqual(scale.expected_counts()["training_participants"], 5_053)
+        self.assertEqual(scale.expected_counts()["repair_cases"], 1_100)
+
+    def test_rejects_invalid_distribution_totals(self):
+        with self.assertRaisesRegex(ValueError, "repair_status_counts"):
+            SeedScale(repairs=10, repair_status_counts=(2, 3, 4))
+        with self.assertRaisesRegex(ValueError, "training_participant_counts"):
+            SeedScale(trainings=2, training_participant_counts=(0, 1, 2))
+
     def test_seeds_a_migrated_database_with_exact_counts_and_valid_foreign_keys(self):
         scale = SeedScale(
             users=8,
@@ -71,6 +92,68 @@ class SeedScaleTest(unittest.TestCase):
             result = seed_database(database, scale, random_seed=20260811)
 
             self.assertEqual(result["counts"], scale.expected_counts())
+            self.assertEqual(result["foreign_key_errors"], [])
+
+    def test_seeds_exact_special_distributions_and_unlinked_large_rosters(self):
+        scale = SeedScale(
+            users=8,
+            attendance=20,
+            trainings=5,
+            training_participants_per_session=2,
+            training_participant_counts=(0, 1, 3, 9, 15),
+            repairs=7,
+            repair_status_counts=(2, 4, 1),
+            logs=15,
+        )
+        schema = (
+            Path(__file__).resolve().parents[1] / "database" / "schema.sql"
+        ).read_text(encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "attendance.db"
+            with closing(sqlite3.connect(database)) as connection:
+                connection.executescript(schema)
+                connection.execute(
+                    """
+                    INSERT INTO users (
+                      student_no, name, password_hash, role, status,
+                      must_change_password
+                    ) VALUES (?, ?, ?, 'ADMIN', 'ACTIVE', 0)
+                    """,
+                    ("1004231224", "性能测试管理员", "test-password-hash"),
+                )
+                connection.commit()
+
+            result = seed_database(database, scale, random_seed=20260813)
+
+            with closing(sqlite3.connect(database)) as connection:
+                roster_sizes = [
+                    row[0]
+                    for row in connection.execute(
+                        """
+                        SELECT COUNT(p.id)
+                        FROM training_sessions s
+                        LEFT JOIN training_participants p ON p.session_id = s.id
+                        GROUP BY s.id
+                        ORDER BY s.id
+                        """
+                    )
+                ]
+                repair_counts = dict(
+                    connection.execute(
+                        "SELECT status, COUNT(*) FROM repair_cases GROUP BY status"
+                    )
+                )
+                unlinked = connection.execute(
+                    "SELECT COUNT(*) FROM training_participants WHERE user_id IS NULL"
+                ).fetchone()[0]
+
+            self.assertEqual(roster_sizes, [0, 1, 3, 9, 15])
+            self.assertEqual(
+                repair_counts,
+                {"REPAIRING": 2, "COMPLETED": 4, "CANCELED": 1},
+            )
+            self.assertGreater(unlinked, 0)
             self.assertEqual(result["foreign_key_errors"], [])
 
 
@@ -110,6 +193,14 @@ class BenchmarkCasesTest(unittest.TestCase):
         self.assertEqual(
             next(case.method for case in cases if case.name == "custom_export_preview"),
             "POST",
+        )
+        self.assertEqual(
+            next(case.path for case in cases if case.name == "training_list"),
+            "/api/trainings/page?page=1&pageSize=20",
+        )
+        self.assertEqual(
+            next(case.path for case in cases if case.name == "repair_list"),
+            "/api/repairs?status=REPAIRING&page=1&pageSize=30",
         )
 
 

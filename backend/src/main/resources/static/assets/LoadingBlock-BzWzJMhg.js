@@ -1,0 +1,1 @@
+import{t as e}from"./loader-circle-DKV3Id6_.js";import{A as t,I as n,L as r,N as i,V as a,Z as o,et as s}from"./index-DMSRUAM8.js";var c={class:`loading-block`,role:`status`},l=r({__name:`LoadingBlock`,props:{label:{}},setup(r){return(l,u)=>(a(),i(`div`,c,[n(o(e),{class:`spin`}),t(`span`,null,s(r.label||`正在加载`),1)]))}});export{l as t};

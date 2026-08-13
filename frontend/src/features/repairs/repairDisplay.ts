@@ -26,21 +26,39 @@ export function repairAgreementLabel(value: StoredAgreementType): string {
     : "维修协议";
 }
 
+export function repairDeviceName(
+  repair: Pick<RepairCase, "deviceBrand" | "deviceModel" | "deviceType">,
+): string {
+  return [repair.deviceBrand, repair.deviceModel, repair.deviceType]
+    .filter(Boolean)
+    .join(" ") || "未命名设备";
+}
+
+export function repairDateTime(value?: string): string {
+  return value?.replace("T", " ").slice(0, 16) || "—";
+}
+
 export function repairAgeDays(
-  repair: Pick<RepairCase, "status" | "receivedAt" | "completedAt">,
+  repair: Pick<
+    RepairCase,
+    "status" | "receivedAt" | "completedAt" | "updatedAt"
+  >,
   now = new Date(),
 ): number {
   const started = parseLocalDate(repair.receivedAt);
   const ended =
-    repair.status === "COMPLETED" && repair.completedAt
-      ? parseLocalDate(repair.completedAt)
+    repair.status !== "REPAIRING"
+      ? parseLocalDate(repair.completedAt || repair.updatedAt)
       : now;
   if (!started || !ended) return 0;
   return Math.max(0, Math.floor((daySerial(ended) - daySerial(started)) / DAY_MS));
 }
 
 export function repairAgeLabel(
-  repair: Pick<RepairCase, "status" | "receivedAt" | "completedAt">,
+  repair: Pick<
+    RepairCase,
+    "status" | "receivedAt" | "completedAt" | "updatedAt"
+  >,
   now = new Date(),
 ): string {
   const days = repairAgeDays(repair, now);
@@ -50,7 +68,10 @@ export function repairAgeLabel(
 }
 
 export function isLongRunningRepair(
-  repair: Pick<RepairCase, "status" | "receivedAt" | "completedAt">,
+  repair: Pick<
+    RepairCase,
+    "status" | "receivedAt" | "completedAt" | "updatedAt"
+  >,
   now = new Date(),
 ): boolean {
   return repair.status === "REPAIRING" && repairAgeDays(repair, now) >= 7;

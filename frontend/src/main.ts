@@ -18,6 +18,8 @@ import "./styles/admin-interactions.css";
 import "./styles/kiosk-theme.css";
 import "./styles/admin-theme.css";
 import "./styles/admin-detail-polish.css";
+import "./styles/training-workspace.css";
+import "./styles/repair-workspace.css";
 import "./styles/auth.css";
 
 setUnauthorizedHandler(() => {

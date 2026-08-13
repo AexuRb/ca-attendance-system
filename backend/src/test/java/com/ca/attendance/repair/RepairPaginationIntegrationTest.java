@@ -97,6 +97,9 @@ class RepairPaginationIntegrationTest {
         RepairCaseService.RepairPage canceled = repairs.page(null, "CANCELED", date, date, 1, 30);
 
         assertEquals(35, first.total());
+        assertEquals(35L, first.statusCounts().get("REPAIRING"));
+        assertEquals(4L, first.statusCounts().get("COMPLETED"));
+        assertEquals(2L, first.statusCounts().get("CANCELED"));
         assertEquals(30, first.items().size());
         assertEquals(1, first.page());
         assertEquals(30, first.pageSize());
@@ -124,6 +127,9 @@ class RepairPaginationIntegrationTest {
         assertEquals(1, matched.page());
         assertEquals(100, matched.pageSize());
         assertEquals("MATCH-2", matched.items().getFirst().ownerName());
+        assertEquals(1L, matched.statusCounts().get("REPAIRING"));
+        assertEquals(0L, matched.statusCounts().get("COMPLETED"));
+        assertEquals(0L, matched.statusCounts().get("CANCELED"));
         assertThrows(ApiException.class,
                 () -> repairs.page(null, "ALL", date, date, 1, 30));
         assertThrows(ApiException.class,

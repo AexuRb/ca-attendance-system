@@ -501,6 +501,9 @@ def main() -> None:
         )
         expect(page.get_by_role("heading", name="维修事务")).to_be_visible()
         page.get_by_role("button", name="新建维修").click()
+        page.get_by_role("textbox", name="联系人", exact=True).fill("测试联系人")
+        page.get_by_role("textbox", name="设备类型", exact=True).fill("测试电脑")
+        page.get_by_role("textbox", name="故障描述", exact=True).fill("无法正常启动")
         page.get_by_role("button", name="下一步").click()
         mobile_handler_picker = page.get_by_role(
             "textbox", name="选择维修负责人"
@@ -522,6 +525,9 @@ def main() -> None:
         page.set_viewport_size({"width": 390, "height": 844})
         page.reload(wait_until="networkidle")
         page.get_by_role("button", name="新建维修").click()
+        page.get_by_role("textbox", name="联系人", exact=True).fill("测试联系人")
+        page.get_by_role("textbox", name="设备类型", exact=True).fill("测试电脑")
+        page.get_by_role("textbox", name="故障描述", exact=True).fill("无法正常启动")
         page.get_by_role("button", name="下一步").click()
         expect(
             page.get_by_role("textbox", name="选择维修负责人")

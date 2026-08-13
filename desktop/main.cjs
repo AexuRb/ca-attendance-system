@@ -10,6 +10,7 @@ const {
   backendLocations,
   detectStartupConflict,
   ensureStorageLayout,
+  isRequestedWindowSize,
   postDesktopControl,
   restoreApplicationWindow,
   resolveAppRoot,
@@ -157,6 +158,43 @@ function scheduleSmokeTest() {
       }
       writeDesktopLog(`backend crash smoke-test terminating pid=${backendChild.pid}`);
       backendChild.kill();
+    }, smokeScenario.delayMs);
+    return;
+  }
+
+  if (smokeScenario?.kind === 'resize') {
+    setTimeout(async () => {
+      const results = [];
+      try {
+        for (const [width, height] of [[1080, 720], [1440, 900]]) {
+          mainWindow?.setSize(width, height);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          const bounds = mainWindow?.getBounds();
+          const layout = await mainWindow?.webContents.executeJavaScript(`(() => {
+            const root = document.documentElement;
+            const body = document.body;
+            return {
+              viewportWidth: window.innerWidth,
+              viewportHeight: window.innerHeight,
+              horizontalOverflow: Math.max(
+                0,
+                Math.max(root.scrollWidth, body?.scrollWidth || 0) - root.clientWidth
+              )
+            };
+          })()`);
+          results.push({ requested: { width, height }, bounds, layout });
+        }
+        const passed = results.every(result =>
+          isRequestedWindowSize(result.bounds, result.requested)
+          && result.layout?.horizontalOverflow <= 2
+        );
+        writeDesktopLog(`resize smoke-test passed=${passed} results=${JSON.stringify(results)}`);
+        process.exitCode = passed ? 0 : 1;
+      } catch (error) {
+        writeDesktopLog(`resize smoke-test failed: ${error.stack || error.message}`);
+        process.exitCode = 1;
+      }
+      app.quit();
     }, smokeScenario.delayMs);
     return;
   }

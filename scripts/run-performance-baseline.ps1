@@ -36,6 +36,11 @@ $seedOutput = Join-Path $runRoot "seed.json"
 $inspectOutput = Join-Path $runRoot "database.json"
 $apiOutput = Join-Path $runRoot "api.json"
 $browserOutput = Join-Path $runRoot "browser.json"
+$validationOutput = Join-Path $runRoot "large-validation.json"
+$visualOutput = Join-Path $runRoot "large-visual.json"
+$screenshotDirectory = Join-Path `
+    (Split-Path -Parent $OutputPath) `
+    (([IO.Path]::GetFileNameWithoutExtension($OutputPath)) + "-screenshots")
 $database = Join-Path $runRoot "data\attendance.db"
 $baseUrl = "http://127.0.0.1:$Port"
 $maven = (Get-Command mvn).Source
@@ -99,6 +104,14 @@ try {
 
     Invoke-PerformanceTool @(
         "seed", "--database", $database,
+        "--users", "500",
+        "--attendance", "10000",
+        "--trainings", "200",
+        "--participants-per-training", "10",
+        "--training-participant-counts", "0,1,30,72,3000",
+        "--repairs", "1100",
+        "--repair-status-counts", "8,1050,42",
+        "--logs", "5000",
         "--output", $seedOutput
     )
     Invoke-PerformanceTool @(
@@ -125,6 +138,27 @@ try {
         "--iterations", [string]$BrowserIterations,
         "--output", $browserOutput
     )
+    & $python (Join-Path $PSScriptRoot "large_dataset_visual.py") `
+        --base-url $baseUrl `
+        --student-no $AdminStudentNo `
+        --password $AdminPassword `
+        --from-date $fromDate `
+        --to-date $toDate.ToString("yyyy-MM-dd") `
+        --screenshots $screenshotDirectory `
+        --output $visualOutput
+    if ($LASTEXITCODE -ne 0) {
+        throw "大数据视觉验收失败，退出码：$LASTEXITCODE"
+    }
+    & $python (Join-Path $PSScriptRoot "large_dataset_validation.py") `
+        --base-url $baseUrl `
+        --student-no $AdminStudentNo `
+        --password $AdminPassword `
+        --from-date $fromDate `
+        --to-date $toDate.ToString("yyyy-MM-dd") `
+        --output $validationOutput
+    if ($LASTEXITCODE -ne 0) {
+        throw "大数据功能验收失败，退出码：$LASTEXITCODE"
+    }
 
     $listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop |
         Select-Object -First 1
@@ -144,6 +178,8 @@ try {
         database = Get-Content -LiteralPath $inspectOutput -Raw | ConvertFrom-Json
         api = Get-Content -LiteralPath $apiOutput -Raw | ConvertFrom-Json
         browser = Get-Content -LiteralPath $browserOutput -Raw | ConvertFrom-Json
+        visual = Get-Content -LiteralPath $visualOutput -Raw | ConvertFrom-Json
+        validation = Get-Content -LiteralPath $validationOutput -Raw | ConvertFrom-Json
         process = [ordered]@{
             workingSetBytes = $javaProcess.WorkingSet64
             privateMemoryBytes = $javaProcess.PrivateMemorySize64

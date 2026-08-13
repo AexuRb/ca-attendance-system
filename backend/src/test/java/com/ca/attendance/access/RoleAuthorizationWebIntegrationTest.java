@@ -42,6 +42,7 @@ class RoleAuthorizationWebIntegrationTest {
 
     private final Map<Role, String> roleTokens = new EnumMap<>(Role.class);
     private MockMvc mvc;
+    private long trainingSessionId;
 
     @DynamicPropertySource
     static void storageProperties(DynamicPropertyRegistry registry) {
@@ -65,10 +66,17 @@ class RoleAuthorizationWebIntegrationTest {
             }
             roleTokens.put(role, tokens.issue(id, studentNo, role.name() + "测试账号", role));
         }
+        Long createdSessionId = jdbc.queryForObject("""
+                INSERT INTO training_sessions (title, training_date, status)
+                VALUES ('authz-training', '2026-08-05', 'COMPLETED')
+                RETURNING id
+                """, Long.class);
+        trainingSessionId = createdSessionId == null ? 0 : createdSessionId;
     }
 
     @AfterEach
     void tearDown() {
+        jdbc.update("DELETE FROM training_sessions WHERE id = ?", trainingSessionId);
         jdbc.update("DELETE FROM users WHERE student_no LIKE 'authz-%'");
     }
 
@@ -85,6 +93,7 @@ class RoleAuthorizationWebIntegrationTest {
                 "/api/users/page",
                 "/api/schedules",
                 "/api/trainings",
+                "/api/trainings/page",
                 "/api/repairs?from=2026-08-01&to=2026-08-10",
                 "/api/maintenance/summary",
                 "/api/settings/attendance-policy",
@@ -92,6 +101,7 @@ class RoleAuthorizationWebIntegrationTest {
         }) {
             authenticatedGet(Role.MEMBER, path).andExpect(status().isForbidden());
         }
+        authenticatedGet(Role.MEMBER, trainingParticipantPagePath()).andExpect(status().isForbidden());
     }
 
     @Test
@@ -108,6 +118,7 @@ class RoleAuthorizationWebIntegrationTest {
                 "/api/users/page",
                 "/api/schedules",
                 "/api/trainings",
+                "/api/trainings/page",
                 "/api/maintenance/summary",
                 "/api/settings/attendance-policy",
                 "/api/exports/options",
@@ -115,6 +126,7 @@ class RoleAuthorizationWebIntegrationTest {
         }) {
             authenticatedGet(Role.MINISTER, path).andExpect(status().isForbidden());
         }
+        authenticatedGet(Role.MINISTER, trainingParticipantPagePath()).andExpect(status().isForbidden());
     }
 
     @Test
@@ -123,6 +135,7 @@ class RoleAuthorizationWebIntegrationTest {
                 "/api/users/page",
                 "/api/schedules",
                 "/api/trainings",
+                "/api/trainings/page",
                 "/api/repairs?from=2026-08-01&to=2026-08-10",
                 "/api/maintenance/summary",
                 "/api/maintenance/backups",
@@ -131,6 +144,7 @@ class RoleAuthorizationWebIntegrationTest {
         }) {
             authenticatedGet(Role.PRESIDENT, path).andExpect(status().isOk());
         }
+        authenticatedGet(Role.PRESIDENT, trainingParticipantPagePath()).andExpect(status().isOk());
 
         authenticatedGet(Role.PRESIDENT, "/api/logs").andExpect(status().isForbidden());
         authenticatedGet(Role.PRESIDENT, "/api/repairs/recycle-bin").andExpect(status().isForbidden());
@@ -145,6 +159,7 @@ class RoleAuthorizationWebIntegrationTest {
                 "/api/users/page",
                 "/api/schedules",
                 "/api/trainings",
+                "/api/trainings/page",
                 "/api/maintenance/summary",
                 "/api/maintenance/backups",
                 "/api/settings/attendance-policy",
@@ -154,6 +169,7 @@ class RoleAuthorizationWebIntegrationTest {
         }) {
             authenticatedGet(Role.ADMIN, path).andExpect(status().isOk());
         }
+        authenticatedGet(Role.ADMIN, trainingParticipantPagePath()).andExpect(status().isOk());
     }
 
     private ResultActions authenticatedGet(Role role, String path) throws Exception {
@@ -162,6 +178,10 @@ class RoleAuthorizationWebIntegrationTest {
 
     private ResultActions authenticatedDelete(Role role, String path) throws Exception {
         return mvc.perform(delete(path).header("Authorization", "Bearer " + roleTokens.get(role)));
+    }
+
+    private String trainingParticipantPagePath() {
+        return "/api/trainings/" + trainingSessionId + "/participants/page";
     }
 
     private static Path createStorageRoot() {

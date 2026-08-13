@@ -30,6 +30,18 @@ public class TrainingController {
         return trainings.list(keyword, status, from, to);
     }
 
+    @GetMapping("/page")
+    public TrainingService.TrainingSessionPage page(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int pageSize
+    ) {
+        return trainings.page(keyword, status, from, to, page, pageSize);
+    }
+
     @PostMapping
     public TrainingSessionItem create(@RequestBody TrainingService.SessionRequest request) {
         return trainings.create(request);
@@ -64,6 +76,16 @@ public class TrainingController {
     @GetMapping("/{id}/participants")
     public List<TrainingParticipantItem> participants(@PathVariable long id) {
         return trainings.participants(id);
+    }
+
+    @GetMapping("/{id}/participants/page")
+    public TrainingService.TrainingParticipantPage participantPage(
+            @PathVariable long id,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "30") int pageSize
+    ) {
+        return trainings.participantPage(id, keyword, page, pageSize);
     }
 
     @PostMapping("/{id}/participants")

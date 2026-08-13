@@ -220,7 +220,6 @@
 .refined-admin-layout .record-list-item small,
 .refined-admin-layout .record-list-item b,
 .refined-admin-layout .compact-metrics span,
-.refined-admin-layout .repair-column-head b,
 .refined-admin-layout .export-steps button span,
 .refined-admin-layout .weekday-selector strong,
 .refined-admin-layout .period-enabled-toggle span,
@@ -604,20 +603,13 @@
   box-shadow: none;
 }
 
-.refined-admin-layout .schedule-slot-card,
-.refined-admin-layout .repair-card {
+.refined-admin-layout .schedule-slot-card {
   box-shadow: none;
 }
 
-.refined-admin-layout .schedule-slot-card:hover,
-.refined-admin-layout .repair-card:hover {
+.refined-admin-layout .schedule-slot-card:hover {
   transform: none;
   box-shadow: none;
-}
-
-.refined-admin-layout .repair-column {
-  border-color: var(--admin-line);
-  background: #f7f9fa;
 }
 
 .refined-admin-layout .profile-summary {

@@ -37,6 +37,9 @@ public class TrainingService {
     private static final Pattern STUDENT_NO_PATTERN = Pattern.compile("\\d{1,32}");
     private static final int ISSUE_LIMIT = 20;
     private static final int MAX_EXCEL_ROWS = 3000;
+    private static final int DEFAULT_SESSION_PAGE_SIZE = 20;
+    private static final int DEFAULT_PARTICIPANT_PAGE_SIZE = 30;
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
@@ -80,6 +83,49 @@ public class TrainingService {
 
     public List<TrainingSessionItem> list(String keyword, String status, LocalDate from, LocalDate to) {
         requireViewTrainings(AuthContext.current());
+        TrainingSessionQuery query = trainingSessionQuery(keyword, status, from, to);
+        return querySessions(query.where(), query.args(), null, null);
+    }
+
+    public TrainingSessionPage page(
+            String keyword,
+            String status,
+            LocalDate from,
+            LocalDate to,
+            int page,
+            int pageSize
+    ) {
+        requireViewTrainings(AuthContext.current());
+        int safePage = Math.max(1, page);
+        int safePageSize = normalizedPageSize(pageSize, DEFAULT_SESSION_PAGE_SIZE);
+        TrainingSessionQuery query = trainingSessionQuery(keyword, status, from, to);
+        Long totalValue = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM training_sessions s " + query.where(),
+                Long.class,
+                query.args().toArray()
+        );
+        long total = totalValue == null ? 0 : totalValue;
+        List<TrainingSessionItem> items = querySessions(
+                query.where(),
+                query.args(),
+                safePageSize,
+                (long) (safePage - 1) * safePageSize
+        );
+        return new TrainingSessionPage(
+                items,
+                total,
+                safePage,
+                safePageSize,
+                (long) safePage * safePageSize < total
+        );
+    }
+
+    private TrainingSessionQuery trainingSessionQuery(
+            String keyword,
+            String status,
+            LocalDate from,
+            LocalDate to
+    ) {
         LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
         LocalDate end = to == null ? LocalDate.now().plusYears(1) : to;
         if (start.isAfter(end)) {
@@ -107,7 +153,15 @@ public class TrainingService {
             args.add(like);
             args.add(like);
         }
-        return querySessions(where.toString(), args.toArray());
+        if (status != null && !status.isBlank()) {
+            String normalizedStatus = parseSessionStatus(status);
+            if ("ARCHIVED".equals(normalizedStatus)) {
+                throw ApiException.badRequest("培训列表不支持查询已归档场次");
+            }
+            where.append(" AND s.status = ?");
+            args.add(normalizedStatus);
+        }
+        return new TrainingSessionQuery(where.toString(), args);
     }
 
     @Transactional
@@ -183,7 +237,34 @@ public class TrainingService {
     public List<TrainingParticipantItem> participants(long sessionId) {
         requireViewTrainings(AuthContext.current());
         ensureSessionExists(sessionId);
-        return queryParticipants(sessionId);
+        return queryParticipants(sessionId, null, null, null);
+    }
+
+    public TrainingParticipantPage participantPage(long sessionId, String keyword, int page, int pageSize) {
+        requireViewTrainings(AuthContext.current());
+        ensureSessionExists(sessionId);
+        int safePage = Math.max(1, page);
+        int safePageSize = normalizedPageSize(pageSize, DEFAULT_PARTICIPANT_PAGE_SIZE);
+        ParticipantQuery query = participantQuery(sessionId, keyword);
+        Long totalValue = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM training_participants p " + query.where(),
+                Long.class,
+                query.args().toArray()
+        );
+        long total = totalValue == null ? 0 : totalValue;
+        List<TrainingParticipantItem> items = queryParticipants(
+                sessionId,
+                keyword,
+                safePageSize,
+                (long) (safePage - 1) * safePageSize
+        );
+        return new TrainingParticipantPage(
+                items,
+                total,
+                safePage,
+                safePageSize,
+                (long) safePage * safePageSize < total
+        );
     }
 
     @Transactional
@@ -291,7 +372,7 @@ public class TrainingService {
         AuthUser current = AuthContext.current();
         requireExportTrainings(current);
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
-        List<TrainingParticipantItem> rows = queryParticipants(sessionId);
+        List<TrainingParticipantItem> rows = queryParticipants(sessionId, null, null, null);
         String filename = "培训名单_" + cleanFilename(session.title()) + "_" + session.trainingDate() + ".xlsx";
         byte[] bytes = workbookBytes(wb -> writeSessionWorkbook(wb, session, rows));
         logs.logExport("TRAINING_SESSION", "培训名单", Map.of("sessionId", sessionId), rows.size(), filename);
@@ -618,6 +699,22 @@ public class TrainingService {
     }
 
     private List<TrainingSessionItem> querySessions(String where, Object... args) {
+        return querySessions(where, Arrays.asList(args), null, null);
+    }
+
+    private List<TrainingSessionItem> querySessions(
+            String where,
+            List<Object> args,
+            Integer limit,
+            Long offset
+    ) {
+        List<Object> queryArgs = new ArrayList<>(args);
+        String pagination = "";
+        if (limit != null && offset != null) {
+            pagination = "\nLIMIT ? OFFSET ?";
+            queryArgs.add(limit);
+            queryArgs.add(offset);
+        }
         return jdbc.query("""
                 SELECT s.*,
                        cb.name AS created_by_name,
@@ -630,7 +727,7 @@ public class TrainingService {
                 """ + where + """
 
                 ORDER BY s.training_date DESC, s.id DESC
-                """, sessionMapper, args);
+                """ + pagination, sessionMapper, queryArgs.toArray());
     }
 
     private Optional<TrainingSessionItem> findSession(long id) {
@@ -641,7 +738,20 @@ public class TrainingService {
         findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
     }
 
-    private List<TrainingParticipantItem> queryParticipants(long sessionId) {
+    private List<TrainingParticipantItem> queryParticipants(
+            long sessionId,
+            String keyword,
+            Integer limit,
+            Long offset
+    ) {
+        ParticipantQuery query = participantQuery(sessionId, keyword);
+        List<Object> queryArgs = new ArrayList<>(query.args());
+        String pagination = "";
+        if (limit != null && offset != null) {
+            pagination = "\nLIMIT ? OFFSET ?";
+            queryArgs.add(limit);
+            queryArgs.add(offset);
+        }
         return jdbc.query("""
                 SELECT p.*,
                        cb.name AS created_by_name,
@@ -650,11 +760,40 @@ public class TrainingService {
                 JOIN training_sessions s ON s.id = p.session_id
                 LEFT JOIN users cb ON cb.id = p.created_by
                 LEFT JOIN users ub ON ub.id = p.updated_by
-                WHERE p.session_id = ?
+                """ + query.where() + """
+
                 ORDER BY
                   CASE WHEN s.speaker IS NOT NULL AND s.speaker <> '' AND p.name_snapshot = s.speaker THEN 0 ELSE 1 END,
-                  p.student_no_snapshot
-                """, participantMapper, sessionId);
+                  p.student_no_snapshot,
+                  p.id
+                """ + pagination, participantMapper, queryArgs.toArray());
+    }
+
+    private ParticipantQuery participantQuery(long sessionId, String keyword) {
+        StringBuilder where = new StringBuilder("WHERE p.session_id = ?");
+        List<Object> args = new ArrayList<>();
+        args.add(sessionId);
+        if (keyword != null && !keyword.isBlank()) {
+            where.append("""
+                    AND (
+                      p.student_no_snapshot LIKE ?
+                      OR p.name_snapshot LIKE ?
+                      OR p.remark LIKE ?
+                    )
+                    """);
+            String like = "%" + keyword.trim() + "%";
+            args.add(like);
+            args.add(like);
+            args.add(like);
+        }
+        return new ParticipantQuery(where.toString(), args);
+    }
+
+    private int normalizedPageSize(int pageSize, int defaultPageSize) {
+        if (pageSize <= 0) {
+            return defaultPageSize;
+        }
+        return Math.min(pageSize, MAX_PAGE_SIZE);
     }
 
     private Optional<TrainingParticipantItem> findParticipant(long sessionId, long participantId) {
@@ -1073,6 +1212,24 @@ public class TrainingService {
     public record ImportResult(int created, int updated, int skipped, List<String> errors) {
     }
 
+    public record TrainingSessionPage(
+            List<TrainingSessionItem> items,
+            long total,
+            int page,
+            int pageSize,
+            boolean hasMore
+    ) {
+    }
+
+    public record TrainingParticipantPage(
+            List<TrainingParticipantItem> items,
+            long total,
+            int page,
+            int pageSize,
+            boolean hasMore
+    ) {
+    }
+
     public record ExportFile(String filename, byte[] bytes) {
     }
 
@@ -1089,6 +1246,12 @@ public class TrainingService {
     }
 
     private record ParticipantValues(Long userId, String studentNo, String name, BigDecimal durationHours, String remark, String source) {
+    }
+
+    private record TrainingSessionQuery(String where, List<Object> args) {
+    }
+
+    private record ParticipantQuery(String where, List<Object> args) {
     }
 
     private record UserRef(long id, String studentNo, String name) {

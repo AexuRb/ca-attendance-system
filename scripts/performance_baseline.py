@@ -26,13 +26,25 @@ class SeedScale:
     attendance: int = 10_000
     trainings: int = 500
     training_participants_per_session: int = 10
+    training_participant_counts: tuple[int, ...] = ()
     repairs: int = 1_000
+    repair_status_counts: tuple[int, int, int] | None = None
     logs: int = 5_000
 
     def __post_init__(self) -> None:
-        for name, value in self.__dict__.items():
+        for name in ("users", "attendance", "trainings", "training_participants_per_session", "repairs", "logs"):
+            value = getattr(self, name)
             if value <= 0:
                 raise ValueError(f"{name} must be greater than zero")
+        if len(self.training_participant_counts) > self.trainings:
+            raise ValueError("training_participant_counts cannot exceed trainings")
+        if any(value < 0 for value in self.training_participant_counts):
+            raise ValueError("training_participant_counts cannot contain negatives")
+        if self.repair_status_counts is not None:
+            if any(value < 0 for value in self.repair_status_counts):
+                raise ValueError("repair_status_counts cannot contain negatives")
+            if sum(self.repair_status_counts) != self.repairs:
+                raise ValueError("repair_status_counts must add up to repairs")
 
     def expected_counts(self) -> dict[str, int]:
         return {
@@ -40,7 +52,9 @@ class SeedScale:
             "attendance_records": self.attendance,
             "training_sessions": self.trainings,
             "training_participants": (
-                self.trainings * self.training_participants_per_session
+                sum(self.training_participant_counts)
+                + (self.trainings - len(self.training_participant_counts))
+                * self.training_participants_per_session
             ),
             "repair_cases": self.repairs,
             "operation_logs": self.logs,
@@ -117,12 +131,17 @@ def benchmark_cases(from_date: str, to_date: str) -> list[BenchmarkCase]:
         BenchmarkCase(
             "training_list",
             "GET",
-            "/api/trainings",
+            "/api/trainings/page?page=1&pageSize=20",
         ),
         BenchmarkCase(
             "repair_list",
             "GET",
-            "/api/repairs",
+            "/api/repairs?status=REPAIRING&page=1&pageSize=30",
+        ),
+        BenchmarkCase(
+            "repair_history_page",
+            "GET",
+            "/api/repairs?status=COMPLETED&page=1&pageSize=30",
         ),
         BenchmarkCase(
             "logs_page",
@@ -173,8 +192,27 @@ def benchmark_api(
         else to_value - timedelta(days=364)
     )
     token = _login(base_url, student_no, password)
+    cases = benchmark_cases(from_value.isoformat(), to_value.isoformat())
+    _, training_payload = _request(
+        base_url,
+        "GET",
+        "/api/trainings/page?keyword=%E8%B6%85%E9%95%BF%E6%A0%87%E9%A2%98%E6%B5%8B%E8%AF%95&page=1&pageSize=20",
+        token,
+        None,
+    )
+    training_page = json.loads(training_payload.decode("utf-8"))
+    if training_page.get("items"):
+        large_session_id = training_page["items"][0]["id"]
+        cases.append(
+            BenchmarkCase(
+                "training_large_roster_page",
+                "GET",
+                f"/api/trainings/{large_session_id}/participants/page?page=1&pageSize=30",
+            )
+        )
+
     results: dict[str, Any] = {}
-    for case in benchmark_cases(from_value.isoformat(), to_value.isoformat()):
+    for case in cases:
         for _ in range(warmups):
             _timed_request(base_url, case, token)
         latencies: list[float] = []
@@ -242,11 +280,33 @@ def benchmark_browser(
         raise RuntimeError("Python Playwright is required for browser benchmarks") from error
 
     token = _login(base_url, student_no, password)
+    _, training_payload = _request(
+        base_url,
+        "GET",
+        "/api/trainings/page?keyword=%E8%B6%85%E9%95%BF%E6%A0%87%E9%A2%98%E6%B5%8B%E8%AF%95&page=1&pageSize=20",
+        token,
+        None,
+    )
+    training_page = json.loads(training_payload.decode("utf-8"))
+    large_training_route = "/#/admin/trainings"
+    if training_page.get("items"):
+        large_training_route += f"?sessionId={training_page['items'][0]['id']}"
+
     cases = (
         ("members", "/#/admin/members", ".member-table tbody tr"),
         ("attendance", "/#/admin/attendance", ".table-shell tbody tr"),
-        ("trainings", "/#/admin/trainings", ".record-list-item"),
-        ("repairs", "/#/admin/repairs", ".repair-card"),
+        ("trainings", "/#/admin/trainings", ".training-session-item"),
+        (
+            "training_large_roster",
+            large_training_route,
+            ".training-participant-row",
+        ),
+        ("repairs", "/#/admin/repairs", ".repair-active-card"),
+        (
+            "repair_history",
+            "/#/admin/repairs?status=COMPLETED&page=1",
+            ".repair-history-row",
+        ),
         ("logs", "/#/admin/logs", ".timeline-list article"),
     )
     results: dict[str, Any] = {}
@@ -335,6 +395,30 @@ def inspect_database(database: str | Path) -> dict[str, Any]:
                 "operation_logs",
             )
         }
+        training_distribution = [
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT COUNT(p.id)
+                FROM training_sessions s
+                LEFT JOIN training_participants p ON p.session_id = s.id
+                GROUP BY s.id
+                ORDER BY COUNT(p.id) DESC, s.id
+                LIMIT 10
+                """
+            )
+        ]
+        repair_distribution = {
+            row[0]: row[1]
+            for row in connection.execute(
+                """
+                SELECT status, COUNT(*)
+                FROM repair_cases
+                WHERE deleted_at IS NULL
+                GROUP BY status
+                """
+            )
+        }
         indexes = [
             row[0]
             for row in connection.execute(
@@ -400,6 +484,8 @@ def inspect_database(database: str | Path) -> dict[str, Any]:
         "database": str(database_path),
         "database_bytes": page_count * page_size,
         "counts": counts,
+        "training_participant_distribution_top": training_distribution,
+        "repair_status_distribution": repair_distribution,
         "indexes": indexes,
         "query_plans": plans,
         "foreign_key_errors": foreign_key_errors,
@@ -701,8 +787,19 @@ def _seed_trainings(
     date_span: int,
 ) -> None:
     participant_rows = []
+    end_date = start_date + timedelta(days=date_span - 1)
     for index in range(scale.trainings):
-        training_date = start_date + timedelta(days=(index * 7) % date_span)
+        participant_count = (
+            scale.training_participant_counts[index]
+            if index < len(scale.training_participant_counts)
+            else scale.training_participants_per_session
+        )
+        current_year_span = max(1, (end_date - date(end_date.year, 1, 1)).days + 1)
+        training_date = (
+            end_date - timedelta(days=(index * 2) % current_year_span)
+            if scale.training_participant_counts
+            else start_date + timedelta(days=(index * 7) % date_span)
+        )
         cursor = connection.execute(
             """
             INSERT INTO training_sessions (
@@ -711,7 +808,12 @@ def _seed_trainings(
             ) VALUES (?, ?, '09:30', '11:30', ?, ?, ?, 'COMPLETED', ?, ?)
             """,
             (
-                f"性能基线培训 {index + 1:04d}",
+                (
+                    "超长标题测试：计算机协会离线设备维护、数据备份、系统安装与"
+                    "常见硬件故障综合实务培训"
+                    if index == 4
+                    else f"性能基线培训 {index + 1:04d}"
+                ),
                 training_date.isoformat(),
                 f"培训室 {index % 8 + 1}",
                 users[(index + 1) % len(users)][2],
@@ -721,16 +823,32 @@ def _seed_trainings(
             ),
         )
         session_id = cursor.lastrowid
-        for participant_index in range(scale.training_participants_per_session):
+        for participant_index in range(participant_count):
+            linked = participant_index < len(users)
             user = users[(index * 11 + participant_index) % len(users)]
+            student_no = (
+                user[1]
+                if linked
+                else f"88{session_id:06d}{participant_index:06d}"
+            )
+            name = (
+                user[2]
+                if linked
+                else f"未关联参与成员{participant_index + 1:04d}"
+            )
             participant_rows.append(
                 (
                     session_id,
-                    user[0],
-                    user[1],
-                    user[2],
+                    user[0] if linked else None,
+                    student_no,
+                    name,
                     2,
-                    "主讲人" if participant_index == 0 else "参与培训",
+                    (
+                        "主讲人，负责现场演示、答疑与培训资料整理。"
+                        if participant_index == 0
+                        else "" if participant_index % 11 == 0
+                        else "参与培训"
+                    ),
                     "IMPORT" if participant_index else "MANUAL",
                     admin_id,
                     admin_id,
@@ -758,11 +876,27 @@ def _seed_repairs(
 ) -> None:
     rows = []
     daily_sequence: dict[str, int] = {}
+    end_date = start_date + timedelta(days=date_span - 1)
     for index in range(scale.repairs):
-        received_date = start_date + timedelta(days=(index * 13) % date_span)
+        current_year_span = max(1, (end_date - date(end_date.year, 1, 1)).days + 1)
+        received_date = (
+            end_date - timedelta(days=index % current_year_span)
+            if scale.repair_status_counts is not None
+            else start_date + timedelta(days=(index * 13) % date_span)
+        )
         date_key = received_date.strftime("%Y%m%d")
         daily_sequence[date_key] = daily_sequence.get(date_key, 0) + 1
-        status = ("REPAIRING", "COMPLETED", "CANCELED")[index % 3]
+        if scale.repair_status_counts is None:
+            status = ("REPAIRING", "COMPLETED", "CANCELED")[index % 3]
+        else:
+            repairing, completed, _ = scale.repair_status_counts
+            status = (
+                "REPAIRING"
+                if index < repairing
+                else "COMPLETED"
+                if index < repairing + completed
+                else "CANCELED"
+            )
         received_at = datetime.combine(received_date, time(10, index % 60))
         handler = users[(index * 5) % len(users)]
         rows.append(
@@ -774,7 +908,13 @@ def _seed_repairs(
                 "笔记本电脑" if index % 2 == 0 else "台式电脑",
                 "Lenovo" if index % 3 == 0 else "Dell",
                 f"性能测试型号 {index % 30 + 1}",
-                "系统无法启动，偶发蓝屏并伴随存储设备读取异常。",
+                (
+                    "系统无法启动，偶发蓝屏并伴随存储设备读取异常；送修人反馈设备"
+                    "内包含课程设计、协会档案和未同步资料，需要先完成只读检测并记录"
+                    "每一步处理结果，避免覆盖原始数据。"
+                    if index % 17 == 0
+                    else "系统无法启动，偶发蓝屏并伴随存储设备读取异常。"
+                ),
                 "完成硬件检测、数据备份确认和系统修复。",
                 status,
                 received_at.strftime("%Y-%m-%d %H:%M:%S"),
@@ -783,9 +923,9 @@ def _seed_repairs(
                     if status == "COMPLETED"
                     else None
                 ),
-                handler[0],
-                handler[2],
-                "性能测试维修事务",
+                None if index % 19 == 0 else handler[0],
+                f"历史负责人{index % 7 + 1}" if index % 19 == 0 else handler[2],
+                "" if index % 13 == 0 else "性能测试维修事务",
                 admin_id,
                 admin_id,
             )
@@ -866,7 +1006,17 @@ def _parser() -> argparse.ArgumentParser:
     seed_parser.add_argument("--attendance", type=int, default=10_000)
     seed_parser.add_argument("--trainings", type=int, default=500)
     seed_parser.add_argument("--participants-per-training", type=int, default=10)
+    seed_parser.add_argument(
+        "--training-participant-counts",
+        default="",
+        help="comma-separated participant counts for the first training sessions",
+    )
     seed_parser.add_argument("--repairs", type=int, default=1_000)
+    seed_parser.add_argument(
+        "--repair-status-counts",
+        default="",
+        help="comma-separated REPAIRING,COMPLETED,CANCELED counts",
+    )
     seed_parser.add_argument("--logs", type=int, default=5_000)
     seed_parser.add_argument("--random-seed", type=int, default=20260811)
     seed_parser.add_argument("--output")
@@ -900,6 +1050,24 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _parse_counts(value: str) -> tuple[int, ...]:
+    if not value.strip():
+        return ()
+    try:
+        return tuple(int(item.strip()) for item in value.split(","))
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("counts must be comma-separated integers") from error
+
+
+def _parse_repair_status_counts(value: str) -> tuple[int, int, int]:
+    counts = _parse_counts(value)
+    if len(counts) != 3:
+        raise argparse.ArgumentTypeError(
+            "repair status counts must contain REPAIRING,COMPLETED,CANCELED"
+        )
+    return counts
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "seed":
@@ -910,7 +1078,15 @@ def main(argv: list[str] | None = None) -> int:
                 attendance=args.attendance,
                 trainings=args.trainings,
                 training_participants_per_session=args.participants_per_training,
+                training_participant_counts=_parse_counts(
+                    args.training_participant_counts
+                ),
                 repairs=args.repairs,
+                repair_status_counts=(
+                    _parse_repair_status_counts(args.repair_status_counts)
+                    if args.repair_status_counts
+                    else None
+                ),
                 logs=args.logs,
             ),
             random_seed=args.random_seed,

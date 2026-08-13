@@ -1,1 +1,0 @@
-import{J as e,u as t}from"./index-B4WZoW_u.js";function n(){let n=e(!1),r=e(``);async function i(e,i=``){n.value=!0,r.value=``;try{let n=await e();return i&&t(i,`success`),n}catch(e){r.value=e instanceof Error?e.message:`操作失败`,t(r.value,`danger`);return}finally{n.value=!1}}return{busy:n,error:r,run:i}}export{n as t};

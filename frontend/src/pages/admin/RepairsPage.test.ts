@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ref } from "vue";
+import { defineComponent, ref } from "vue";
 import RepairsPage from "./RepairsPage.vue";
 import type {
   RepairCase,
@@ -10,6 +10,8 @@ import type {
 
 const apiRequest = vi.fn();
 const apiGet = vi.fn();
+const routerReplace = vi.fn();
+const routerPush = vi.fn();
 
 vi.mock("../../shared/api", () => ({
   api: (...args: unknown[]) => apiRequest(...args),
@@ -26,14 +28,22 @@ vi.mock("../../app/session", () => ({
   }),
 }));
 
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: routerReplace, push: routerPush }),
+  onBeforeRouteLeave: vi.fn(),
+}));
+
 afterEach(() => {
   apiRequest.mockReset();
   apiGet.mockReset();
+  routerReplace.mockReset();
+  routerPush.mockReset();
   document.body.innerHTML = "";
 });
 
-describe("RepairsPage paging", () => {
-  it("loads three 30-row columns and appends only the requested status", async () => {
+describe("RepairsPage workspace", () => {
+  it("loads, pages and switches only the active status", async () => {
     apiGet.mockImplementation((url: string) => {
       if (url === "/api/repairs/handler-candidates") return Promise.resolve([]);
       return Promise.resolve([]);
@@ -61,15 +71,14 @@ describe("RepairsPage paging", () => {
 
     expect(requests()).toEqual([
       { status: "REPAIRING", page: "1", pageSize: "30" },
-      { status: "COMPLETED", page: "1", pageSize: "30" },
-      { status: "CANCELED", page: "1", pageSize: "30" },
     ]);
     expect(
-      wrapper.findAll(".repair-column-head b").map((item) => item.text()),
+      wrapper.findAll(".repair-status-tabs b").map((item) => item.text()),
     ).toEqual(["31", "4", "2"]);
-    expect(wrapper.findAll(".repair-card")).toHaveLength(36);
+    expect(wrapper.findAll(".repair-active-card")).toHaveLength(30);
+    expect(wrapper.find(".repair-history-table").exists()).toBe(false);
 
-    await wrapper.find(".repair-column-more button").trigger("click");
+    await wrapper.get(".repair-workspace-pagination button:last-child").trigger("click");
     await flushPromises();
 
     expect(requests().at(-1)).toEqual({
@@ -77,7 +86,70 @@ describe("RepairsPage paging", () => {
       page: "2",
       pageSize: "30",
     });
-    expect(wrapper.findAll(".repair-card")).toHaveLength(37);
+    expect(wrapper.findAll(".repair-active-card")).toHaveLength(1);
+
+    await wrapper
+      .findAll('[role="tab"]')
+      .find((button) => button.text().includes("已完成"))!
+      .trigger("click");
+    await flushPromises();
+
+    expect(requests().at(-1)).toEqual({
+      status: "COMPLETED",
+      page: "1",
+      pageSize: "30",
+    });
+    expect(wrapper.findAll(".repair-active-card")).toHaveLength(0);
+    expect(wrapper.findAll(".repair-history-row")).toHaveLength(4);
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toContain(
+      "已完成",
+    );
+
+    await wrapper.get(".repair-history-row").trigger("click");
+    await flushPromises();
+
+    expect(document.body.querySelector(".repair-detail-drawer")?.textContent).toContain(
+      "PAGE-COMPLETED-10000",
+    );
+  });
+
+  it("keeps the latest agreement when older preview requests finish later", async () => {
+    apiGet.mockResolvedValue([]);
+    let resolveFirst!: (value: string) => void;
+    let resolveSecond!: (value: string) => void;
+    const firstText = new Promise<string>((resolve) => { resolveFirst = resolve; });
+    const secondText = new Promise<string>((resolve) => { resolveSecond = resolve; });
+    apiRequest.mockImplementation((url: string) => {
+      if (url === "/api/repairs/1/agreement") {
+        return Promise.resolve({ text: () => firstText });
+      }
+      if (url === "/api/repairs/2/agreement") {
+        return Promise.resolve({ text: () => secondText });
+      }
+      return Promise.resolve(repairPage("REPAIRING", 1, 2, 2));
+    });
+
+    const AgreementProbe = defineComponent({
+      props: ["caseNo", "html", "loading"],
+      template: '<div class="agreement-probe">{{ caseNo }}|{{ html }}|{{ loading }}</div>',
+    });
+    const wrapper = mount(RepairsPage, {
+      global: { stubs: { AgreementDialog: AgreementProbe } },
+    });
+    await flushPromises();
+
+    const previewButtons = wrapper.findAll(".repair-active-card footer .button.text");
+    await previewButtons[0].trigger("click");
+    await previewButtons[1].trigger("click");
+    resolveSecond("<p>第二份协议</p>");
+    await flushPromises();
+    expect(wrapper.get(".agreement-probe").text()).toContain("PAGE-REPAIRING-2");
+    expect(wrapper.get(".agreement-probe").text()).toContain("第二份协议");
+
+    resolveFirst("<p>第一份旧协议</p>");
+    await flushPromises();
+    expect(wrapper.get(".agreement-probe").text()).not.toContain("第一份旧协议");
+    expect(wrapper.get(".agreement-probe").text()).toContain("第二份协议");
   });
 });
 
@@ -106,6 +178,11 @@ function repairPage(
     page,
     pageSize: 30,
     hasMore: page * 30 < total,
+    statusCounts: {
+      REPAIRING: 31,
+      COMPLETED: 4,
+      CANCELED: 2,
+    },
   };
 }
 

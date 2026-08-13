@@ -4,13 +4,21 @@ import TrainingPage from "./TrainingPage.vue";
 import SettingsPage from "./SettingsPage.vue";
 
 const apiGet = vi.fn();
+const routerReplace = vi.fn();
 
 vi.mock("../../shared/api", () => ({
+  api: (...args: unknown[]) => apiGet(...args),
   get: (...args: unknown[]) => apiGet(...args),
   post: vi.fn(),
   put: vi.fn(),
   del: vi.fn(),
   downloadBlob: vi.fn(),
+}));
+
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: routerReplace }),
+  onBeforeRouteLeave: vi.fn(),
 }));
 
 vi.mock("../../app/session", () => ({
@@ -19,15 +27,16 @@ vi.mock("../../app/session", () => ({
 
 afterEach(() => {
   apiGet.mockReset();
+  routerReplace.mockReset();
   document.body.innerHTML = "";
 });
 
 describe("TrainingPage details", () => {
   it("labels icon actions and prepares participant rows for narrow screens", async () => {
     apiGet.mockImplementation((url: string) => {
-      if (url.startsWith("/api/trainings?")) {
-        return Promise.resolve([
-          {
+      if (url.startsWith("/api/trainings/page?")) {
+        return Promise.resolve({
+          items: [{
             id: 1,
             title: "Windows 系统维护、数据备份与常见硬件故障排查实务培训",
             trainingDate: "2026-08-11",
@@ -37,19 +46,28 @@ describe("TrainingPage details", () => {
             speaker: "陈禹杭",
             participantCount: 1,
             totalDurationHours: 2.25,
-          },
-        ]);
+          }],
+          total: 1,
+          page: 1,
+          pageSize: 20,
+          hasMore: false,
+        });
       }
-      if (url === "/api/trainings/1/participants") {
-        return Promise.resolve([
-          {
+      if (url.startsWith("/api/trainings/1/participants/page?")) {
+        return Promise.resolve({
+          items: [{
             id: 2,
+            sessionId: 1,
             name: "测试成员",
             studentNo: "99010811102736",
             durationHours: 2.25,
             remark: "主讲人，负责现场演示与问题答疑。",
-          },
-        ]);
+          }],
+          total: 1,
+          page: 1,
+          pageSize: 30,
+          hasMore: false,
+        });
       }
       return Promise.resolve([]);
     });
@@ -57,25 +75,31 @@ describe("TrainingPage details", () => {
     const wrapper = mount(TrainingPage);
     await flushPromises();
 
-    const actions = wrapper.findAll(".detail-heading .icon-button");
-    expect(actions.map((button) => button.attributes("aria-label"))).toEqual([
-      "导出名单",
-      "导入名单",
-      "编辑培训",
-      "归档培训",
-    ]);
-    expect(
-      actions.every(
-        (button) => button.get("svg").attributes("aria-hidden") === "true",
-      ),
-    ).toBe(true);
+    expect(wrapper.get('button[data-action="add-participant"]').text()).toContain(
+      "新增记录",
+    );
+    expect(wrapper.get('button[data-action="import-participants"]').text()).toContain(
+      "导入",
+    );
 
-    const participantCells = wrapper.findAll(
-      ".training-participant-table tbody td",
-    );
-    expect(participantCells.map((cell) => cell.attributes("data-label"))).toEqual(
-      ["参与人", "计入时长", "备注", "操作"],
-    );
+    const more = wrapper.get('button[aria-haspopup="menu"]');
+    expect(more.attributes("aria-label")).toContain("更多操作");
+    expect(more.get("svg").attributes("aria-hidden")).toBe("true");
+    await more.trigger("click");
+    await flushPromises();
+    expect(document.body.textContent).toContain("导出名单");
+    expect(document.body.textContent).toContain("编辑培训");
+    expect(document.body.textContent).toContain("归档培训");
+
+    const participantRows = wrapper.findAll(".training-participant-row");
+    expect(participantRows).toHaveLength(1);
+    expect(participantRows[0].text()).toContain("测试成员");
+    expect(
+      participantRows[0].get('button[aria-label^="编辑"]').attributes("title"),
+    ).toBe("编辑参与记录");
+    expect(
+      participantRows[0].get('button[aria-label^="删除"]').attributes("title"),
+    ).toBe("删除参与记录");
     expect(wrapper.text()).not.toContain("出勤");
     expect(wrapper.text()).not.toContain("来源");
   });

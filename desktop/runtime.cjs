@@ -38,6 +38,7 @@ function selectSmokeScenario(environment = {}) {
   const candidates = [
     ['tray', environment.CA_ATTENDANCE_SMOKE_TRAY_MS],
     ['backend-crash', environment.CA_ATTENDANCE_SMOKE_BACKEND_CRASH_MS],
+    ['resize', environment.CA_ATTENDANCE_SMOKE_RESIZE_MS],
     ['exit', environment.CA_ATTENDANCE_SMOKE_EXIT_MS]
   ];
   for (const [kind, rawDelay] of candidates) {
@@ -61,6 +62,12 @@ function restoreApplicationWindow(window) {
   }
   window.focus();
   return true;
+}
+
+function isRequestedWindowSize(bounds, requested, tolerance = 2) {
+  return Boolean(bounds && requested)
+    && Math.abs(bounds.width - requested.width) <= tolerance
+    && Math.abs(bounds.height - requested.height) <= tolerance;
 }
 
 function backendLocations({
@@ -228,6 +235,7 @@ module.exports = {
   detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,
+  isRequestedWindowSize,
   isLoopbackPortInUse,
   postDesktopControl,
   probeApplication,

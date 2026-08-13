@@ -179,6 +179,7 @@ public class RepairCaseService {
         return queryCases(query.where(), query.args().toArray());
     }
 
+    @Transactional(readOnly = true)
     public RepairPage page(String keyword, String status, LocalDate from, LocalDate to, int page, int pageSize) {
         requireManager(AuthContext.current());
         LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
@@ -188,16 +189,47 @@ public class RepairCaseService {
         }
         int safePage = Math.max(1, page);
         int safePageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
-        RepairQuery query = buildQuery(keyword, status, start, end, false);
-        Long totalValue = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM repair_cases r " + query.where(),
-                Long.class,
-                query.args().toArray()
-        );
-        long total = totalValue == null ? 0 : totalValue;
+        String normalizedStatus = parseStatus(status);
+        RepairQuery query = buildQuery(keyword, normalizedStatus, start, end, false);
+        Map<String, Long> statusCounts = queryStatusCounts(keyword, start, end);
+        long total = statusCounts.getOrDefault(normalizedStatus, 0L);
         List<RepairCaseItem> items = queryCasesPage(
                 query.where(), query.args(), safePageSize, (safePage - 1) * safePageSize);
-        return new RepairPage(items, total, safePage, safePageSize, (long) safePage * safePageSize < total);
+        return new RepairPage(
+                items,
+                total,
+                safePage,
+                safePageSize,
+                (long) safePage * safePageSize < total,
+                statusCounts
+        );
+    }
+
+    private Map<String, Long> queryStatusCounts(String keyword, LocalDate start, LocalDate end) {
+        RepairQuery query = buildQuery(keyword, "ALL", start, end, true);
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put("REPAIRING", 0L);
+        counts.put("COMPLETED", 0L);
+        counts.put("CANCELED", 0L);
+        jdbc.query("""
+                        SELECT CASE
+                                 WHEN r.status IN ('RECEIVED', 'DIAGNOSING', 'REPAIRING', 'WAITING_PICKUP')
+                                   THEN 'REPAIRING'
+                                 ELSE r.status
+                               END AS status_group,
+                               COUNT(*) AS total
+                        FROM repair_cases r
+                        """ + query.where() + """
+                        GROUP BY status_group
+                        """,
+                rs -> {
+                    String status = rs.getString("status_group");
+                    if (counts.containsKey(status)) {
+                        counts.put(status, rs.getLong("total"));
+                    }
+                },
+                query.args().toArray());
+        return counts;
     }
 
     public List<UserRepository.UserCandidate> handlerCandidates(String keyword) {
@@ -1321,7 +1353,8 @@ public class RepairCaseService {
     public record ExportFile(String filename, byte[] bytes) {
     }
 
-    public record RepairPage(List<RepairCaseItem> items, long total, int page, int pageSize, boolean hasMore) {
+    public record RepairPage(List<RepairCaseItem> items, long total, int page, int pageSize, boolean hasMore,
+                             Map<String, Long> statusCounts) {
     }
 
     public record AgreementFile(String filename, byte[] bytes) {

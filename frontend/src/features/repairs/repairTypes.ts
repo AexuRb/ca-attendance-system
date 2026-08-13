@@ -58,6 +58,14 @@ export interface RepairPage {
   page: number;
   pageSize: number;
   hasMore: boolean;
+  statusCounts: RepairStatusCounts;
+}
+
+export type RepairStatusCounts = Record<RepairStatus, number>;
+
+export interface RepairWorkspaceRouteState extends RepairFilters {
+  status: RepairStatus;
+  page: number;
 }
 
 export interface RepairFilters {

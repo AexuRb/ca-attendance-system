@@ -1,1 +1,0 @@
-import{t as e}from"./loader-circle-B3aq0yr5.js";import{F as t,O as n,P as r,Q as i,Y as a,j as o,z as s}from"./index-B4WZoW_u.js";var c={class:`loading-block`,role:`status`},l=t({__name:`LoadingBlock`,props:{label:{}},setup(t){return(l,u)=>(s(),o(`div`,c,[r(a(e),{class:`spin`}),n(`span`,null,i(t.label||`正在加载`),1)]))}});export{l as t};

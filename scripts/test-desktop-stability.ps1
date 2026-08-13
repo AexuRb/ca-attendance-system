@@ -14,6 +14,7 @@ $results = [System.Collections.Generic.List[object]]::new()
 $smokeEnvironmentNames = @(
     'CA_ATTENDANCE_SMOKE_TRAY_MS',
     'CA_ATTENDANCE_SMOKE_BACKEND_CRASH_MS',
+    'CA_ATTENDANCE_SMOKE_RESIZE_MS',
     'CA_ATTENDANCE_SMOKE_EXIT_MS'
 )
 
@@ -123,7 +124,7 @@ function Assert-StorageLayout([string]$appRoot) {
 }
 
 function Test-TrayLifecycle {
-    Write-Host '[1/4] Testing tray hide, restore and full exit...'
+    Write-Host '[1/5] Testing tray hide, restore and full exit...'
     $appRoot = Join-Path $sessionRoot 'roots\tray'
     $userData = Join-Path $sessionRoot 'user-data\tray'
     $process = Start-IsolatedDesktop $appRoot $userData @{
@@ -140,7 +141,7 @@ function Test-TrayLifecycle {
 }
 
 function Test-SingleInstanceAndBinding {
-    Write-Host '[2/4] Testing single instance and loopback bindings...'
+    Write-Host '[2/5] Testing single instance and loopback bindings...'
     $appRoot = Join-Path $sessionRoot 'roots\single-instance'
     $userData = Join-Path $sessionRoot 'user-data\single-instance'
     $primary = Start-IsolatedDesktop $appRoot $userData @{
@@ -168,7 +169,7 @@ function Test-SingleInstanceAndBinding {
 }
 
 function Test-UnexpectedBackendExit {
-    Write-Host '[3/4] Testing unexpected backend exit detection...'
+    Write-Host '[3/5] Testing unexpected backend exit detection...'
     $appRoot = Join-Path $sessionRoot 'roots\backend-crash'
     $userData = Join-Path $sessionRoot 'user-data\backend-crash'
     $process = Start-IsolatedDesktop $appRoot $userData @{
@@ -183,7 +184,7 @@ function Test-UnexpectedBackendExit {
 }
 
 function Test-DirectoryMigration {
-    Write-Host '[4/4] Testing whole-directory migration...'
+    Write-Host '[4/5] Testing whole-directory migration...'
     $sourceRoot = Join-Path $sessionRoot 'roots\migration-source'
     $targetRoot = Join-Path $sessionRoot 'roots\migration-target'
     $sourceUserData = Join-Path $sessionRoot 'user-data\migration-source'
@@ -212,6 +213,20 @@ function Test-DirectoryMigration {
     $targetLog = Get-DesktopLog $targetRoot
     Assert-True $targetLog.Contains("root=$targetRoot") '迁移后应用没有使用新的根目录'
     $results.Add([pscustomobject]@{ Scenario = '整目录复制与迁移后启动'; Result = '通过' })
+}
+
+function Test-WindowResize {
+    Write-Host '[5/5] Testing supported desktop window sizes...'
+    $appRoot = Join-Path $sessionRoot 'roots\resize'
+    $userData = Join-Path $sessionRoot 'user-data\resize'
+    $process = Start-IsolatedDesktop $appRoot $userData @{
+        CA_ATTENDANCE_SMOKE_RESIZE_MS = 1800
+    }
+    Wait-DesktopExit $process
+    Wait-PortsReleased
+    $log = Get-DesktopLog $appRoot
+    Assert-True $log.Contains('resize smoke-test passed=true') '桌面窗口缩放或页面溢出烟测失败'
+    $results.Add([pscustomobject]@{ Scenario = '桌面窗口缩放与内容溢出'; Result = '通过' })
 }
 
 function Remove-IsolatedSession {
@@ -253,6 +268,7 @@ try {
     Test-SingleInstanceAndBinding
     Test-UnexpectedBackendExit
     Test-DirectoryMigration
+    Test-WindowResize
 
     Write-Host ''
     Write-Host 'Desktop stability scenarios:'

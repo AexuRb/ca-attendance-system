@@ -44,3 +44,24 @@ export interface TrainingParticipantForm {
   durationHours: number;
   remark: string;
 }
+
+export interface TrainingPage<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+export interface TrainingFilters {
+  keyword: string;
+  from: string;
+  to: string;
+}
+
+export interface TrainingWorkspaceRouteState extends TrainingFilters {
+  sessionId: number | null;
+  sessionPage: number;
+  participantPage: number;
+  participantKeyword: string;
+}

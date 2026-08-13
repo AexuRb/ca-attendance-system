@@ -32,6 +32,19 @@ describe("repair display helpers", () => {
     ).toBe(true);
   });
 
+  it("stops canceled repair duration at its final update", () => {
+    expect(
+      repairAgeLabel(
+        {
+          status: "CANCELED",
+          receivedAt: "2026-07-20T18:00:00",
+          updatedAt: "2026-07-22T09:00:00",
+        },
+        new Date("2026-08-20T08:00:00"),
+      ),
+    ).toBe("流程历时 2 天");
+  });
+
   it("maps current and stored agreement types consistently", () => {
     expect(repairAgreementLabel("REPAIR")).toBe("维修协议");
     expect(repairAgreementLabel("PERSONAL_DEVICE")).toBe("维修协议");
