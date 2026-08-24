@@ -2,36 +2,43 @@ package com.ca.attendance.auth;
 
 import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.common.ApiException;
-import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserInputPolicy;
 import com.ca.attendance.user.UserSummary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class AuthService {
+    private static final String MISSING_USER_PASSWORD_HASH =
+            new BCryptPasswordEncoder().encode(UUID.randomUUID().toString());
     private final UserRepository users;
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final RemoteAccessPolicy remoteAccess;
-    private final RemoteLoginAttemptGuard remoteLoginAttempts;
-    private final OperationLogService logs;
+    private final LoginAttemptGuard loginAttempts;
+    private final AuthenticationEventService authenticationEvents;
 
-    public AuthService(UserRepository users, JdbcTemplate jdbc, PasswordEncoder passwordEncoder, TokenService tokenService,
-                       RemoteAccessPolicy remoteAccess, RemoteLoginAttemptGuard remoteLoginAttempts,
-                       OperationLogService logs) {
+    public AuthService(UserRepository users,
+                       JdbcTemplate jdbc,
+                       PasswordEncoder passwordEncoder,
+                       TokenService tokenService,
+                       RemoteAccessPolicy remoteAccess,
+                       LoginAttemptGuard loginAttempts,
+                       AuthenticationEventService authenticationEvents) {
         this.users = users;
         this.jdbc = jdbc;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.remoteAccess = remoteAccess;
-        this.remoteLoginAttempts = remoteLoginAttempts;
-        this.logs = logs;
+        this.loginAttempts = loginAttempts;
+        this.authenticationEvents = authenticationEvents;
     }
 
     public LoginResponse login(String studentNo, String password) {
@@ -39,35 +46,31 @@ public class AuthService {
     }
 
     public LoginResponse login(String studentNo, String password, LoginContext context) {
-        if (context.remote()) {
-            remoteLoginAttempts.requireAllowed(studentNo, context);
-        }
+        loginAttempts.requireAllowed(studentNo, context);
         UserRepository.UserLoginRow user = null;
         try {
-            user = users.findLoginByStudentNo(studentNo)
-                    .orElseThrow(() -> ApiException.unauthorized("学号或密码错误"));
+            Optional<UserRepository.UserLoginRow> candidate = users.findLoginByStudentNo(studentNo);
+            String passwordHash = candidate.map(UserRepository.UserLoginRow::passwordHash)
+                    .orElse(MISSING_USER_PASSWORD_HASH);
+            boolean passwordMatches = passwordEncoder.matches(password, passwordHash);
+            if (candidate.isEmpty() || !passwordMatches) {
+                throw ApiException.unauthorized("学号或密码错误");
+            }
+            user = candidate.orElseThrow();
             if (!"ACTIVE".equals(user.status())) {
                 throw ApiException.forbidden("账号已停用");
-            }
-            if (!passwordEncoder.matches(password, user.passwordHash())) {
-                throw ApiException.unauthorized("学号或密码错误");
             }
             if (context.remote() && !remoteAccess.roleAllowed(user.role())) {
                 throw ApiException.forbidden("远程后台仅允许会长或管理员登录");
             }
         } catch (ApiException ex) {
-            if (context.remote()) {
-                remoteLoginAttempts.recordFailure(studentNo, context);
-                logs.logRemoteAuthentication(false, user, studentNo, context.clientAddress(), context.userAgent(), ex.getMessage());
-            }
+            LoginAttemptGuard.FailureResult failure = loginAttempts.recordFailure(studentNo, context);
+            authenticationEvents.recordFailure(user, studentNo, context, ex.getMessage(), failure.lockedNow());
             throw ex;
         }
-        jdbc.update("UPDATE users SET last_login_at = ? WHERE id = ?", LocalDateTime.now(), user.id());
+        authenticationEvents.recordSuccess(user, studentNo, context);
+        loginAttempts.recordSuccess(studentNo, context);
         String token = tokenService.issue(user.id(), user.studentNo(), user.name(), user.role());
-        if (context.remote()) {
-            remoteLoginAttempts.recordSuccess(studentNo, context);
-            logs.logRemoteAuthentication(true, user, studentNo, context.clientAddress(), context.userAgent(), "远程后台登录成功");
-        }
         return new LoginResponse(token, user.id(), user.studentNo(), user.name(), user.role().name(), user.mustChangePassword());
     }
 

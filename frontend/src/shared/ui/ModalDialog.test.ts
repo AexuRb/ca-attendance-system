@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
@@ -170,5 +171,42 @@ describe("ModalDialog", () => {
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
     expect(document.activeElement?.id).toBe("child-opener");
     wrapper.unmount();
+  });
+
+  it("keeps page scrolling locked until all nested dialogs close", async () => {
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "auto";
+    document.body.style.overflow = "scroll";
+    const wrapper = mount(NestedDialogHarness, { attachTo: document.body });
+
+    try {
+      await wrapper.get("#parent-opener").trigger("click");
+      await nextTick();
+      await nextTick();
+      expect(document.documentElement.style.overflow).toBe("hidden");
+      expect(document.body.style.overflow).toBe("hidden");
+
+      document.querySelector<HTMLButtonElement>("#child-opener")!.click();
+      await nextTick();
+      await nextTick();
+
+      const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]');
+      dialogs[1].querySelector<HTMLButtonElement>('button[aria-label="关闭"]')!.click();
+      await nextTick();
+      await nextTick();
+      expect(document.documentElement.style.overflow).toBe("hidden");
+      expect(document.body.style.overflow).toBe("hidden");
+
+      dialogs[0].querySelector<HTMLButtonElement>('button[aria-label="关闭"]')!.click();
+      await nextTick();
+      await nextTick();
+      expect(document.documentElement.style.overflow).toBe("auto");
+      expect(document.body.style.overflow).toBe("scroll");
+    } finally {
+      wrapper.unmount();
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+    }
   });
 });

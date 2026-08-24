@@ -4,7 +4,11 @@
       title="培训记录"
       description="记录培训场次、参与名单与计入值班的培训时长。"
       ><template #actions
-        ><button class="button secondary" :disabled="isPending('export-summary')" @click="exportSummary">
+        ><button
+          class="button secondary"
+          :disabled="isPending('export-summary') || Boolean(filterError)"
+          @click="exportSummary"
+        >
           <Download />{{ isPending('export-summary') ? "正在导出" : "导出统计" }}</button
         ><button class="button primary" @click="openSession()">
           <Plus />新建培训
@@ -24,6 +28,9 @@
         ><span>结束日期</span><input v-model="filters.to" type="date" /></label
       ><button class="button secondary" type="submit"><Search />查询</button>
     </form>
+    <div v-if="filterError" class="inline-alert danger" role="alert">
+      {{ filterError }}
+    </div>
     <button
       class="button secondary training-mobile-directory-button"
       type="button"
@@ -158,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import {
   Download,
@@ -173,6 +180,7 @@ import { del, get, post, put, downloadBlob } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import type {
   TrainingParticipant,
   TrainingParticipantForm,
@@ -220,7 +228,7 @@ const {
   participants: participantState,
   participantKeyword,
   selected,
-  applyFilters,
+  applyFilters: applyWorkspaceFilters,
   setSessionPage,
   selectSession,
   setParticipantPage,
@@ -230,6 +238,7 @@ const {
 } = workspace;
 const sessions = computed(() => sessionState.items);
 const participants = computed(() => participantState.items);
+const filterError = computed(() => dateRangeError(filters.from, filters.to));
 const sessionForm = reactive<TrainingSessionForm>({
   id: null,
   title: "",
@@ -254,6 +263,7 @@ const unsaved = useUnsavedChanges(() =>
   (participantOpen.value && snapshot(participantForm) !== participantBaseline.value),
 );
 onMounted(workspace.initialize);
+onBeforeUnmount(workspace.dispose);
 watch(
   () => route.query,
   async (query) => {
@@ -264,6 +274,10 @@ watch(
 async function replaceRouteQuery(query: Record<string, string>) {
   if (sameQuery(route.query, query)) return;
   await router.replace({ query });
+}
+async function applyFilters() {
+  if (filterError.value) return;
+  await applyWorkspaceFilters();
 }
 function openSession(item?: TrainingSession) {
   Object.assign(
@@ -437,6 +451,7 @@ async function downloadSession() {
   });
 }
 async function exportSummary() {
+  if (filterError.value) return;
   const p = new URLSearchParams(filters);
   await actions.run("export-summary", async () => {
     const blob = await task.run(() => get<Blob>(`/api/trainings/export?${p}`));
@@ -451,8 +466,8 @@ onBeforeRouteLeave(
 );
 function defaultDuration(v: TrainingSession | null) {
   if (!v?.startTime || !v?.endTime) return 0;
-  const [sh, sm] = v.startTime.split(":").map(Number),
-    [eh, em] = v.endTime.split(":").map(Number);
+  const [sh = 0, sm = 0] = v.startTime.split(":").map(Number),
+    [eh = 0, em = 0] = v.endTime.split(":").map(Number);
   return Math.max(0, Number(((eh * 60 + em - sh * 60 - sm) / 60).toFixed(2)));
 }
 function localDate(d: Date) {

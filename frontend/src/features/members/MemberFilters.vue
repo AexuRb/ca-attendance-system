@@ -124,11 +124,14 @@ const emit = defineEmits<{
   submit: [];
 }>();
 
-type FilterKey = "role" | "status" | "grade";
+type FilterKey = "keyword" | "role" | "status" | "grade";
 
 const filtersOpen = ref(false);
 const activeFilters = computed(() =>
   [
+    props.keyword
+      ? { key: "keyword" as const, label: `关键词：${props.keyword}` }
+      : null,
     props.role
       ? {
           key: "role" as const,
@@ -159,7 +162,8 @@ function update(
 }
 
 async function clearFilter(field: FilterKey) {
-  if (field === "role") emit("update:role", "");
+  if (field === "keyword") emit("update:keyword", "");
+  else if (field === "role") emit("update:role", "");
   else if (field === "status") emit("update:status", "");
   else emit("update:grade", "");
   await nextTick();
@@ -167,6 +171,7 @@ async function clearFilter(field: FilterKey) {
 }
 
 async function clearAll() {
+  emit("update:keyword", "");
   emit("update:role", "");
   emit("update:status", "");
   emit("update:grade", "");

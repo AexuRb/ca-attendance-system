@@ -1,4 +1,5 @@
 import { reactive, ref } from "vue";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import type {
   TrainingFilters,
   TrainingPage,
@@ -68,30 +69,38 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   let participantVersion = 0;
   let sessionController: AbortController | null = null;
   let participantController: AbortController | null = null;
+  let disposed = false;
 
   async function initialize() {
+    if (disposed) return;
     await loadDirectoryAndSelection(
       initial.sessionPage,
       initial.sessionId,
       initial.participantPage,
       true,
     );
+    if (disposed) return;
     syncQuery();
   }
 
   async function applyFilters() {
+    if (disposed || dateRangeError(filters.from, filters.to)) return;
     requestedSessionId = null;
     await loadDirectoryAndSelection(1, null, 1, true);
+    if (disposed) return;
     syncQuery();
   }
 
   async function setSessionPage(page: number) {
+    if (disposed) return;
     requestedSessionId = null;
     await loadDirectoryAndSelection(normalizePage(page), null, 1, true);
+    if (disposed) return;
     syncQuery();
   }
 
   async function selectSession(item: TrainingSession | null) {
+    if (disposed) return;
     requestedSessionId = item?.id || null;
     setSelected(item, 1);
     syncQuery();
@@ -99,37 +108,41 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   }
 
   async function setParticipantPage(page: number) {
-    if (!selected.value) return;
+    if (disposed || !selected.value) return;
     participants.page = normalizePage(page);
     syncQuery();
     await loadParticipantPage(participants.page);
   }
 
   async function searchParticipants() {
-    if (!selected.value) return;
+    if (disposed || !selected.value) return;
     await loadParticipantPage(1);
+    if (disposed) return;
     syncQuery();
   }
 
   async function retrySessions() {
+    if (disposed) return;
     await loadDirectoryAndSelection(
       sessions.page,
       selected.value?.id || requestedSessionId,
       participants.page,
       false,
     );
+    if (disposed) return;
     syncQuery();
   }
 
   async function retryParticipants() {
-    if (!selected.value) return;
+    if (disposed || !selected.value) return;
     await loadParticipantPage(participants.page);
   }
 
   async function refreshSessions(preferredSessionId = selected.value?.id || null) {
+    if (disposed) return;
     const previousId = selected.value?.id || null;
     const loaded = await loadSessionPage(sessions.page);
-    if (!loaded) return;
+    if (!loaded || disposed) return;
     const next = chooseSession(preferredSessionId, previousId);
     selected.value = next;
     requestedSessionId = next?.id || null;
@@ -145,25 +158,29 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     preferredSessionId: number | null,
     firstPage = false,
   ) {
+    if (disposed) return;
     await loadDirectoryAndSelection(
       firstPage ? 1 : sessions.page,
       preferredSessionId,
       participants.page,
       true,
     );
+    if (disposed) return;
     syncQuery();
   }
 
   async function refreshAfterParticipantMutation() {
-    if (!selected.value) return;
+    if (disposed || !selected.value) return;
     await Promise.all([
       refreshSessions(selected.value.id),
       loadParticipantPage(participants.page),
     ]);
+    if (disposed) return;
     syncQuery();
   }
 
   async function restoreQuery(query: TrainingWorkspaceQuery) {
+    if (disposed) return;
     const restored = parseTrainingWorkspaceQuery(query, options.defaults);
     Object.assign(filters, {
       keyword: restored.keyword,
@@ -178,6 +195,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
       restored.participantPage,
       true,
     );
+    if (disposed) return;
     syncQuery();
   }
 
@@ -215,6 +233,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   }
 
   async function loadSessionPage(page: number): Promise<boolean> {
+    if (disposed || dateRangeError(filters.from, filters.to)) return false;
     sessionController?.abort();
     sessionController = new AbortController();
     const controller = sessionController;
@@ -228,23 +247,24 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
         filters: copyFilters(filters),
         signal: controller.signal,
       });
-      if (!isCurrentSession(version)) return false;
+      if (!isCurrentSession(version, controller)) return false;
       if (!result.items.length && result.page > 1 && result.total > 0) {
         return loadSessionPage(lastPage(result));
       }
       applyPage(sessions, result);
       return true;
     } catch (cause) {
-      if (isCurrentSession(version) && !controller.signal.aborted) {
+      if (isCurrentSession(version, controller)) {
         sessions.error = errorMessage(cause, "培训场次加载失败");
       }
       return false;
     } finally {
-      if (isCurrentSession(version)) sessions.loading = false;
+      if (isCurrentSession(version, controller)) sessions.loading = false;
     }
   }
 
   async function loadParticipantPage(page: number): Promise<boolean> {
+    if (disposed) return false;
     const sessionId = selected.value?.id;
     if (!sessionId) {
       clearParticipants();
@@ -266,7 +286,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
         pageSize: participants.pageSize,
         signal: controller.signal,
       });
-      if (!isCurrentParticipant(version, sessionId)) return false;
+      if (!isCurrentParticipant(version, sessionId, controller)) return false;
       if (!result.items.length && result.page > 1 && result.total > 0) {
         return loadParticipantPage(lastPage(result));
       }
@@ -274,14 +294,13 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
       return true;
     } catch (cause) {
       if (
-        isCurrentParticipant(version, sessionId) &&
-        !controller.signal.aborted
+        isCurrentParticipant(version, sessionId, controller)
       ) {
         participants.error = errorMessage(cause, "参与名单加载失败");
       }
       return false;
     } finally {
-      if (isCurrentParticipant(version, sessionId)) {
+      if (isCurrentParticipant(version, sessionId, controller)) {
         participants.loading = false;
       }
     }
@@ -300,6 +319,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   }
 
   function setSelected(item: TrainingSession | null, participantPage: number) {
+    if (disposed) return;
     participantController?.abort();
     participantVersion += 1;
     selected.value = item;
@@ -314,16 +334,43 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     setSelected(null, 1);
   }
 
-  function isCurrentSession(version: number) {
-    return version === sessionVersion;
+  function isCurrentSession(version: number, controller: AbortController) {
+    return (
+      !disposed &&
+      version === sessionVersion &&
+      sessionController === controller &&
+      !controller.signal.aborted
+    );
   }
 
-  function isCurrentParticipant(version: number, sessionId: number) {
-    return version === participantVersion && selected.value?.id === sessionId;
+  function isCurrentParticipant(
+    version: number,
+    sessionId: number,
+    controller: AbortController,
+  ) {
+    return (
+      !disposed &&
+      version === participantVersion &&
+      participantController === controller &&
+      selected.value?.id === sessionId &&
+      !controller.signal.aborted
+    );
   }
 
   function syncQuery() {
+    if (disposed) return;
     options.onQueryChange?.(currentQuery());
+  }
+
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    sessionVersion += 1;
+    participantVersion += 1;
+    sessionController?.abort();
+    participantController?.abort();
+    sessionController = null;
+    participantController = null;
   }
 
   return {
@@ -345,6 +392,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     refreshAfterParticipantMutation,
     restoreQuery,
     currentQuery,
+    dispose,
   };
 }
 

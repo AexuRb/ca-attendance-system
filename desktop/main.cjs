@@ -2,15 +2,19 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
-const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, session, Tray } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, safeStorage, screen, session, Tray } = require('electron');
 const { createCredentialStore } = require('./credential-store.cjs');
+const { createWindowStateStore, fitWindowBoundsToDisplays } = require('./window-state.cjs');
 const {
   APP_ORIGIN,
   REMOTE_ADMIN_PORT,
+  backendFailureMessage,
   backendLocations,
   detectStartupConflict,
   ensureStorageLayout,
+  isKioskUrl,
   isRequestedWindowSize,
+  isZoomShortcut,
   postDesktopControl,
   restoreApplicationWindow,
   resolveAppRoot,
@@ -23,6 +27,7 @@ const controlToken = crypto.randomBytes(32).toString('hex');
 let appRoot;
 let backendChild = null;
 let backendLog = null;
+let backendDiagnosticTail = '';
 let desktopLog = null;
 let mainWindow = null;
 let splashWindow = null;
@@ -32,6 +37,8 @@ let serviceReady = false;
 let shuttingDown = false;
 let allowQuit = false;
 let credentialStore = null;
+let windowStateStore = null;
+let windowStateTimer = null;
 const smokeScenario = selectSmokeScenario(process.env);
 
 function assertTrustedRenderer(event) {
@@ -84,6 +91,56 @@ function createSplashWindow() {
   });
   splashWindow.loadFile(path.join(__dirname, 'splash.html'));
   splashWindow.once('ready-to-show', () => splashWindow?.show());
+}
+
+function currentWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return null;
+  return {
+    bounds: mainWindow.getNormalBounds(),
+    maximized: mainWindow.isMaximized()
+  };
+}
+
+function saveWindowState() {
+  if (windowStateTimer) {
+    clearTimeout(windowStateTimer);
+    windowStateTimer = null;
+  }
+  const state = currentWindowState();
+  if (!state || !windowStateStore) return;
+  try {
+    windowStateStore.save(state);
+  } catch (error) {
+    writeDesktopLog(`window state save failed: ${error.message}`);
+  }
+}
+
+function scheduleWindowStateSave() {
+  if (windowStateTimer) clearTimeout(windowStateTimer);
+  windowStateTimer = setTimeout(saveWindowState, 300);
+}
+
+function configureZoomBehavior(window) {
+  const webContents = window.webContents;
+  const updateLimits = () => {
+    const kiosk = isKioskUrl(webContents.getURL());
+    if (kiosk) webContents.setZoomFactor(1);
+    void webContents.setVisualZoomLevelLimits(kiosk ? 0 : -3, kiosk ? 0 : 3);
+  };
+  webContents.on('did-finish-load', updateLimits);
+  webContents.on('did-navigate-in-page', updateLimits);
+  webContents.on('before-input-event', (event, input) => {
+    if (isKioskUrl(webContents.getURL()) && isZoomShortcut(input)) {
+      event.preventDefault();
+      webContents.setZoomFactor(1);
+    }
+  });
+  webContents.on('zoom-changed', event => {
+    if (isKioskUrl(webContents.getURL())) {
+      event.preventDefault();
+      webContents.setZoomFactor(1);
+    }
+  });
 }
 
 function showApplicationWindow() {
@@ -206,9 +263,18 @@ function scheduleSmokeTest() {
 }
 
 function createMainWindow() {
+  const savedState = windowStateStore?.load();
+  const restoredBounds = fitWindowBoundsToDisplays(
+    savedState?.bounds,
+    screen.getAllDisplays().map(display => display.workArea)
+  );
+  if (restoredBounds) {
+    writeDesktopLog(`window state restored bounds=${JSON.stringify(restoredBounds)} maximized=${savedState.maximized}`);
+  }
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: restoredBounds?.width ?? 1440,
+    height: restoredBounds?.height ?? 900,
+    ...(restoredBounds ? { x: restoredBounds.x, y: restoredBounds.y } : {}),
     minWidth: 1080,
     minHeight: 720,
     show: false,
@@ -229,6 +295,7 @@ function createMainWindow() {
   });
 
   mainWindow.removeMenu();
+  configureZoomBehavior(mainWindow);
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
     try {
@@ -242,6 +309,7 @@ function createMainWindow() {
   mainWindow.once('ready-to-show', () => {
     splashWindow?.close();
     splashWindow = null;
+    if (savedState?.maximized) mainWindow?.maximize();
     mainWindow?.show();
     scheduleSmokeTest();
   });
@@ -254,7 +322,12 @@ function createMainWindow() {
     writeDesktopLog('main window hidden to tray');
     showTrayNotice();
   });
+  mainWindow.on('move', scheduleWindowStateSave);
+  mainWindow.on('resize', scheduleWindowStateSave);
+  mainWindow.on('maximize', scheduleWindowStateSave);
+  mainWindow.on('unmaximize', scheduleWindowStateSave);
   mainWindow.on('closed', () => {
+    saveWindowState();
     mainWindow = null;
   });
   mainWindow.loadURL(APP_ORIGIN);
@@ -275,6 +348,7 @@ function startBackend() {
   }
 
   backendLog = fs.createWriteStream(path.join(appRoot, 'logs', 'backend.log'), { flags: 'a' });
+  backendDiagnosticTail = '';
   const args = [
     '-Dfile.encoding=UTF-8',
     '-Djava.awt.headless=true',
@@ -296,6 +370,11 @@ function startBackend() {
     }
   });
 
+  const captureDiagnosticTail = chunk => {
+    backendDiagnosticTail = `${backendDiagnosticTail}${chunk.toString('utf8')}`.slice(-64 * 1024);
+  };
+  backendChild.stdout.on('data', captureDiagnosticTail);
+  backendChild.stderr.on('data', captureDiagnosticTail);
   backendChild.stdout.pipe(backendLog, { end: false });
   backendChild.stderr.pipe(backendLog, { end: false });
   backendChild.once('error', error => writeDesktopLog(`backend spawn error: ${error.message}`));
@@ -312,7 +391,8 @@ function startBackend() {
         app.quit();
         return;
       }
-      dialog.showErrorBox('本机服务已停止', `后端服务意外退出，请查看日志：${path.join(appRoot, 'logs', 'backend.log')}`);
+      const logPath = path.join(appRoot, 'logs', 'backend.log');
+      dialog.showErrorBox('本机服务已停止', backendFailureMessage(backendDiagnosticTail, logPath));
       app.quit();
     }
   });
@@ -394,6 +474,7 @@ if (!hasSingleInstanceLock) {
     });
     ensureStorageLayout(appRoot);
     registerCredentialIpc();
+    windowStateStore = createWindowStateStore({ rootDirectory: appRoot });
     desktopLog = fs.createWriteStream(path.join(appRoot, 'logs', 'desktop.log'), { flags: 'a' });
     writeDesktopLog(`desktop starting version=${app.getVersion()} root=${appRoot}`);
 
@@ -428,6 +509,7 @@ app.on('before-quit', event => {
   }
   event.preventDefault();
   shuttingDown = true;
+  saveWindowState();
   stopBackend().finally(() => {
     allowQuit = true;
     tray?.destroy();

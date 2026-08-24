@@ -15,19 +15,26 @@ import java.util.zip.ZipInputStream;
 
 final class BackupArchiveReader {
     private final Path temporaryRoot;
+    private final BackupRestoreLimits limits;
 
     BackupArchiveReader() {
-        this(Path.of(System.getProperty("java.io.tmpdir")));
+        this(Path.of(System.getProperty("java.io.tmpdir")), BackupRestoreLimits.defaults());
     }
 
     BackupArchiveReader(Path temporaryRoot) {
+        this(temporaryRoot, BackupRestoreLimits.defaults());
+    }
+
+    BackupArchiveReader(Path temporaryRoot, BackupRestoreLimits limits) {
         this.temporaryRoot = temporaryRoot;
+        this.limits = limits;
     }
 
     ExtractedBackupArchive extract(MultipartFile file, Set<String> supportedEntries) {
         validateUpload(file);
         Path directory = createTemporaryDirectory();
         Map<String, Path> entries = new LinkedHashMap<>();
+        boolean completed = false;
         try (ZipInputStream zip = new ZipInputStream(file.getInputStream(), StandardCharsets.UTF_8)) {
             ZipEntry entry;
             int entryCount = 0;
@@ -40,13 +47,15 @@ final class BackupArchiveReader {
                 entries.put(name, output);
                 zip.closeEntry();
             }
-            return new ExtractedBackupArchive(directory, entries);
-        } catch (ApiException ex) {
-            new ExtractedBackupArchive(directory, entries).close();
-            throw ex;
+            ExtractedBackupArchive archive = new ExtractedBackupArchive(directory, entries);
+            completed = true;
+            return archive;
         } catch (IOException ex) {
-            new ExtractedBackupArchive(directory, entries).close();
             throw ApiException.badRequest("备份文件读取失败");
+        } finally {
+            if (!completed) {
+                new ExtractedBackupArchive(directory, entries).close();
+            }
         }
     }
 
@@ -67,10 +76,10 @@ final class BackupArchiveReader {
                 }
                 entrySize += read;
                 totalSize += read;
-                if (entrySize > BackupArchiveLimits.MAX_ENTRY_UNCOMPRESSED_BYTES) {
+                if (entrySize > limits.maxEntryUncompressedBytes()) {
                     throw ApiException.badRequest("备份文件中的 " + name + " 解压后过大");
                 }
-                if (totalSize > BackupArchiveLimits.MAX_TOTAL_UNCOMPRESSED_BYTES) {
+                if (totalSize > limits.maxTotalUncompressedBytes()) {
                     throw ApiException.badRequest("备份文件解压后的总数据量过大");
                 }
                 fileOutput.write(buffer, 0, read);
@@ -83,7 +92,7 @@ final class BackupArchiveReader {
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择备份 zip 文件");
         }
-        if (file.getSize() > BackupArchiveLimits.MAX_ARCHIVE_BYTES) {
+        if (file.getSize() > limits.maxArchiveBytes()) {
             throw ApiException.badRequest("备份文件过大，请确认是否为系统生成的备份");
         }
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
@@ -98,7 +107,7 @@ final class BackupArchiveReader {
             Map<String, Path> entries,
             int entryCount
     ) {
-        if (entryCount > BackupArchiveLimits.MAX_ZIP_ENTRIES) {
+        if (entryCount > limits.maxZipEntries()) {
             throw ApiException.badRequest("备份文件包含过多条目");
         }
         if (entry.isDirectory()) {
@@ -114,7 +123,7 @@ final class BackupArchiveReader {
         if (entries.containsKey(name)) {
             throw ApiException.badRequest("备份文件包含重复条目：" + name);
         }
-        if (entry.getSize() > BackupArchiveLimits.MAX_ENTRY_UNCOMPRESSED_BYTES) {
+        if (entry.getSize() > limits.maxEntryUncompressedBytes()) {
             throw ApiException.badRequest("备份文件中的 " + name + " 解压后过大");
         }
         return name;

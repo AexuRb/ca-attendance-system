@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -24,6 +25,8 @@ import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = "app.remote.port=0")
@@ -92,7 +95,6 @@ class RoleAuthorizationWebIntegrationTest {
                 "/api/stats/summary?from=2026-08-01&to=2026-08-10",
                 "/api/users/page",
                 "/api/schedules",
-                "/api/trainings",
                 "/api/trainings/page",
                 "/api/repairs?from=2026-08-01&to=2026-08-10",
                 "/api/maintenance/summary",
@@ -117,7 +119,6 @@ class RoleAuthorizationWebIntegrationTest {
         for (String path : new String[]{
                 "/api/users/page",
                 "/api/schedules",
-                "/api/trainings",
                 "/api/trainings/page",
                 "/api/maintenance/summary",
                 "/api/settings/attendance-policy",
@@ -134,7 +135,6 @@ class RoleAuthorizationWebIntegrationTest {
         for (String path : new String[]{
                 "/api/users/page",
                 "/api/schedules",
-                "/api/trainings",
                 "/api/trainings/page",
                 "/api/repairs?from=2026-08-01&to=2026-08-10",
                 "/api/maintenance/summary",
@@ -158,7 +158,6 @@ class RoleAuthorizationWebIntegrationTest {
         for (String path : new String[]{
                 "/api/users/page",
                 "/api/schedules",
-                "/api/trainings",
                 "/api/trainings/page",
                 "/api/maintenance/summary",
                 "/api/maintenance/backups",
@@ -170,6 +169,72 @@ class RoleAuthorizationWebIntegrationTest {
             authenticatedGet(Role.ADMIN, path).andExpect(status().isOk());
         }
         authenticatedGet(Role.ADMIN, trainingParticipantPagePath()).andExpect(status().isOk());
+    }
+
+    @Test
+    void directApiRejectsUnknownEnumFiltersAndSelfServiceGradeChanges() throws Exception {
+        authenticatedGet(Role.ADMIN, "/api/logs?actionType=bulk_review_attendance")
+                .andExpect(status().isOk());
+        authenticatedGet(Role.ADMIN, "/api/logs/export?actionType=BULK_REVIEW_ATTENDANCE")
+                .andExpect(status().isOk());
+
+        for (String path : new String[]{
+                "/api/users/page?role=%25",
+                "/api/users/page?status=%25",
+                "/api/attendance/page?from=2026-08-01&to=2026-08-10&status=%25",
+                "/api/trainings/page?status=%25",
+                "/api/repairs?from=2026-08-01&to=2026-08-10&status=%25",
+                "/api/logs?actionType=NOT_EXIST"
+        }) {
+            authenticatedGet(Role.ADMIN, path).andExpect(status().isBadRequest());
+        }
+
+        mvc.perform(put("/api/me/profile")
+                        .header("Authorization", "Bearer " + roleTokens.get(Role.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phone\":\"13800000000\",\"major\":\"测试学院\",\"grade\":\"2099级\",\"qq\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("年级只能由会长或管理员在成员管理中修改"));
+    }
+
+    @Test
+    void percentAndUnderscoreAreLiteralInMemberKeywordSearch() throws Exception {
+        jdbc.update("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES ('authz-literal-percent', '百分号%成员', 'test-hash', 'MEMBER', 'ACTIVE', 0),
+                       ('authz-literal-underscore', '下划线_成员', 'test-hash', 'MEMBER', 'ACTIVE', 0),
+                       ('authz-literal-backslash', '反斜线\\成员', 'test-hash', 'MEMBER', 'ACTIVE', 0),
+                       ('authz-literal-ordinary', '普通成员', 'test-hash', 'MEMBER', 'ACTIVE', 0)
+                """);
+
+        mvc.perform(get("/api/users/page")
+                        .header("Authorization", "Bearer " + roleTokens.get(Role.ADMIN))
+                        .param("keyword", "%"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].name").value("百分号%成员"));
+
+        mvc.perform(get("/api/users/page")
+                        .header("Authorization", "Bearer " + roleTokens.get(Role.ADMIN))
+                        .param("keyword", "_"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].name").value("下划线_成员"));
+
+        mvc.perform(get("/api/users/page")
+                        .header("Authorization", "Bearer " + roleTokens.get(Role.ADMIN))
+                        .param("keyword", "\\"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].name").value("反斜线\\成员"));
+    }
+
+    @Test
+    void unboundedTrainingReadEndpointsAreNotExposed() throws Exception {
+        authenticatedGet(Role.ADMIN, "/api/trainings")
+                .andExpect(status().isMethodNotAllowed());
+        authenticatedGet(Role.ADMIN, "/api/trainings/" + trainingSessionId + "/participants")
+                .andExpect(status().isMethodNotAllowed());
     }
 
     private ResultActions authenticatedGet(Role role, String path) throws Exception {

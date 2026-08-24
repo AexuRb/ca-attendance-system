@@ -1,5 +1,6 @@
 package com.ca.attendance.log;
 
+import com.ca.attendance.common.PaginationPolicy;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.ContentDisposition;
@@ -27,7 +28,7 @@ public class OperationLogController {
                                                    @RequestParam(required = false) String from,
                                                    @RequestParam(required = false) String to,
                                                    @RequestParam(defaultValue = "1") int page,
-                                                   @RequestParam(defaultValue = "20") int pageSize) {
+                                                   @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize) {
         return logs.search(keyword, actionType, from, to, page, pageSize);
     }
 

@@ -7,6 +7,8 @@ import unittest
 from performance_baseline import (
     SeedScale,
     benchmark_cases,
+    evaluate_performance,
+    main,
     percentile,
     seed_database,
     summarize_samples,
@@ -85,14 +87,30 @@ class SeedScaleTest(unittest.TestCase):
                       must_change_password
                     ) VALUES (?, ?, ?, 'ADMIN', 'ACTIVE', 0)
                     """,
-                    ("1004231224", "性能测试管理员", "test-password-hash"),
+                    ("9900000001", "性能测试管理员", "test-password-hash"),
                 )
                 connection.commit()
 
-            result = seed_database(database, scale, random_seed=20260811)
+            result = seed_database(
+                database,
+                scale,
+                random_seed=20260811,
+                allowed_root=temporary,
+            )
 
             self.assertEqual(result["counts"], scale.expected_counts())
             self.assertEqual(result["foreign_key_errors"], [])
+            with closing(sqlite3.connect(database)) as connection:
+                admin_hash = connection.execute(
+                    "SELECT password_hash FROM users WHERE role = 'ADMIN'"
+                ).fetchone()[0]
+                seeded_hashes = {
+                    row[0]
+                    for row in connection.execute(
+                        "SELECT password_hash FROM users WHERE role <> 'ADMIN'"
+                    )
+                }
+            self.assertNotIn(admin_hash, seeded_hashes)
 
     def test_seeds_exact_special_distributions_and_unlinked_large_rosters(self):
         scale = SeedScale(
@@ -120,11 +138,16 @@ class SeedScaleTest(unittest.TestCase):
                       must_change_password
                     ) VALUES (?, ?, ?, 'ADMIN', 'ACTIVE', 0)
                     """,
-                    ("1004231224", "性能测试管理员", "test-password-hash"),
+                    ("9900000001", "性能测试管理员", "test-password-hash"),
                 )
                 connection.commit()
 
-            result = seed_database(database, scale, random_seed=20260813)
+            result = seed_database(
+                database,
+                scale,
+                random_seed=20260813,
+                allowed_root=temporary,
+            )
 
             with closing(sqlite3.connect(database)) as connection:
                 roster_sizes = [
@@ -155,6 +178,18 @@ class SeedScaleTest(unittest.TestCase):
             )
             self.assertGreater(unlinked, 0)
             self.assertEqual(result["foreign_key_errors"], [])
+
+    def test_refuses_to_seed_a_database_outside_the_explicit_isolated_root(self):
+        with tempfile.TemporaryDirectory() as allowed, tempfile.TemporaryDirectory() as other:
+            database = Path(other) / "attendance.db"
+            database.touch()
+
+            with self.assertRaisesRegex(ValueError, "allowed root"):
+                seed_database(
+                    database,
+                    SeedScale(users=2, attendance=2, trainings=1, repairs=1, logs=1),
+                    allowed_root=allowed,
+                )
 
 
 class PercentileTest(unittest.TestCase):
@@ -200,8 +235,75 @@ class BenchmarkCasesTest(unittest.TestCase):
         )
         self.assertEqual(
             next(case.path for case in cases if case.name == "repair_list"),
-            "/api/repairs?status=REPAIRING&page=1&pageSize=30",
+            "/api/repairs?status=REPAIRING&page=1&pageSize=20",
         )
+
+    def test_routes_the_minister_password_only_to_functional_validation(self):
+        script = (Path(__file__).parent / "run-performance-baseline.ps1").read_text(
+            encoding="utf-8"
+        )
+        visual_block, validation_block = script.split(
+            'large_dataset_visual.py")', 1
+        )[1].split('large_dataset_validation.py")', 1)
+
+        self.assertNotIn("--minister-password", visual_block)
+        self.assertIn("--minister-password $MinisterPassword", validation_block)
+
+
+class PerformanceGateTest(unittest.TestCase):
+    def report(self, api_p95: float = 100.0) -> dict:
+        return {
+            "api": {
+                "requests": {"members_page": {"p95_ms": api_p95}},
+                "heavy_operations": {"stats_export": {"elapsed_ms": 1_000}},
+            },
+            "browser": {
+                "pages": {
+                    "members": {
+                        "p95_ms": 500,
+                        "max_dom_nodes": 1_200,
+                        "max_heap_bytes": 64 * 1024 * 1024,
+                    }
+                }
+            },
+            "process": {
+                "workingSetBytes": 500 * 1024 * 1024,
+                "privateMemoryBytes": 600 * 1024 * 1024,
+            },
+        }
+
+    def test_passes_when_absolute_budgets_are_met(self):
+        result = evaluate_performance(self.report())
+
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["violations"], [])
+
+    def test_fails_for_absolute_or_baseline_regression(self):
+        absolute = evaluate_performance(self.report(api_p95=250))
+        regression = evaluate_performance(
+            self.report(api_p95=180),
+            self.report(api_p95=50),
+        )
+
+        self.assertFalse(absolute["passed"])
+        self.assertFalse(regression["passed"])
+        self.assertTrue(any("api.requests.members_page" in item for item in regression["violations"]))
+
+    def test_evaluate_command_returns_nonzero_for_a_failed_gate(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            report = Path(temporary) / "report.json"
+            output = Path(temporary) / "gate.json"
+            report.write_text(
+                __import__("json").dumps(self.report(api_p95=250)),
+                encoding="utf-8",
+            )
+
+            exit_code = main(
+                ["evaluate", "--report", str(report), "--output", str(output)]
+            )
+
+            self.assertEqual(exit_code, 2)
+            self.assertFalse(__import__("json").loads(output.read_text(encoding="utf-8"))["passed"])
 
 
 if __name__ == "__main__":

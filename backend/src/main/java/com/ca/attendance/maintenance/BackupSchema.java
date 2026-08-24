@@ -5,7 +5,15 @@ import java.util.Map;
 import java.util.Set;
 
 final class BackupSchema {
+    static final int LEGACY_SCHEMA_VERSION = 1;
     static final int SCHEMA_VERSION = 4;
+
+    static final Set<String> LEGACY_REQUIRED_TABLES = Set.of(
+            "users",
+            "attendance_records",
+            "operation_logs",
+            "duty_weekday_settings"
+    );
 
     static final List<String> RESTORE_TABLE_ORDER = List.of(
             "users",
@@ -156,6 +164,18 @@ final class BackupSchema {
     );
 
     static final Set<String> JSON_COLUMNS = Set.of("before_data", "after_data");
+
+    static Set<String> requiredTables(int schemaVersion) {
+        if (schemaVersion < 3) {
+            return LEGACY_REQUIRED_TABLES;
+        }
+        if (schemaVersion == 3) {
+            Set<String> required = new java.util.LinkedHashSet<>(RESTORE_TABLE_ORDER);
+            required.remove("repair_case_sequences");
+            return Set.copyOf(required);
+        }
+        return Set.copyOf(RESTORE_TABLE_ORDER);
+    }
 
     private BackupSchema() {
     }

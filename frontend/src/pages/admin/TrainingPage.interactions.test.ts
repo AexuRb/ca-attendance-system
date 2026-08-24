@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import TrainingPage from "./TrainingPage.vue";
@@ -30,7 +31,7 @@ describe("TrainingPage interactions", () => {
   it("prevents duplicate saves and confirms closing a dirty editor", async () => {
     apiGet.mockImplementation((url: string) =>
       Promise.resolve(url.includes("participants/page")
-        ? { items: [], total: 0, page: 1, pageSize: 30, hasMore: false }
+        ? { items: [], total: 0, page: 1, pageSize: 20, hasMore: false }
         : { items: [], total: 0, page: 1, pageSize: 20, hasMore: false }),
     );
     let resolveSave!: (value: unknown) => void;
@@ -62,6 +63,33 @@ describe("TrainingPage interactions", () => {
     await wrapper.vm.$nextTick();
     expect(document.body.textContent).toContain("放弃未保存修改");
     expect(document.body.querySelector('[name="training-title"]')).not.toBeNull();
+    wrapper.unmount();
+  });
+
+  it("rejects an inverted date range before filtering or exporting", async () => {
+    apiGet.mockImplementation((url: string) =>
+      Promise.resolve(url.includes("participants/page")
+        ? { items: [], total: 0, page: 1, pageSize: 20, hasMore: false }
+        : { items: [], total: 0, page: 1, pageSize: 20, hasMore: false }),
+    );
+    const wrapper = mount(TrainingPage);
+    await flushPromises();
+    apiGet.mockClear();
+
+    const dates = wrapper.findAll('input[type="date"]');
+    await dates[0].setValue("2026-08-22");
+    await dates[1].setValue("2026-08-21");
+    await wrapper.get("form.filter-bar").trigger("submit");
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "开始日期不能晚于结束日期",
+    );
+    expect(wrapper.get(".page-header .button.secondary").attributes("disabled"))
+      .toBeDefined();
+    expect(apiGet).not.toHaveBeenCalled();
+
+    await wrapper.get(".page-header .button.secondary").trigger("click");
+    expect(apiGet).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 });

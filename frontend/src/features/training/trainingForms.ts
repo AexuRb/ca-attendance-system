@@ -15,6 +15,9 @@ export function validateTrainingSessionForm(
 ): TrainingSessionErrors {
   const errors: TrainingSessionErrors = {};
   if (!form.title.trim()) errors.title = "请填写培训标题";
+  else if (form.title.trim().length > 100) {
+    errors.title = "培训标题不能超过 100 个字符";
+  }
   if (!form.trainingDate) errors.trainingDate = "请选择培训日期";
   if (form.startTime && form.endTime && form.endTime < form.startTime) {
     errors.endTime = "结束时间不能早于开始时间";

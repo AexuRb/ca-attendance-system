@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import MembersPage from "./MembersPage.vue";
@@ -25,7 +26,7 @@ vi.mock("../../app/session", () => ({
     user: {
       value: {
         id: 1,
-        studentNo: "1004231224",
+        studentNo: "9900000001",
         name: "测试管理员",
         role: "ADMIN",
       },
@@ -47,6 +48,12 @@ const linkedMember = {
   createdAt: "2026-08-13 10:00:00",
   updatedAt: "2026-08-13 10:00:00",
 };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => (resolve = done));
+  return { promise, resolve };
+}
 
 beforeEach(() => {
   mocks.apiGet.mockImplementation((url: string) => {
@@ -115,6 +122,47 @@ describe("MembersPage deletion", () => {
     expect(wrapper.find(".confirm-copy").exists()).toBe(false);
     expect(mocks.apiGet.mock.calls.filter(([url]) => String(url).startsWith("/api/users/page?")).length).toBe(2);
     expect(mocks.notify).toHaveBeenCalledWith("成员已删除", "success");
+  });
+});
+
+describe("MembersPage request ordering", () => {
+  it("keeps the latest filter result when an older request arrives late", async () => {
+    const oldResult = deferred<unknown>();
+    const newResult = deferred<unknown>();
+    let pageCalls = 0;
+    mocks.apiGet.mockImplementation((url: string) => {
+      if (url.startsWith("/api/users/page?")) {
+        pageCalls += 1;
+        return pageCalls === 1 ? oldResult.promise : newResult.promise;
+      }
+      if (url === "/api/users/grades") return Promise.resolve(["2025级"]);
+      return Promise.resolve([]);
+    });
+    const wrapper = mount(MembersPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+
+    await wrapper.get('input[name="memberKeyword"]').setValue("新成员");
+    await wrapper.get("form.member-filter-shell").trigger("submit");
+    newResult.resolve({
+      items: [{ ...linkedMember, id: 3, name: "新成员" }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await flushPromises();
+    oldResult.resolve({
+      items: [{ ...linkedMember, name: "旧成员" }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("新成员");
+    expect(wrapper.text()).not.toContain("旧成员");
+    wrapper.unmount();
   });
 });
 

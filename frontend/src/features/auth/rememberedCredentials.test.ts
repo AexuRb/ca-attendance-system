@@ -31,13 +31,13 @@ describe("remembered credentials", () => {
   it("removes the legacy plaintext payload and loads only the browser account", async () => {
     const storage = memoryStorage({
       ca_remembered_credentials:
-        '{"studentNo":"1004231224","password":"plaintext"}',
-      ca_remembered_account: "1004231224",
+        '{"studentNo":"9900000001","password":"plaintext"}',
+      ca_remembered_account: "9900000001",
     });
 
     const remembered = await loadRememberedLogin(storage, null);
 
-    expect(remembered).toEqual({ studentNo: "1004231224", password: "" });
+    expect(remembered).toEqual({ studentNo: "9900000001", password: "" });
     expect(storage.getItem("ca_remembered_credentials")).toBeNull();
   });
 
@@ -45,31 +45,31 @@ describe("remembered credentials", () => {
     const storage = memoryStorage();
 
     await saveRememberedLogin(
-      { studentNo: "1004231224", password: "123456" },
+      { studentNo: "9900000001", password: "Test!credential-1" },
       storage,
       null,
     );
 
-    expect(storage.getItem("ca_remembered_account")).toBe("1004231224");
+    expect(storage.getItem("ca_remembered_account")).toBe("9900000001");
     expect(storage.getItem("ca_remembered_credentials")).toBeNull();
-    expect(JSON.stringify(storage)).not.toContain("123456");
+    expect(JSON.stringify(storage)).not.toContain("Test!credential-1");
   });
 
   it("loads desktop credentials through the encrypted IPC bridge", async () => {
     const storage = memoryStorage({
       ca_remembered_credentials:
-        '{"studentNo":"1004231224","password":"plaintext"}',
+        '{"studentNo":"9900000001","password":"plaintext"}',
       ca_remembered_account: "stale-browser-account",
     });
     const api = desktopApi({
-      account: "1004231224",
+      account: "9900000001",
       password: "encrypted-at-rest",
     });
 
     const remembered = await loadRememberedLogin(storage, api);
 
     expect(remembered).toEqual({
-      studentNo: "1004231224",
+      studentNo: "9900000001",
       password: "encrypted-at-rest",
     });
     expect(api.loadRememberedCredentials).toHaveBeenCalledOnce();
@@ -82,14 +82,14 @@ describe("remembered credentials", () => {
     const api = desktopApi();
 
     await saveRememberedLogin(
-      { studentNo: "1004231224", password: "123456" },
+      { studentNo: "9900000001", password: "Test!credential-1" },
       storage,
       api,
     );
 
     expect(api.saveRememberedCredentials).toHaveBeenCalledWith({
-      account: "1004231224",
-      password: "123456",
+      account: "9900000001",
+      password: "Test!credential-1",
     });
     expect(storage.getItem("ca_remembered_account")).toBeNull();
     expect(storage.getItem("ca_remembered_credentials")).toBeNull();
@@ -98,7 +98,7 @@ describe("remembered credentials", () => {
   it("clears both browser and desktop remembered login state", async () => {
     const storage = memoryStorage({
       ca_remembered_credentials: "legacy",
-      ca_remembered_account: "1004231224",
+      ca_remembered_account: "9900000001",
     });
     const api = desktopApi();
 

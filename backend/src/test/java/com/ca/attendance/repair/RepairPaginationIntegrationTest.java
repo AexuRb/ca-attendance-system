@@ -11,8 +11,7 @@ import com.ca.attendance.config.StoragePaths;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import com.ca.attendance.user.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -52,7 +51,7 @@ class RepairPaginationIntegrationTest {
         dataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(paths);
         new DatabaseMigrator(dataSource).run();
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-        ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        ObjectMapper objectMapper = new ObjectMapper();
         OperationLogService logs = new OperationLogService(jdbc, objectMapper);
         BackupService backups = new BackupService(
                 jdbc,
@@ -61,7 +60,16 @@ class RepairPaginationIntegrationTest {
                 new TokenService(12),
                 paths
         );
-        repairs = new RepairCaseService(jdbc, logs, backups, new UserRepository(jdbc));
+        UserRepository repairUsers = new UserRepository(jdbc);
+        repairs = new RepairCaseService(
+                jdbc,
+                logs,
+                backups,
+                repairUsers,
+                new RepairCaseQueryService(jdbc, repairUsers),
+                new RepairAgreementService(),
+                new RepairExcelExportService()
+        );
         adminId = requiredId(jdbc.queryForObject("""
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
                 VALUES ('repair-page-admin', '分页测试管理员', 'test-hash', 'ADMIN', 'ACTIVE', 0)

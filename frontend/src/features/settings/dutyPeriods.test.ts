@@ -28,4 +28,23 @@ describe("duty periods", () => {
       ]),
     ).toContain("不能重叠");
   });
+
+  it("matches the backend limit of twelve periods", () => {
+    const periods = Array.from({ length: 13 }, (_, index) => ({
+      startTime: `${String(index).padStart(2, "0")}:00`,
+      endTime: `${String(index).padStart(2, "0")}:30`,
+      enabled: false,
+    }));
+
+    expect(validateDutyPeriods(periods)).toBe("值班时间段最多设置 12 个");
+  });
+
+  it("rejects duplicate periods even when one is disabled", () => {
+    expect(
+      validateDutyPeriods([
+        { startTime: "14:00", endTime: "16:00", enabled: true },
+        { startTime: "14:00", endTime: "16:00", enabled: false },
+      ]),
+    ).toBe("值班时间段不能重复");
+  });
 });

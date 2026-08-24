@@ -4,6 +4,9 @@ import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.EffectiveStatus;
+import com.ca.attendance.common.ExportRowLimit;
+import com.ca.attendance.common.PaginationPolicy;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.common.ReviewStatus;
 import com.ca.attendance.log.OperationLogService;
@@ -13,10 +16,12 @@ import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.settings.AttendancePolicyService;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,8 +36,8 @@ import java.util.UUID;
 
 @Service
 public class AttendanceService {
-    private static final int MAX_PAGE_SIZE = 100;
     private static final int BULK_REVIEW_BATCH_SIZE = 200;
+    private static final long MANUAL_TIME_FUTURE_TOLERANCE_MINUTES = 5;
 
     private final UserRepository users;
     private final AttendanceRepository records;
@@ -41,12 +46,18 @@ public class AttendanceService {
     private final OperationLogService logs;
     private final BackupService backups;
     private final PublicSubmissionRepository submissions;
+    private final PublicSubmissionRetention submissionRetention;
     private final PublicMemberSelectionService selections;
     private final AttendancePolicyService policies;
+    private final PublicSubmissionTransactionCoordinator submissionTransactions;
+    private final Clock clock;
     public AttendanceService(UserRepository users, AttendanceRepository records, DutyWeekdayService weekdays,
                              DutyPeriodService periods, OperationLogService logs, BackupService backups,
-                             PublicSubmissionRepository submissions, PublicMemberSelectionService selections,
-                             AttendancePolicyService policies) {
+                             PublicSubmissionRepository submissions, PublicSubmissionRetention submissionRetention,
+                             PublicMemberSelectionService selections,
+                             AttendancePolicyService policies,
+                             PublicSubmissionTransactionCoordinator submissionTransactions,
+                             Clock clock) {
         this.users = users;
         this.records = records;
         this.weekdays = weekdays;
@@ -54,27 +65,18 @@ public class AttendanceService {
         this.logs = logs;
         this.backups = backups;
         this.submissions = submissions;
+        this.submissionRetention = submissionRetention;
         this.selections = selections;
         this.policies = policies;
-    }
-
-    public PublicLookupResponse lookup(String studentNo) {
-        LocalDate today = LocalDate.now();
-        int weekday = today.getDayOfWeek().getValue();
-        boolean dutyDay = weekdays.isDutyWeekday(weekday);
-        boolean withinDutyPeriod = periods.contains(java.time.LocalTime.now());
-        UserSummary user = users.findActiveByStudentNo(studentNo).orElse(null);
-        if (user == null) {
-            return missingLookup(dutyDay, withinDutyPeriod, "学号不存在或账号已停用");
-        }
-        return lookupResponse(user, today, dutyDay, withinDutyPeriod, policies.current());
+        this.submissionTransactions = submissionTransactions;
+        this.clock = clock;
     }
 
     public PublicLookupResponse lookupByInput(String input) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(clock);
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
-        boolean withinDutyPeriod = periods.contains(java.time.LocalTime.now());
+        boolean withinDutyPeriod = periods.contains(java.time.LocalTime.now(clock));
         String keyword = input == null ? "" : input.trim();
         if (keyword.isBlank()) {
             return missingLookup(dutyDay, withinDutyPeriod, "请输入学号或姓名");
@@ -152,44 +154,53 @@ public class AttendanceService {
 
     private String maskStudentNo(String studentNo) {
         String value = studentNo == null ? "" : studentNo.trim();
-        if (value.length() <= 4) {
-            return "****" + value;
+        int visibleLength = 0;
+        if (value.length() >= 8) {
+            visibleLength = 4;
+        } else if (value.length() >= 4) {
+            visibleLength = 2;
+        } else if (value.length() >= 2) {
+            visibleLength = 1;
         }
-        int prefixLength = Math.min(4, value.length() - 4);
-        return value.substring(0, prefixLength) + "****" + value.substring(value.length() - 4);
+        return "****" + value.substring(value.length() - visibleLength);
     }
 
-    public SubmitResponse submitPublic(String studentNo) {
-        return submitPublic(studentNo, UUID.randomUUID().toString());
-    }
-
-    @Transactional
     public SubmitResponse submitPublicSelection(String memberToken, String requestId) {
         String normalizedRequestId = normalizeRequestId(requestId);
         String studentNo = selections.bindForSubmission(memberToken, normalizedRequestId);
         return submitPublic(studentNo, normalizedRequestId);
     }
 
-    @Transactional
     public SubmitResponse submitPublic(String studentNo, String requestId) {
         String normalizedStudentNo = studentNo == null ? "" : studentNo.trim();
         String normalizedRequestId = normalizeRequestId(requestId);
+        try {
+            return submissionTransactions.execute(
+                    normalizedRequestId,
+                    () -> submitPublicTransaction(normalizedStudentNo, normalizedRequestId)
+            );
+        } catch (DuplicateKeyException conflict) {
+            PublicSubmissionRepository.Receipt receipt = submissions.findByRequestId(normalizedRequestId)
+                    .orElseThrow(() -> conflict);
+            return responseFromReceipt(receipt, normalizedStudentNo);
+        }
+    }
+
+    private SubmitResponse submitPublicTransaction(String normalizedStudentNo, String normalizedRequestId) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        submissionRetention.cleanupExpired(now);
         var previous = submissions.findByRequestId(normalizedRequestId);
         if (previous.isPresent()) {
-            PublicSubmissionRepository.Receipt receipt = previous.get();
-            if (!receipt.studentNo().equals(normalizedStudentNo)) {
-                throw ApiException.conflict("该提交编号已用于其他成员，请重新查询后再试");
-            }
-            return responseFromReceipt(receipt);
+            return responseFromReceipt(previous.get(), normalizedStudentNo);
         }
 
-        LocalDateTime now = LocalDateTime.now();
         LocalDate today = now.toLocalDate();
         int weekday = today.getDayOfWeek().getValue();
         boolean dutyDay = weekdays.isDutyWeekday(weekday);
         boolean withinDutyPeriod = periods.contains(now.toLocalTime());
         UserSummary user = users.findActiveByStudentNo(normalizedStudentNo)
                 .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
+        requireWriteLock(records.acquireUserAttendanceWriteLock(user.id()));
         boolean autoApproved = user.role() == Role.MINISTER || user.role() == Role.PRESIDENT || user.role() == Role.ADMIN;
         String pendingOrAuto = autoApproved ? ReviewStatus.AUTO_APPROVED.name() : ReviewStatus.PENDING.name();
 
@@ -241,7 +252,13 @@ public class AttendanceService {
         ));
     }
 
-    private SubmitResponse responseFromReceipt(PublicSubmissionRepository.Receipt receipt) {
+    private SubmitResponse responseFromReceipt(
+            PublicSubmissionRepository.Receipt receipt,
+            String expectedStudentNo
+    ) {
+        if (!receipt.studentNo().equals(expectedStudentNo)) {
+            throw ApiException.conflict("该提交编号已用于其他成员，请重新查询后再试");
+        }
         return new SubmitResponse(
                 receipt.recordId(),
                 receipt.action(),
@@ -278,16 +295,6 @@ public class AttendanceService {
         RolePermissionPolicy.require(current.role(),
                 RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
                 "无权查看待审核记录");
-    }
-
-    public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
-        RolePermissionPolicy.require(AuthContext.current().role(),
-                RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
-                "无权查看未签退记录");
-        if (from.isAfter(to)) {
-            throw ApiException.badRequest("开始日期不能晚于结束日期");
-        }
-        return records.openRecords(from, to);
     }
 
     @Transactional
@@ -377,7 +384,7 @@ public class AttendanceService {
 
         approveInBatches(checkInIds, current.id(), true);
         approveInBatches(checkOutIds, current.id(), false);
-        recomputeInBatches(touchedIds);
+        recomputeInBatches(touchedIds, current.id());
 
         BulkReviewResult result = new BulkReviewResult(
                 matched,
@@ -400,23 +407,26 @@ public class AttendanceService {
         return result;
     }
 
+    @Transactional(readOnly = true)
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
         RolePermissionPolicy.require(AuthContext.current().role(),
                 RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
                 "无权查看全部记录");
         validateDateRange(from, to);
-        return records.search(from, to, studentNo, status);
+        List<AttendanceRecord> result = records.search(from, to, studentNo, normalizeEffectiveStatusFilter(status));
+        ExportRowLimit.requireWithinLimit(result.size(), "查询");
+        return result;
     }
 
+    @Transactional(readOnly = true)
     public AttendanceRepository.AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo,
                                                           String status, int page, int pageSize) {
         RolePermissionPolicy.require(AuthContext.current().role(),
                 RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
                 "无权查看全部记录");
         validateDateRange(from, to);
-        int safePage = Math.max(1, page);
-        int safePageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
-        return records.searchPage(from, to, studentNo, status, safePage, safePageSize);
+        PaginationPolicy.PageRequest paging = PaginationPolicy.normalize(page, pageSize);
+        return records.searchPage(from, to, studentNo, normalizeEffectiveStatusFilter(status), paging.page(), paging.pageSize());
     }
 
     public List<UserRepository.UserCandidate> manualCandidates(String keyword) {
@@ -426,10 +436,13 @@ public class AttendanceService {
         return users.searchActiveCandidates(keyword == null ? "" : keyword.trim(), 1000);
     }
 
+    @Transactional(readOnly = true)
     public List<AttendanceRecord> myRecords(LocalDate from, LocalDate to) {
         validateDateRange(from, to);
         long userId = AuthContext.current().id();
-        return records.searchForUser(userId, from, to);
+        List<AttendanceRecord> result = records.searchForUser(userId, from, to);
+        ExportRowLimit.requireWithinLimit(result.size(), "查询");
+        return result;
     }
 
     private void validateDateRange(LocalDate from, LocalDate to) {
@@ -453,14 +466,26 @@ public class AttendanceService {
         if (request.checkOutTime() != null && !request.checkOutTime().isAfter(request.checkInTime())) {
             throw ApiException.badRequest("签退时间必须晚于签到时间");
         }
+        validateManualTimes(request.checkInTime(), request.checkOutTime());
+        if (records.acquireAttendanceRecordWriteLock(id) != 1) {
+            throw ApiException.notFound("记录不存在");
+        }
         AttendanceRecord before = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
         if (current.role() == Role.MINISTER) {
             requireMinisterRecordAccess(before, request.checkInTime().toLocalDate());
+            if (Boolean.TRUE.equals(request.recomputeSnapshot())) {
+                throw ApiException.forbidden("只有会长或管理员可以按当前设置重新评估记录");
+            }
         }
+        rejectOverlappingRecord(before.userId(), id, request.checkInTime(), request.checkOutTime());
         LocalDate dutyDate = request.checkInTime().toLocalDate();
         int dutyWeekday = dutyDate.getDayOfWeek().getValue();
-        boolean dutyDay = weekdays.isDutyWeekday(dutyWeekday);
-        boolean withinDutyPeriod = periods.contains(request.checkInTime().toLocalTime());
+        EligibilitySnapshot eligibility = Boolean.TRUE.equals(request.recomputeSnapshot())
+                ? currentEligibility(request.checkInTime())
+                : new EligibilitySnapshot(
+                before.dutyDay(), before.withinDutyPeriod(),
+                before.requireDutyDay(), before.requireDutyPeriod()
+        );
         String checkInStatus = current.role() == Role.MINISTER
                 ? ReviewStatus.AUTO_APPROVED.name()
                 : normalizeSubmittedReviewStatus(request.checkInStatus(), "签到审核状态");
@@ -473,8 +498,8 @@ public class AttendanceService {
             checkOutStatus = normalizeSubmittedReviewStatus(request.checkOutStatus(), "签退审核状态");
         }
         records.manualUpdate(
-                id, dutyDate, dutyWeekday, dutyDay, withinDutyPeriod,
-                before.requireDutyDay(), before.requireDutyPeriod(),
+                id, dutyDate, dutyWeekday, eligibility.dutyDay(), eligibility.withinDutyPeriod(),
+                eligibility.requireDutyDay(), eligibility.requireDutyPeriod(),
                 Timestamp.valueOf(request.checkInTime()),
                 request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
                 checkInStatus, checkOutStatus, request.reason().trim(), current.id());
@@ -502,20 +527,22 @@ public class AttendanceService {
         if (request.checkOutTime() != null && !request.checkOutTime().isAfter(request.checkInTime())) {
             throw ApiException.badRequest("签退时间必须晚于签到时间");
         }
+        validateManualTimes(request.checkInTime(), request.checkOutTime());
 
         UserSummary user = users.findActiveByStudentNo(request.studentNo().trim())
                 .orElseThrow(() -> ApiException.notFound("学号不存在或账号已停用"));
+        requireWriteLock(records.acquireUserAttendanceWriteLock(user.id()));
+        rejectOverlappingRecord(user.id(), null, request.checkInTime(), request.checkOutTime());
         LocalDate dutyDate = request.checkInTime().toLocalDate();
         int weekday = dutyDate.getDayOfWeek().getValue();
-        boolean dutyDay = weekdays.isDutyWeekday(weekday);
-        if (!dutyDay) {
-            throw ApiException.badRequest("所选日期不是当前设置的值班日，不能添加有效签到记录");
-        }
+        EligibilitySnapshot eligibility = currentEligibility(request.checkInTime());
         String checkOutStatus = request.checkOutTime() == null
                 ? ReviewStatus.NOT_SUBMITTED.name()
                 : ReviewStatus.AUTO_APPROVED.name();
         long id = records.insertManual(
                 user.id(), user.studentNo(), user.name(), dutyDate, weekday,
+                eligibility.dutyDay(), eligibility.withinDutyPeriod(),
+                eligibility.requireDutyDay(), eligibility.requireDutyPeriod(),
                 Timestamp.valueOf(request.checkInTime()),
                 request.checkOutTime() == null ? null : Timestamp.valueOf(request.checkOutTime()),
                 ReviewStatus.AUTO_APPROVED.name(), checkOutStatus, request.reason().trim(), current.id());
@@ -523,6 +550,44 @@ public class AttendanceService {
         AttendanceRecord created = records.findById(id).orElseThrow();
         logs.log("MANUAL_CREATE_ATTENDANCE", "attendance_records", id, null, created, request.reason());
         return created;
+    }
+
+    private void validateManualTimes(LocalDateTime checkInTime, LocalDateTime checkOutTime) {
+        LocalDateTime latestAllowed = LocalDateTime.now(clock).plusMinutes(MANUAL_TIME_FUTURE_TOLERANCE_MINUTES);
+        if (checkInTime.isAfter(latestAllowed)) {
+            throw ApiException.badRequest("签到时间不能是超过当前时间 5 分钟的未来时间");
+        }
+        if (checkOutTime != null && checkOutTime.isAfter(latestAllowed)) {
+            throw ApiException.badRequest("签退时间不能是超过当前时间 5 分钟的未来时间");
+        }
+    }
+
+    private EligibilitySnapshot currentEligibility(LocalDateTime checkInTime) {
+        LocalDate dutyDate = checkInTime.toLocalDate();
+        AttendancePolicyService.AttendancePolicy policy = policies.current();
+        return new EligibilitySnapshot(
+                weekdays.isDutyWeekday(dutyDate.getDayOfWeek().getValue()),
+                periods.contains(checkInTime.toLocalTime()),
+                policy.requireDutyDay(),
+                policy.requireDutyPeriod()
+        );
+    }
+
+    private void rejectOverlappingRecord(long userId, Long excludedRecordId,
+                                         LocalDateTime checkInTime, LocalDateTime checkOutTime) {
+        if (records.hasOverlappingRecord(
+                userId,
+                excludedRecordId,
+                Timestamp.valueOf(checkInTime),
+                checkOutTime == null ? null : Timestamp.valueOf(checkOutTime))) {
+            throw ApiException.conflict("该成员已有时间重叠的签到记录，请调整时间后重试");
+        }
+    }
+
+    private void requireWriteLock(int affectedRows) {
+        if (affectedRows != 1) {
+            throw ApiException.conflict("成员状态已变化，请刷新后重试");
+        }
     }
 
     @Transactional
@@ -547,7 +612,7 @@ public class AttendanceService {
     }
 
     private void requireMinisterRecordAccess(AttendanceRecord record, LocalDate updatedDutyDate) {
-        LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+        LocalDate weekStart = LocalDate.now(clock).with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
         LocalDate weekEnd = weekStart.plusDays(6);
         if (record.dutyDate().isBefore(weekStart) || record.dutyDate().isAfter(weekEnd)
                 || updatedDutyDate.isBefore(weekStart) || updatedDutyDate.isAfter(weekEnd)) {
@@ -578,6 +643,10 @@ public class AttendanceService {
         AttendanceRecord record = records.findById(id).orElseThrow(() -> ApiException.notFound("记录不存在"));
         if (ReviewStatus.REJECTED.name().equals(record.checkInStatus())
                 || ReviewStatus.REJECTED.name().equals(record.checkOutStatus())) {
+            records.updateEffective(id, 0, 0, "INVALID");
+            return;
+        }
+        if (hasFutureTime(record)) {
             records.updateEffective(id, 0, 0, "INVALID");
             return;
         }
@@ -702,7 +771,7 @@ public class AttendanceService {
         }
     }
 
-    private void recomputeInBatches(List<Long> ids) {
+    private void recomputeInBatches(List<Long> ids, long updatedBy) {
         for (int start = 0; start < ids.size(); start += BULK_REVIEW_BATCH_SIZE) {
             int end = Math.min(start + BULK_REVIEW_BATCH_SIZE, ids.size());
             List<AttendanceRecord> reviewedRecords = records.findAllByIds(ids.subList(start, end));
@@ -712,7 +781,7 @@ public class AttendanceService {
             List<AttendanceRepository.EffectiveUpdate> updates = reviewedRecords.stream()
                     .map(this::effectiveUpdate)
                     .toList();
-            int[] counts = records.batchUpdateEffective(updates);
+            int[] counts = records.batchUpdateEffective(updates, updatedBy);
             requireCompleteBatch(counts, updates.size(), "批量审核时有效时长更新失败");
         }
     }
@@ -720,6 +789,9 @@ public class AttendanceService {
     private AttendanceRepository.EffectiveUpdate effectiveUpdate(AttendanceRecord record) {
         if (ReviewStatus.REJECTED.name().equals(record.checkInStatus())
                 || ReviewStatus.REJECTED.name().equals(record.checkOutStatus())) {
+            return new AttendanceRepository.EffectiveUpdate(record.id(), 0, 0, "INVALID");
+        }
+        if (hasFutureTime(record)) {
             return new AttendanceRepository.EffectiveUpdate(record.id(), 0, 0, "INVALID");
         }
         if ((record.requireDutyDay() && !record.dutyDay())
@@ -745,6 +817,12 @@ public class AttendanceService {
         );
     }
 
+    private boolean hasFutureTime(AttendanceRecord record) {
+        LocalDateTime latestAllowed = LocalDateTime.now(clock).plusMinutes(MANUAL_TIME_FUTURE_TOLERANCE_MINUTES);
+        return record.checkInTime().isAfter(latestAllowed)
+                || (record.checkOutTime() != null && record.checkOutTime().isAfter(latestAllowed));
+    }
+
     private void requireCompleteBatch(int[] counts, int expected, String message) {
         if (counts.length != expected) {
             throw ApiException.conflict(message + "，操作已回滚");
@@ -753,6 +831,17 @@ public class AttendanceService {
             if (count != 1 && count != Statement.SUCCESS_NO_INFO) {
                 throw ApiException.conflict(message + "，操作已回滚");
             }
+        }
+    }
+
+    private String normalizeEffectiveStatusFilter(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        try {
+            return EffectiveStatus.valueOf(status.trim().toUpperCase()).name();
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.badRequest("有效状态不合法");
         }
     }
 
@@ -793,8 +882,13 @@ public class AttendanceService {
             LocalDateTime checkOutTime,
             String checkInStatus,
             String checkOutStatus,
-            String reason
+            String reason,
+            Boolean recomputeSnapshot
     ) {
+        public ManualUpdateRequest(LocalDateTime checkInTime, LocalDateTime checkOutTime,
+                                   String checkInStatus, String checkOutStatus, String reason) {
+            this(checkInTime, checkOutTime, checkInStatus, checkOutStatus, reason, false);
+        }
     }
 
     public record ManualCreateRequest(
@@ -820,5 +914,13 @@ public class AttendanceService {
     }
 
     public record BulkReviewResult(int matched, int reviewed, int skipped, List<String> errors) {
+    }
+
+    private record EligibilitySnapshot(
+            boolean dutyDay,
+            boolean withinDutyPeriod,
+            boolean requireDutyDay,
+            boolean requireDutyPeriod
+    ) {
     }
 }

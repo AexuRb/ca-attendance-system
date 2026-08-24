@@ -1,13 +1,13 @@
 {
   "name": "ca-attendance-frontend",
-  "version": "2.7.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc -p tsconfig.app.json --noEmit && vue-tsc -p tsconfig.test.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -1,8 +1,8 @@
 package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -18,9 +18,15 @@ import java.util.zip.ZipOutputStream;
 
 final class BackupArchiveWriter {
     private final ObjectMapper objectMapper;
+    private final BackupCreationLimits limits;
 
     BackupArchiveWriter(ObjectMapper objectMapper) {
+        this(objectMapper, BackupCreationLimits.defaults());
+    }
+
+    BackupArchiveWriter(ObjectMapper objectMapper, BackupCreationLimits limits) {
         this.objectMapper = objectMapper;
+        this.limits = limits;
     }
 
     void write(
@@ -32,28 +38,25 @@ final class BackupArchiveWriter {
         try (OutputStream file = Files.newOutputStream(output);
              OutputStream limitedFile = new LimitedArchiveOutputStream(file);
              ZipOutputStream zip = new ZipOutputStream(limitedFile, StandardCharsets.UTF_8)) {
-            ArchiveBudget budget = new ArchiveBudget();
+            EntryBudget budget = new EntryBudget();
             writeJson(zip, budget, "metadata.json", metadata);
-            exporter.writeTables((table, rows) -> writeRows(zip, budget, table + ".json", table, rows));
+            exporter.writeTables((table, rows) -> writeRows(zip, budget, table + ".json", rows));
             writeBytes(zip, budget, "README.txt", readme.getBytes(StandardCharsets.UTF_8));
         }
     }
 
     private void writeJson(
             ZipOutputStream zip,
-            ArchiveBudget budget,
+            EntryBudget budget,
             String name,
             Object value
     ) throws IOException {
         budget.addEntry(name);
         zip.putNextEntry(new ZipEntry(name));
         try {
-            OutputStream entry = new LimitedEntryOutputStream(zip, budget, name);
-            JsonGenerator generator = objectMapper.getFactory().createGenerator(entry);
-            generator.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
-            try (generator) {
-                generator.writeObject(value);
-            }
+            JsonGenerator generator = objectMapper.createGenerator(new LimitedEntryOutputStream(zip, budget, name));
+            generator.writePOJO(value);
+            generator.flush();
         } finally {
             zip.closeEntry();
         }
@@ -61,26 +64,21 @@ final class BackupArchiveWriter {
 
     private void writeRows(
             ZipOutputStream zip,
-            ArchiveBudget budget,
+            EntryBudget budget,
             String name,
-            String table,
             Stream<Map<String, Object>> rows
     ) throws IOException {
         budget.addEntry(name);
         zip.putNextEntry(new ZipEntry(name));
         try {
-            OutputStream entry = new LimitedEntryOutputStream(zip, budget, name);
-            JsonGenerator generator = objectMapper.getFactory().createGenerator(entry);
-            generator.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
-            try (generator) {
-                generator.writeStartArray();
-                Iterator<Map<String, Object>> iterator = rows.iterator();
-                while (iterator.hasNext()) {
-                    budget.addRow(table);
-                    generator.writeObject(iterator.next());
-                }
-                generator.writeEndArray();
+            JsonGenerator generator = objectMapper.createGenerator(new LimitedEntryOutputStream(zip, budget, name));
+            generator.writeStartArray();
+            Iterator<Map<String, Object>> iterator = rows.iterator();
+            while (iterator.hasNext()) {
+                generator.writePOJO(iterator.next());
             }
+            generator.writeEndArray();
+            generator.flush();
         } finally {
             zip.closeEntry();
         }
@@ -88,7 +86,7 @@ final class BackupArchiveWriter {
 
     private void writeBytes(
             ZipOutputStream zip,
-            ArchiveBudget budget,
+            EntryBudget budget,
             String name,
             byte[] bytes
     ) throws IOException {
@@ -101,53 +99,35 @@ final class BackupArchiveWriter {
         }
     }
 
-    private static final class ArchiveBudget {
+    private final class EntryBudget {
         private long totalBytes;
-        private int tableRows;
-        private String currentTable;
-        private int totalRows;
         private int entryCount;
 
         void addEntry(String entry) {
             entryCount++;
-            if (entryCount > BackupArchiveLimits.MAX_ZIP_ENTRIES) {
+            if (entryCount > limits.maxZipEntries()) {
                 throw ApiException.badRequest("备份包含过多条目，无法生成可恢复备份：" + entry);
             }
         }
 
         void addBytes(String entry, long bytes, long entryBytes) {
-            if (entryBytes > BackupArchiveLimits.MAX_ENTRY_UNCOMPRESSED_BYTES) {
+            if (entryBytes > limits.maxEntryUncompressedBytes()) {
                 throw ApiException.badRequest("备份文件中的 " + entry + " 解压后过大");
             }
             totalBytes += bytes;
-            if (totalBytes > BackupArchiveLimits.MAX_TOTAL_UNCOMPRESSED_BYTES) {
+            if (totalBytes > limits.maxTotalUncompressedBytes()) {
                 throw ApiException.badRequest("备份文件解压后的总数据量过大");
-            }
-        }
-
-        void addRow(String table) {
-            if (!table.equals(currentTable)) {
-                currentTable = table;
-                tableRows = 0;
-            }
-            tableRows++;
-            totalRows++;
-            if (tableRows > BackupArchiveLimits.MAX_ROWS_PER_TABLE) {
-                throw ApiException.badRequest(table + " 数据行数过多，无法生成可恢复备份");
-            }
-            if (totalRows > BackupArchiveLimits.MAX_TOTAL_ROWS) {
-                throw ApiException.badRequest("数据库总行数过多，无法生成可恢复备份");
             }
         }
     }
 
-    private static final class LimitedEntryOutputStream extends OutputStream {
+    private final class LimitedEntryOutputStream extends OutputStream {
         private final OutputStream delegate;
-        private final ArchiveBudget budget;
+        private final EntryBudget budget;
         private final String entry;
         private long entryBytes;
 
-        private LimitedEntryOutputStream(OutputStream delegate, ArchiveBudget budget, String entry) {
+        private LimitedEntryOutputStream(OutputStream delegate, EntryBudget budget, String entry) {
             this.delegate = delegate;
             this.budget = budget;
             this.entry = entry;
@@ -176,7 +156,7 @@ final class BackupArchiveWriter {
         }
     }
 
-    private static final class LimitedArchiveOutputStream extends FilterOutputStream {
+    private final class LimitedArchiveOutputStream extends FilterOutputStream {
         private long bytes;
 
         private LimitedArchiveOutputStream(OutputStream output) {
@@ -197,7 +177,7 @@ final class BackupArchiveWriter {
 
         private void add(int amount) {
             bytes += amount;
-            if (bytes > BackupArchiveLimits.MAX_ARCHIVE_BYTES) {
+            if (bytes > limits.maxArchiveBytes()) {
                 throw ApiException.badRequest("备份压缩文件过大，无法生成可恢复备份");
             }
         }

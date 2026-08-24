@@ -5,18 +5,47 @@ const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  APP_PORT,
   REMOTE_ADMIN_PORT,
+  backendFailureMessage,
   backendLocations,
   detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,
   isRequestedWindowSize,
   isLoopbackPortInUse,
+  isKioskUrl,
+  isZoomShortcut,
+  requestJson,
   restoreApplicationWindow,
   selectSmokeScenario,
   shouldHideWindowOnClose,
   resolveAppRoot
 } = require('../runtime.cjs');
+
+test('rejects an oversized local-service response instead of parsing a truncated body', async () => {
+  const server = require('node:http').createServer((_request, response) => {
+    response.writeHead(200, { 'Content-Type': 'application/json' });
+    response.end(JSON.stringify({ payload: 'x'.repeat(2048) }));
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+
+  try {
+    await assert.rejects(
+      requestJson({
+        requestPath: '/large',
+        port: server.address().port,
+        maxResponseBytes: 512
+      }),
+      /响应数据超过 512 字节上限/
+    );
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});
 
 test('reserves a separate loopback port for the remote admin tunnel', () => {
   assert.equal(REMOTE_ADMIN_PORT, 8081);
@@ -69,6 +98,11 @@ test('detects local and remote startup port conflicts before spawning the backen
     probeApplicationFn: async () => ({ reachable: true, matches: false }),
     isPortInUseFn: async () => false
   }), { kind: 'LOCAL_PORT_OCCUPIED', port: 8080 });
+
+  assert.deepEqual(await detectStartupConflict({
+    probeApplicationFn: async () => ({ reachable: false, matches: false }),
+    isPortInUseFn: async port => port === APP_PORT
+  }), { kind: 'LOCAL_PORT_OCCUPIED', port: APP_PORT });
 
   assert.deepEqual(await detectStartupConflict({
     probeApplicationFn: async () => ({ reachable: false, matches: false }),
@@ -170,6 +204,30 @@ test('restores and focuses a hidden or minimized application window', () => {
 
   assert.equal(restoreApplicationWindow(window), true);
   assert.deepEqual(calls, ['restore', 'show', 'focus']);
+});
+
+test('explains a backend bind failure as a startup port race', () => {
+  assert.match(
+    backendFailureMessage(
+      'org.springframework.boot.web.server.PortInUseException: Port 8080 is already in use',
+      'C:\\logs\\backend.log'
+    ),
+    /端口.*占用/
+  );
+  assert.match(
+    backendFailureMessage('unexpected shutdown', 'C:\\logs\\backend.log'),
+    /C:\\logs\\backend\.log/
+  );
+});
+
+test('locks zoom shortcuts only on the public kiosk route', () => {
+  assert.equal(isKioskUrl('http://127.0.0.1:8080/#/'), true);
+  assert.equal(isKioskUrl('http://127.0.0.1:8080/#/login'), false);
+  assert.equal(isKioskUrl('http://127.0.0.1:8080/#/admin/today'), false);
+  assert.equal(isKioskUrl('https://example.com/#/'), false);
+  assert.equal(isZoomShortcut({ control: true, key: '+' }), true);
+  assert.equal(isZoomShortcut({ control: true, key: '0' }), true);
+  assert.equal(isZoomShortcut({ control: false, key: '+' }), false);
 });
 
 test('accepts only operating-system window frame differences within two pixels', () => {

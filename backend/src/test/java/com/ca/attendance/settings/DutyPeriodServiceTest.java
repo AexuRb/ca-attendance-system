@@ -4,7 +4,7 @@ import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,16 +35,24 @@ class DutyPeriodServiceTest {
     }
 
     @Test
-    void listReadsStoredPeriodsWithSortOrder() {
+    void listPreservesManualOrderAndAssignsSortOrder() {
         DutyPeriodService service = new DutyPeriodService(jdbc, new ObjectMapper(), logs);
         when(jdbc.queryForList(anyString(), eq(String.class), eq("DUTY_TIME_PERIODS")))
                 .thenReturn(List.of("""
-                        [{"sortOrder":0,"startTime":"15:00","endTime":"17:00"}]
+                        [
+                          {"sortOrder":0,"startTime":"18:00","endTime":"20:00"},
+                          {"sortOrder":1,"startTime":"08:00","endTime":"10:00"},
+                          {"sortOrder":2,"startTime":"14:00","endTime":"16:00"}
+                        ]
                         """));
 
         List<DutyPeriodItem> periods = service.list();
 
-        assertThat(periods).containsExactly(new DutyPeriodItem(0, "15:00", "17:00", true));
+        assertThat(periods).containsExactly(
+                new DutyPeriodItem(0, "18:00", "20:00", true),
+                new DutyPeriodItem(1, "08:00", "10:00", true),
+                new DutyPeriodItem(2, "14:00", "16:00", true)
+        );
     }
 
     @Test
@@ -69,6 +77,16 @@ class DutyPeriodServiceTest {
                         """));
 
         assertThat(service.contains(LocalTime.of(15, 0))).isFalse();
+    }
+
+    @Test
+    void listRejectsCorruptedStoredConfigurationInsteadOfSilentlyReturningEmpty() {
+        DutyPeriodService service = new DutyPeriodService(jdbc, new ObjectMapper(), logs);
+        when(jdbc.queryForList(anyString(), eq(String.class), eq("DUTY_TIME_PERIODS")))
+                .thenReturn(List.of("{not-valid-json"));
+
+        assertThatThrownBy(service::list)
+                .hasMessageContaining("值班时间段配置损坏");
     }
 
     @Test

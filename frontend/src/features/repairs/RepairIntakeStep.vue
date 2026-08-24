@@ -15,7 +15,13 @@
         </label>
         <label class="field">
           <span>完成时间</span>
-          <input v-model="form.completedAt" name="repair-completed-at" type="datetime-local" />
+          <input
+            v-model="form.completedAt"
+            name="completedAt"
+            type="datetime-local"
+            :aria-invalid="Boolean(errors.completedAt)"
+          />
+          <small v-if="errors.completedAt" class="field-error" role="alert">{{ errors.completedAt }}</small>
         </label>
         <div class="field span-2">
           <span>负责人账号</span>

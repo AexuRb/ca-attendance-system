@@ -4,6 +4,13 @@
       title="系统设置"
       description="设置开放日、值班时间段和有效时长规则。"
     />
+    <div v-if="loadError" class="inline-alert danger" role="alert">
+      <span>{{ loadError }}</span>
+      <button class="button secondary small" type="button" data-action="retry-settings" @click="loadSettings">
+        重试
+      </button>
+    </div>
+    <LoadingBlock v-if="loading && !weekdays.length" />
     <section class="panel setting-section">
       <div class="section-heading">
         <div>
@@ -11,8 +18,8 @@
           <h2>值班星期</h2>
           <span>未开放日期仍可签到签退，计时结果由审核和下方规则共同决定。</span>
         </div>
-        <button class="button primary small" @click="saveWeekdays">
-          <Save />保存星期
+        <button class="button primary small" :disabled="actions.isPending('weekdays')" @click="saveWeekdays">
+          <Save />{{ actions.isPending('weekdays') ? "正在保存" : "保存星期" }}
         </button>
       </div>
       <div class="weekday-selector">
@@ -38,6 +45,7 @@
         <button
           v-if="canEditAttendancePolicy"
           class="button primary small"
+          :disabled="actions.isPending('policy')"
           @click="saveAttendancePolicy"
         >
           <Save />保存规则
@@ -179,17 +187,27 @@
         <span>共 {{ periods.length }} 个时间段</span
         ><button
           class="button primary"
-          :disabled="Boolean(periodError)"
+          :disabled="Boolean(periodError) || actions.isPending('periods')"
           @click="savePeriods"
         >
           <Save />保存时间段
         </button>
       </footer>
     </section>
+    <ConfirmDialog
+      :open="unsaved.confirmOpen.value"
+      title="放弃未保存修改"
+      message="系统设置还有未保存的修改，离开后将无法恢复。"
+      confirm-label="放弃修改"
+      danger
+      @cancel="unsaved.cancel"
+      @confirm="unsaved.discard"
+    />
   </div>
 </template>
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
 import {
   ArrowRight,
   CalendarCheck2,
@@ -204,8 +222,13 @@ import {
 } from "@lucide/vue";
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
+import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
+import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { get, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import { useSession } from "../../app/session";
 import {
   normalizeDutyWeekdays,
@@ -221,7 +244,10 @@ import {
   normalizeAttendancePolicy,
   type AttendancePolicy,
 } from "../../features/settings/attendancePolicy";
-const { run } = useAsyncTask();
+const task = useAsyncTask();
+const loadRequest = useLatestRequest();
+const actions = usePendingActions();
+const { loading, error: loadError } = loadRequest;
 const { user } = useSession();
 const weekdays = ref<DutyWeekdaySetting[]>([]);
 const periods = ref<DutyPeriod[]>([]);
@@ -230,29 +256,46 @@ const canEditAttendancePolicy = computed(() =>
   canManageAttendancePolicy(user.value?.role),
 );
 const periodError = computed(() => validateDutyPeriods(periods.value));
-onMounted(async () => {
-  const [weekdayRows, dutyPeriods, policy] = await Promise.all([
-    get<DutyWeekdaySetting[]>("/api/settings/weekdays"),
-    get<DutyPeriod[]>("/api/settings/duty-periods"),
-    get<AttendancePolicy>("/api/settings/attendance-policy"),
-  ]);
+const weekdayBaseline = ref("");
+const periodBaseline = ref("");
+const policyBaseline = ref("");
+const unsaved = useUnsavedChanges(() =>
+  weekdaySnapshot() !== weekdayBaseline.value ||
+  periodSnapshot() !== periodBaseline.value ||
+  policySnapshot() !== policyBaseline.value,
+);
+onMounted(loadSettings);
+async function loadSettings() {
+  const result = await loadRequest.run((signal) => Promise.all([
+    get<DutyWeekdaySetting[]>("/api/settings/weekdays", { signal }),
+    get<DutyPeriod[]>("/api/settings/duty-periods", { signal }),
+    get<AttendancePolicy>("/api/settings/attendance-policy", { signal }),
+  ]), "系统设置加载失败");
+  if (!result) return;
+  const [weekdayRows, dutyPeriods, policy] = result;
   weekdays.value = normalizeDutyWeekdays(weekdayRows);
   periods.value = dutyPeriods.map((period) => ({
     ...period,
     enabled: period.enabled !== false,
   }));
   attendancePolicy.value = normalizeAttendancePolicy(policy);
-});
+  weekdayBaseline.value = weekdaySnapshot();
+  periodBaseline.value = periodSnapshot();
+  policyBaseline.value = policySnapshot();
+}
 async function saveWeekdays() {
-  await run(
-    () =>
-      put("/api/settings/weekdays", {
-        enabledWeekdays: weekdays.value
-          .filter((i) => i.enabled)
-          .map((i) => i.weekday),
-      }),
-    "值班星期已保存",
-  );
+  await actions.run("weekdays", async () => {
+    const saved = await task.run(
+      () =>
+        put("/api/settings/weekdays", {
+          enabledWeekdays: weekdays.value
+            .filter((i) => i.enabled)
+            .map((i) => i.weekday),
+        }),
+      "值班星期已保存",
+    );
+    if (saved !== undefined) weekdayBaseline.value = weekdaySnapshot();
+  });
 }
 function addPeriod() {
   const end = periods.value.at(-1)?.endTime?.slice(0, 5) || "14:00";
@@ -267,39 +310,64 @@ function move(index: number, direction: -1 | 1) {
 }
 async function savePeriods() {
   if (periodError.value) return;
-  const saved = await run(
-    () =>
-      put<DutyPeriod[]>("/api/settings/duty-periods", {
-        periods: periods.value.map((i) => ({
-          startTime: i.startTime.slice(0, 5),
-          endTime: i.endTime.slice(0, 5),
-          enabled: i.enabled,
-        })),
+  await actions.run("periods", async () => {
+    const saved = await task.run(
+      () =>
+        put<DutyPeriod[]>("/api/settings/duty-periods", {
+          periods: periods.value.map((i) => ({
+            startTime: i.startTime.slice(0, 5),
+            endTime: i.endTime.slice(0, 5),
+            enabled: i.enabled,
+          })),
       }),
-    "值班时间段已保存",
-  );
-  if (saved) periods.value = saved;
+      "值班时间段已保存",
+    );
+    if (saved) {
+      periods.value = saved;
+      periodBaseline.value = periodSnapshot();
+    }
+  });
 }
 async function saveAttendancePolicy() {
   if (!canEditAttendancePolicy.value) return;
-  const saved = await run(
-    () =>
-      put<AttendancePolicy>(
-        "/api/settings/attendance-policy",
-        attendancePolicy.value,
-      ),
-    "有效时长规则已保存",
-  );
-  if (saved) attendancePolicy.value = normalizeAttendancePolicy(saved);
+  await actions.run("policy", async () => {
+    const saved = await task.run(
+      () =>
+        put<AttendancePolicy>(
+          "/api/settings/attendance-policy",
+          attendancePolicy.value,
+        ),
+      "有效时长规则已保存",
+    );
+    if (saved) {
+      attendancePolicy.value = normalizeAttendancePolicy(saved);
+      policyBaseline.value = policySnapshot();
+    }
+  });
 }
+function weekdaySnapshot() {
+  return JSON.stringify(weekdays.value.map(({ weekday, enabled }) => ({ weekday, enabled })));
+}
+function periodSnapshot() {
+  return JSON.stringify(periods.value);
+}
+function policySnapshot() {
+  return JSON.stringify(attendancePolicy.value);
+}
+onBeforeRouteLeave(
+  () =>
+    new Promise((resolve) => {
+      unsaved.request(() => resolve(true), () => resolve(false));
+    }),
+);
 function addHours(value: string, hours: number) {
-  const [h, m] = value.split(":").map(Number);
+  const [h = 0, m = 0] = value.split(":").map(Number);
   return `${String(Math.min(23, h + hours)).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 function duration(v: DutyPeriod) {
   if (!v.startTime || !v.endTime || v.endTime <= v.startTime) return "—";
-  const [sh, sm] = v.startTime.split(":").map(Number),
-    [eh, em] = v.endTime.split(":").map(Number);
+  const [sh = 0, sm = 0] = v.startTime.split(":").map(Number),
+    [eh = 0, em = 0] = v.endTime.split(":").map(Number);
   return `${((eh * 60 + em - sh * 60 - sm) / 60).toFixed(1).replace(".0", "")} 小时`;
 }
 function shortDay(v: DutyWeekdaySetting) {

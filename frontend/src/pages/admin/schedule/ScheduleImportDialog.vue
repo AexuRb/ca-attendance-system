@@ -18,6 +18,7 @@
         <FileSearch />校验预览
       </button>
     </div>
+    <p v-if="fileError" class="form-error" role="alert">{{ fileError }}</p>
 
     <div
       v-if="preview"
@@ -90,6 +91,7 @@ import { FileSearch, TriangleAlert, Upload } from "@lucide/vue";
 import ModalDialog from "../../../shared/ui/ModalDialog.vue";
 import { post } from "../../../shared/api";
 import { notify } from "../../../shared/composables/useToast";
+import { excelFileError } from "../../../shared/validation/fileValidation";
 import type {
   ScheduleImportPreview,
   ScheduleImportResult,
@@ -101,6 +103,7 @@ const fileInput = ref<HTMLInputElement>();
 const file = ref<File | null>(null);
 const preview = ref<ScheduleImportPreview | null>(null);
 const busy = ref(false);
+const fileError = ref("");
 
 watch(
   () => props.open,
@@ -110,7 +113,11 @@ watch(
 );
 
 function selectFile(event: Event) {
-  file.value = (event.target as HTMLInputElement).files?.[0] || null;
+  const input = event.target as HTMLInputElement;
+  const selected = input.files?.[0] || null;
+  fileError.value = selected ? excelFileError(selected, "排班 Excel 文件") : "";
+  file.value = fileError.value ? null : selected;
+  if (fileError.value) input.value = "";
   preview.value = null;
 }
 
@@ -162,12 +169,13 @@ async function confirmImport() {
 }
 
 function close() {
-  emit("close");
+  if (!busy.value) emit("close");
 }
 
 function reset() {
   file.value = null;
   preview.value = null;
+  fileError.value = "";
   if (fileInput.value) fileInput.value.value = "";
 }
 </script>

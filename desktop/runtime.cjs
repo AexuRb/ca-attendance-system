@@ -8,6 +8,7 @@ const APP_PORT = 8080;
 const REMOTE_ADMIN_PORT = 8081;
 const APP_ORIGIN = `http://${APP_HOST}:${APP_PORT}`;
 const HEALTH_PATH = '/api/health';
+const MAX_JSON_RESPONSE_BYTES = 1024 * 1024;
 
 function resolveAppRoot({ isPackaged, executablePath, moduleDirectory, override }) {
   if (override && override.trim()) {
@@ -97,8 +98,23 @@ function backendLocations({
   };
 }
 
-function requestJson({ method = 'GET', requestPath, body, token, timeoutMs = 3000 }) {
+function requestJson({
+  method = 'GET',
+  requestPath,
+  body,
+  token,
+  timeoutMs = 3000,
+  hostname = APP_HOST,
+  port = APP_PORT,
+  maxResponseBytes = MAX_JSON_RESPONSE_BYTES
+}) {
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      callback(value);
+    };
     const payload = body === undefined ? null : Buffer.from(JSON.stringify(body), 'utf8');
     const headers = { Accept: 'application/json' };
     if (payload) {
@@ -110,8 +126,8 @@ function requestJson({ method = 'GET', requestPath, body, token, timeoutMs = 300
     }
 
     const request = http.request({
-      hostname: APP_HOST,
-      port: APP_PORT,
+      hostname,
+      port,
       path: requestPath,
       method,
       headers,
@@ -121,11 +137,15 @@ function requestJson({ method = 'GET', requestPath, body, token, timeoutMs = 300
       let size = 0;
       response.on('data', chunk => {
         size += chunk.length;
-        if (size <= 1024 * 1024) {
-          chunks.push(chunk);
+        if (size > maxResponseBytes) {
+          settle(reject, new Error(`本机服务响应数据超过 ${maxResponseBytes} 字节上限`));
+          response.destroy();
+          return;
         }
+        chunks.push(chunk);
       });
       response.on('end', () => {
+        if (settled) return;
         const text = Buffer.concat(chunks).toString('utf8');
         let parsed = null;
         if (text) {
@@ -135,17 +155,43 @@ function requestJson({ method = 'GET', requestPath, body, token, timeoutMs = 300
             parsed = null;
           }
         }
-        resolve({ statusCode: response.statusCode ?? 0, body: parsed, text });
+        settle(resolve, { statusCode: response.statusCode ?? 0, body: parsed, text });
       });
+      response.on('error', error => settle(reject, error));
+      response.on('aborted', () => settle(reject, new Error('本机服务响应意外中断')));
     });
 
     request.on('timeout', () => request.destroy(new Error('本机服务响应超时')));
-    request.on('error', reject);
+    request.on('error', error => settle(reject, error));
     if (payload) {
       request.write(payload);
     }
     request.end();
   });
+}
+
+function isKioskUrl(value) {
+  try {
+    const target = new URL(value);
+    const route = (target.hash.replace(/^#/, '') || '/').split('?')[0];
+    return target.origin === APP_ORIGIN && route === '/';
+  } catch {
+    return false;
+  }
+}
+
+function isZoomShortcut(input = {}) {
+  return Boolean(input.control || input.meta)
+    && ['+', '=', '-', '0', 'Add', 'Subtract'].includes(input.key);
+}
+
+function backendFailureMessage(logText, logPath) {
+  const portConflict = /(?:BindException|PortInUseException|Address already in use|端口.*(?:占用|使用))/i
+    .test(String(logText || ''));
+  if (portConflict) {
+    return `服务端口在启动过程中被其他程序占用，请关闭占用程序后重试。详细信息：${logPath}`;
+  }
+  return `后端服务意外退出，请查看日志：${logPath}`;
 }
 
 function isAttendanceHealth(response) {
@@ -193,6 +239,9 @@ async function detectStartupConflict({
       ? { kind: 'APP_ALREADY_RUNNING', port: APP_PORT }
       : { kind: 'LOCAL_PORT_OCCUPIED', port: APP_PORT };
   }
+  if (await isPortInUseFn(APP_PORT)) {
+    return { kind: 'LOCAL_PORT_OCCUPIED', port: APP_PORT };
+  }
   if (await isPortInUseFn(REMOTE_ADMIN_PORT)) {
     return { kind: 'REMOTE_PORT_OCCUPIED', port: REMOTE_ADMIN_PORT };
   }
@@ -231,15 +280,19 @@ module.exports = {
   APP_ORIGIN,
   APP_PORT,
   REMOTE_ADMIN_PORT,
+  backendFailureMessage,
   backendLocations,
   detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,
+  isKioskUrl,
   isRequestedWindowSize,
   isLoopbackPortInUse,
+  isZoomShortcut,
   postDesktopControl,
   probeApplication,
   restoreApplicationWindow,
+  requestJson,
   resolveAppRoot,
   selectSmokeScenario,
   shouldHideWindowOnClose,

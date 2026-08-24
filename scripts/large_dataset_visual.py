@@ -244,8 +244,8 @@ def audit_large_dataset(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", required=True)
-    parser.add_argument("--student-no", default="1004231224")
-    parser.add_argument("--password", default="123456")
+    parser.add_argument("--student-no", required=True)
+    parser.add_argument("--password", required=True)
     parser.add_argument("--from-date", required=True)
     parser.add_argument("--to-date", required=True)
     parser.add_argument("--screenshots", required=True)

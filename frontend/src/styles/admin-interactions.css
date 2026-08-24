@@ -5,7 +5,7 @@
 
 .action-menu-popover {
   position: fixed;
-  z-index: 120;
+  z-index: var(--z-menu);
   display: grid;
   width: max-content;
   min-width: 168px;
@@ -67,13 +67,6 @@
 .menu-pop-leave-to {
   opacity: 0;
   transform: translateY(-4px);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .menu-pop-enter-active,
-  .menu-pop-leave-active {
-    transition-duration: 0.01ms;
-  }
 }
 
 /* Member directory controls */
@@ -243,12 +236,5 @@
 
   .member-advanced-filters {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .filter-expand-enter-active,
-  .filter-expand-leave-active {
-    transition-duration: 0.01ms;
   }
 }

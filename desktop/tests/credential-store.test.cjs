@@ -32,6 +32,42 @@ test('encrypts remembered credentials before writing them to disk', () => {
   }
 });
 
+test('atomically replaces remembered credentials without leaving temporary files', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ca-attendance-credentials-'));
+  try {
+    const operations = [];
+    const observedFs = Object.create(fs);
+    observedFs.writeFileSync = (target, ...args) => {
+      operations.push(['write', target]);
+      return fs.writeFileSync(target, ...args);
+    };
+    observedFs.renameSync = (source, target) => {
+      operations.push(['rename', source, target]);
+      return fs.renameSync(source, target);
+    };
+    const store = createCredentialStore({
+      rootDirectory: root,
+      safeStorage: fakeSafeStorage(),
+      fsModule: observedFs
+    });
+    store.save({ account: 'first-admin', password: 'first-password' });
+    store.save({ account: 'second-admin', password: 'second-password' });
+
+    assert.deepEqual(store.load(), {
+      account: 'second-admin',
+      password: 'second-password'
+    });
+    assert.equal(operations[0][0], 'write');
+    assert.notEqual(operations[0][1], store.filePath);
+    assert.deepEqual(operations[1].slice(0, 1), ['rename']);
+    assert.equal(operations[1][2], store.filePath);
+    const files = fs.readdirSync(path.dirname(store.filePath));
+    assert.deepEqual(files, ['remembered-login.bin']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('removes credentials that cannot be decrypted after migration', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ca-attendance-credentials-'));
   try {

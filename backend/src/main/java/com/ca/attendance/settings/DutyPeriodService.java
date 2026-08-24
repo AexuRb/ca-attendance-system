@@ -6,8 +6,10 @@ import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.log.OperationLogService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ import java.util.Set;
 
 @Service
 public class DutyPeriodService {
+    private static final Logger LOGGER = LoggerFactory.getLogger(DutyPeriodService.class);
     private static final String SETTING_KEY = "DUTY_TIME_PERIODS";
     private static final String DESCRIPTION = "签到台按这些值班时间段汇总部长排班人数";
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
@@ -50,8 +53,9 @@ public class DutyPeriodService {
             List<DutyPeriodRequest> periods = objectMapper.readValue(values.get(0), new TypeReference<>() {
             });
             return normalize(periods);
-        } catch (Exception ignored) {
-            return List.of();
+        } catch (Exception ex) {
+            LOGGER.error("Stored duty period configuration is invalid", ex);
+            throw ApiException.badRequest("值班时间段配置损坏，请联系管理员处理");
         }
     }
 

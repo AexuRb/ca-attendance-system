@@ -1,16 +1,18 @@
+// @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import TrainingPage from "./TrainingPage.vue";
 import SettingsPage from "./SettingsPage.vue";
 
 const apiGet = vi.fn();
+const apiPut = vi.fn();
 const routerReplace = vi.fn();
 
 vi.mock("../../shared/api", () => ({
   api: (...args: unknown[]) => apiGet(...args),
   get: (...args: unknown[]) => apiGet(...args),
   post: vi.fn(),
-  put: vi.fn(),
+  put: (...args: unknown[]) => apiPut(...args),
   del: vi.fn(),
   downloadBlob: vi.fn(),
 }));
@@ -27,6 +29,7 @@ vi.mock("../../app/session", () => ({
 
 afterEach(() => {
   apiGet.mockReset();
+  apiPut.mockReset();
   routerReplace.mockReset();
   document.body.innerHTML = "";
 });
@@ -65,7 +68,7 @@ describe("TrainingPage details", () => {
           }],
           total: 1,
           page: 1,
-          pageSize: 30,
+          pageSize: 20,
           hasMore: false,
         });
       }
@@ -133,5 +136,31 @@ describe("SettingsPage details", () => {
       expect(button.attributes("aria-label")).toBe(label);
       expect(button.get("svg").attributes("aria-hidden")).toBe("true");
     }
+  });
+
+  it("prevents duplicate saves for the same settings section", async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === "/api/settings/weekdays") return Promise.resolve([]);
+      if (url === "/api/settings/attendance-policy") {
+        return Promise.resolve({ requireDutyDay: false, requireDutyPeriod: false });
+      }
+      return Promise.resolve([]);
+    });
+    let resolveSave!: (value: unknown) => void;
+    apiPut.mockReturnValue(new Promise((resolve) => (resolveSave = resolve)));
+    const wrapper = mount(SettingsPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+
+    const saveWeekdays = wrapper.findAll(".setting-section")[0].get(".button.primary");
+    await saveWeekdays.trigger("click");
+    await saveWeekdays.trigger("click");
+    expect(apiPut).toHaveBeenCalledTimes(1);
+    expect(saveWeekdays.attributes("disabled")).toBeDefined();
+
+    resolveSave({});
+    await flushPromises();
+    wrapper.unmount();
   });
 });

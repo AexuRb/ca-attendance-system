@@ -479,7 +479,7 @@
 
 .repair-drawer-backdrop {
   position: fixed;
-  z-index: 80;
+  z-index: var(--z-drawer);
   inset: 0;
   display: flex;
   justify-content: flex-end;
@@ -668,10 +668,15 @@
 }
 
 .repair-drawer-enter-active,
-.repair-drawer-leave-active,
+.repair-drawer-leave-active {
+  transition: opacity 260ms var(--ease-out);
+}
+
 .repair-drawer-enter-active .repair-detail-drawer,
 .repair-drawer-leave-active .repair-detail-drawer {
-  transition: all 260ms var(--ease-out);
+  transition:
+    opacity 260ms var(--ease-out),
+    transform 260ms var(--ease-out);
 }
 
 .repair-drawer-enter-from,
@@ -885,17 +890,5 @@
   .repair-detail-actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .refined-admin-layout .repair-active-card,
-  .refined-admin-layout .repair-history-row,
-  .repair-drawer-enter-active,
-  .repair-drawer-leave-active,
-  .repair-drawer-enter-active .repair-detail-drawer,
-  .repair-drawer-leave-active .repair-detail-drawer {
-    animation: none;
-    transition: none;
   }
 }

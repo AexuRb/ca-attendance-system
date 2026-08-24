@@ -8,9 +8,8 @@ import com.ca.attendance.common.Role;
 import com.ca.attendance.config.DatabaseMigrator;
 import com.ca.attendance.config.SQLiteDataSourceConfiguration;
 import com.ca.attendance.config.StoragePaths;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -68,7 +67,7 @@ class BackupRecoveryIntegrationTest {
         dataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(storagePaths);
         new DatabaseMigrator(dataSource).run();
         jdbc = new JdbcTemplate(dataSource);
-        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        objectMapper = new ObjectMapper();
         tokens = new TokenService(12);
         transactionManager = new CountingTransactionManager(dataSource);
         backups = new BackupService(
@@ -81,7 +80,7 @@ class BackupRecoveryIntegrationTest {
 
         adminId = requiredId(jdbc.queryForObject("""
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
-                VALUES ('1004231224', '测试管理员', 'test-hash', 'ADMIN', 'ACTIVE', 0)
+                VALUES ('9900000001', '测试管理员', 'test-hash', 'ADMIN', 'ACTIVE', 0)
                 RETURNING id
                 """, Long.class));
         memberId = requiredId(jdbc.queryForObject("""
@@ -91,7 +90,7 @@ class BackupRecoveryIntegrationTest {
                 """, Long.class));
         AuthContext.set(new AuthUser(
                 adminId,
-                "1004231224",
+                "9900000001",
                 "测试管理员",
                 Role.ADMIN,
                 Instant.now().plusSeconds(3600)
@@ -109,7 +108,7 @@ class BackupRecoveryIntegrationTest {
     @Test
     void restoreUsesOnePhysicalTransactionAndRevokesExistingTokens() throws Exception {
         BackupService.BackupItem source = backups.create();
-        String token = tokens.issue(adminId, "1004231224", "测试管理员", Role.ADMIN);
+        String token = tokens.issue(adminId, "9900000001", "测试管理员", Role.ADMIN);
         transactionManager.resetBeginCount();
 
         BackupService.RestoreResult result = backups.restore(upload(source));
@@ -142,7 +141,7 @@ class BackupRecoveryIntegrationTest {
                 "SELECT title FROM training_sessions WHERE id = 301", String.class));
         assertEquals(memberId, jdbc.queryForObject(
                 "SELECT user_id FROM training_participants WHERE id = 302", Long.class));
-        assertEquals("PRESENT", jdbc.queryForObject(
+        assertEquals("LEAVE", jdbc.queryForObject(
                 "SELECT attendance_status FROM training_participants WHERE id = 302", String.class));
         assertEquals(401L, jdbc.queryForObject(
                 "SELECT slot_id FROM duty_schedule_assignees WHERE id = 402", Long.class));
@@ -168,7 +167,7 @@ class BackupRecoveryIntegrationTest {
         jdbc.update("""
                 INSERT INTO operation_logs (
                   operator_user_id, operator_student_no, operator_name, action_type, target_type, reason
-                ) VALUES (?, '1004231224', '测试管理员', 'BACKUP_CONTRACT_TEST', 'maintenance_backups', ?)
+                ) VALUES (?, '9900000001', '测试管理员', 'BACKUP_CONTRACT_TEST', 'maintenance_backups', ?)
                 """, adminId, largeReason);
 
         BackupService.BackupItem source = backups.create();
@@ -181,6 +180,52 @@ class BackupRecoveryIntegrationTest {
     }
 
     @Test
+    void legacyBackupPreservesOptionalTablesItDoesNotContain() throws Exception {
+        seedEveryBusinessTable();
+        jdbc.update("UPDATE repair_case_sequences SET updated_at = '2000-01-01 00:00:00'");
+        BackupService.BackupItem source = backups.create();
+        byte[] legacyArchive = removeOptionalTables(Files.readAllBytes(backupPath(source)));
+        Map<String, Integer> optionalCounts = new LinkedHashMap<>();
+        BackupSchema.OPTIONAL_RESTORE_TABLES.forEach(table -> optionalCounts.put(table, count(table)));
+        jdbc.update("UPDATE users SET name = '已被篡改' WHERE id = ?", memberId);
+
+        backups.restore(new MockMultipartFile(
+                "file", "legacy-backup.zip", "application/zip", legacyArchive
+        ));
+
+        assertEquals("演练成员", jdbc.queryForObject(
+                "SELECT name FROM users WHERE id = ?", String.class, memberId));
+        optionalCounts.forEach((table, expected) ->
+                assertEquals(expected, count(table), "旧备份不应清空未包含的表：" + table));
+        assertEquals("数据安全演练培训", jdbc.queryForObject(
+                "SELECT title FROM training_sessions WHERE id = 301", String.class));
+        assertEquals("JXWX20260810-0007", jdbc.queryForObject(
+                "SELECT case_no FROM repair_cases WHERE id = 501", String.class));
+        assertEquals("2000-01-01 00:00:00", jdbc.queryForObject(
+                "SELECT updated_at FROM repair_case_sequences WHERE sequence_date = '20260810'", String.class));
+    }
+
+    @Test
+    void malformedDateIsRejectedBeforeCreatingSafetyBackup() throws Exception {
+        seedEveryBusinessTable();
+        BackupService.BackupItem source = backups.create();
+        byte[] malformedArchive = rewriteTrainingDate(
+                Files.readAllBytes(backupPath(source)),
+                "not-a-date"
+        );
+        int backupsBeforeRestore = backups.list().size();
+
+        ApiException error = assertThrows(ApiException.class, () -> backups.restore(new MockMultipartFile(
+                "file", "malformed-date.zip", "application/zip", malformedArchive
+        )));
+
+        assertTrue(error.getMessage().contains("training_sessions"));
+        assertEquals(backupsBeforeRestore, backups.list().size());
+        assertEquals("演练成员", jdbc.queryForObject(
+                "SELECT name FROM users WHERE id = ?", String.class, memberId));
+    }
+
+    @Test
     void failedRestoreRollsBackCurrentDatabaseAndKeepsItsSafetyBackup() throws Exception {
         BackupService.BackupItem source = backups.create();
         byte[] invalidArchive = rewriteUserRole(Files.readAllBytes(backupPath(source)), "UNSUPPORTED_ROLE");
@@ -188,7 +233,7 @@ class BackupRecoveryIntegrationTest {
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
                 VALUES ('current-marker', '当前数据库标记', 'test-hash', 'MEMBER', 'ACTIVE', 0)
                 """);
-        String token = tokens.issue(adminId, "1004231224", "测试管理员", Role.ADMIN);
+        String token = tokens.issue(adminId, "9900000001", "测试管理员", Role.ADMIN);
         int backupsBeforeRestore = backups.list().size();
 
         assertThrows(ApiException.class, () -> backups.restore(new MockMultipartFile(
@@ -303,7 +348,7 @@ class BackupRecoveryIntegrationTest {
                 INSERT INTO operation_logs (
                   id, operator_user_id, operator_student_no, operator_name, action_type, target_type,
                   target_id, after_data, reason
-                ) VALUES (701, ?, '1004231224', '测试管理员', 'RECOVERY_DRILL_MARKER',
+                ) VALUES (701, ?, '9900000001', '测试管理员', 'RECOVERY_DRILL_MARKER',
                           'maintenance_backups', 1, '{"marker":true}', '数据安全演练')
                 """, adminId);
         jdbc.update("""
@@ -370,6 +415,56 @@ class BackupRecoveryIntegrationTest {
                     List<LinkedHashMap<String, Object>> users = objectMapper.readValue(bytes, ROWS_TYPE);
                     users.getFirst().put("role", role);
                     bytes = objectMapper.writeValueAsBytes(users);
+                }
+                zip.putNextEntry(new ZipEntry(entry.getName()));
+                zip.write(bytes);
+                zip.closeEntry();
+            }
+        }
+        return output.toByteArray();
+    }
+
+    private byte[] removeOptionalTables(byte[] source) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
+             ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                String name = entry.getName();
+                byte[] bytes = input.readAllBytes();
+                if (name.endsWith(".json")
+                        && !"metadata.json".equals(name)
+                        && BackupSchema.OPTIONAL_RESTORE_TABLES.contains(name.substring(0, name.length() - 5))) {
+                    continue;
+                }
+                if ("metadata.json".equals(name)) {
+                    Map<String, Object> metadata = objectMapper.readValue(bytes, new TypeReference<>() {
+                    });
+                    metadata.remove("schemaVersion");
+                    metadata.put("tables", List.of(
+                            "users", "attendance_records", "operation_logs", "duty_weekday_settings"
+                    ));
+                    bytes = objectMapper.writeValueAsBytes(metadata);
+                }
+                zip.putNextEntry(new ZipEntry(name));
+                zip.write(bytes);
+                zip.closeEntry();
+            }
+        }
+        return output.toByteArray();
+    }
+
+    private byte[] rewriteTrainingDate(byte[] source, String trainingDate) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
+             ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            ZipEntry entry;
+            while ((entry = input.getNextEntry()) != null) {
+                byte[] bytes = input.readAllBytes();
+                if ("training_sessions.json".equals(entry.getName())) {
+                    List<LinkedHashMap<String, Object>> sessions = objectMapper.readValue(bytes, ROWS_TYPE);
+                    sessions.getFirst().put("training_date", trainingDate);
+                    bytes = objectMapper.writeValueAsBytes(sessions);
                 }
                 zip.putNextEntry(new ZipEntry(entry.getName()));
                 zip.write(bytes);

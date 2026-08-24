@@ -23,6 +23,7 @@ def validate_large_dataset(
     base_url: str,
     student_no: str,
     password: str,
+    minister_password: str,
     from_date: str,
     to_date: str,
 ) -> dict[str, Any]:
@@ -318,7 +319,7 @@ def validate_large_dataset(
         base_url, "DELETE", f"/api/repairs/{created_repair['id']}", token
     )
 
-    minister_token, _ = login(base_url, "9000000004", password)
+    minister_token, _ = login(base_url, "9000000004", minister_password)
     training_status = request_status(
         base_url, "GET", f"/api/trainings/page?{training_query}", minister_token
     )
@@ -480,8 +481,9 @@ def elapsed_ms(started: float) -> float:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", required=True)
-    parser.add_argument("--student-no", default="1004231224")
-    parser.add_argument("--password", default="123456")
+    parser.add_argument("--student-no", required=True)
+    parser.add_argument("--password", required=True)
+    parser.add_argument("--minister-password", required=True)
     parser.add_argument("--from-date", required=True)
     parser.add_argument("--to-date", required=True)
     parser.add_argument("--output")
@@ -490,6 +492,7 @@ def main() -> int:
         args.base_url,
         args.student_no,
         args.password,
+        args.minister_password,
         args.from_date,
         args.to_date,
     )

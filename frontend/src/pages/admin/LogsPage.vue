@@ -4,9 +4,9 @@
       title="操作日志"
       description="查看管理员操作轨迹与数据变更前后内容。"
       ><template #actions
-        ><button class="button secondary" @click="exportLogs">
+        ><button class="button secondary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportLogs">
           <Download />导出日志</button
-        ><button class="button danger" @click="clearOpen = true">
+        ><button class="button danger" :disabled="actions.isPending('clear')" @click="clearOpen = true">
           <Trash2 />清空日志
         </button></template
       ></PageHeader
@@ -29,8 +29,20 @@
         ><span>结束日期</span><input v-model="filters.to" type="date" /></label
       ><button class="button secondary" type="submit"><Search />查询</button>
     </form>
-    <LoadingBlock v-if="busy && !items.length" /><EmptyState
-      v-else-if="!items.length"
+    <div v-if="displayError" class="inline-alert danger" role="alert">
+      <span>{{ displayError }}</span>
+      <button
+        v-if="listError"
+        class="button secondary small"
+        type="button"
+        data-action="retry-logs"
+        @click="load()"
+      >
+        重试
+      </button>
+    </div>
+    <LoadingBlock v-if="listLoading && !items.length" /><EmptyState
+      v-else-if="!items.length && !listError"
       title="暂无操作日志"
     />
     <div v-else class="timeline-list">
@@ -71,14 +83,14 @@
       <div>
         <button
           class="button secondary small"
-          :disabled="page <= 1"
+          :disabled="page <= 1 || listLoading"
           @click="load(page - 1)"
         >
           <ChevronLeft />上一页</button
         ><span>第 {{ page }} / {{ totalPages }} 页</span
         ><button
           class="button secondary small"
-          :disabled="page >= totalPages"
+          :disabled="page >= totalPages || listLoading"
           @click="load(page + 1)"
         >
           下一页<ChevronRight />
@@ -152,6 +164,7 @@
       message="清空前系统会自动创建安全备份，该操作仅影响日志记录。"
       confirm-label="备份并清空"
       danger
+      :pending="actions.isPending('clear')"
       @cancel="clearOpen = false"
       @confirm="clearLogs"
     />
@@ -175,6 +188,9 @@ import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { del, get, downloadBlob } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import type {
   OperationLog,
   OperationLogPage,
@@ -184,7 +200,10 @@ import {
   auditTargetLabel,
   buildAuditDiff,
 } from "../../features/audit/logDisplay";
-const { busy, run } = useAsyncTask();
+const task = useAsyncTask();
+const listRequest = useLatestRequest();
+const actions = usePendingActions();
+const { loading: listLoading, error: listError } = listRequest;
 const items = ref<OperationLog[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -192,6 +211,8 @@ const pageSize = 20;
 const detail = ref<OperationLog | null>(null);
 const clearOpen = ref(false);
 const filters = reactive({ keyword: "", actionType: "", from: "", to: "" });
+const filterError = computed(() => dateRangeError(filters.from, filters.to));
+const displayError = computed(() => filterError.value || listError.value);
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(total.value / pageSize)),
 );
@@ -202,8 +223,12 @@ const detailRows = computed(() =>
 );
 onMounted(() => load());
 async function load(target = page.value) {
+  if (filterError.value) return;
   const p = params({ ...filters, page: target, pageSize });
-  const value = await run(() => get<OperationLogPage>(`/api/logs?${p}`));
+  const value = await listRequest.run(
+    (signal) => get<OperationLogPage>(`/api/logs?${p}`, { signal }),
+    "操作日志加载失败",
+  );
   if (value) {
     items.value = value.items;
     total.value = value.total;
@@ -211,15 +236,25 @@ async function load(target = page.value) {
   }
 }
 async function exportLogs() {
-  downloadBlob(
-    await get<Blob>(`/api/logs/export?${params(filters)}`),
-    "操作日志.xlsx",
-  );
+  if (filterError.value) return;
+  const snapshot = { ...filters };
+  await actions.run("export", async () => {
+    const blob = await task.run(() =>
+      get<Blob>(`/api/logs/export?${params(snapshot)}`),
+    );
+    if (blob) downloadBlob(blob, "操作日志.xlsx");
+  });
 }
 async function clearLogs() {
-  await run(() => del("/api/logs"), "日志已清空，安全备份已创建");
-  clearOpen.value = false;
-  await load(1);
+  await actions.run("clear", async () => {
+    const cleared = await task.run(
+      () => del("/api/logs"),
+      "日志已清空，安全备份已创建",
+    );
+    if (cleared === undefined) return;
+    clearOpen.value = false;
+    await load(1);
+  });
 }
 function params(
   value: Record<string, string | number | null | undefined>,

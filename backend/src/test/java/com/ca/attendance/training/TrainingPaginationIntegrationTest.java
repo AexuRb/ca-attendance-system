@@ -52,7 +52,13 @@ class TrainingPaginationIntegrationTest {
                 Role.ADMIN,
                 Instant.now().plusSeconds(3600)
         ));
-        trainings = new TrainingService(jdbc, mock(OperationLogService.class));
+        trainings = new TrainingService(
+                jdbc,
+                mock(OperationLogService.class),
+                new TrainingQueryService(jdbc),
+                new TrainingExcelExportService(),
+                new TrainingParticipantImportParser()
+        );
     }
 
     @AfterEach
@@ -121,7 +127,8 @@ class TrainingPaginationIntegrationTest {
                 Integer.MAX_VALUE,
                 20
         );
-        assertTrue(distantPage.items().isEmpty());
+        assertEquals(1, distantPage.page());
+        assertEquals(1, distantPage.items().size());
         assertFalse(distantPage.hasMore());
     }
 

@@ -5,7 +5,7 @@
       type="button"
       :title="`编辑 ${member.name}`"
       :aria-label="`编辑 ${member.name}`"
-      :disabled="!editable"
+      :disabled="pending || !editable"
       @click="$emit('edit')"
     >
       <Pencil aria-hidden="true" />
@@ -14,7 +14,7 @@
       <button
         role="menuitem"
         type="button"
-        :disabled="!editable || self"
+        :disabled="pending || !editable || self"
         @click="$emit('toggle-status')"
       >
         <Power v-if="member.status !== 'ACTIVE'" aria-hidden="true" />
@@ -24,7 +24,7 @@
       <button
         role="menuitem"
         type="button"
-        :disabled="!editable"
+        :disabled="pending || !editable"
         @click="$emit('reset-password')"
       >
         <KeyRound aria-hidden="true" />
@@ -35,7 +35,7 @@
         class="danger-text"
         role="menuitem"
         type="button"
-        :disabled="self"
+        :disabled="pending || self"
         @click="$emit('delete')"
       >
         <Trash2 aria-hidden="true" />
@@ -55,6 +55,7 @@ defineProps<{
   editable: boolean;
   self: boolean;
   deletable: boolean;
+  pending?: boolean;
 }>();
 
 defineEmits<{

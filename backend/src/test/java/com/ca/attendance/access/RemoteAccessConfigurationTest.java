@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.tomcat.servlet.TomcatServletWebServerFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RemoteAccessConfigurationTest {
     @Test
@@ -16,5 +17,12 @@ class RemoteAccessConfigurationTest {
         var connector = factory.getAdditionalConnectors().getFirst();
         assertThat(connector.getPort()).isEqualTo(8081);
         assertThat(String.valueOf(connector.getProperty("address"))).endsWith("127.0.0.1");
+    }
+
+    @Test
+    void rejectsRemotePortThatMatchesLocalPort() {
+        assertThatThrownBy(() -> new RemoteAccessConfiguration(8080, 8080))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("不能与本机服务端口相同");
     }
 }

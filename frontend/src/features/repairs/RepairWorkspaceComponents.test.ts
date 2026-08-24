@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import ActiveRepairGrid from "./ActiveRepairGrid.vue";
@@ -50,6 +51,25 @@ describe("repair workspace components", () => {
     expect(wrapper.emitted("change")?.[0]).toEqual(["COMPLETED"]);
   });
 
+  it("moves repair tabs with arrow keys", async () => {
+    const wrapper = mount(RepairStatusTabs, {
+      attachTo: document.body,
+      props: {
+        activeStatus: "REPAIRING",
+        counts: { REPAIRING: 5, COMPLETED: 1000, CANCELED: 30 },
+      },
+    });
+
+    const tabs = wrapper.findAll<HTMLButtonElement>('[role="tab"]');
+    tabs[0].element.focus();
+    await tabs[0].trigger("keydown", { key: "ArrowRight" });
+
+    expect(wrapper.emitted("change")?.[0]).toEqual(["COMPLETED"]);
+    expect(document.activeElement).toBe(tabs[1].element);
+    expect(tabs[0].attributes("aria-controls")).toBe("repair-panel-REPAIRING");
+    wrapper.unmount();
+  });
+
   it("renders active work as focused cards and keeps phone numbers masked", async () => {
     const wrapper = mount(ActiveRepairGrid, {
       props: {
@@ -85,6 +105,21 @@ describe("repair workspace components", () => {
     expect(wrapper.text()).toContain("完成时间");
     expect(wrapper.text()).toContain("**** **** 5678");
     await wrapper.get(".repair-history-row").trigger("click");
+    expect(wrapper.emitted("view")?.[0]).toEqual([historyRepair]);
+  });
+
+  it("opens a history row with the Space key", async () => {
+    const wrapper = mount(RepairHistoryTable, {
+      props: {
+        items: [historyRepair],
+        status: "COMPLETED",
+        loading: false,
+        error: "",
+        revealedPhones: new Set<number>(),
+      },
+    });
+
+    await wrapper.get(".repair-history-row").trigger("keydown", { key: " " });
     expect(wrapper.emitted("view")?.[0]).toEqual([historyRepair]);
   });
 

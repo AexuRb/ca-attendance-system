@@ -1,3 +1,4 @@
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -38,7 +39,15 @@ function createCredentialStore({ rootDirectory, safeStorage, fsModule = fs }) {
     }
 
     fsModule.mkdirSync(path.dirname(filePath), { recursive: true });
-    fsModule.writeFileSync(filePath, encrypted, { mode: 0o600 });
+    const temporaryPath = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`;
+    try {
+      // Windows confidentiality comes from Electron safeStorage (DPAPI); mode is only a best-effort boundary.
+      fsModule.writeFileSync(temporaryPath, encrypted, { mode: 0o600, flag: 'wx' });
+      fsModule.renameSync(temporaryPath, filePath);
+      fsModule.chmodSync?.(filePath, 0o600);
+    } finally {
+      fsModule.rmSync(temporaryPath, { force: true });
+    }
     return { saved: true };
   }
 

@@ -17,6 +17,12 @@
         <ArchiveRestore />维修回收站
       </button>
     </div>
+    <div v-if="activeLoadError" class="inline-alert danger" role="alert">
+      <span>{{ activeLoadError }}</span>
+      <button class="button secondary small" type="button" @click="retryActiveTab">
+        重试
+      </button>
+    </div>
 
     <section v-if="tab === 'export'" class="export-workspace">
       <aside class="export-steps panel">
@@ -133,7 +139,7 @@
                 placeholder="留空使用默认文件名"
             /></label>
           </div>
-          <LoadingBlock v-if="previewing" label="正在生成预览" /><EmptyState
+          <LoadingBlock v-if="actions.isPending('preview')" label="正在生成预览" /><EmptyState
             v-else-if="!preview"
             title="点击下方按钮生成数据预览"
           />
@@ -156,6 +162,9 @@
             </table>
           </div></template
         >
+        <div v-if="exportDateError" class="inline-alert danger" role="alert">
+          {{ exportDateError }}
+        </div>
         <footer class="wizard-actions">
           <button
             class="button secondary"
@@ -173,13 +182,13 @@
           ><template v-else
             ><button
               class="button secondary"
-              :disabled="!request.fields.length"
+              :disabled="!request.fields.length || actions.isPending('preview')"
               @click="makePreview"
             >
               <ScanSearch />生成预览</button
             ><button
               class="button primary"
-              :disabled="!preview"
+              :disabled="!preview || actions.isPending('export')"
               @click="exportCustom"
             >
               <Download />导出 Excel
@@ -202,6 +211,7 @@
           <div>
             <p class="eyebrow">LOCAL BACKUPS</p>
             <h2>备份文件</h2>
+            <small>新备份完成后，系统会按本机保留配置自动清理较旧文件。</small>
           </div>
           <div>
             <label v-if="canRestore" class="button secondary file-button"
@@ -209,11 +219,14 @@
                 type="file"
                 accept=".zip"
                 @change="pickRestore" /></label
-            ><button class="button primary" @click="createBackup">
+            ><button class="button primary" :disabled="actions.isPending('create-backup')" @click="createBackup">
               <DatabaseBackup />立即备份
             </button>
           </div>
         </div>
+        <p v-if="restoreFileError" class="form-error" role="alert">
+          {{ restoreFileError }}
+        </p>
         <EmptyState v-if="!backups.length" title="还没有本机备份" />
         <div v-else class="backup-list">
           <article v-for="item in backups" :key="item.filename">
@@ -280,7 +293,7 @@
               <td>{{ item.ownerName }}</td>
               <td>{{ item.deletedByName || "—" }}</td>
               <td class="align-right row-actions">
-                <button class="button text" @click="restoreRepair(item)">
+                <button class="button text" :disabled="actions.isPending(`restore-repair:${item.id}`)" @click="restoreRepair(item)">
                   <ArchiveRestore />恢复</button
                 ><button
                   v-if="canViewRecycle"
@@ -301,6 +314,7 @@
       :message="`永久删除备份 ${deleteBackupTarget?.filename || ''}。`"
       confirm-label="删除备份"
       danger
+      :pending="actions.isPending('delete-backup')"
       @cancel="deleteBackupTarget = null"
       @confirm="deleteBackup"
     />
@@ -311,13 +325,14 @@
       confirm-label="彻底删除"
       danger
       require-reason
+      :pending="actions.isPending('purge-repair')"
       @cancel="purgeTarget = null"
       @confirm="purgeRepair"
     />
     <RestoreBackupDialog
       :open="Boolean(restoreTarget)"
       :file="restoreTarget"
-      :busy="busy"
+      :busy="actions.isPending('restore-backup')"
       @cancel="restoreTarget = null"
       @confirm="restoreBackup"
     />
@@ -355,6 +370,10 @@ import { exportSelectionFingerprint } from "../../features/maintenance/dataExpor
 import { api, del, get, post, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { backupFileError } from "../../shared/validation/fileValidation";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import type {
   BackupItem,
   ExportOptions,
@@ -365,7 +384,11 @@ import type {
   RecycledRepairCase,
 } from "../../features/maintenance/dataCenterTypes";
 const { user, expireSession } = useSession();
-const { busy, run } = useAsyncTask();
+const task = useAsyncTask();
+const actions = usePendingActions();
+const optionsRequest = useLatestRequest();
+const backupRequest = useLatestRequest();
+const recycleRequest = useLatestRequest();
 const router = useRouter();
 const tab = ref("export");
 const step = ref(1);
@@ -378,34 +401,42 @@ const request = reactive<ExportRequest>({
 });
 const preview = ref<ExportPreview | null>(null);
 const previewSelection = computed(() => exportSelectionFingerprint(request));
-const previewing = ref(false);
 const summary = ref<MaintenanceSummary | null>(null);
 const backups = ref<BackupItem[]>([]);
 const recycle = ref<RecycledRepairCase[]>([]);
 const deleteBackupTarget = ref<BackupItem | null>(null);
 const purgeTarget = ref<RecycledRepairCase | null>(null);
 const restoreTarget = ref<File | null>(null);
+const restoreFileError = ref("");
 const canDeleteBackups = computed(() => canDeleteBackup(user.value?.role));
 const canRestore = computed(() => canRestoreBackup(user.value?.role));
 const canViewRecycle = computed(() =>
   canViewRepairRecycleBin(user.value?.role),
 );
+const activeLoadError = computed(() =>
+  tab.value === "export"
+    ? optionsRequest.error.value
+    : tab.value === "backups"
+      ? backupRequest.error.value
+      : recycleRequest.error.value,
+);
 const stepLabels = ["选择数据源", "设置筛选", "选择字段", "预览导出"];
 const currentSource = computed<ExportSource | undefined>(() =>
   options.sources.find((source) => source.id === request.source),
 );
+const exportDateError = computed(() =>
+  dateRangeError(request.filters.from || "", request.filters.to || ""),
+);
 const canContinue = computed(() =>
   step.value === 1
     ? Boolean(request.source)
-    : step.value === 3
-      ? request.fields.length > 0
-      : true,
+    : step.value === 2
+      ? !exportDateError.value
+      : step.value === 3
+        ? request.fields.length > 0
+        : true,
 );
-onMounted(async () => {
-  const value = await get<ExportOptions>("/api/exports/options");
-  options.sources = value.sources || [];
-  if (options.sources[0]) selectSource(options.sources[0]);
-});
+onMounted(loadOptions);
 watch(tab, async (value) => {
   if (value === "backups") await loadBackups();
   if (value === "recycle") await loadRecycle();
@@ -417,6 +448,20 @@ watch(
   },
   { flush: "sync" },
 );
+async function loadOptions() {
+  const value = await optionsRequest.run(
+    (signal) => get<ExportOptions>("/api/exports/options", { signal }),
+    "导出配置加载失败",
+  );
+  if (!value) return;
+  options.sources = value.sources || [];
+  if (!request.source && options.sources[0]) selectSource(options.sources[0]);
+}
+function retryActiveTab() {
+  if (tab.value === "export") void loadOptions();
+  else if (tab.value === "backups") void loadBackups();
+  else void loadRecycle();
+}
 function selectSource(source: ExportSource) {
   request.source = source.id;
   request.fields = source.fields
@@ -437,35 +482,54 @@ function toggleAll() {
       : currentSource.value.fields.map((field) => field.id);
 }
 async function makePreview() {
-  previewing.value = true;
-  try {
-    preview.value = await post<ExportPreview>("/api/exports/preview", request);
-  } finally {
-    previewing.value = false;
-  }
+  if (exportDateError.value) return;
+  await actions.run("preview", async () => {
+    const value = await task.run(() =>
+      post<ExportPreview>("/api/exports/preview", request),
+    );
+    if (value) preview.value = value;
+  });
 }
 async function exportCustom() {
-  downloadBlob(
-    await api<Blob>("/api/exports/excel", {
-      method: "POST",
-      headers: {
-        Accept:
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      },
-      body: JSON.stringify(request),
-    }),
-    `${request.filename || currentSource.value?.label || "自定义导出"}.xlsx`,
-  );
+  if (exportDateError.value) return;
+  const snapshot = JSON.parse(JSON.stringify(request)) as ExportRequest;
+  const filename = `${snapshot.filename || currentSource.value?.label || "自定义导出"}.xlsx`;
+  await actions.run("export", async () => {
+    const blob = await task.run(() =>
+      api<Blob>("/api/exports/excel", {
+        method: "POST",
+        headers: {
+          Accept:
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+        body: JSON.stringify(snapshot),
+      }),
+    );
+    if (blob) downloadBlob(blob, filename);
+  });
 }
 async function loadBackups() {
-  [summary.value, backups.value] = await Promise.all([
-    get<MaintenanceSummary>("/api/maintenance/summary"),
-    get<BackupItem[]>("/api/maintenance/backups"),
-  ]);
+  const value = await backupRequest.run(
+    (signal) =>
+      Promise.all([
+        get<MaintenanceSummary>("/api/maintenance/summary", { signal }),
+        get<BackupItem[]>("/api/maintenance/backups", { signal }),
+      ]),
+    "备份列表加载失败",
+  );
+  if (value) [summary.value, backups.value] = value;
 }
 async function createBackup() {
-  if (await run(() => post("/api/maintenance/backups"), "备份已创建"))
-    await loadBackups();
+  await actions.run("create-backup", async () => {
+    const created = await task.run(
+      async () => {
+        await post("/api/maintenance/backups");
+        return true;
+      },
+      "备份已创建",
+    );
+    if (created) await loadBackups();
+  });
 }
 async function downloadBackup(item: BackupItem) {
   downloadBlob(
@@ -476,53 +540,72 @@ async function downloadBackup(item: BackupItem) {
 async function deleteBackup() {
   const target = deleteBackupTarget.value;
   if (!target) return;
-  await run(
-    () =>
-      del(
-        `/api/maintenance/backups/${encodeURIComponent(target.filename)}`,
-      ),
-    "备份已删除",
-  );
-  deleteBackupTarget.value = null;
-  await loadBackups();
+  await actions.run("delete-backup", async () => {
+    const removed = await task.run(
+      () =>
+        del(
+          `/api/maintenance/backups/${encodeURIComponent(target.filename)}`,
+        ),
+      "备份已删除",
+    );
+    if (removed === undefined) return;
+    deleteBackupTarget.value = null;
+    await loadBackups();
+  });
 }
 async function pickRestore(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   (e.target as HTMLInputElement).value = "";
   if (!file || !canRestore.value) return;
+  restoreFileError.value = backupFileError(file);
+  if (restoreFileError.value) return;
   restoreTarget.value = file;
 }
 async function restoreBackup() {
   if (!restoreTarget.value || !canRestore.value) return;
-  const body = new FormData();
-  body.append("file", restoreTarget.value);
-  const restored = await run(
-    () => post("/api/maintenance/backups/restore", body),
-    "数据已恢复，请重新登录",
-  );
-  if (restored === undefined) return;
-  restoreTarget.value = null;
-  expireSession();
-  await router.replace({ name: "login", query: { reason: "restored" } });
-  window.location.reload();
+  await actions.run("restore-backup", async () => {
+    const body = new FormData();
+    body.append("file", restoreTarget.value as File);
+    const restored = await task.run(
+      () => post("/api/maintenance/backups/restore", body),
+      "数据已恢复，请重新登录",
+    );
+    if (restored === undefined) return;
+    restoreTarget.value = null;
+    expireSession();
+    await router.replace({ name: "login", query: { reason: "restored" } });
+    window.location.reload();
+  });
 }
 async function loadRecycle() {
   if (!canViewRecycle.value) return;
-  recycle.value = await get<RecycledRepairCase[]>("/api/repairs/recycle-bin");
+  const value = await recycleRequest.run(
+    (signal) => get<RecycledRepairCase[]>("/api/repairs/recycle-bin", { signal }),
+    "维修回收站加载失败",
+  );
+  if (value) recycle.value = value;
 }
 async function restoreRepair(item: RecycledRepairCase) {
-  await run(() => post(`/api/repairs/${item.id}/restore`), "维修事务已恢复");
-  await loadRecycle();
+  await actions.run(`restore-repair:${item.id}`, async () => {
+    const restored = await task.run(
+      () => post(`/api/repairs/${item.id}/restore`),
+      "维修事务已恢复",
+    );
+    if (restored !== undefined) await loadRecycle();
+  });
 }
 async function purgeRepair(value: string) {
   const target = purgeTarget.value;
   if (!target || value.trim() !== target.caseNo) return;
-  await run(
-    () => post(`/api/repairs/${target.id}/purge`, { caseNo: value }),
-    "维修事务已彻底删除",
-  );
-  purgeTarget.value = null;
-  await loadRecycle();
+  await actions.run("purge-repair", async () => {
+    const purged = await task.run(
+      () => post(`/api/repairs/${target.id}/purge`, { caseNo: value }),
+      "维修事务已彻底删除",
+    );
+    if (purged === undefined) return;
+    purgeTarget.value = null;
+    await loadRecycle();
+  });
 }
 const dateTime = (v: string) =>
   new Date(v).toLocaleString("zh-CN", { hour12: false });

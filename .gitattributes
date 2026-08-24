@@ -1,2 +1,4 @@
 frontend/index.html text eol=lf
 backend/src/main/resources/static/index.html text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf

@@ -2,7 +2,8 @@ package com.ca.attendance.setup;
 
 import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.auth.AuthService;
-import com.ca.attendance.auth.RemoteLoginAttemptGuard;
+import com.ca.attendance.auth.AuthenticationEventService;
+import com.ca.attendance.auth.LoginAttemptGuard;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.config.DatabaseMigrator;
@@ -11,7 +12,7 @@ import com.ca.attendance.config.StoragePaths;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.user.UserRepository;
 import com.zaxxer.hikari.HikariDataSource;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,8 +52,11 @@ class SetupServiceIntegrationTest {
         TokenService tokens = new TokenService(12);
         AuthService auth = new AuthService(
                 new UserRepository(jdbc), jdbc, passwords, tokens,
-                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(),
-                new OperationLogService(jdbc, new ObjectMapper())
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(
+                        jdbc,
+                        new OperationLogService(jdbc, new ObjectMapper())
+                )
         );
         setup = new SetupService(
                 jdbc,
@@ -72,24 +76,26 @@ class SetupServiceIntegrationTest {
     @Test
     void initializesOnlyAnEmptyDatabaseAndLogsInAdministrator() {
         assertFalse(setup.status().initialized());
-        assertEquals(0, setup.status().userCount());
 
         AuthService.LoginResponse login = setup.initialize(
-                new SetupService.SetupRequest("1004231224", "首位管理员", "12345678")
+                new SetupService.SetupRequest("9900000001", "首位管理员", "12345678")
         );
 
         assertNotNull(login.token());
         assertEquals("ADMIN", login.role());
         assertFalse(login.mustChangePassword());
         assertTrue(setup.status().initialized());
-        assertEquals(1, setup.status().userCount());
         assertEquals(1, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'INITIALIZE_SYSTEM'",
                 Integer.class
         ));
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'LOCAL_LOGIN_SUCCESS'",
+                Integer.class
+        ));
 
         assertThrows(ApiException.class, () -> setup.initialize(
-                new SetupService.SetupRequest("1004231225", "第二位管理员", "12345678")
+                new SetupService.SetupRequest("9900000002", "第二位管理员", "12345678")
         ));
     }
 
@@ -99,15 +105,69 @@ class SetupServiceIntegrationTest {
                 new SetupService.SetupRequest("admin", "管理员", "12345678")
         ));
         ApiException nameError = assertThrows(ApiException.class, () -> setup.initialize(
-                new SetupService.SetupRequest("1004231224", " ", "12345678")
+                new SetupService.SetupRequest("9900000001", " ", "12345678")
         ));
         ApiException passwordError = assertThrows(ApiException.class, () -> setup.initialize(
-                new SetupService.SetupRequest("1004231224", "管理员", "12345")
+                new SetupService.SetupRequest("9900000001", "管理员", "12345")
         ));
 
         assertTrue(accountError.getMessage().contains("纯数字"));
         assertTrue(nameError.getMessage().contains("姓名不能为空"));
         assertTrue(passwordError.getMessage().contains("6 至 64"));
-        assertEquals(0, setup.status().userCount());
+        assertFalse(setup.status().initialized());
+    }
+
+    @Test
+    void configuredInitializationCreatesAnAuditedAdministratorOnlyInAnEmptyDatabase() {
+        assertTrue(setup.initializeConfigured("9900000001", "12345678"));
+
+        assertEquals("ADMIN", jdbc.queryForObject(
+                "SELECT role FROM users WHERE student_no = ?",
+                String.class,
+                "9900000001"
+        ));
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT must_change_password FROM users WHERE student_no = ?",
+                Integer.class,
+                "9900000001"
+        ));
+        assertEquals(1, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'INITIALIZE_SYSTEM'",
+                Integer.class
+        ));
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'LOCAL_LOGIN_SUCCESS'",
+                Integer.class
+        ));
+        assertEquals(0, jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM operation_logs
+                WHERE COALESCE(before_data, '') LIKE '%12345678%'
+                   OR COALESCE(after_data, '') LIKE '%12345678%'
+                   OR COALESCE(reason, '') LIKE '%12345678%'
+                """, Integer.class));
+    }
+
+    @Test
+    void configuredInitializationNeverPromotesAnExistingMember() {
+        jdbc.update("""
+                INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
+                VALUES ('9900000001', '已有成员', 'original-hash', 'MEMBER', 'ACTIVE', 0)
+                """);
+
+        assertFalse(setup.initializeConfigured("9900000001", "12345678"));
+
+        assertEquals("MEMBER", jdbc.queryForObject(
+                "SELECT role FROM users WHERE student_no = '9900000001'",
+                String.class
+        ));
+        assertEquals("original-hash", jdbc.queryForObject(
+                "SELECT password_hash FROM users WHERE student_no = '9900000001'",
+                String.class
+        ));
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = 'INITIALIZE_SYSTEM'",
+                Integer.class
+        ));
     }
 }

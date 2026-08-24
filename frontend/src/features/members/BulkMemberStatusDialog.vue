@@ -4,7 +4,7 @@
     :title="status === 'ACTIVE' ? '批量启用账号' : '批量停用账号'"
     eyebrow="BULK ACTION"
     size="sm"
-    @close="$emit('close')"
+    @close="close"
   >
     <div class="bulk-member-summary">
       <strong>{{ count }} 人</strong>
@@ -26,7 +26,7 @@
       />
     </label>
     <template #footer>
-      <button class="button secondary" type="button" @click="$emit('close')">
+      <button class="button secondary" type="button" :disabled="busy" @click="close">
         取消
       </button>
       <button
@@ -53,11 +53,15 @@ const props = defineProps<{
   status: MemberStatus;
   busy?: boolean;
 }>();
-defineEmits<{
+const emit = defineEmits<{
   close: [];
   confirm: [reason: string];
 }>();
 const reason = ref("");
+
+function close() {
+  if (!props.busy) emit("close");
+}
 
 watch(
   () => [props.open, props.status] as const,

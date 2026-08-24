@@ -1,11 +1,7 @@
 package com.ca.attendance.config;
 
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
-import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -13,9 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-@Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
-public class DatabaseMigrator implements CommandLineRunner {
+public class DatabaseMigrator {
     private static final int CURRENT_VERSION = 10;
     private final DataSource dataSource;
 
@@ -23,7 +17,6 @@ public class DatabaseMigrator implements CommandLineRunner {
         this.dataSource = dataSource;
     }
 
-    @Override
     public void run(String... args) throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
             int version = userVersion(connection);

@@ -2,7 +2,7 @@
   <header class="kiosk-focus-header">
     <div class="kiosk-focus-brand">
       <span class="kiosk-focus-brand-mark">
-        <img src="/brand/ca-logo-white.png" alt="计算机协会会徽" />
+        <img :src="logoPath" alt="计算机协会会徽" />
       </span>
       <div>
         <strong>计算机协会值班签到台</strong>
@@ -30,6 +30,7 @@ import { computed } from "vue";
 import ServiceStatus from "../../shared/ui/ServiceStatus.vue";
 
 const props = defineProps<{ online: boolean; now: Date }>();
+const logoPath = "/brand/ca-logo-white.png";
 
 const clock = computed(() =>
   new Intl.DateTimeFormat("zh-CN", {
@@ -45,5 +46,21 @@ const date = computed(() =>
     weekday: "long",
   }).format(props.now),
 );
-const clockIso = computed(() => props.now.toISOString());
+const clockIso = computed(() => localIso(props.now));
+
+function pad(value: number, length = 2) {
+  return String(value).padStart(length, "0");
+}
+
+function localIso(value: Date) {
+  const offsetMinutes = -value.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const absoluteOffset = Math.abs(offsetMinutes);
+
+  return [
+    `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`,
+    `T${pad(value.getHours())}:${pad(value.getMinutes())}:${pad(value.getSeconds())}.${pad(value.getMilliseconds(), 3)}`,
+    `${sign}${pad(Math.floor(absoluteOffset / 60))}:${pad(absoluteOffset % 60)}`,
+  ].join("");
+}
 </script>

@@ -1,5 +1,7 @@
 package com.ca.attendance.maintenance;
 
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -35,15 +37,16 @@ public class BackupController {
     }
 
     @GetMapping("/{filename}")
-    public ResponseEntity<byte[]> download(@PathVariable String filename) {
+    public ResponseEntity<Resource> download(@PathVariable String filename) {
         BackupService.BackupFile file = backups.download(filename);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
                         .filename(file.filename(), StandardCharsets.UTF_8)
                         .build()
-                        .toString())
+                .toString())
                 .contentType(MediaType.parseMediaType("application/zip"))
-                .body(file.bytes());
+                .contentLength(file.size())
+                .body(new FileSystemResource(file.path()));
     }
 
     @DeleteMapping("/{filename}")

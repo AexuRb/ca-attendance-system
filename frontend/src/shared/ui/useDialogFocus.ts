@@ -1,6 +1,9 @@
 import { nextTick, onBeforeUnmount, type Ref, watch } from "vue";
 
 const dialogStack: HTMLElement[] = [];
+let pageScrollLockCount = 0;
+let previousHtmlOverflow: string | null = null;
+let previousBodyOverflow: string | null = null;
 const focusableSelector = [
   "a[href]",
   "button:not([disabled])",
@@ -10,6 +13,27 @@ const focusableSelector = [
   "iframe",
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
+
+function lockPageScroll() {
+  if (pageScrollLockCount === 0) {
+    previousHtmlOverflow = document.documentElement.style.overflow;
+    previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+  }
+  pageScrollLockCount += 1;
+}
+
+function unlockPageScroll() {
+  if (pageScrollLockCount === 0) return;
+  pageScrollLockCount -= 1;
+  if (pageScrollLockCount > 0) return;
+
+  document.documentElement.style.overflow = previousHtmlOverflow ?? "";
+  document.body.style.overflow = previousBodyOverflow ?? "";
+  previousHtmlOverflow = null;
+  previousBodyOverflow = null;
+}
 
 interface DialogFocusOptions {
   root: Ref<HTMLElement | null>;
@@ -72,6 +96,7 @@ export function useDialogFocus(options: DialogFocusOptions) {
 
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
     if (!activeDialog?.contains(document.activeElement)) {
       event.preventDefault();
       (event.shiftKey ? last : initialFocusTarget())?.focus();
@@ -89,12 +114,14 @@ export function useDialogFocus(options: DialogFocusOptions) {
   async function activate() {
     if (active) return;
     active = true;
+    lockPageScroll();
     returnFocus =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
     await nextTick();
-    if (!options.open() || !options.root.value) {
+    if (!active || !options.open() || !options.root.value) {
+      if (active) unlockPageScroll();
       active = false;
       return;
     }
@@ -110,6 +137,7 @@ export function useDialogFocus(options: DialogFocusOptions) {
     const wasTop = isTopDialog();
     active = false;
     document.removeEventListener("keydown", onKeydown);
+    unlockPageScroll();
     const index = activeDialog ? dialogStack.lastIndexOf(activeDialog) : -1;
     if (index >= 0) dialogStack.splice(index, 1);
     if (restoreFocus && wasTop && returnFocus?.isConnected) {

@@ -1,7 +1,7 @@
 .schedule-matrix-shell {
   max-width: 100%;
   overflow: auto;
-  scrollbar-color: #9fc8d9 #edf5f8;
+  scrollbar-color: var(--blue-300) var(--surface-soft);
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   border: 1px solid var(--line);
@@ -22,13 +22,13 @@
 }
 
 .schedule-matrix-shell::-webkit-scrollbar-track {
-  background: #edf5f8;
+  background: var(--surface-soft);
 }
 
 .schedule-matrix-shell::-webkit-scrollbar-thumb {
-  border: 2px solid #edf5f8;
+  border: 2px solid var(--surface-soft);
   border-radius: 6px;
-  background: #9fc8d9;
+  background: var(--blue-300);
 }
 
 .schedule-matrix-corner,
@@ -43,14 +43,14 @@
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line-strong);
   padding: 12px 10px;
-  background: #f4f7f9;
+  background: var(--admin-canvas);
 }
 
 .schedule-matrix-corner {
   z-index: 7;
   left: 0;
   border-right-color: var(--line-strong);
-  background: #edf3f6;
+  background: var(--admin-line-soft);
 }
 
 .schedule-matrix-corner span,
@@ -70,7 +70,7 @@
 }
 
 .schedule-matrix-day.disabled {
-  background: #f1f3f5;
+  background: var(--surface-soft);
   color: var(--ink-500);
 }
 
@@ -85,7 +85,7 @@
   border-right: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line);
   padding: 16px 10px;
-  background: #f8fafb;
+  background: var(--admin-surface-subtle);
 }
 
 .schedule-matrix-period time {
@@ -115,10 +115,10 @@
   background:
     repeating-linear-gradient(
       -45deg,
-      #f7f8f9,
-      #f7f8f9 8px,
-      #f1f3f5 8px,
-      #f1f3f5 9px
+      var(--admin-surface-subtle),
+      var(--admin-surface-subtle) 8px,
+      var(--surface-soft) 8px,
+      var(--surface-soft) 9px
     );
 }
 
@@ -129,11 +129,11 @@
 
 .schedule-slot-card {
   position: relative;
-  border: 1px solid #cddfe7;
+  border: 1px solid var(--line);
   border-left: 2px solid var(--blue-500);
   border-radius: var(--radius-sm);
   padding: 8px;
-  background: #fff;
+  background: var(--surface);
   transition: border-color 0.2s;
 }
 
@@ -143,8 +143,8 @@
 
 .schedule-slot-card.muted {
   border-style: dashed;
-  border-color: #aebbc2;
-  background: #f1f3f4;
+  border-color: var(--line-strong);
+  background: var(--surface-soft);
   opacity: 0.72;
 }
 
@@ -163,7 +163,7 @@
 }
 
 .schedule-slot-top span {
-  border: 1px dashed #aebbc2;
+  border: 1px dashed var(--line-strong);
   border-radius: 3px;
   padding: 1px 4px;
   color: var(--ink-500);
@@ -196,7 +196,7 @@
 }
 
 .schedule-assignee-preview .more {
-  background: #edf1f3;
+  background: var(--admin-line-soft);
   color: var(--ink-600);
   font-family: var(--font-mono);
 }
@@ -461,7 +461,7 @@
 
 .schedule-import-issues {
   margin-top: 12px;
-  border: 1px solid #edc7c7;
+  border: 1px solid var(--red-100);
   padding: 10px 12px;
   background: var(--red-100);
   color: var(--red-700);

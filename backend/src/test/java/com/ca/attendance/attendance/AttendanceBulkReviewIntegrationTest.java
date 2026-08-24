@@ -20,12 +20,16 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
@@ -139,9 +143,11 @@ class AttendanceBulkReviewIntegrationTest {
                 statement.executeUpdate();
             }
 
+            CountDownLatch reviewStarted = new CountDownLatch(1);
             CompletableFuture<AttendanceService.BulkReviewResult> review = CompletableFuture.supplyAsync(() -> {
                 AuthContext.set(admin);
                 try {
+                    reviewStarted.countDown();
                     return attendance.bulkReview(new AttendanceService.BulkReviewRequest(
                             List.of(),
                             "ALL",
@@ -152,8 +158,10 @@ class AttendanceBulkReviewIntegrationTest {
                 }
             });
 
-            Thread.sleep(200);
-            assertTrue(!review.isDone(), "批量审核应等待正在提交的待审核记录");
+            assertTrue(reviewStarted.await(2, TimeUnit.SECONDS), "批量审核线程未开始执行");
+            assertThrows(TimeoutException.class,
+                    () -> review.get(250, TimeUnit.MILLISECONDS),
+                    "批量审核应等待正在提交的待审核记录");
             writer.commit();
 
             AttendanceService.BulkReviewResult result = review.orTimeout(5, TimeUnit.SECONDS).join();
@@ -162,6 +170,33 @@ class AttendanceBulkReviewIntegrationTest {
         }
 
         assertEquals(0, pendingItemCount());
+    }
+
+    @Test
+    void bulkApprovalKeepsFutureRecordInvalid() {
+        LocalDateTime checkIn = LocalDateTime.now().plusHours(1);
+        Long recordId = jdbc.queryForObject("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  is_duty_day, within_duty_period, check_in_time, check_out_time,
+                  check_in_status, check_out_status, effective_status, source
+                ) VALUES (
+                  ?, 'bulk-review-member', '批量审核成员', ?, ?,
+                  1, 1, ?, ?, 'PENDING', 'APPROVED', 'PENDING', 'PUBLIC'
+                )
+                RETURNING id
+                """, Long.class, memberId, checkIn.toLocalDate(), checkIn.getDayOfWeek().getValue(),
+                checkIn, checkIn.plusHours(2));
+
+        attendance.bulkReview(new AttendanceService.BulkReviewRequest(
+                List.of(recordId), "CHECK_IN", "SELECTED"
+        ));
+
+        assertEquals("INVALID", jdbc.queryForObject(
+                "SELECT effective_status FROM attendance_records WHERE id = ?",
+                String.class,
+                recordId
+        ));
     }
 
     private void insertPendingRecords(int count) {

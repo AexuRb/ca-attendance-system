@@ -4,7 +4,7 @@
   grid-template-rows: 82px minmax(0, 1fr);
   padding: 18px;
   overflow: hidden;
-  background: #eaf5fa;
+  background: var(--canvas);
 }
 
 .kiosk-focus-shell svg {
@@ -91,42 +91,10 @@
   font-weight: 720;
 }
 
-.kiosk-focus-admin,
-.kiosk-focus-collapse {
-  border-color: var(--line);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.92);
-  transition:
-    transform 0.42s cubic-bezier(0.32, 0.72, 0, 1),
-    border-color 0.26s,
-    color 0.26s,
-    background 0.26s,
-    box-shadow 0.42s;
-}
-
-.kiosk-focus-admin:hover,
-.kiosk-focus-collapse:hover {
-  transform: translateY(-2px);
-  border-color: var(--blue-300);
-  background: #f5fbfe;
-  box-shadow: 0 9px 22px rgba(25, 87, 120, 0.1);
-}
-
-.kiosk-focus-workspace {
-  overflow: hidden;
-  border: 1px solid rgba(183, 216, 231, 0.92);
-  border-top: 0;
-  border-radius: 0 0 12px 12px;
-  background: #f8fcfe;
-  box-shadow:
-    0 24px 70px rgba(23, 75, 103, 0.11),
-    0 4px 14px rgba(23, 75, 103, 0.05);
-  transition: grid-template-columns 0.6s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
 .kiosk-focus-stage {
   align-content: center;
   padding: clamp(38px, 6vw, 88px);
-  background: #f8fcfe;
+  background: var(--surface-soft);
 }
 
 .kiosk-focus-stage::before {
@@ -198,9 +166,9 @@
   height: auto;
   grid-template-columns: 42px minmax(0, 1fr) 132px;
   overflow: visible;
-  border: 6px solid #eaf5fa;
+  border: 6px solid var(--canvas);
   border-radius: 11px;
-  outline: 1px solid #c9e3ee;
+  outline: 1px solid var(--blue-200);
   background: white;
   box-shadow: 0 24px 62px rgba(25, 87, 120, 0.1);
   transition:
@@ -209,7 +177,7 @@
 }
 
 .kiosk-focus-query-row:focus-within {
-  border-color: #eaf5fa;
+  border-color: var(--canvas);
   outline-color: var(--blue-500);
   box-shadow:
     0 0 0 4px rgba(58, 150, 200, 0.1),
@@ -249,7 +217,7 @@
 
 .kiosk-focus-query-row button:hover:not(:disabled) {
   transform: translateY(-2px);
-  background: #0f527b;
+  background: var(--blue-800);
   box-shadow: 0 15px 32px rgba(21, 97, 143, 0.22);
 }
 
@@ -277,7 +245,7 @@
   height: 7px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #36a283;
+  background: var(--green-500);
 }
 
 .kiosk-focus-error {
@@ -302,7 +270,7 @@
 
 .kiosk-focus-choice-list > button:hover {
   transform: translateY(-2px);
-  background: #f3faff;
+  background: var(--blue-50);
   box-shadow: 0 12px 28px rgba(25, 87, 120, 0.08);
 }
 
@@ -325,7 +293,7 @@
   align-items: center;
   gap: 16px;
   margin-top: 28px;
-  border-top: 1px solid #a9d4e6;
+  border-top: 1px solid var(--blue-300);
   border-bottom: 1px solid var(--line);
   padding: 20px 0;
 }
@@ -423,110 +391,6 @@
   margin: 25px 0 16px;
 }
 
-.kiosk-focus-schedule {
-  border-left-color: var(--line);
-  background: #f2f9fc;
-}
-
-.kiosk-focus-schedule-head {
-  min-height: 96px;
-  padding: 28px 28px 14px;
-}
-
-.kiosk-focus-schedule-head small {
-  font: 700 10px var(--font-mono);
-}
-
-.kiosk-focus-schedule-head h2 {
-  margin-top: 7px;
-  font-size: 22px;
-}
-
-.kiosk-focus-schedule-body {
-  grid-template-rows: minmax(0, 1fr) auto;
-}
-
-.kiosk-focus-timeline {
-  align-self: center;
-  padding: 20px 28px 8px;
-}
-
-.kiosk-focus-shift {
-  padding: 0 0 28px 31px;
-  animation: premium-kiosk-shift-in 0.56s cubic-bezier(0.22, 0.78, 0.18, 1) both;
-}
-
-.kiosk-focus-shift::before {
-  left: 7px;
-  width: 1px;
-  background: #acd5e6;
-}
-
-.kiosk-focus-shift::after {
-  top: 4px;
-  left: 2px;
-  width: 11px;
-  height: 11px;
-  border-color: #f2f9fc;
-}
-
-.kiosk-focus-shift.current::after {
-  background: #d7a13a;
-  box-shadow:
-    0 0 0 1px #d7a13a,
-    0 0 0 7px rgba(215, 161, 58, 0.12);
-}
-
-.kiosk-focus-shift time {
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.kiosk-focus-shift > strong {
-  margin: 8px 0 0;
-  font-size: 15px;
-  line-height: 1.45;
-}
-
-.kiosk-focus-shift-note {
-  display: block;
-  margin-top: 5px;
-  color: var(--ink-500);
-  font-size: 10px;
-}
-
-.kiosk-focus-week {
-  gap: 5px;
-  margin: 0 25px 22px;
-  padding-top: 17px;
-}
-
-.kiosk-focus-week div {
-  min-height: 50px;
-  display: grid;
-  align-content: center;
-  padding: 5px 2px;
-}
-
-.kiosk-focus-week strong {
-  margin-top: 4px;
-  font: 700 11px var(--font-mono);
-}
-
-.kiosk-focus-week .today {
-  background: white;
-  color: var(--blue-700);
-  box-shadow: 0 8px 20px rgba(25, 87, 120, 0.08);
-}
-
-.kiosk-focus-week .today strong {
-  color: var(--blue-700);
-}
-
-.kiosk-focus-schedule-collapsed .kiosk-focus-workspace {
-  grid-template-columns: minmax(0, 1fr) 72px;
-}
-
 .kiosk-focus-step-enter-active,
 .kiosk-focus-step-leave-active {
   transition:
@@ -564,21 +428,9 @@
     border-radius: 0;
   }
 
-  .kiosk-focus-workspace {
-    overflow: visible;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
   .kiosk-focus-stage {
     min-height: calc(100dvh - 82px);
     padding: 48px clamp(20px, 6vw, 54px);
-  }
-
-  .kiosk-focus-schedule {
-    min-height: 390px;
-    border-top-color: var(--line);
   }
 }
 
@@ -682,16 +534,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .kiosk-focus-shell *,
-  .kiosk-focus-shell *::before,
-  .kiosk-focus-shell *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
 
 /* Functional kiosk layout based on the approved horizontal duty-signal preview. */
 .kiosk-signal-app {
@@ -708,7 +550,7 @@
   overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
-  background: #f9fdff;
+  background: var(--surface-soft);
   box-shadow: 0 26px 76px rgba(14, 72, 98, 0.12);
 }
 
@@ -754,14 +596,14 @@
   overflow: hidden;
   border-bottom: 1px solid var(--line);
   padding: 15px 24px 14px;
-  background: #eef8fb;
+  background: var(--surface-blue);
 }
 
 .kiosk-signal-band::before {
   position: absolute;
   inset: 49px 24px auto;
   height: 1px;
-  background: #acd8e7;
+  background: var(--blue-300);
   content: "";
 }
 
@@ -843,17 +685,17 @@
 }
 
 .kiosk-signal-shift.current {
-  border-color: #8dcce1;
-  background: #fffdf8;
+  border-color: var(--blue-300);
+  background: var(--amber-100);
   box-shadow:
-    inset 3px 0 #d9a43f,
+    inset 3px 0 var(--amber-500),
     0 12px 28px rgba(15, 75, 102, 0.09);
 }
 
 .kiosk-signal-shift.current > i {
-  background: #d9a43f;
+  background: var(--amber-500);
   box-shadow:
-    0 0 0 1px #d9a43f,
+    0 0 0 1px var(--amber-500),
     0 0 0 7px rgba(217, 164, 63, 0.12);
   animation: kiosk-current-pulse 2.4s var(--ease-out) infinite;
 }
@@ -907,7 +749,7 @@
   align-content: center;
   overflow: hidden;
   padding: clamp(34px, 5vw, 72px);
-  background: #f9fdff;
+  background: var(--surface-soft);
 }
 
 .kiosk-signal-shell .kiosk-focus-stage::before {
@@ -998,7 +840,7 @@
 
 .kiosk-focus-step-status {
   align-self: end;
-  border-left: 2px solid #d9a43f;
+  border-left: 2px solid var(--amber-500);
   padding: 2px 0 2px 10px;
   color: var(--ink-600);
   font-size: 11px;
@@ -1008,10 +850,10 @@
 .kiosk-signal-form {
   position: relative;
   margin-top: 28px;
-  border: 1px solid #bddce8;
+  border: 1px solid var(--blue-200);
   border-radius: 8px;
   padding: 6px;
-  background: #e4f3f8;
+  background: var(--surface-blue);
   box-shadow: 0 18px 46px rgba(15, 75, 102, 0.08);
   animation: kiosk-form-enter 0.72s 0.11s var(--ease-out) both;
   transition:
@@ -1214,7 +1056,7 @@
   height: 7px;
   flex: 0 0 auto;
   border-radius: 50%;
-  background: #39a88a;
+  background: var(--green-500);
 }
 
 .kiosk-signal-shell .kiosk-focus-success-state {
@@ -1418,7 +1260,7 @@
 @keyframes kiosk-current-pulse {
   55% {
     box-shadow:
-      0 0 0 1px #d9a43f,
+      0 0 0 1px var(--amber-500),
       0 0 0 10px rgba(217, 164, 63, 0);
   }
 }
@@ -1670,15 +1512,5 @@
 
   .kiosk-signal-admin {
     display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .kiosk-signal-shell *,
-  .kiosk-signal-shell *::before,
-  .kiosk-signal-shell *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }

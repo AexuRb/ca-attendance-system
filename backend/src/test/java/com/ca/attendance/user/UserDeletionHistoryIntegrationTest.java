@@ -24,7 +24,9 @@ import java.sql.PreparedStatement;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -82,6 +84,25 @@ class UserDeletionHistoryIntegrationTest {
                 Integer.class,
                 targetId
         ));
+    }
+
+    @Test
+    void attendanceRecordStillPreventsPhysicalDeletion() {
+        long targetId = insertMember("delete-attendance", "签到历史成员");
+        jdbc.update("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  is_duty_day, within_duty_period, require_duty_day, require_duty_period,
+                  check_in_time, check_out_time, check_in_status, check_out_status,
+                  duration_minutes, valid_hours, effective_status, source
+                ) VALUES (
+                  ?, 'delete-attendance', '签到历史成员', date('now'), 1,
+                  1, 1, 0, 0, datetime('now', '-2 hours'), datetime('now'),
+                  'APPROVED', 'APPROVED', 120, 2, 'VALID', 'PUBLIC'
+                )
+                """, targetId);
+
+        assertDeletionBlocked(targetId, "签到与审核记录");
     }
 
     @Test
@@ -145,7 +166,7 @@ class UserDeletionHistoryIntegrationTest {
     }
 
     @Test
-    void publicAttendanceSubmissionPreventsPhysicalDeletion() {
+    void publicAttendanceSubmissionDoesNotBecomePermanentDeletionHistory() {
         long targetId = insertMember("delete-submission", "公开签到历史成员");
         jdbc.update("""
                 INSERT INTO public_attendance_submissions (
@@ -158,7 +179,14 @@ class UserDeletionHistoryIntegrationTest {
                 )
                 """);
 
-        assertDeletionBlocked(targetId, "签到与审核记录");
+        users.delete(targetId, "清理只有短期签到回执的账号");
+
+        assertEquals(0, userCount(targetId));
+        assertEquals(1, jdbc.queryForObject("""
+                SELECT COUNT(*)
+                FROM public_attendance_submissions
+                WHERE request_id = 'delete-history-submission'
+                """, Integer.class));
     }
 
     @Test
@@ -247,17 +275,21 @@ class UserDeletionHistoryIntegrationTest {
                 statement.executeUpdate();
             }
 
+            CountDownLatch deletionStarted = new CountDownLatch(1);
             CompletableFuture<Void> deletion = CompletableFuture.runAsync(() -> {
                 AuthContext.set(admin);
                 try {
+                    deletionStarted.countDown();
                     users.delete(targetId, "并发删除保护测试");
                 } finally {
                     AuthContext.clear();
                 }
             });
 
-            Thread.sleep(200);
-            assertTrue(!deletion.isDone(), "删除应等待正在提交的历史写入");
+            assertTrue(deletionStarted.await(2, TimeUnit.SECONDS), "删除线程未开始执行");
+            assertThrows(TimeoutException.class,
+                    () -> deletion.get(250, TimeUnit.MILLISECONDS),
+                    "删除应等待正在提交的历史写入");
             writer.commit();
 
             CompletionException exception = assertThrows(

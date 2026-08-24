@@ -25,10 +25,14 @@ public final class JdbcTime {
             return fromEpoch(number.longValue()).toLocalDate();
         }
         String text = raw.toString().trim();
-        if (text.length() < 10) {
-            throw new SQLException("Invalid date value in " + column + ": " + text);
+        try {
+            if (text.length() < 10) {
+                throw new IllegalArgumentException("date is shorter than yyyy-MM-dd");
+            }
+            return LocalDate.parse(text.substring(0, 10));
+        } catch (RuntimeException ex) {
+            throw new SQLException("Invalid date value in " + column + ": " + text, ex);
         }
-        return LocalDate.parse(text.substring(0, 10));
     }
 
     public static LocalDateTime localDateTime(ResultSet result, String column) throws SQLException {
@@ -41,8 +45,12 @@ public final class JdbcTime {
         }
         String text = raw.toString().trim().replace('T', ' ');
         try {
+            if (text.length() < 10) {
+                throw new IllegalArgumentException("date-time is shorter than yyyy-MM-dd HH:mm:ss");
+            }
+            LocalDate.parse(text.substring(0, 10));
             return java.sql.Timestamp.valueOf(text).toLocalDateTime();
-        } catch (IllegalArgumentException ex) {
+        } catch (RuntimeException ex) {
             throw new SQLException("Invalid date-time value in " + column + ": " + text, ex);
         }
     }
@@ -62,7 +70,7 @@ public final class JdbcTime {
         }
         try {
             return LocalTime.parse(text);
-        } catch (IllegalArgumentException ex) {
+        } catch (RuntimeException ex) {
             throw new SQLException("Invalid time value in " + column + ": " + text, ex);
         }
     }

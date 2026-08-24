@@ -101,6 +101,16 @@ class TrainingTransactionIntegrationTest {
     }
 
     @Test
+    void createRejectsTitleLongerThanOneHundredCharacters() {
+        String title = "事务培训" + "长".repeat(101);
+
+        ApiException exception = assertThrows(ApiException.class, () -> trainings.create(sessionRequest(title)));
+
+        assertTrue(exception.getMessage().contains("培训标题不能超过 100 个字符"));
+        assertEquals(0, sessionCount(title));
+    }
+
+    @Test
     void updateRollsBackWhenAuditLogFails() {
         TrainingSessionItem session = trainings.create(sessionRequest("事务培训修改前"));
         failAudit("UPDATE_TRAINING");
@@ -196,6 +206,66 @@ class TrainingTransactionIntegrationTest {
     }
 
     @Test
+    void participantImportRejectsWholeWorkbookWhenMemberMatchingFails() throws Exception {
+        TrainingSessionItem session = trainings.create(sessionRequest("事务培训匹配失败"));
+
+        ApiException exception = assertThrows(ApiException.class, () -> trainings.importParticipants(
+                session.id(),
+                participantImportFileWithUnmatchedName()
+        ));
+
+        assertTrue(exception.getMessage().contains("姓名未能唯一匹配成员"));
+        assertTrue(exception.getMessage().contains("未写入"));
+        assertEquals(0, participantCount(session.id()));
+        assertEquals(0, actionCount("IMPORT_TRAINING_PARTICIPANTS"));
+    }
+
+    @Test
+    void participantImportReportsCreatedAndUpdatedRowsAfterAtomicWrite() throws Exception {
+        TrainingSessionItem session = trainings.create(sessionRequest("事务培训名单计数"));
+        trainings.addParticipant(
+                session.id(),
+                participantRequest("9900000108", "导入前姓名")
+        );
+
+        TrainingService.ImportResult result = trainings.importParticipants(
+                session.id(),
+                participantImportFileForCreateAndUpdate()
+        );
+
+        assertEquals(1, result.created());
+        assertEquals(1, result.updated());
+        assertEquals(0, result.skipped());
+        assertTrue(result.errors().isEmpty());
+        assertEquals(2, participantCount(session.id()));
+        assertEquals("导入后姓名", participantNameByStudent(session.id(), "9900000108"));
+        assertEquals(0, new BigDecimal("1.50").compareTo(
+                participantDurationByStudent(session.id(), "9900000108")
+        ));
+        assertEquals(1, actionCount("IMPORT_TRAINING_PARTICIPANTS"));
+    }
+
+    @Test
+    void participantImportRejectsFilesLargerThanFiveMegabytesBeforeParsing() {
+        TrainingSessionItem session = trainings.create(sessionRequest("培训名单体积限制"));
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "participants.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                new byte[5 * 1024 * 1024 + 1]
+        );
+
+        ApiException exception = assertThrows(
+                ApiException.class,
+                () -> trainings.importParticipants(session.id(), file)
+        );
+
+        assertTrue(exception.getMessage().contains("不能超过 5 MB"));
+        assertEquals(0, participantCount(session.id()));
+        assertEquals(0, actionCount("IMPORT_TRAINING_PARTICIPANTS"));
+    }
+
+    @Test
     void sessionTemplatePrefillsSpeakerAsFirstParticipant() throws Exception {
         TrainingSessionItem session = trainings.create(sessionRequest("事务培训主讲人模板"));
         TrainingService.ExportFile template = trainings.exportSessionImportTemplate(session.id());
@@ -275,6 +345,55 @@ class TrainingTransactionIntegrationTest {
         }
     }
 
+    private MockMultipartFile participantImportFileWithUnmatchedName() throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("参与名单");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("姓名");
+            header.createCell(2).setCellValue("时长");
+            Row valid = sheet.createRow(1);
+            valid.createCell(0).setCellValue("9900000107");
+            valid.createCell(1).setCellValue("合法名单成员");
+            valid.createCell(2).setCellValue(2);
+            Row unmatched = sheet.createRow(2);
+            unmatched.createCell(1).setCellValue("无法匹配的成员姓名");
+            unmatched.createCell(2).setCellValue(2);
+            workbook.write(output);
+            return new MockMultipartFile(
+                    "file",
+                    "participants-unmatched.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    output.toByteArray()
+            );
+        }
+    }
+
+    private MockMultipartFile participantImportFileForCreateAndUpdate() throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("参与名单");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("姓名");
+            header.createCell(2).setCellValue("时长");
+            Row update = sheet.createRow(1);
+            update.createCell(0).setCellValue("9900000108");
+            update.createCell(1).setCellValue("导入后姓名");
+            update.createCell(2).setCellValue(1.5);
+            Row create = sheet.createRow(2);
+            create.createCell(0).setCellValue("9900000109");
+            create.createCell(1).setCellValue("新增名单成员");
+            create.createCell(2).setCellValue(2);
+            workbook.write(output);
+            return new MockMultipartFile(
+                    "file",
+                    "participants-create-update.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    output.toByteArray()
+            );
+        }
+    }
+
     private void failAudit(String actionType) {
         dropAuditTrigger();
         jdbc.execute("""
@@ -329,6 +448,24 @@ class TrainingTransactionIntegrationTest {
                 "SELECT name_snapshot FROM training_participants WHERE id = ?",
                 String.class,
                 participantId
+        );
+    }
+
+    private String participantNameByStudent(long sessionId, String studentNo) {
+        return jdbc.queryForObject(
+                "SELECT name_snapshot FROM training_participants WHERE session_id = ? AND student_no_snapshot = ?",
+                String.class,
+                sessionId,
+                studentNo
+        );
+    }
+
+    private BigDecimal participantDurationByStudent(long sessionId, String studentNo) {
+        return jdbc.queryForObject(
+                "SELECT duration_hours FROM training_participants WHERE session_id = ? AND student_no_snapshot = ?",
+                BigDecimal.class,
+                sessionId,
+                studentNo
         );
     }
 

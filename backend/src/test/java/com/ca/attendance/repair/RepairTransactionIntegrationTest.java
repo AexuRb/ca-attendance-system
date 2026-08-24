@@ -127,11 +127,106 @@ class RepairTransactionIntegrationTest {
         assertTrue(disclaimerHtml.contains(disclaimer.caseNo()));
     }
 
+    @Test
+    void createDefaultsMissingRiskAndPrivacyAcknowledgementsToFalse() {
+        RepairCaseService.RepairCaseRequest request = repairRequest(
+                "事务维修确认缺省",
+                "PERSONAL_DEVICE",
+                null,
+                null,
+                "REPAIRING",
+                LocalDateTime.now(),
+                null,
+                adminId,
+                "维修事务管理员"
+        );
+
+        RepairCaseItem created = repairs.create(request);
+
+        assertFalse(created.riskAcknowledged());
+        assertFalse(created.privacyAcknowledged());
+    }
+
+    @Test
+    void createRejectsMissingHandlerInsteadOfAssigningCurrentOperator() {
+        RepairCaseService.RepairCaseRequest request = repairRequest(
+                "事务维修负责人缺失",
+                "PERSONAL_DEVICE",
+                true,
+                true,
+                "REPAIRING",
+                LocalDateTime.now(),
+                null,
+                null,
+                null
+        );
+
+        var exception = assertThrows(com.ca.attendance.common.ApiException.class, () -> repairs.create(request));
+
+        assertTrue(exception.getMessage().contains("请选择负责人"));
+        assertEquals(0, repairCount("事务维修负责人缺失"));
+    }
+
+    @Test
+    void createRejectsCompletedTimeNotAfterReceivedTime() {
+        LocalDateTime receivedAt = LocalDateTime.of(2026, 8, 21, 14, 0);
+        RepairCaseService.RepairCaseRequest request = repairRequest(
+                "事务维修完成时间倒置",
+                "PERSONAL_DEVICE",
+                true,
+                true,
+                "COMPLETED",
+                receivedAt,
+                receivedAt.minusMinutes(1),
+                adminId,
+                "维修事务管理员"
+        );
+
+        var exception = assertThrows(com.ca.attendance.common.ApiException.class, () -> repairs.create(request));
+
+        assertTrue(exception.getMessage().contains("完成时间必须晚于受理时间"));
+        assertEquals(0, repairCount("事务维修完成时间倒置"));
+    }
+
+    @Test
+    void agreementEscapesApostrophesAndHtmlMarkup() {
+        RepairCaseItem repair = repairs.create(repairRequest("事务维修 O'Brien <script>"));
+
+        String html = new String(repairs.agreement(repair.id()).bytes(), StandardCharsets.UTF_8);
+
+        assertTrue(html.contains("O&#39;Brien &lt;script&gt;"));
+        assertFalse(html.contains("O'Brien <script>"));
+    }
+
     private RepairCaseService.RepairCaseRequest repairRequest(String ownerName) {
         return repairRequest(ownerName, "PERSONAL_DEVICE");
     }
 
     private RepairCaseService.RepairCaseRequest repairRequest(String ownerName, String agreementType) {
+        return repairRequest(
+                ownerName,
+                agreementType,
+                true,
+                true,
+                "REPAIRING",
+                LocalDateTime.now(),
+                null,
+                adminId,
+                "维修事务管理员"
+        );
+    }
+
+    private RepairCaseService.RepairCaseRequest repairRequest(
+            String ownerName,
+            String agreementType,
+            Boolean riskAcknowledged,
+            Boolean privacyAcknowledged,
+            String status,
+            LocalDateTime receivedAt,
+            LocalDateTime completedAt,
+            Long handlerUserId,
+            String handlerName
+    ) {
         return new RepairCaseService.RepairCaseRequest(
                 agreementType,
                 ownerName,
@@ -145,12 +240,13 @@ class RepairTransactionIntegrationTest {
                 "无法开机",
                 null,
                 true,
-                true,
-                true,
-                "REPAIRING",
-                LocalDateTime.now(),
-                null,
-                "维修事务管理员",
+                riskAcknowledged,
+                privacyAcknowledged,
+                status,
+                receivedAt,
+                completedAt,
+                handlerUserId,
+                handlerName,
                 null
         );
     }

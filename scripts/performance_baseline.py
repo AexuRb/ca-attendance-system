@@ -20,6 +20,10 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 
+PERFORMANCE_SEED_PASSWORD_HASH = (
+    "$2b$12$PR5A8n7bDkuEy3mRp2tKhO2gihx7K7pvhM/HBcaiui6VBrl/Jonj."
+)
+
 @dataclass(frozen=True)
 class SeedScale:
     users: int = 500
@@ -97,6 +101,145 @@ def summarize_samples(
     }
 
 
+def _performance_metrics(report: dict[str, Any]) -> list[dict[str, Any]]:
+    metrics: list[dict[str, Any]] = []
+    for name, result in report.get("api", {}).get("requests", {}).items():
+        metrics.append(
+            {
+                "path": f"api.requests.{name}.p95_ms",
+                "value": float(result["p95_ms"]),
+                "absolute_limit": 200.0,
+                "jitter": 20.0,
+                "unit": "ms",
+            }
+        )
+    for name, result in report.get("api", {}).get("heavy_operations", {}).items():
+        metrics.append(
+            {
+                "path": f"api.heavy_operations.{name}.elapsed_ms",
+                "value": float(result["elapsed_ms"]),
+                "absolute_limit": 2_000.0,
+                "jitter": 100.0,
+                "unit": "ms",
+            }
+        )
+    for name, result in report.get("browser", {}).get("pages", {}).items():
+        metrics.extend(
+            (
+                {
+                    "path": f"browser.pages.{name}.p95_ms",
+                    "value": float(result["p95_ms"]),
+                    "absolute_limit": 1_000.0,
+                    "jitter": 100.0,
+                    "unit": "ms",
+                },
+                {
+                    "path": f"browser.pages.{name}.max_dom_nodes",
+                    "value": float(result["max_dom_nodes"]),
+                    "absolute_limit": 2_500.0,
+                    "jitter": 200.0,
+                    "unit": "nodes",
+                },
+                {
+                    "path": f"browser.pages.{name}.max_heap_bytes",
+                    "value": float(result["max_heap_bytes"]),
+                    "absolute_limit": float(256 * 1024 * 1024),
+                    "jitter": float(32 * 1024 * 1024),
+                    "unit": "bytes",
+                },
+            )
+        )
+    process = report.get("process", {})
+    for key, absolute_limit in (
+        ("workingSetBytes", 1.25 * 1024 * 1024 * 1024),
+        ("privateMemoryBytes", 1.5 * 1024 * 1024 * 1024),
+    ):
+        if key in process:
+            metrics.append(
+                {
+                    "path": f"process.{key}",
+                    "value": float(process[key]),
+                    "absolute_limit": float(absolute_limit),
+                    "jitter": float(64 * 1024 * 1024),
+                    "unit": "bytes",
+                }
+            )
+    return metrics
+
+
+def evaluate_performance(
+    report: dict[str, Any],
+    baseline: dict[str, Any] | None = None,
+    *,
+    max_regression_ratio: float = 1.5,
+) -> dict[str, Any]:
+    if max_regression_ratio <= 1:
+        raise ValueError("max_regression_ratio must be greater than 1")
+
+    current_metrics = _performance_metrics(report)
+    if not current_metrics:
+        raise ValueError("performance report contains no measurable metrics")
+    baseline_metrics = {
+        metric["path"]: metric for metric in _performance_metrics(baseline or {})
+    }
+    checks: list[dict[str, Any]] = []
+    violations: list[str] = []
+
+    for metric in current_metrics:
+        value = metric["value"]
+        absolute_limit = metric["absolute_limit"]
+        absolute_passed = value <= absolute_limit
+        checks.append(
+            {
+                "path": metric["path"],
+                "kind": "absolute",
+                "value": round(value, 2),
+                "limit": round(absolute_limit, 2),
+                "unit": metric["unit"],
+                "passed": absolute_passed,
+            }
+        )
+        if not absolute_passed:
+            violations.append(
+                f"{metric['path']}={value:.2f}{metric['unit']} exceeds "
+                f"absolute limit {absolute_limit:.2f}{metric['unit']}"
+            )
+
+        previous = baseline_metrics.get(metric["path"])
+        if previous is None:
+            continue
+        previous_value = previous["value"]
+        regression_limit = max(
+            previous_value * max_regression_ratio,
+            previous_value + metric["jitter"],
+        )
+        regression_passed = value <= regression_limit
+        checks.append(
+            {
+                "path": metric["path"],
+                "kind": "baseline",
+                "value": round(value, 2),
+                "baseline": round(previous_value, 2),
+                "limit": round(regression_limit, 2),
+                "unit": metric["unit"],
+                "passed": regression_passed,
+            }
+        )
+        if not regression_passed:
+            violations.append(
+                f"{metric['path']}={value:.2f}{metric['unit']} regressed from "
+                f"{previous_value:.2f}{metric['unit']}"
+            )
+
+    return {
+        "passed": not violations,
+        "max_regression_ratio": max_regression_ratio,
+        "baseline_compared": baseline is not None,
+        "checks": checks,
+        "violations": violations,
+    }
+
+
 def benchmark_cases(from_date: str, to_date: str) -> list[BenchmarkCase]:
     week_from = (date.fromisoformat(to_date) - timedelta(days=6)).isoformat()
     return [
@@ -136,12 +279,12 @@ def benchmark_cases(from_date: str, to_date: str) -> list[BenchmarkCase]:
         BenchmarkCase(
             "repair_list",
             "GET",
-            "/api/repairs?status=REPAIRING&page=1&pageSize=30",
+            "/api/repairs?status=REPAIRING&page=1&pageSize=20",
         ),
         BenchmarkCase(
             "repair_history_page",
             "GET",
-            "/api/repairs?status=COMPLETED&page=1&pageSize=30",
+            "/api/repairs?status=COMPLETED&page=1&pageSize=20",
         ),
         BenchmarkCase(
             "logs_page",
@@ -568,8 +711,16 @@ def seed_database(
     scale: SeedScale,
     *,
     random_seed: int = 20260811,
+    allowed_root: str | Path,
 ) -> dict[str, Any]:
     database_path = Path(database).resolve()
+    allowed_path = Path(allowed_root).resolve()
+    try:
+        database_path.relative_to(allowed_path)
+    except ValueError as error:
+        raise ValueError(
+            f"performance seed database must stay inside allowed root: {allowed_path}"
+        ) from error
     if not database_path.is_file():
         raise FileNotFoundError(f"database does not exist: {database_path}")
 
@@ -584,7 +735,7 @@ def seed_database(
         connection.execute("PRAGMA busy_timeout = 30000")
         admin = connection.execute(
             """
-            SELECT id, password_hash
+            SELECT id, student_no
             FROM users
             WHERE role = 'ADMIN' AND status = 'ACTIVE'
             ORDER BY id
@@ -601,9 +752,9 @@ def seed_database(
                 "performance seed requires a fresh database with exactly one user"
             )
 
-        admin_id, password_hash = admin
+        admin_id, admin_student_no = admin
         with connection:
-            _seed_users(connection, scale, admin_id, password_hash)
+            _seed_users(connection, scale, admin_id)
             users = connection.execute(
                 "SELECT id, student_no, name, role FROM users ORDER BY id"
             ).fetchall()
@@ -637,6 +788,7 @@ def seed_database(
                 connection,
                 scale,
                 admin_id,
+                admin_student_no,
                 start_date,
                 date_span,
             )
@@ -673,7 +825,6 @@ def _seed_users(
     connection: sqlite3.Connection,
     scale: SeedScale,
     admin_id: int,
-    password_hash: str,
 ) -> None:
     rows = []
     for index in range(1, scale.users):
@@ -682,7 +833,7 @@ def _seed_users(
             (
                 str(9_000_000_000 + index),
                 f"性能成员{index:04d}",
-                password_hash,
+                PERFORMANCE_SEED_PASSWORD_HASH,
                 role,
                 "DISABLED" if index % 53 == 0 else "ACTIVE",
                 f"138{index:08d}"[-11:],
@@ -956,6 +1107,7 @@ def _seed_logs(
     connection: sqlite3.Connection,
     scale: SeedScale,
     admin_id: int,
+    admin_student_no: str,
     start_date: date,
     date_span: int,
 ) -> None:
@@ -969,7 +1121,7 @@ def _seed_logs(
         rows.append(
             (
                 admin_id,
-                "1004231224",
+                admin_student_no,
                 "性能测试管理员",
                 actions[index % len(actions)],
                 "performance_seed",
@@ -1002,6 +1154,11 @@ def _parser() -> argparse.ArgumentParser:
 
     seed_parser = subparsers.add_parser("seed", help="seed a migrated database")
     seed_parser.add_argument("--database", required=True)
+    seed_parser.add_argument(
+        "--allowed-root",
+        required=True,
+        help="isolated directory that must contain the database",
+    )
     seed_parser.add_argument("--users", type=int, default=500)
     seed_parser.add_argument("--attendance", type=int, default=10_000)
     seed_parser.add_argument("--trainings", type=int, default=500)
@@ -1025,8 +1182,8 @@ def _parser() -> argparse.ArgumentParser:
         "benchmark", help="measure authenticated local API endpoints"
     )
     benchmark_parser.add_argument("--base-url", required=True)
-    benchmark_parser.add_argument("--student-no", default="1004231224")
-    benchmark_parser.add_argument("--password", default="123456")
+    benchmark_parser.add_argument("--student-no", required=True)
+    benchmark_parser.add_argument("--password", required=True)
     benchmark_parser.add_argument("--iterations", type=int, default=12)
     benchmark_parser.add_argument("--warmups", type=int, default=2)
     benchmark_parser.add_argument("--from-date")
@@ -1037,8 +1194,8 @@ def _parser() -> argparse.ArgumentParser:
         "browser", help="measure large-list rendering in Chromium"
     )
     browser_parser.add_argument("--base-url", required=True)
-    browser_parser.add_argument("--student-no", default="1004231224")
-    browser_parser.add_argument("--password", default="123456")
+    browser_parser.add_argument("--student-no", required=True)
+    browser_parser.add_argument("--password", required=True)
     browser_parser.add_argument("--iterations", type=int, default=3)
     browser_parser.add_argument("--output")
 
@@ -1047,6 +1204,14 @@ def _parser() -> argparse.ArgumentParser:
     )
     inspect_parser.add_argument("--database", required=True)
     inspect_parser.add_argument("--output")
+
+    evaluate_parser = subparsers.add_parser(
+        "evaluate", help="enforce absolute budgets and optional baseline comparison"
+    )
+    evaluate_parser.add_argument("--report", required=True)
+    evaluate_parser.add_argument("--baseline")
+    evaluate_parser.add_argument("--max-regression-ratio", type=float, default=1.5)
+    evaluate_parser.add_argument("--output")
     return parser
 
 
@@ -1090,6 +1255,7 @@ def main(argv: list[str] | None = None) -> int:
                 logs=args.logs,
             ),
             random_seed=args.random_seed,
+            allowed_root=args.allowed_root,
         )
     elif args.command == "benchmark":
         result = benchmark_api(
@@ -1108,10 +1274,22 @@ def main(argv: list[str] | None = None) -> int:
             args.password,
             iterations=args.iterations,
         )
-    else:
+    elif args.command == "inspect":
         result = inspect_database(args.database)
+    else:
+        report = json.loads(Path(args.report).read_text(encoding="utf-8-sig"))
+        baseline = (
+            json.loads(Path(args.baseline).read_text(encoding="utf-8-sig"))
+            if args.baseline
+            else None
+        )
+        result = evaluate_performance(
+            report,
+            baseline,
+            max_regression_ratio=args.max_regression_ratio,
+        )
     _write_json(result, args.output)
-    return 0
+    return 0 if args.command != "evaluate" or result["passed"] else 2
 
 
 if __name__ == "__main__":

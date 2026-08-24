@@ -19,7 +19,8 @@
             class="repair-history-row"
             tabindex="0"
             @click="$emit('view', item)"
-            @keydown.enter="$emit('view', item)"
+            @keydown.enter.self="$emit('view', item)"
+            @keydown.space.self.prevent="$emit('view', item)"
           >
             <td data-label="维修编号">
               <strong class="case-no">{{ item.caseNo }}</strong>

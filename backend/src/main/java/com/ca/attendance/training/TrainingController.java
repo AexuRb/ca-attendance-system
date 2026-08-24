@@ -1,5 +1,6 @@
 package com.ca.attendance.training;
 
+import com.ca.attendance.common.PaginationPolicy;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -11,7 +12,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/trainings")
@@ -22,14 +22,6 @@ public class TrainingController {
         this.trainings = trainings;
     }
 
-    @GetMapping
-    public List<TrainingSessionItem> list(@RequestParam(required = false) String keyword,
-                                          @RequestParam(required = false) String status,
-                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-                                          @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return trainings.list(keyword, status, from, to);
-    }
-
     @GetMapping("/page")
     public TrainingService.TrainingSessionPage page(
             @RequestParam(required = false) String keyword,
@@ -37,7 +29,7 @@ public class TrainingController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize
+            @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize
     ) {
         return trainings.page(keyword, status, from, to, page, pageSize);
     }
@@ -57,14 +49,6 @@ public class TrainingController {
         trainings.archive(id);
     }
 
-    @GetMapping("/me/hours")
-    public Map<String, Object> myHours(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
-    ) {
-        return trainings.myHours(from, to);
-    }
-
     @GetMapping("/me")
     public List<MyTrainingRecordItem> myRecords(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
@@ -73,17 +57,12 @@ public class TrainingController {
         return trainings.myRecords(from, to);
     }
 
-    @GetMapping("/{id}/participants")
-    public List<TrainingParticipantItem> participants(@PathVariable long id) {
-        return trainings.participants(id);
-    }
-
     @GetMapping("/{id}/participants/page")
     public TrainingService.TrainingParticipantPage participantPage(
             @PathVariable long id,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "30") int pageSize
+            @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize
     ) {
         return trainings.participantPage(id, keyword, page, pageSize);
     }
@@ -108,12 +87,6 @@ public class TrainingController {
     @PostMapping(value = "/{id}/participants/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public TrainingService.ImportResult importParticipants(@PathVariable long id, @RequestParam("file") MultipartFile file) {
         return trainings.importParticipants(id, file);
-    }
-
-    @GetMapping("/import-template")
-    public ResponseEntity<byte[]> importTemplate() {
-        TrainingService.ExportFile file = trainings.exportImportTemplate();
-        return excel(file.filename(), file.bytes());
     }
 
     @GetMapping("/{id}/participants/import-template")

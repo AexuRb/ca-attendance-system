@@ -6,8 +6,10 @@ import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.config.StoragePaths;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -48,6 +51,37 @@ public class BackupService {
             TokenService tokenService,
             StoragePaths storagePaths
     ) {
+        this(jdbc, objectMapper, transactionTemplate, tokenService, storagePaths, BackupRetentionPolicy.defaults());
+    }
+
+    @Autowired
+    public BackupService(
+            JdbcTemplate jdbc,
+            ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate,
+            TokenService tokenService,
+            StoragePaths storagePaths,
+            @Value("${app.backup.retention.max-files:50}") int maxBackupFiles,
+            @Value("${app.backup.retention.max-total-bytes:5368709120}") long maxBackupBytes
+    ) {
+        this(
+                jdbc,
+                objectMapper,
+                transactionTemplate,
+                tokenService,
+                storagePaths,
+                new BackupRetentionPolicy(maxBackupFiles, maxBackupBytes)
+        );
+    }
+
+    private BackupService(
+            JdbcTemplate jdbc,
+            ObjectMapper objectMapper,
+            TransactionTemplate transactionTemplate,
+            TokenService tokenService,
+            StoragePaths storagePaths,
+            BackupRetentionPolicy retentionPolicy
+    ) {
         this.jdbc = jdbc;
         this.objectMapper = objectMapper;
         this.transactions = transactionTemplate;
@@ -57,7 +91,7 @@ public class BackupService {
         this.archiveWriter = new BackupArchiveWriter(objectMapper);
         this.restoreValidator = new BackupRestoreValidator(objectMapper);
         this.restoreExecutor = new DatabaseRestoreExecutor(jdbc, objectMapper);
-        this.files = new BackupFileStore(storagePaths);
+        this.files = new BackupFileStore(storagePaths, retentionPolicy);
     }
 
     public BackupItem create() {
@@ -89,8 +123,8 @@ public class BackupService {
                 RolePermissionPolicy.Permission.BACKUPS,
                 "只有会长或管理员可以下载备份"
         );
-        BackupFileStore.StoredFile stored = files.read(filename);
-        return new BackupFile(stored.filename(), stored.bytes());
+        BackupFileStore.StoredFile stored = files.open(filename);
+        return new BackupFile(stored.filename(), stored.size(), stored.path());
     }
 
     public void delete(String filename) {
@@ -200,7 +234,7 @@ public class BackupService {
         }
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             return "{\"error\":\"json_encode_failed\"}";
         }
     }
@@ -229,7 +263,7 @@ public class BackupService {
     public record BackupItem(String filename, long size, Instant createdAt) {
     }
 
-    public record BackupFile(String filename, byte[] bytes) {
+    public record BackupFile(String filename, long size, Path path) {
     }
 
     public record RestoreResult(

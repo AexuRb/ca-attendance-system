@@ -1,6 +1,6 @@
 <template>
   <section class="kiosk-focus-stage">
-    <div class="kiosk-focus-court" aria-live="polite">
+    <div class="kiosk-focus-court">
       <Transition
         name="kiosk-signal-step"
         mode="out-in"
@@ -161,12 +161,11 @@
           v-else
           key="success"
           class="kiosk-focus-state kiosk-focus-success-state"
-          role="status"
         >
           <span class="kiosk-focus-success-mark" aria-hidden="true">
             <Check aria-hidden="true" />
           </span>
-          <div class="kiosk-signal-success-copy">
+          <div class="kiosk-signal-success-copy" role="status">
             <h1>{{ successName }}，{{ successAction }}</h1>
             <span>{{ successTime }} · 记录已保存</span>
           </div>

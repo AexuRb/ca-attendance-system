@@ -9,7 +9,7 @@
       <RouterLink
         v-for="section in sections"
         :key="section.key"
-        :to="{ name: section.items[0].name }"
+        :to="{ name: sectionTarget(section) }"
         :class="{ active: section.key === activeSectionKey }"
         :title="section.label"
         @click="$emit('navigate')"
@@ -41,6 +41,10 @@
 import { RouterLink } from "vue-router";
 import { Gauge } from "@lucide/vue";
 import type { AdminNavSection } from "../../app/adminNavigation";
+
+function sectionTarget(section: AdminNavSection) {
+  return section.items[0]?.name || "today";
+}
 
 defineProps<{
   sections: AdminNavSection[];

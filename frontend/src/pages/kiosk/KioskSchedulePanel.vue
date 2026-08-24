@@ -2,7 +2,6 @@
   <section
     class="kiosk-signal-band"
     aria-labelledby="kiosk-signal-title"
-    aria-live="polite"
   >
     <header class="kiosk-signal-caption">
       <h2 id="kiosk-signal-title">今日部长排班</h2>
@@ -103,7 +102,7 @@ function nowMinutes() {
 }
 
 function toMinutes(value: string) {
-  const [hours, minute] = value.slice(0, 5).split(":").map(Number);
+  const [hours = 0, minute = 0] = value.slice(0, 5).split(":").map(Number);
   return hours * 60 + minute;
 }
 </script>

@@ -1,6 +1,8 @@
 package com.ca.attendance.user;
 
 import com.ca.attendance.common.Role;
+import com.ca.attendance.common.SqlLike;
+import com.ca.attendance.common.PaginationPolicy;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -83,12 +85,12 @@ public class UserRepository {
 
     public List<UserCandidate> searchActiveCandidates(String keyword, int limit) {
         String normalized = keyword == null ? "" : keyword.trim();
-        String like = "%" + normalized + "%";
+        String like = SqlLike.contains(normalized);
         return jdbc.query("""
                 SELECT id, student_no, name, role
                 FROM users
                 WHERE status = 'ACTIVE'
-                  AND (? = '' OR student_no LIKE ? OR name LIKE ?)
+                  AND (? = '' OR student_no LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')
                 ORDER BY
                   CASE role
                     WHEN 'ADMIN' THEN 1
@@ -121,9 +123,11 @@ public class UserRepository {
     public UserPage searchPage(String keyword, String role, String status, String grade, int page, int pageSize) {
         SearchQuery query = searchQuery(keyword, role, status, grade);
         Long total = jdbc.queryForObject("SELECT COUNT(*) FROM users " + query.where(), Long.class, query.args().toArray());
+        long totalRows = total == null ? 0 : total;
+        int resolvedPage = PaginationPolicy.resolvePage(page, totalRows, pageSize);
         List<Object> args = new ArrayList<>(query.args());
         args.add(pageSize);
-        args.add((page - 1) * pageSize);
+        args.add((resolvedPage - 1) * pageSize);
         List<UserSummary> items = jdbc.query("""
                 SELECT *
                 FROM users
@@ -132,7 +136,7 @@ public class UserRepository {
                 ORDER BY role, student_no
                 LIMIT ? OFFSET ?
                 """, summaryMapper, args.toArray());
-        return new UserPage(items, total == null ? 0 : total, page, pageSize);
+        return new UserPage(items, totalRows, resolvedPage, pageSize);
     }
 
     public List<Long> searchIds(String keyword, String role, String status, String grade) {
@@ -173,16 +177,25 @@ public class UserRepository {
     }
 
     private SearchQuery searchQuery(String keyword, String role, String status, String grade) {
-        String like = "%" + (keyword == null ? "" : keyword.trim()) + "%";
-        String roleFilter = role == null || role.isBlank() ? "%" : role;
-        String statusFilter = status == null || status.isBlank() ? "%" : status;
-        String gradeFilter = grade == null || grade.isBlank() ? "%" : grade.trim();
-        return new SearchQuery("""
-                WHERE (student_no LIKE ? OR name LIKE ? OR phone LIKE ? OR major LIKE ?)
-                  AND role LIKE ?
-                  AND status LIKE ?
-                  AND COALESCE(grade, '') LIKE ?
-                """, List.of(like, like, like, like, roleFilter, statusFilter, gradeFilter));
+        String like = SqlLike.contains(keyword);
+        StringBuilder where = new StringBuilder("""
+                WHERE (student_no LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\'
+                       OR phone LIKE ? ESCAPE '\\' OR major LIKE ? ESCAPE '\\')
+                """);
+        List<Object> args = new ArrayList<>(List.of(like, like, like, like));
+        if (role != null && !role.isBlank()) {
+            where.append(" AND role = ?");
+            args.add(role);
+        }
+        if (status != null && !status.isBlank()) {
+            where.append(" AND status = ?");
+            args.add(status);
+        }
+        if (grade != null && !grade.isBlank()) {
+            where.append(" AND grade = ?");
+            args.add(grade);
+        }
+        return new SearchQuery(where.toString(), args);
     }
 
     private record SearchQuery(String where, List<Object> args) {

@@ -4,20 +4,21 @@ import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.ExcelImportPolicy;
+import com.ca.attendance.common.ExportRowLimit;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,9 +27,6 @@ import java.time.LocalTime;
 import java.util.*;
 import java.util.regex.Pattern;
 
-import static com.ca.attendance.common.JdbcTime.localDate;
-import static com.ca.attendance.common.JdbcTime.localDateTime;
-import static com.ca.attendance.common.JdbcTime.localTime;
 import static com.ca.attendance.common.JdbcTime.databaseDate;
 import static com.ca.attendance.common.JdbcTime.databaseTime;
 
@@ -36,57 +34,24 @@ import static com.ca.attendance.common.JdbcTime.databaseTime;
 public class TrainingService {
     private static final Pattern STUDENT_NO_PATTERN = Pattern.compile("\\d{1,32}");
     private static final int ISSUE_LIMIT = 20;
-    private static final int MAX_EXCEL_ROWS = 3000;
-    private static final int DEFAULT_SESSION_PAGE_SIZE = 20;
-    private static final int DEFAULT_PARTICIPANT_PAGE_SIZE = 30;
-    private static final int MAX_PAGE_SIZE = 100;
 
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
+    private final TrainingQueryService queries;
+    private final TrainingExcelExportService excelExports;
+    private final TrainingParticipantImportParser participantImports;
 
-    private final RowMapper<TrainingSessionItem> sessionMapper = (rs, rowNum) -> new TrainingSessionItem(
-            rs.getLong("id"),
-            rs.getString("title"),
-            localDate(rs, "training_date"),
-            localTime(rs, "start_time"),
-            localTime(rs, "end_time"),
-            rs.getString("location"),
-            rs.getString("speaker"),
-            rs.getString("description"),
-            rs.getString("status"),
-            rs.getLong("participant_count"),
-            rs.getBigDecimal("total_duration_hours"),
-            rs.getString("created_by_name"),
-            rs.getString("updated_by_name"),
-            localDateTime(rs, "created_at"),
-            localDateTime(rs, "updated_at")
-    );
-
-    private final RowMapper<TrainingParticipantItem> participantMapper = (rs, rowNum) -> new TrainingParticipantItem(
-            rs.getLong("id"),
-            rs.getLong("session_id"),
-            nullableLong(rs, "user_id"),
-            rs.getString("student_no_snapshot"),
-            rs.getString("name_snapshot"),
-            rs.getBigDecimal("duration_hours"),
-            rs.getString("remark"),
-            rs.getString("created_by_name"),
-            rs.getString("updated_by_name"),
-            localDateTime(rs, "created_at"),
-            localDateTime(rs, "updated_at")
-    );
-
-    public TrainingService(JdbcTemplate jdbc, OperationLogService logs) {
+    public TrainingService(JdbcTemplate jdbc, OperationLogService logs, TrainingQueryService queries,
+                           TrainingExcelExportService excelExports,
+                           TrainingParticipantImportParser participantImports) {
         this.jdbc = jdbc;
         this.logs = logs;
+        this.queries = queries;
+        this.excelExports = excelExports;
+        this.participantImports = participantImports;
     }
 
-    public List<TrainingSessionItem> list(String keyword, String status, LocalDate from, LocalDate to) {
-        requireViewTrainings(AuthContext.current());
-        TrainingSessionQuery query = trainingSessionQuery(keyword, status, from, to);
-        return querySessions(query.where(), query.args(), null, null);
-    }
-
+    @Transactional(readOnly = true)
     public TrainingSessionPage page(
             String keyword,
             String status,
@@ -96,72 +61,16 @@ public class TrainingService {
             int pageSize
     ) {
         requireViewTrainings(AuthContext.current());
-        int safePage = Math.max(1, page);
-        int safePageSize = normalizedPageSize(pageSize, DEFAULT_SESSION_PAGE_SIZE);
-        TrainingSessionQuery query = trainingSessionQuery(keyword, status, from, to);
-        Long totalValue = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM training_sessions s " + query.where(),
-                Long.class,
-                query.args().toArray()
-        );
-        long total = totalValue == null ? 0 : totalValue;
-        List<TrainingSessionItem> items = querySessions(
-                query.where(),
-                query.args(),
-                safePageSize,
-                (long) (safePage - 1) * safePageSize
+        TrainingQueryService.PageResult<TrainingSessionItem> result = queries.sessionPage(
+                keyword, status, from, to, page, pageSize
         );
         return new TrainingSessionPage(
-                items,
-                total,
-                safePage,
-                safePageSize,
-                (long) safePage * safePageSize < total
+                result.items(),
+                result.total(),
+                result.page(),
+                result.pageSize(),
+                result.hasMore()
         );
-    }
-
-    private TrainingSessionQuery trainingSessionQuery(
-            String keyword,
-            String status,
-            LocalDate from,
-            LocalDate to
-    ) {
-        LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
-        LocalDate end = to == null ? LocalDate.now().plusYears(1) : to;
-        if (start.isAfter(end)) {
-            throw ApiException.badRequest("开始日期不能晚于结束日期");
-        }
-        List<Object> args = new ArrayList<>();
-        args.add(databaseDate(start));
-        args.add(databaseDate(end));
-        StringBuilder where = new StringBuilder("""
-                WHERE s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
-                """);
-        if (keyword != null && !keyword.isBlank()) {
-            where.append("""
-                    AND (
-                      s.title LIKE ?
-                      OR s.location LIKE ?
-                      OR s.speaker LIKE ?
-                      OR s.description LIKE ?
-                    )
-                    """);
-            String like = "%" + keyword.trim() + "%";
-            args.add(like);
-            args.add(like);
-            args.add(like);
-            args.add(like);
-        }
-        if (status != null && !status.isBlank()) {
-            String normalizedStatus = parseSessionStatus(status);
-            if ("ARCHIVED".equals(normalizedStatus)) {
-                throw ApiException.badRequest("培训列表不支持查询已归档场次");
-            }
-            where.append(" AND s.status = ?");
-            args.add(normalizedStatus);
-        }
-        return new TrainingSessionQuery(where.toString(), args);
     }
 
     @Transactional
@@ -234,36 +143,19 @@ public class TrainingService {
         logs.log("ARCHIVE_TRAINING", "training_sessions", id, before, Map.of("status", "ARCHIVED"), "归档培训");
     }
 
-    public List<TrainingParticipantItem> participants(long sessionId) {
-        requireViewTrainings(AuthContext.current());
-        ensureSessionExists(sessionId);
-        return queryParticipants(sessionId, null, null, null);
-    }
-
+    @Transactional(readOnly = true)
     public TrainingParticipantPage participantPage(long sessionId, String keyword, int page, int pageSize) {
         requireViewTrainings(AuthContext.current());
         ensureSessionExists(sessionId);
-        int safePage = Math.max(1, page);
-        int safePageSize = normalizedPageSize(pageSize, DEFAULT_PARTICIPANT_PAGE_SIZE);
-        ParticipantQuery query = participantQuery(sessionId, keyword);
-        Long totalValue = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM training_participants p " + query.where(),
-                Long.class,
-                query.args().toArray()
-        );
-        long total = totalValue == null ? 0 : totalValue;
-        List<TrainingParticipantItem> items = queryParticipants(
-                sessionId,
-                keyword,
-                safePageSize,
-                (long) (safePage - 1) * safePageSize
+        TrainingQueryService.PageResult<TrainingParticipantItem> result = queries.participantPage(
+                sessionId, keyword, page, pageSize
         );
         return new TrainingParticipantPage(
-                items,
-                total,
-                safePage,
-                safePageSize,
-                (long) safePage * safePageSize < total
+                result.items(),
+                result.total(),
+                result.page(),
+                result.pageSize(),
+                result.hasMore()
         );
     }
 
@@ -331,9 +223,7 @@ public class TrainingService {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
         ensureSessionExists(sessionId);
-        if (file == null || file.isEmpty()) {
-            throw ApiException.badRequest("请选择 Excel 文件");
-        }
+        ExcelImportPolicy.validateFile(file, "培训名单");
         try (InputStream input = file.getInputStream(); Workbook workbook = WorkbookFactory.create(input)) {
             Sheet sheet = workbook.getNumberOfSheets() == 0 ? null : workbook.getSheetAt(0);
             if (sheet == null) {
@@ -354,29 +244,24 @@ public class TrainingService {
         }
     }
 
-    public ExportFile exportImportTemplate() {
-        AuthUser current = AuthContext.current();
-        requireManageTrainings(current);
-        return new ExportFile("培训名单导入模板.xlsx", workbookBytes(wb -> writeImportTemplateWorkbook(wb, null)));
-    }
-
     public ExportFile exportSessionImportTemplate(long sessionId) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
-        String filename = "培训名单导入模板_" + cleanFilename(session.title()) + "_" + session.trainingDate() + ".xlsx";
-        return new ExportFile(filename, workbookBytes(wb -> writeImportTemplateWorkbook(wb, session)));
+        TrainingExcelExportService.ExportDocument document =
+                excelExports.generateImportTemplate(session, defaultDurationHours(session));
+        return new ExportFile(document.filename(), document.bytes());
     }
 
     public ExportFile exportSession(long sessionId) {
         AuthUser current = AuthContext.current();
         requireExportTrainings(current);
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
-        List<TrainingParticipantItem> rows = queryParticipants(sessionId, null, null, null);
-        String filename = "培训名单_" + cleanFilename(session.title()) + "_" + session.trainingDate() + ".xlsx";
-        byte[] bytes = workbookBytes(wb -> writeSessionWorkbook(wb, session, rows));
-        logs.logExport("TRAINING_SESSION", "培训名单", Map.of("sessionId", sessionId), rows.size(), filename);
-        return new ExportFile(filename, bytes);
+        List<TrainingParticipantItem> rows = queries.participants(sessionId);
+        ExportRowLimit.requireWithinLimit(rows.size());
+        TrainingExcelExportService.ExportDocument document = excelExports.generateSession(session, rows);
+        logs.logExport("TRAINING_SESSION", "培训名单", Map.of("sessionId", sessionId), rows.size(), document.filename());
+        return new ExportFile(document.filename(), document.bytes());
     }
 
     public ExportFile exportSummary(String keyword, String status, LocalDate from, LocalDate to) {
@@ -384,10 +269,11 @@ public class TrainingService {
         requireExportTrainings(current);
         LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
         LocalDate end = to == null ? LocalDate.now() : to;
-        List<TrainingSessionItem> sessions = list(keyword, status, start, end);
-        List<Map<String, Object>> memberRows = queryTrainingMemberSummary(start, end);
-        String filename = "培训统计_" + start + "_" + end + ".xlsx";
-        byte[] bytes = workbookBytes(wb -> writeSummaryWorkbook(wb, sessions, memberRows, start, end));
+        List<TrainingSessionItem> sessions = queries.sessions(keyword, status, start, end);
+        List<Map<String, Object>> memberRows = queries.memberSummary(start, end);
+        ExportRowLimit.requireWithinLimit(sessions.size() + memberRows.size());
+        TrainingExcelExportService.ExportDocument document =
+                excelExports.generateSummary(sessions, memberRows, start, end);
         Map<String, Object> filters = new LinkedHashMap<>();
         filters.put("from", start.toString());
         filters.put("to", end.toString());
@@ -399,413 +285,89 @@ public class TrainingService {
                 "培训统计",
                 filters,
                 sessions.size() + memberRows.size(),
-                filename,
+                document.filename(),
                 Map.of("sessionRows", sessions.size(), "memberRows", memberRows.size())
         );
-        return new ExportFile(filename, bytes);
+        return new ExportFile(document.filename(), document.bytes());
     }
 
-    public Map<String, Object> myHours(LocalDate from, LocalDate to) {
-        AuthUser current = AuthContext.current();
-        LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
-        LocalDate end = to == null ? LocalDate.now() : to;
-        if (start.isAfter(end)) {
-            throw ApiException.badRequest("开始日期不能晚于结束日期");
-        }
-        Map<String, Object> row = jdbc.queryForMap("""
-                SELECT COUNT(*) AS trainingCount,
-                       COALESCE(SUM(p.duration_hours), 0) AS trainingHours
-                FROM training_participants p
-                JOIN training_sessions s ON s.id = p.session_id
-                WHERE s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
-                  AND p.user_id = ?
-                  AND p.duration_hours > 0
-                """, databaseDate(start), databaseDate(end), current.id());
-        return Map.of(
-                "trainingCount", number(row.get("trainingCount")),
-                "trainingHours", decimal(row.get("trainingHours"))
-        );
-    }
-
+    @Transactional(readOnly = true)
     public List<MyTrainingRecordItem> myRecords(LocalDate from, LocalDate to) {
         AuthUser current = AuthContext.current();
-        LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
-        LocalDate end = to == null ? LocalDate.now() : to;
-        if (start.isAfter(end)) {
-            throw ApiException.badRequest("开始日期不能晚于结束日期");
-        }
-        return jdbc.query("""
-                SELECT
-                  p.id AS participant_id,
-                  s.id AS session_id,
-                  s.title,
-                  s.training_date,
-                  s.start_time,
-                  s.end_time,
-                  s.location,
-                  s.speaker,
-                  p.duration_hours,
-                  p.remark
-                FROM training_participants p
-                JOIN training_sessions s ON s.id = p.session_id
-                WHERE p.user_id = ?
-                  AND s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
-                ORDER BY s.training_date DESC, s.start_time DESC, p.id DESC
-                """, (rs, rowNum) -> new MyTrainingRecordItem(
-                rs.getLong("participant_id"),
-                rs.getLong("session_id"),
-                rs.getString("title"),
-                localDate(rs, "training_date"),
-                localTime(rs, "start_time"),
-                localTime(rs, "end_time"),
-                rs.getString("location"),
-                rs.getString("speaker"),
-                rs.getBigDecimal("duration_hours"),
-                rs.getString("remark")
-        ), current.id(), databaseDate(start), databaseDate(end));
+        return queries.myRecords(current.id(), from, to);
     }
 
     private ImportResult importSheet(long sessionId, Sheet sheet, long operatorId) {
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
         BigDecimal defaultDuration = defaultDurationHours(session);
-        DataFormatter formatter = new DataFormatter();
-        int headerIndex = findHeaderRow(sheet, formatter);
-        Map<String, Integer> columns = headerIndex >= 0
-                ? headerColumns(sheet.getRow(headerIndex), formatter)
-                : fallbackColumns();
-        int startRow = headerIndex >= 0 ? headerIndex + 1 : 0;
-        int created = 0;
-        int updated = 0;
-        int skipped = 0;
-        List<String> errors = new ArrayList<>();
-        Set<String> seen = new LinkedHashSet<>();
-        int rowLimit = Math.min(sheet.getLastRowNum(), startRow + MAX_EXCEL_ROWS - 1);
-
-        for (int i = startRow; i <= rowLimit; i++) {
-            Row row = sheet.getRow(i);
-            if (row == null) {
-                continue;
-            }
-            String studentNo = cell(row, columns.get("studentNo"), formatter).replaceAll("\\s+", "");
-            String name = cell(row, columns.get("name"), formatter).trim();
-            String duration = cell(row, columns.get("duration"), formatter);
-            String remark = cell(row, columns.get("remark"), formatter);
-            if (studentNo.isBlank() && name.isBlank() && duration.isBlank() && remark.isBlank()) {
-                continue;
-            }
-            if (name.isBlank()) {
-                skipped++;
-                addIssue(errors, "第 " + (i + 1) + " 行：缺少姓名");
-                continue;
-            }
-            String seenKey = studentNo.isBlank() ? "name:" + name : "student:" + studentNo;
-            if (!seen.add(seenKey)) {
-                skipped++;
-                addIssue(errors, "第 " + (i + 1) + " 行：名单在本次文件中重复");
-                continue;
-            }
-            ParticipantValues values;
+        TrainingParticipantImportParser.ParseResult parsed = participantImports.parse(sheet, defaultDuration);
+        List<ParticipantValues> valuesToWrite = new ArrayList<>();
+        List<String> errors = new ArrayList<>(parsed.errors());
+        int skipped = parsed.skipped();
+        for (TrainingParticipantImportParser.ParsedRow row : parsed.rows()) {
             try {
-                values = participantValues(new ParticipantRequest(studentNo, name, parseDuration(duration, defaultDuration), remark), "IMPORT", defaultDuration, null);
+                valuesToWrite.add(importParticipantValues(row));
             } catch (ApiException ex) {
                 skipped++;
-                addIssue(errors, "第 " + (i + 1) + " 行：" + ex.getMessage());
-                continue;
+                addIssue(errors, "第 " + row.rowNumber() + " 行：" + ex.getMessage());
             }
-            if (participantExists(sessionId, values.studentNo())) {
-                updateParticipantByStudent(sessionId, values, operatorId);
+        }
+        if (!errors.isEmpty()) {
+            return new ImportResult(0, 0, skipped, errors);
+        }
+
+        int created = 0;
+        int updated = 0;
+        Set<String> existingStudentNumbers = new HashSet<>(jdbc.queryForList(
+                "SELECT student_no_snapshot FROM training_participants WHERE session_id = ?",
+                String.class,
+                sessionId
+        ));
+        for (ParticipantValues values : valuesToWrite) {
+            if (existingStudentNumbers.contains(values.studentNo())) {
                 updated++;
             } else {
-                insertParticipant(sessionId, values, operatorId);
                 created++;
             }
-        }
-        if (sheet.getLastRowNum() > rowLimit) {
-            addIssue(errors, "文件超过 " + MAX_EXCEL_ROWS + " 行，后续行已跳过");
+            upsertParticipant(sessionId, values, operatorId);
         }
         return new ImportResult(created, updated, skipped, errors);
+    }
+
+    private ParticipantValues importParticipantValues(TrainingParticipantImportParser.ParsedRow row) {
+        String studentNo = row.studentNo();
+        UserRef user;
+        if (studentNo.isBlank()) {
+            user = findUniqueUserByName(row.name())
+                    .orElseThrow(() -> ApiException.badRequest("请填写学号；姓名未能唯一匹配成员"));
+            studentNo = user.studentNo();
+        } else {
+            user = findUser(studentNo).orElse(null);
+        }
+        return new ParticipantValues(
+                user == null ? null : user.id(),
+                studentNo,
+                user == null ? row.name() : user.name(),
+                row.durationHours(),
+                row.remark(),
+                "IMPORT"
+        );
     }
 
     private String importFailureMessage(List<String> errors) {
         return "培训名单校验未通过，未写入任何记录：" + String.join("；", errors);
     }
 
-    private void writeImportTemplateWorkbook(Workbook wb, TrainingSessionItem session) {
-        CellStyle titleStyle = titleStyle(wb);
-        CellStyle headerStyle = headerStyle(wb);
-        CellStyle textStyle = textStyle(wb);
-
-        Sheet dataSheet = wb.createSheet("参与名单");
-        String[] headers = {"学号", "姓名", "时长", "备注"};
-        Row header = dataSheet.createRow(0);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = header.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
-        }
-        if (session != null && session.speaker() != null && !session.speaker().isBlank()) {
-            Row speaker = dataSheet.createRow(1);
-            speaker.createCell(0).setCellValue("");
-            speaker.createCell(1).setCellValue(session.speaker());
-            speaker.createCell(2).setCellValue(defaultDurationHours(session).doubleValue());
-            speaker.createCell(3).setCellValue("主讲人");
-            for (int col = 0; col < headers.length; col++) {
-                speaker.getCell(col).setCellStyle(textStyle);
-            }
-        }
-        for (int i = 0; i < headers.length; i++) {
-            dataSheet.autoSizeColumn(i);
-            dataSheet.setColumnWidth(i, Math.min(Math.max(dataSheet.getColumnWidth(i) + 1024, 14 * 256), 24 * 256));
-        }
-        dataSheet.createFreezePane(0, 1);
-
-        Sheet noteSheet = wb.createSheet("填写说明");
-        Row title = noteSheet.createRow(0);
-        title.createCell(0).setCellValue("培训参与名单导入模板");
-        title.getCell(0).setCellStyle(titleStyle);
-        List<String> notes = new ArrayList<>();
-        if (session == null) {
-            notes.add("通用模板：请在培训管理中选择具体培训后导入。");
-        } else {
-            notes.add("培训：" + session.title() + "（" + session.trainingDate() + "）");
-            notes.add("主讲人：" + nullToDash(session.speaker()));
-            notes.add("默认时长：" + defaultDurationHours(session).stripTrailingZeros().toPlainString() + " 小时");
-        }
-        notes.add("参与名单工作表第一行为表头，请从第二行开始填写。");
-        notes.add("必填列：姓名。建议同时填写学号，避免同名成员无法匹配。");
-        notes.add("时长可不填；不填时导入会使用该培训的开始/结束时间。");
-        notes.add("时长会计入值班时长，可填写 1、1.5、2 或 2小时。");
-        notes.add("第一条数据建议填写主讲人；当前培训已填写主讲人时会自动预填。");
-        for (int i = 0; i < notes.size(); i++) {
-            Row row = noteSheet.createRow(i + 2);
-            Cell cell = row.createCell(0);
-            cell.setCellValue(notes.get(i));
-            cell.setCellStyle(textStyle);
-        }
-        noteSheet.setColumnWidth(0, 58 * 256);
-        wb.setActiveSheet(0);
-    }
-
-    private void writeSessionWorkbook(Workbook wb, TrainingSessionItem session, List<TrainingParticipantItem> rows) {
-        Sheet sheet = wb.createSheet("培训名单");
-        CellStyle titleStyle = titleStyle(wb);
-        CellStyle headerStyle = headerStyle(wb);
-        CellStyle textStyle = textStyle(wb);
-
-        Row title = sheet.createRow(0);
-        title.createCell(0).setCellValue(session.title());
-        title.getCell(0).setCellStyle(titleStyle);
-        Row meta = sheet.createRow(1);
-        meta.createCell(0).setCellValue("日期");
-        meta.createCell(1).setCellValue(String.valueOf(session.trainingDate()));
-        meta.createCell(2).setCellValue("地点");
-        meta.createCell(3).setCellValue(nullToDash(session.location()));
-        meta.createCell(4).setCellValue("主讲人");
-        meta.createCell(5).setCellValue(nullToDash(session.speaker()));
-
-        String[] headers = {"序号", "学号", "姓名", "时长", "备注"};
-        Row header = sheet.createRow(3);
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = header.createCell(i);
-            cell.setCellValue(headers[i]);
-            cell.setCellStyle(headerStyle);
-        }
-
-        for (int i = 0; i < rows.size(); i++) {
-            TrainingParticipantItem item = rows.get(i);
-            Row row = sheet.createRow(i + 4);
-            row.createCell(0).setCellValue(i + 1);
-            row.createCell(1).setCellValue(item.studentNo());
-            row.createCell(2).setCellValue(item.name());
-            row.createCell(3).setCellValue(item.durationHours().doubleValue());
-            row.createCell(4).setCellValue(nullToDash(item.remark()));
-            for (int col = 0; col < headers.length; col++) {
-                row.getCell(col).setCellStyle(textStyle);
-            }
-        }
-        autosize(sheet, headers.length);
-    }
-
-    private void writeSummaryWorkbook(Workbook wb, List<TrainingSessionItem> sessions,
-                                      List<Map<String, Object>> memberRows, LocalDate from, LocalDate to) {
-        CellStyle titleStyle = titleStyle(wb);
-        CellStyle headerStyle = headerStyle(wb);
-        CellStyle textStyle = textStyle(wb);
-
-        Sheet sessionSheet = wb.createSheet("培训场次");
-        Row title = sessionSheet.createRow(0);
-        title.createCell(0).setCellValue("培训统计 " + from + " 至 " + to);
-        title.getCell(0).setCellStyle(titleStyle);
-        String[] sessionHeaders = {"日期", "标题", "地点", "主讲人", "参与", "培训时长"};
-        Row header = sessionSheet.createRow(2);
-        for (int i = 0; i < sessionHeaders.length; i++) {
-            Cell cell = header.createCell(i);
-            cell.setCellValue(sessionHeaders[i]);
-            cell.setCellStyle(headerStyle);
-        }
-        for (int i = 0; i < sessions.size(); i++) {
-            TrainingSessionItem item = sessions.get(i);
-            Row row = sessionSheet.createRow(i + 3);
-            row.createCell(0).setCellValue(String.valueOf(item.trainingDate()));
-            row.createCell(1).setCellValue(item.title());
-            row.createCell(2).setCellValue(nullToDash(item.location()));
-            row.createCell(3).setCellValue(nullToDash(item.speaker()));
-            row.createCell(4).setCellValue(item.participantCount());
-            row.createCell(5).setCellValue(item.totalDurationHours().doubleValue());
-            for (int col = 0; col < sessionHeaders.length; col++) {
-                row.getCell(col).setCellStyle(textStyle);
-            }
-        }
-        autosize(sessionSheet, sessionHeaders.length);
-
-        Sheet memberSheet = wb.createSheet("成员统计");
-        String[] memberHeaders = {"学号", "姓名", "参加次数", "培训时长"};
-        Row memberHeader = memberSheet.createRow(0);
-        for (int i = 0; i < memberHeaders.length; i++) {
-            Cell cell = memberHeader.createCell(i);
-            cell.setCellValue(memberHeaders[i]);
-            cell.setCellStyle(headerStyle);
-        }
-        for (int i = 0; i < memberRows.size(); i++) {
-            Map<String, Object> item = memberRows.get(i);
-            Row row = memberSheet.createRow(i + 1);
-            row.createCell(0).setCellValue(String.valueOf(item.get("studentNo")));
-            row.createCell(1).setCellValue(String.valueOf(item.get("name")));
-            row.createCell(2).setCellValue(number(item.get("trainingCount")));
-            row.createCell(3).setCellValue(decimal(item.get("durationHours")).doubleValue());
-            for (int col = 0; col < memberHeaders.length; col++) {
-                row.getCell(col).setCellStyle(textStyle);
-            }
-        }
-        autosize(memberSheet, memberHeaders.length);
-    }
-
-    private List<Map<String, Object>> queryTrainingMemberSummary(LocalDate from, LocalDate to) {
-        return jdbc.queryForList("""
-                SELECT p.student_no_snapshot AS studentNo,
-                       p.name_snapshot AS name,
-                       COUNT(*) AS trainingCount,
-                       COALESCE(SUM(p.duration_hours), 0) AS durationHours
-                FROM training_participants p
-                JOIN training_sessions s ON s.id = p.session_id
-                WHERE s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
-                  AND p.duration_hours > 0
-                GROUP BY p.student_no_snapshot, p.name_snapshot
-                ORDER BY durationHours DESC, trainingCount DESC, p.student_no_snapshot
-                """, from, to);
-    }
-
-    private List<TrainingSessionItem> querySessions(String where, Object... args) {
-        return querySessions(where, Arrays.asList(args), null, null);
-    }
-
-    private List<TrainingSessionItem> querySessions(
-            String where,
-            List<Object> args,
-            Integer limit,
-            Long offset
-    ) {
-        List<Object> queryArgs = new ArrayList<>(args);
-        String pagination = "";
-        if (limit != null && offset != null) {
-            pagination = "\nLIMIT ? OFFSET ?";
-            queryArgs.add(limit);
-            queryArgs.add(offset);
-        }
-        return jdbc.query("""
-                SELECT s.*,
-                       cb.name AS created_by_name,
-                       ub.name AS updated_by_name,
-                       (SELECT COUNT(*) FROM training_participants p WHERE p.session_id = s.id AND p.duration_hours > 0) AS participant_count,
-                       (SELECT COALESCE(SUM(p.duration_hours), 0) FROM training_participants p WHERE p.session_id = s.id) AS total_duration_hours
-                FROM training_sessions s
-                LEFT JOIN users cb ON cb.id = s.created_by
-                LEFT JOIN users ub ON ub.id = s.updated_by
-                """ + where + """
-
-                ORDER BY s.training_date DESC, s.id DESC
-                """ + pagination, sessionMapper, queryArgs.toArray());
-    }
-
     private Optional<TrainingSessionItem> findSession(long id) {
-        return querySessions("WHERE s.id = ?", id).stream().findFirst();
+        return queries.findSession(id);
     }
 
     private void ensureSessionExists(long sessionId) {
         findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
     }
 
-    private List<TrainingParticipantItem> queryParticipants(
-            long sessionId,
-            String keyword,
-            Integer limit,
-            Long offset
-    ) {
-        ParticipantQuery query = participantQuery(sessionId, keyword);
-        List<Object> queryArgs = new ArrayList<>(query.args());
-        String pagination = "";
-        if (limit != null && offset != null) {
-            pagination = "\nLIMIT ? OFFSET ?";
-            queryArgs.add(limit);
-            queryArgs.add(offset);
-        }
-        return jdbc.query("""
-                SELECT p.*,
-                       cb.name AS created_by_name,
-                       ub.name AS updated_by_name
-                FROM training_participants p
-                JOIN training_sessions s ON s.id = p.session_id
-                LEFT JOIN users cb ON cb.id = p.created_by
-                LEFT JOIN users ub ON ub.id = p.updated_by
-                """ + query.where() + """
-
-                ORDER BY
-                  CASE WHEN s.speaker IS NOT NULL AND s.speaker <> '' AND p.name_snapshot = s.speaker THEN 0 ELSE 1 END,
-                  p.student_no_snapshot,
-                  p.id
-                """ + pagination, participantMapper, queryArgs.toArray());
-    }
-
-    private ParticipantQuery participantQuery(long sessionId, String keyword) {
-        StringBuilder where = new StringBuilder("WHERE p.session_id = ?");
-        List<Object> args = new ArrayList<>();
-        args.add(sessionId);
-        if (keyword != null && !keyword.isBlank()) {
-            where.append("""
-                    AND (
-                      p.student_no_snapshot LIKE ?
-                      OR p.name_snapshot LIKE ?
-                      OR p.remark LIKE ?
-                    )
-                    """);
-            String like = "%" + keyword.trim() + "%";
-            args.add(like);
-            args.add(like);
-            args.add(like);
-        }
-        return new ParticipantQuery(where.toString(), args);
-    }
-
-    private int normalizedPageSize(int pageSize, int defaultPageSize) {
-        if (pageSize <= 0) {
-            return defaultPageSize;
-        }
-        return Math.min(pageSize, MAX_PAGE_SIZE);
-    }
-
     private Optional<TrainingParticipantItem> findParticipant(long sessionId, long participantId) {
-        return jdbc.query("""
-                SELECT p.*,
-                       cb.name AS created_by_name,
-                       ub.name AS updated_by_name
-                FROM training_participants p
-                LEFT JOIN users cb ON cb.id = p.created_by
-                LEFT JOIN users ub ON ub.id = p.updated_by
-                WHERE p.session_id = ? AND p.id = ?
-                """, participantMapper, sessionId, participantId).stream().findFirst();
+        return queries.findParticipant(sessionId, participantId);
     }
 
     private long insertParticipant(long sessionId, ParticipantValues values, Long operatorId) {
@@ -831,31 +393,36 @@ public class TrainingService {
         return id == null ? 0 : id;
     }
 
-    private void updateParticipantByStudent(long sessionId, ParticipantValues values, Long operatorId) {
-        jdbc.update("""
-                UPDATE training_participants
-                SET user_id = ?, name_snapshot = ?, attendance_status = 'PRESENT', duration_hours = ?, remark = ?,
-                    source = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
-                WHERE session_id = ? AND student_no_snapshot = ?
+    private void upsertParticipant(long sessionId, ParticipantValues values, Long operatorId) {
+        int affected = jdbc.update("""
+                INSERT INTO training_participants (
+                  session_id, user_id, student_no_snapshot, name_snapshot, attendance_status,
+                  duration_hours, remark, source, created_by, updated_by
+                )
+                VALUES (?, ?, ?, ?, 'PRESENT', ?, ?, ?, ?, ?)
+                ON CONFLICT(session_id, student_no_snapshot) DO UPDATE SET
+                  user_id = excluded.user_id,
+                  name_snapshot = excluded.name_snapshot,
+                  attendance_status = 'PRESENT',
+                  duration_hours = excluded.duration_hours,
+                  remark = excluded.remark,
+                  source = excluded.source,
+                  updated_by = excluded.updated_by,
+                  updated_at = datetime('now', 'localtime')
                 """,
+                sessionId,
                 values.userId(),
+                values.studentNo(),
                 values.name(),
                 values.durationHours(),
                 values.remark(),
                 values.source(),
                 operatorId,
-                sessionId,
-                values.studentNo()
+                operatorId
         );
-    }
-
-    private boolean participantExists(long sessionId, String studentNo) {
-        Integer count = jdbc.queryForObject("""
-                SELECT COUNT(*)
-                FROM training_participants
-                WHERE session_id = ? AND student_no_snapshot = ?
-                """, Integer.class, sessionId, studentNo);
-        return count != null && count > 0;
+        if (affected != 1) {
+            throw new IllegalStateException("培训参与记录写入数量异常");
+        }
     }
 
     private ParticipantValues participantValues(ParticipantRequest request, String source, BigDecimal defaultDuration, BigDecimal fallbackDuration) {
@@ -922,76 +489,15 @@ public class TrainingService {
             throw ApiException.badRequest("结束时间不能早于开始时间");
         }
         return new SessionValues(
-                required(title, "培训标题不能为空"),
+                required(title, "培训标题不能为空", 100, "培训标题"),
                 date,
                 start,
                 end,
                 trimToNull(request.location() == null && fallback != null ? fallback.location() : request.location(), 120),
                 trimToNull(request.speaker() == null && fallback != null ? fallback.speaker() : request.speaker(), 120),
                 trimToNull(request.description() == null && fallback != null ? fallback.description() : request.description(), 500),
-                parseSessionStatus(request.status() == null && fallback != null ? fallback.status() : request.status())
+                TrainingSessionStatus.parse(request.status() == null && fallback != null ? fallback.status() : request.status())
         );
-    }
-
-    private int findHeaderRow(Sheet sheet, DataFormatter formatter) {
-        int last = Math.min(sheet.getLastRowNum(), 8);
-        for (int rowIndex = 0; rowIndex <= last; rowIndex++) {
-            Row row = sheet.getRow(rowIndex);
-            if (row == null) {
-                continue;
-            }
-            boolean hasStudentNo = false;
-            boolean hasName = false;
-            for (int col = Math.max(row.getFirstCellNum(), 0); col < row.getLastCellNum(); col++) {
-                String header = clean(formatter.formatCellValue(row.getCell(col)));
-                if (header.contains("学号") || header.equalsIgnoreCase("studentNo")) {
-                    hasStudentNo = true;
-                }
-                if (header.contains("姓名") || header.equalsIgnoreCase("name")) {
-                    hasName = true;
-                }
-            }
-            if (hasStudentNo && hasName) {
-                return rowIndex;
-            }
-        }
-        return -1;
-    }
-
-    private Map<String, Integer> headerColumns(Row row, DataFormatter formatter) {
-        Map<String, Integer> columns = new HashMap<>();
-        for (int col = Math.max(row.getFirstCellNum(), 0); col < row.getLastCellNum(); col++) {
-            String header = clean(formatter.formatCellValue(row.getCell(col))).toLowerCase(Locale.ROOT);
-            if (header.contains("学号") || header.contains("student")) {
-                columns.putIfAbsent("studentNo", col);
-            }
-            if (header.contains("姓名") || header.equals("name")) {
-                columns.putIfAbsent("name", col);
-            }
-            if (header.contains("时长") || header.contains("小时") || header.contains("duration") || header.contains("hours")) {
-                columns.putIfAbsent("duration", col);
-            }
-            if (header.contains("备注") || header.contains("说明") || header.contains("remark")) {
-                columns.putIfAbsent("remark", col);
-            }
-        }
-        if (!columns.containsKey("studentNo") || !columns.containsKey("name")) {
-            return fallbackColumns();
-        }
-        columns.putIfAbsent("duration", -1);
-        columns.putIfAbsent("remark", -1);
-        return columns;
-    }
-
-    private Map<String, Integer> fallbackColumns() {
-        return Map.of("studentNo", 0, "name", 1, "duration", 2, "remark", 3);
-    }
-
-    private String cell(Row row, Integer index, DataFormatter formatter) {
-        if (row == null || index == null || index < 0) {
-            return "";
-        }
-        return clean(formatter.formatCellValue(row.getCell(index)));
     }
 
     private BigDecimal normalizedDuration(BigDecimal requested, BigDecimal defaultDuration, BigDecimal fallbackDuration) {
@@ -1011,18 +517,6 @@ public class TrainingService {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 
-    private BigDecimal parseDuration(String value, BigDecimal defaultDuration) {
-        if (value == null || value.isBlank()) {
-            return defaultDuration;
-        }
-        String text = value.trim().replace("小时", "").replace("时", "").replace("h", "").replace("H", "");
-        try {
-            return normalizedDuration(new BigDecimal(text), defaultDuration, null);
-        } catch (NumberFormatException ex) {
-            throw ApiException.badRequest("培训时长应填写数字");
-        }
-    }
-
     private BigDecimal defaultDurationHours(TrainingSessionItem session) {
         LocalTime start = session.startTime();
         LocalTime end = session.endTime();
@@ -1032,17 +526,6 @@ public class TrainingService {
         long minutes = java.time.Duration.between(start, end).toMinutes();
         return BigDecimal.valueOf(minutes)
                 .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
-    }
-
-    private String parseSessionStatus(String value) {
-        if (value == null || value.isBlank()) {
-            return "PLANNED";
-        }
-        String text = value.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("PLANNED", "COMPLETED", "CANCELED", "ARCHIVED").contains(text)) {
-            throw ApiException.badRequest("培训状态不合法");
-        }
-        return text;
     }
 
     private void requireManageTrainings(AuthUser current) {
@@ -1063,65 +546,6 @@ public class TrainingService {
                 "只有会长或管理员可以导出培训 Excel");
     }
 
-    private byte[] workbookBytes(WorkbookWriter writer) {
-        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            writer.write(wb);
-            wb.write(out);
-            return out.toByteArray();
-        } catch (Exception ex) {
-            throw ApiException.badRequest("生成 Excel 失败");
-        }
-    }
-
-    private CellStyle titleStyle(Workbook wb) {
-        CellStyle style = wb.createCellStyle();
-        Font font = wb.createFont();
-        font.setFontName("Microsoft YaHei");
-        font.setFontHeightInPoints((short) 14);
-        font.setBold(true);
-        style.setFont(font);
-        return style;
-    }
-
-    private CellStyle headerStyle(Workbook wb) {
-        CellStyle style = borderedStyle(wb);
-        style.setAlignment(HorizontalAlignment.CENTER);
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        style.setFillForegroundColor(IndexedColors.PALE_BLUE.getIndex());
-        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-        Font font = wb.createFont();
-        font.setFontName("Microsoft YaHei");
-        font.setBold(true);
-        style.setFont(font);
-        return style;
-    }
-
-    private CellStyle textStyle(Workbook wb) {
-        CellStyle style = borderedStyle(wb);
-        style.setVerticalAlignment(VerticalAlignment.CENTER);
-        Font font = wb.createFont();
-        font.setFontName("Microsoft YaHei");
-        style.setFont(font);
-        return style;
-    }
-
-    private CellStyle borderedStyle(Workbook wb) {
-        CellStyle style = wb.createCellStyle();
-        style.setBorderTop(BorderStyle.THIN);
-        style.setBorderRight(BorderStyle.THIN);
-        style.setBorderBottom(BorderStyle.THIN);
-        style.setBorderLeft(BorderStyle.THIN);
-        return style;
-    }
-
-    private void autosize(Sheet sheet, int columns) {
-        sheet.createFreezePane(0, Math.min(3, sheet.getLastRowNum()));
-        for (int i = 0; i < columns; i++) {
-            sheet.autoSizeColumn(i);
-            sheet.setColumnWidth(i, Math.min(Math.max(sheet.getColumnWidth(i) + 512, 10 * 256), 28 * 256));
-        }
-    }
-
     private String sessionStatusText(String status) {
         return switch (status) {
             case "PLANNED" -> "计划中";
@@ -1132,32 +556,19 @@ public class TrainingService {
         };
     }
 
-    private int number(Object value) {
-        return value instanceof Number number ? number.intValue() : 0;
-    }
-
-    private BigDecimal decimal(Object value) {
-        if (value instanceof BigDecimal decimal) {
-            return decimal.setScale(2, RoundingMode.HALF_UP);
-        }
-        if (value instanceof Number number) {
-            return BigDecimal.valueOf(number.doubleValue()).setScale(2, RoundingMode.HALF_UP);
-        }
-        if (value != null) {
-            try {
-                return new BigDecimal(String.valueOf(value)).setScale(2, RoundingMode.HALF_UP);
-            } catch (NumberFormatException ignored) {
-                // fall through
-            }
-        }
-        return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
-    }
-
     private String required(String value, String message) {
         if (value == null || value.isBlank()) {
             throw ApiException.badRequest(message);
         }
         return value.trim();
+    }
+
+    private String required(String value, String message, int maxLength, String label) {
+        String normalized = required(value, message);
+        if (normalized.length() > maxLength) {
+            throw ApiException.badRequest(label + "不能超过 " + maxLength + " 个字符");
+        }
+        return normalized;
     }
 
     private String trimToNull(String value, int maxLength) {
@@ -1166,24 +577,6 @@ public class TrainingService {
         }
         String text = value.trim();
         return text.length() <= maxLength ? text : text.substring(0, maxLength);
-    }
-
-    private String clean(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private String nullToDash(String value) {
-        return value == null || value.isBlank() ? "-" : value;
-    }
-
-    private String cleanFilename(String value) {
-        String text = value == null ? "training" : value.replaceAll("[\\\\/:*?\"<>|\\s]+", "_");
-        return text.isBlank() ? "training" : text;
-    }
-
-    private Long nullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
-        long value = rs.getLong(column);
-        return rs.wasNull() ? null : value;
     }
 
     private void addIssue(List<String> issues, String issue) {
@@ -1248,16 +641,7 @@ public class TrainingService {
     private record ParticipantValues(Long userId, String studentNo, String name, BigDecimal durationHours, String remark, String source) {
     }
 
-    private record TrainingSessionQuery(String where, List<Object> args) {
-    }
-
-    private record ParticipantQuery(String where, List<Object> args) {
-    }
-
     private record UserRef(long id, String studentNo, String name) {
     }
 
-    private interface WorkbookWriter {
-        void write(Workbook wb);
-    }
 }

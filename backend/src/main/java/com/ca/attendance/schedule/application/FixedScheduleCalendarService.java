@@ -4,12 +4,15 @@ import com.ca.attendance.schedule.DutyScheduleService;
 import com.ca.attendance.schedule.DutyScheduleSlotItem;
 import com.ca.attendance.schedule.domain.FixedScheduleDay;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class FixedScheduleCalendarService {
@@ -19,6 +22,7 @@ public class FixedScheduleCalendarService {
         this.schedules = schedules;
     }
 
+    @Transactional(readOnly = true)
     public FixedScheduleDay day(LocalDate date) {
         int weekday = date.getDayOfWeek().getValue();
         List<FixedScheduleDay.FixedSlot> slots = schedules.today(date).stream()
@@ -27,11 +31,23 @@ public class FixedScheduleCalendarService {
         return new FixedScheduleDay(date, weekday, weekdayName(weekday), slots);
     }
 
+    @Transactional(readOnly = true)
     public List<FixedScheduleDay> week(LocalDate date) {
         LocalDate monday = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        Map<Integer, List<DutyScheduleSlotItem>> slotsByWeekday = schedules.week(date).stream()
+                .collect(Collectors.groupingBy(DutyScheduleSlotItem::weekday));
         List<FixedScheduleDay> result = new ArrayList<>();
         for (int index = 0; index < 7; index++) {
-            result.add(day(monday.plusDays(index)));
+            int weekday = index + 1;
+            List<FixedScheduleDay.FixedSlot> slots = slotsByWeekday.getOrDefault(weekday, List.of()).stream()
+                    .map(this::toSlot)
+                    .toList();
+            result.add(new FixedScheduleDay(
+                    monday.plusDays(index),
+                    weekday,
+                    weekdayName(weekday),
+                    slots
+            ));
         }
         return List.copyOf(result);
     }

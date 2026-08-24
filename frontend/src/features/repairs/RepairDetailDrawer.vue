@@ -147,7 +147,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, ref } from "vue";
 import {
   CalendarClock,
   CircleCheck,
@@ -189,7 +189,6 @@ const emit = defineEmits<{
 }>();
 
 const dialog = ref<HTMLElement | null>(null);
-let restorePageScroll: (() => void) | null = null;
 useDialogFocus({
   root: dialog,
   open: () => props.open,
@@ -213,26 +212,4 @@ const endTimeLabel = computed(() =>
       ? "最后更新"
       : "最近更新",
 );
-
-watch(
-  () => props.open,
-  (open) => {
-    if (open && !restorePageScroll) {
-      const htmlOverflow = document.documentElement.style.overflow;
-      const bodyOverflow = document.body.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      restorePageScroll = () => {
-        document.documentElement.style.overflow = htmlOverflow;
-        document.body.style.overflow = bodyOverflow;
-        restorePageScroll = null;
-      };
-    } else if (!open) {
-      restorePageScroll?.();
-    }
-  },
-  { immediate: true },
-);
-
-onBeforeUnmount(() => restorePageScroll?.());
 </script>

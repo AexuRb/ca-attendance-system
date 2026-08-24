@@ -2,11 +2,13 @@
 param(
     [int]$Port = 18080,
     [int]$RemotePort = 18081,
-    [string]$AdminStudentNo = "1004231224",
-    [string]$AdminPassword = "123456",
+    [string]$AdminStudentNo = "",
+    [string]$AdminPassword = "",
     [int]$Iterations = 12,
     [int]$BrowserIterations = 3,
     [string]$OutputPath = "",
+    [string]$BaselinePath = "",
+    [double]$MaxRegressionRatio = 1.5,
     [switch]$KeepData
 )
 
@@ -26,7 +28,17 @@ $runRoot = [IO.Path]::GetFullPath(
     (Join-Path $env:TEMP ("ca-attendance-performance-" + [Guid]::NewGuid().ToString("N")))
 )
 if (-not $runRoot.StartsWith($tempBase, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "临时目录不在系统 TEMP 内：$runRoot"
+    throw "Performance run root is outside TEMP: $runRoot"
+}
+if (-not $AdminStudentNo) {
+    $AdminStudentNo = "9" + (Get-Random -Minimum 100000000 -Maximum 999999999)
+}
+if (-not $AdminPassword) {
+    $AdminPassword = [Guid]::NewGuid().ToString("N")
+}
+$MinisterPassword = [Guid]::NewGuid().ToString("N")
+if ($BaselinePath) {
+    $BaselinePath = (Resolve-Path -LiteralPath $BaselinePath).Path
 }
 
 New-Item -ItemType Directory -Path $runRoot -Force | Out-Null
@@ -38,6 +50,7 @@ $apiOutput = Join-Path $runRoot "api.json"
 $browserOutput = Join-Path $runRoot "browser.json"
 $validationOutput = Join-Path $runRoot "large-validation.json"
 $visualOutput = Join-Path $runRoot "large-visual.json"
+$gateOutput = Join-Path $runRoot "performance-gate.json"
 $screenshotDirectory = Join-Path `
     (Split-Path -Parent $OutputPath) `
     (([IO.Path]::GetFileNameWithoutExtension($OutputPath)) + "-screenshots")
@@ -55,7 +68,7 @@ function Invoke-PerformanceTool {
     param([string[]]$Arguments)
     & $python $performanceTool @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "性能工具执行失败，退出码：$LASTEXITCODE"
+        throw "Performance tool failed with exit code $LASTEXITCODE."
     }
 }
 
@@ -88,12 +101,12 @@ try {
     if (-not $ready) {
         Get-Content -LiteralPath $stdout -Tail 80 -ErrorAction SilentlyContinue
         Get-Content -LiteralPath $stderr -Tail 80 -ErrorAction SilentlyContinue
-        throw "隔离性能测试服务启动超时。"
+        throw "Isolated performance service startup timed out."
     }
 
     $setupBody = @{
         account = $AdminStudentNo
-        name = "性能测试管理员"
+        name = "Performance Test Admin"
         password = $AdminPassword
     } | ConvertTo-Json
     Invoke-RestMethod `
@@ -104,6 +117,7 @@ try {
 
     Invoke-PerformanceTool @(
         "seed", "--database", $database,
+        "--allowed-root", $runRoot,
         "--users", "500",
         "--attendance", "10000",
         "--trainings", "200",
@@ -118,6 +132,34 @@ try {
         "inspect", "--database", $database,
         "--output", $inspectOutput
     )
+
+    $loginBody = @{
+        studentNo = $AdminStudentNo
+        password = $AdminPassword
+    } | ConvertTo-Json
+    $adminSession = Invoke-RestMethod `
+        -Uri "$baseUrl/api/auth/login" `
+        -Method Post `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $loginBody
+    $authHeaders = @{ Authorization = "Bearer $($adminSession.token)" }
+    $ministerPage = Invoke-RestMethod `
+        -Uri "$baseUrl/api/users/page?keyword=9000000004&page=1&pageSize=20" `
+        -Headers $authHeaders
+    $minister = $ministerPage.items | Where-Object { $_.studentNo -eq "9000000004" } | Select-Object -First 1
+    if (-not $minister) {
+        throw "Performance minister account was not found."
+    }
+    $resetBody = @{
+        newPassword = $MinisterPassword
+        reason = "Performance permission validation"
+    } | ConvertTo-Json
+    Invoke-RestMethod `
+        -Uri "$baseUrl/api/users/$($minister.id)/reset-password" `
+        -Method Post `
+        -Headers $authHeaders `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $resetBody | Out-Null
 
     $seed = Get-Content -LiteralPath $seedOutput -Raw | ConvertFrom-Json
     $toDate = [DateTime]::ParseExact($seed.date_range[1], "yyyy-MM-dd", $null)
@@ -147,17 +189,18 @@ try {
         --screenshots $screenshotDirectory `
         --output $visualOutput
     if ($LASTEXITCODE -ne 0) {
-        throw "大数据视觉验收失败，退出码：$LASTEXITCODE"
+        throw "Large-data visual validation failed with exit code $LASTEXITCODE."
     }
     & $python (Join-Path $PSScriptRoot "large_dataset_validation.py") `
         --base-url $baseUrl `
         --student-no $AdminStudentNo `
         --password $AdminPassword `
+        --minister-password $MinisterPassword `
         --from-date $fromDate `
         --to-date $toDate.ToString("yyyy-MM-dd") `
         --output $validationOutput
     if ($LASTEXITCODE -ne 0) {
-        throw "大数据功能验收失败，退出码：$LASTEXITCODE"
+        throw "Large-data functional validation failed with exit code $LASTEXITCODE."
     }
 
     $listener = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction Stop |
@@ -195,9 +238,27 @@ try {
         New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
     }
     $report | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputPath -Encoding utf8
-    Write-Host "性能基线完成：$OutputPath"
+
+    $gateArguments = @(
+        "evaluate", "--report", $OutputPath,
+        "--max-regression-ratio", [string]$MaxRegressionRatio,
+        "--output", $gateOutput
+    )
+    if ($BaselinePath) {
+        $gateArguments += @("--baseline", $BaselinePath)
+    }
+    & $python $performanceTool @gateArguments
+    $gateExitCode = $LASTEXITCODE
+    if (Test-Path -LiteralPath $gateOutput) {
+        $report.gate = Get-Content -LiteralPath $gateOutput -Raw | ConvertFrom-Json
+        $report | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $OutputPath -Encoding utf8
+    }
+    if ($gateExitCode -ne 0) {
+        throw "Performance gate failed. Details: $OutputPath"
+    }
+    Write-Host "Performance baseline complete: $OutputPath"
 } catch {
-    Write-Host "性能基线失败，后端日志："
+    Write-Host "Performance baseline failed. Backend logs:"
     Get-Content -LiteralPath $stdout -Tail 100 -ErrorAction SilentlyContinue
     Get-Content -LiteralPath $stderr -Tail 100 -ErrorAction SilentlyContinue
     throw
@@ -219,7 +280,7 @@ try {
             Stop-Process -Id $listenerOwner -Force -ErrorAction SilentlyContinue
             Wait-Process -Id $listenerOwner -Timeout 5 -ErrorAction SilentlyContinue
         } else {
-            Write-Warning "未停止占用隔离性能端口的未知进程：$listenerOwner"
+            Write-Warning "Unknown process on the isolated performance port was not stopped: $listenerOwner"
         }
     }
     $env:APP_ROOT = $previousRoot
@@ -241,7 +302,7 @@ try {
                 }
             }
             if (Test-Path -LiteralPath $verifiedRoot) {
-                Write-Warning "隔离性能目录暂未删除：$verifiedRoot"
+                Write-Warning "Isolated performance directory was not removed: $verifiedRoot"
             }
         }
     }

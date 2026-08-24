@@ -1,10 +1,4 @@
 /* Final admin detail layer: precise type, quieter surfaces and clearer data. */
-.refined-admin-layout {
-  --admin-canvas: #fbfdfe;
-  --admin-line: #dce9ef;
-  --admin-line-soft: #edf3f6;
-}
-
 .refined-admin-layout .admin-content {
   padding: 26px clamp(22px, 2.7vw, 42px) 52px;
   background: var(--admin-canvas);
@@ -924,14 +918,6 @@
 }
 
 /* Training, repairs and data */
-.refined-admin-layout .split-workspace {
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: 24px;
-}
-
-.refined-admin-layout .record-list-item {
-  min-height: 62px;
-}
 
 .repair-editor-steps {
   display: grid;
@@ -1370,7 +1356,6 @@
     justify-self: stretch;
   }
 
-  .refined-admin-layout .split-workspace,
   .refined-admin-layout .export-workspace {
     grid-template-columns: 1fr;
   }
@@ -1415,13 +1400,6 @@
 
   .refined-admin-layout .weekday-selector label {
     min-height: 58px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .refined-admin-layout .section-navigation a.router-link-active,
-  .refined-admin-layout .primary-nav a.active::after {
-    animation: none;
   }
 }
 
@@ -1831,30 +1809,6 @@
   border-radius: 5px;
   padding: 5px;
   background: var(--surface-soft);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .admin-view-enter-active,
-  .admin-view-leave-active,
-  .modal-enter-active .modal-shell,
-  .modal-leave-active .modal-shell,
-  .refined-admin-layout .button,
-  .refined-admin-layout .button > svg,
-  .refined-admin-layout .icon-button,
-  .refined-admin-layout .icon-button > svg,
-  .refined-admin-layout .metric-strip strong,
-  .refined-admin-layout .metric-grid strong,
-  .refined-admin-layout .source-grid button,
-  .refined-admin-layout .field-choice-grid label {
-    transition-duration: 0.01ms !important;
-  }
-
-  .admin-view-enter-from,
-  .admin-view-leave-to,
-  .modal-enter-from .modal-shell,
-  .modal-leave-to .modal-shell {
-    transform: none;
-  }
 }
 .review-error-list {
   display: grid;

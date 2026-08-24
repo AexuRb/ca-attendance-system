@@ -68,6 +68,7 @@ import AdminTopbar from "./admin/AdminTopbar.vue";
 import CreditsDialog from "../shared/ui/CreditsDialog.vue";
 import { useSession } from "../app/session";
 import { navigationForRole, roleLabel } from "../app/adminNavigation";
+import { safeStorageGet, safeStorageSet } from "../shared/storage";
 import type { Role } from "../shared/types";
 
 const sidebarStorageKey = "ca-admin-section-sidebar-collapsed";
@@ -77,7 +78,7 @@ const router = useRouter();
 const navOpen = ref(false);
 const creditsOpen = ref(false);
 const sidebarCollapsed = ref(
-  window.localStorage.getItem(sidebarStorageKey) === "true",
+  safeStorageGet(sidebarStorageKey) === "true",
 );
 const clock = ref("");
 let timer = 0;
@@ -117,12 +118,12 @@ onBeforeUnmount(() => window.clearInterval(timer));
 function collapseSidebar() {
   sidebarCollapsed.value = true;
   navOpen.value = false;
-  window.localStorage.setItem(sidebarStorageKey, "true");
+  safeStorageSet(sidebarStorageKey, "true");
 }
 
 function expandSidebar() {
   sidebarCollapsed.value = false;
-  window.localStorage.setItem(sidebarStorageKey, "false");
+  safeStorageSet(sidebarStorageKey, "false");
 }
 
 function updateClock() {

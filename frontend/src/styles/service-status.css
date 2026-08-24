@@ -17,7 +17,7 @@
 }
 
 .service-status[data-online="true"] i {
-  background: #36a283;
+  background: var(--green-500);
   animation: service-pulse 2.6s var(--ease-out) infinite;
 }
 
@@ -28,11 +28,5 @@
 @keyframes service-pulse {
   55% {
     box-shadow: 0 0 0 7px rgba(54, 162, 131, 0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .service-status i {
-    animation: none !important;
   }
 }

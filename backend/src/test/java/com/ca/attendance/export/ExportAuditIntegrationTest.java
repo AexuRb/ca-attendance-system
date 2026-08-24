@@ -11,15 +11,20 @@ import com.ca.attendance.config.StoragePaths;
 import com.ca.attendance.log.OperationLogQueryService;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
+import com.ca.attendance.repair.RepairAgreementService;
+import com.ca.attendance.repair.RepairCaseQueryService;
 import com.ca.attendance.repair.RepairCaseService;
+import com.ca.attendance.repair.RepairExcelExportService;
 import com.ca.attendance.schedule.DutyScheduleImportService;
 import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.stats.StatsService;
+import com.ca.attendance.training.TrainingQueryService;
+import com.ca.attendance.training.TrainingExcelExportService;
+import com.ca.attendance.training.TrainingParticipantImportParser;
 import com.ca.attendance.training.TrainingService;
 import com.ca.attendance.user.UserRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -69,7 +74,7 @@ class ExportAuditIntegrationTest {
         dataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(storagePaths);
         new DatabaseMigrator(dataSource).run();
         jdbc = new JdbcTemplate(dataSource);
-        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        objectMapper = new ObjectMapper();
 
         adminId = insertUser("admin", "审计管理员", "ADMIN");
         memberId = insertUser("20260001", "导出测试成员", "MEMBER");
@@ -85,8 +90,23 @@ class ExportAuditIntegrationTest {
                 storagePaths
         );
         stats = new StatsService(jdbc, audit);
-        trainings = new TrainingService(jdbc, audit);
-        repairs = new RepairCaseService(jdbc, audit, backups, new UserRepository(jdbc));
+        trainings = new TrainingService(
+                jdbc,
+                audit,
+                new TrainingQueryService(jdbc),
+                new TrainingExcelExportService(),
+                new TrainingParticipantImportParser()
+        );
+        UserRepository repairUsers = new UserRepository(jdbc);
+        repairs = new RepairCaseService(
+                jdbc,
+                audit,
+                backups,
+                repairUsers,
+                new RepairCaseQueryService(jdbc, repairUsers),
+                new RepairAgreementService(),
+                new RepairExcelExportService()
+        );
         operationLogs = new OperationLogQueryService(jdbc, backups, audit);
         customExports = new CustomExportService(jdbc, audit);
         DutyPeriodService dutyPeriods = new DutyPeriodService(jdbc, objectMapper, audit);
@@ -189,13 +209,11 @@ class ExportAuditIntegrationTest {
     }
 
     @Test
-    void templatesAndAgreementPreviewDoNotCreateBusinessExportAudit() {
-        TrainingService.ExportFile general = trainings.exportImportTemplate();
+    void sessionTemplateAndAgreementPreviewDoNotCreateBusinessExportAudit() {
         TrainingService.ExportFile session = trainings.exportSessionImportTemplate(sessionId);
         DutyScheduleImportService.ExportFile schedule = scheduleImports.exportTemplate();
         RepairCaseService.AgreementFile agreement = repairs.agreement(repairId());
 
-        assertTrue(general.bytes().length > 1000);
         assertTrue(session.bytes().length > 1000);
         assertTrue(schedule.bytes().length > 1000);
         assertTrue(agreement.bytes().length > 1000);

@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 export default defineConfig({
   plugins: [vue()],
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     clearMocks: true
   },
   server: {

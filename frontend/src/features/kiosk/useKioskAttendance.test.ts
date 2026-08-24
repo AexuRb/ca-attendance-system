@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, h, type Ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +12,13 @@ vi.mock("../../shared/api", async (importOriginal) => {
     get: vi.fn(),
     post: vi.fn(),
   };
+});
+
+afterEach(() => {
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  vi.mocked(get).mockReset();
+  document.body.innerHTML = "";
 });
 
 type KioskState = ReturnType<typeof useKioskAttendance> & {
@@ -35,10 +43,6 @@ describe("useKioskAttendance schedule refresh", () => {
     vi.mocked(get).mockImplementation(async (path) =>
       (path.endsWith("/week") ? [] : { slots: [] }) as never,
     );
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it("updates the shared date and reloads schedules after midnight", async () => {
@@ -124,10 +128,6 @@ describe("useKioskAttendance lookup recovery", () => {
     vi.mocked(get).mockImplementation(async (path) =>
       (path.endsWith("/week") ? [] : { slots: [] }) as never,
     );
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
   });
 
   it("retries the selected member after a network interruption", async () => {

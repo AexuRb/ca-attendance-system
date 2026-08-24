@@ -35,8 +35,8 @@
         <X aria-hidden="true" />
       </button>
     </div>
-    <p v-if="error" class="form-error training-import-error" role="alert">
-      {{ error }}
+    <p v-if="displayError" class="form-error training-import-error" role="alert">
+      {{ displayError }}
     </p>
     <template #footer>
       <button class="button secondary" type="button" :disabled="pending || templatePending" @click="$emit('template')">
@@ -58,8 +58,9 @@
 
 <script setup lang="ts">
 import { FileSpreadsheet, Download, LoaderCircle, Upload, X } from "@lucide/vue";
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
+import { excelFileError } from "../../shared/validation/fileValidation";
 
 const props = withDefaults(
   defineProps<{
@@ -77,6 +78,8 @@ const emit = defineEmits<{
 }>();
 const file = ref<File | null>(null);
 const input = ref<HTMLInputElement | null>(null);
+const selectionError = ref("");
+const displayError = computed(() => selectionError.value || props.error);
 
 watch(
   () => props.open,
@@ -84,11 +87,18 @@ watch(
 );
 
 function pick(event: Event) {
-  file.value = (event.target as HTMLInputElement).files?.[0] || null;
+  const target = event.target as HTMLInputElement;
+  const selected = target.files?.[0] || null;
+  selectionError.value = selected
+    ? excelFileError(selected, "培训名单 Excel 文件")
+    : "";
+  file.value = selectionError.value ? null : selected;
+  if (selectionError.value) target.value = "";
 }
 
 function clearFile() {
   file.value = null;
+  selectionError.value = "";
   if (input.value) input.value.value = "";
 }
 

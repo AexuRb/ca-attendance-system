@@ -14,9 +14,9 @@ public class UserDeletionHistoryGuard {
         this.jdbc = jdbc;
     }
 
-    public List<String> findReferences(long userId, String studentNo) {
+    public List<String> findReferences(long userId) {
         List<String> references = new ArrayList<>();
-        addIfPresent(references, "签到与审核记录", hasAttendanceHistory(userId, studentNo));
+        addIfPresent(references, "签到与审核记录", hasAttendanceHistory(userId));
         addIfPresent(references, "培训记录", hasTrainingHistory(userId));
         addIfPresent(references, "固定周表", hasScheduleHistory(userId));
         addIfPresent(references, "维修事务", hasRepairHistory(userId));
@@ -26,7 +26,7 @@ public class UserDeletionHistoryGuard {
         return List.copyOf(references);
     }
 
-    private boolean hasAttendanceHistory(long userId, String studentNo) {
+    private boolean hasAttendanceHistory(long userId) {
         return exists("""
                 SELECT EXISTS (
                   SELECT 1
@@ -36,12 +36,8 @@ public class UserDeletionHistoryGuard {
                      OR check_out_reviewed_by = ?
                      OR created_by = ?
                      OR updated_by = ?
-                ) OR EXISTS (
-                  SELECT 1
-                  FROM public_attendance_submissions
-                  WHERE student_no = ?
                 )
-                """, userId, userId, userId, userId, userId, studentNo);
+                """, userId, userId, userId, userId, userId);
     }
 
     private boolean hasTrainingHistory(long userId) {

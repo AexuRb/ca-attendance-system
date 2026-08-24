@@ -56,6 +56,7 @@ class UserTransactionIntegrationTest {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_create_user_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_reset_password_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_import_users_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_update_profile_log");
         jdbc.update("DELETE FROM operation_logs");
         jdbc.update("DELETE FROM users WHERE student_no LIKE 'tx-%' OR student_no = '9900000001'");
 
@@ -88,6 +89,7 @@ class UserTransactionIntegrationTest {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_create_user_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_reset_password_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_import_users_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS fail_update_profile_log");
     }
 
     @Test
@@ -244,6 +246,29 @@ class UserTransactionIntegrationTest {
     }
 
     @Test
+    void updateProfileRollsBackFieldsWhenAuditLogFails() {
+        jdbc.update("UPDATE users SET phone = 'original-phone', major = '原学院', qq = '10000' WHERE id = ?", adminId);
+        jdbc.execute("""
+                CREATE TRIGGER fail_update_profile_log
+                BEFORE INSERT ON operation_logs
+                WHEN NEW.action_type = 'UPDATE_PROFILE'
+                BEGIN
+                  SELECT RAISE(ABORT, 'forced audit failure');
+                END
+                """);
+
+        assertThrows(DataAccessException.class, () -> users.updateProfile(
+                new UserService.ProfileRequest("new-phone", "新学院", null, "20000")
+        ));
+
+        var profile = jdbc.queryForMap("SELECT phone, major, qq FROM users WHERE id = ?", adminId);
+        assertEquals("original-phone", profile.get("phone"));
+        assertEquals("原学院", profile.get("major"));
+        assertEquals("10000", profile.get("qq"));
+        assertEquals(0, actionCount("UPDATE_PROFILE"));
+    }
+
+    @Test
     void createAndImportApplyTheSameNewAccountRule() throws Exception {
         ApiException createError = assertThrows(ApiException.class, () -> users.create(
                 new UserService.CreateUserRequest(
@@ -274,6 +299,80 @@ class UserTransactionIntegrationTest {
         assertTrue(exception.getMessage().contains("姓名不能超过 64"));
         assertEquals(0, userCount("9900000088"));
         assertEquals(0, userCount("9900000089"));
+    }
+
+    @Test
+    void importRejectsFilesLargerThanFiveMegabytesBeforeParsing() {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "members.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                new byte[5 * 1024 * 1024 + 1]
+        );
+
+        ApiException exception = assertThrows(ApiException.class, () -> users.importMembers(file));
+
+        assertTrue(exception.getMessage().contains("不能超过 5 MB"));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void importRejectsRowsBeyondTheThreeThousandRowLimit() throws Exception {
+        MockMultipartFile file = memberImportFileAtRow(3001, "9900000095", "超限成员");
+
+        ApiException exception = assertThrows(ApiException.class, () -> users.importMembers(file));
+
+        assertTrue(exception.getMessage().contains("超过 3000 行"));
+        assertEquals(0, userCount("9900000095"));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void reimportWithBlankOptionalColumnsPreservesExistingProfile() throws Exception {
+        long targetId = insertMember("9900000086", "已有资料成员");
+        jdbc.update("""
+                UPDATE users
+                SET phone = '13800001234', major = '计算机学院', grade = '2024级', qq = '123456789'
+                WHERE id = ?
+                """, targetId);
+
+        UserService.ImportResult result = users.importMembers(memberImportFile(
+                "9900000086",
+                "更新姓名成员"
+        ));
+
+        assertEquals(1, result.updated());
+        assertEquals("更新姓名成员", profileValue(targetId, "name"));
+        assertEquals("13800001234", profileValue(targetId, "phone"));
+        assertEquals("计算机学院", profileValue(targetId, "major"));
+        assertEquals("2024级", profileValue(targetId, "grade"));
+        assertEquals("123456789", profileValue(targetId, "qq"));
+    }
+
+    @Test
+    void importKeepsTwelveDigitNumericStudentNumberOutOfScientificNotation() throws Exception {
+        MockMultipartFile file = memberImportFileWithNumericStudentNo(
+                202301012345d,
+                "长学号成员"
+        );
+
+        UserService.ImportResult result = users.importMembers(file);
+
+        assertEquals(1, result.created());
+        assertEquals(1, userCount("202301012345"));
+    }
+
+    @Test
+    void importReadsStudentNumberFromFormulaResult() throws Exception {
+        MockMultipartFile file = memberImportFileWithFormulaStudentNo(
+                "202301012345+1",
+                "公式学号成员"
+        );
+
+        UserService.ImportResult result = users.importMembers(file);
+
+        assertEquals(1, result.created());
+        assertEquals(1, userCount("202301012346"));
     }
 
     @Test
@@ -447,6 +546,13 @@ class UserTransactionIntegrationTest {
         return jdbc.queryForObject("SELECT password_hash FROM users WHERE id = ?", String.class, id);
     }
 
+    private String profileValue(long id, String column) {
+        if (!List.of("name", "phone", "major", "grade", "qq").contains(column)) {
+            throw new IllegalArgumentException("不支持的测试字段");
+        }
+        return jdbc.queryForObject("SELECT " + column + " FROM users WHERE id = ?", String.class, id);
+    }
+
     private int userCount(String studentNo) {
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM users WHERE student_no = ?",
@@ -476,6 +582,64 @@ class UserTransactionIntegrationTest {
             return new MockMultipartFile(
                     "file",
                     "members.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    output.toByteArray()
+            );
+        }
+    }
+
+    private MockMultipartFile memberImportFileAtRow(int rowIndex, String studentNo, String name) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("成员");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("姓名");
+            Row row = sheet.createRow(rowIndex);
+            row.createCell(0).setCellValue(studentNo);
+            row.createCell(1).setCellValue(name);
+            workbook.write(output);
+            return new MockMultipartFile(
+                    "file",
+                    "members-row-limit.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    output.toByteArray()
+            );
+        }
+    }
+
+    private MockMultipartFile memberImportFileWithNumericStudentNo(double studentNo, String name) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("成员");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("姓名");
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellValue(studentNo);
+            row.createCell(1).setCellValue(name);
+            workbook.write(output);
+            return new MockMultipartFile(
+                    "file",
+                    "members-numeric-student-no.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    output.toByteArray()
+            );
+        }
+    }
+
+    private MockMultipartFile memberImportFileWithFormulaStudentNo(String formula, String name) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("成员");
+            Row header = sheet.createRow(0);
+            header.createCell(0).setCellValue("学号");
+            header.createCell(1).setCellValue("姓名");
+            Row row = sheet.createRow(1);
+            row.createCell(0).setCellFormula(formula);
+            row.createCell(1).setCellValue(name);
+            workbook.getCreationHelper().createFormulaEvaluator().evaluateAll();
+            workbook.write(output);
+            return new MockMultipartFile(
+                    "file",
+                    "members-formula-student-no.xlsx",
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     output.toByteArray()
             );

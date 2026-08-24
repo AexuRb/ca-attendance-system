@@ -1,6 +1,6 @@
 {
   "name": "ca-attendance-desktop",
-  "version": "2.7.0",
+  "version": "3.0.0",
   "private": true,
   "description": "计算机协会本地离线管理系统桌面端",
   "author": "AexuRb",
@@ -28,6 +28,7 @@
       "main.cjs",
       "preload.cjs",
       "credential-store.cjs",
+      "window-state.cjs",
       "runtime.cjs",
       "splash.html",
       "THIRD-PARTY-NOTICES.txt",

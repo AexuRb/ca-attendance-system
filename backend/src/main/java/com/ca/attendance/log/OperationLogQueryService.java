@@ -3,9 +3,12 @@ package com.ca.attendance.log;
 import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.ExportRowLimit;
+import com.ca.attendance.common.PaginationPolicy;
+import com.ca.attendance.common.SqlLike;
 import com.ca.attendance.maintenance.BackupService;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -27,8 +30,6 @@ import static com.ca.attendance.common.JdbcTime.localDateTime;
 
 @Service
 public class OperationLogQueryService {
-    private static final int MAX_PAGE_SIZE = 100;
-
     private final JdbcTemplate jdbc;
     private final BackupService backups;
     private final OperationLogService logs;
@@ -53,20 +54,22 @@ public class OperationLogQueryService {
         this.logs = logs;
     }
 
+    @Transactional(readOnly = true)
     public LogPage search(String keyword, String actionType, String from, String to, int page, int pageSize) {
         requireOperationLogs("只有管理员可以查看操作日志");
 
-        int safePage = Math.max(1, page);
-        int safePageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+        PaginationPolicy.PageRequest paging = PaginationPolicy.normalize(page, pageSize);
         QueryParts query = buildWhere(keyword, actionType, from, to);
 
         Long total = jdbc.queryForObject("SELECT COUNT(*) FROM operation_logs " + query.where(),
                 Long.class,
                 query.args().toArray());
 
+        long totalRows = total == null ? 0 : total;
+        int resolvedPage = PaginationPolicy.resolvePage(paging.page(), totalRows, paging.pageSize());
         List<Object> dataArgs = new ArrayList<>(query.args());
-        dataArgs.add(safePageSize);
-        dataArgs.add((safePage - 1) * safePageSize);
+        dataArgs.add(paging.pageSize());
+        dataArgs.add((resolvedPage - 1) * paging.pageSize());
         List<LogItem> items = jdbc.query("""
                 SELECT id, operator_user_id, operator_student_no, operator_name,
                        action_type, target_type, target_id,
@@ -80,7 +83,7 @@ public class OperationLogQueryService {
                 LIMIT ? OFFSET ?
                 """, mapper, dataArgs.toArray());
 
-        return new LogPage(items, total == null ? 0 : total, safePage, safePageSize);
+        return new LogPage(items, totalRows, resolvedPage, paging.pageSize());
     }
 
     @Transactional
@@ -94,6 +97,8 @@ public class OperationLogQueryService {
     public ExportFile export(String keyword, String actionType, String from, String to) {
         requireOperationLogs("只有管理员可以导出操作日志");
         QueryParts query = buildWhere(keyword, actionType, from, to);
+        List<Object> exportArgs = new ArrayList<>(query.args());
+        exportArgs.add(ExportRowLimit.FETCH_LIMIT);
         List<LogItem> items = jdbc.query("""
                 SELECT id, operator_user_id, operator_student_no, operator_name,
                        action_type, target_type, target_id,
@@ -104,10 +109,15 @@ public class OperationLogQueryService {
                 """ + query.where() + """
 
                 ORDER BY created_at DESC, id DESC
-                """, mapper, query.args().toArray());
+                LIMIT ?
+                """, mapper, exportArgs.toArray());
+
+        ExportRowLimit.requireWithinLimit(items.size());
 
         byte[] bytes;
-        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        SXSSFWorkbook wb = new SXSSFWorkbook(200);
+        wb.setCompressTempFiles(true);
+        try (wb; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("操作日志");
             CellStyle headerStyle = headerStyle(wb);
             CellStyle textStyle = textStyle(wb);
@@ -132,14 +142,16 @@ public class OperationLogQueryService {
             }
 
             sheet.createFreezePane(0, 1);
+            int[] widths = {22, 24, 24, 20, 36, 50, 50};
             for (int i = 0; i < headers.length; i++) {
-                sheet.autoSizeColumn(i);
-                sheet.setColumnWidth(i, Math.min(Math.max(sheet.getColumnWidth(i) + 512, 12 * 256), 50 * 256));
+                sheet.setColumnWidth(i, widths[i] * 256);
             }
             wb.write(out);
             bytes = out.toByteArray();
         } catch (Exception ex) {
             throw ApiException.badRequest("导出操作日志失败");
+        } finally {
+            wb.dispose();
         }
         Map<String, Object> filters = new LinkedHashMap<>();
         putFilter(filters, "keyword", keyword);
@@ -160,14 +172,16 @@ public class OperationLogQueryService {
     private QueryParts buildWhere(String keyword, String actionType, String from, String to) {
         StringBuilder where = new StringBuilder("WHERE 1 = 1");
         List<Object> args = new ArrayList<>();
+        String normalizedActionType = OperationActionTypes.normalizeFilter(actionType);
 
         if (keyword != null && !keyword.isBlank()) {
-            String like = "%" + keyword.trim() + "%";
+            String like = SqlLike.contains(keyword);
             where.append("""
 
                     AND (
-                      operator_name LIKE ? OR operator_student_no LIKE ? OR action_type LIKE ?
-                      OR target_type LIKE ? OR reason LIKE ?
+                      operator_name LIKE ? ESCAPE '\\' OR operator_student_no LIKE ? ESCAPE '\\'
+                      OR action_type LIKE ? ESCAPE '\\' OR target_type LIKE ? ESCAPE '\\'
+                      OR reason LIKE ? ESCAPE '\\'
                     )
                     """);
             args.add(like);
@@ -177,9 +191,9 @@ public class OperationLogQueryService {
             args.add(like);
         }
 
-        if (actionType != null && !actionType.isBlank()) {
+        if (normalizedActionType != null) {
             where.append("\nAND action_type = ?");
-            args.add(actionType.trim());
+            args.add(normalizedActionType);
         }
 
         LocalDate fromDate = parseDate(from, "开始日期格式不正确");

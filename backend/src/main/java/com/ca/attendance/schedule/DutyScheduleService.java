@@ -5,6 +5,7 @@ import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
+import com.ca.attendance.common.SqlLike;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.settings.DutyPeriodItem;
 import com.ca.attendance.settings.DutyPeriodService;
@@ -72,13 +73,13 @@ public class DutyScheduleService {
         if (normalized.length() > 64) {
             throw ApiException.badRequest("成员查询内容过长");
         }
-        String like = "%" + normalized + "%";
+        String like = SqlLike.contains(normalized);
         return jdbc.query("""
                 SELECT student_no, name, role
                 FROM users
                 WHERE status = 'ACTIVE'
                   AND role IN ('MINISTER', 'PRESIDENT', 'ADMIN')
-                  AND (student_no LIKE ? OR name LIKE ?)
+                  AND (student_no LIKE ? ESCAPE '\\' OR name LIKE ? ESCAPE '\\')
                 ORDER BY CASE role
                            WHEN 'ADMIN' THEN 1
                            WHEN 'PRESIDENT' THEN 2

@@ -1,5 +1,6 @@
 package com.ca.attendance.user;
 
+import com.ca.attendance.common.PaginationPolicy;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,7 +31,7 @@ public class UserController {
                                               @RequestParam(required = false) String status,
                                               @RequestParam(required = false) String grade,
                                               @RequestParam(defaultValue = "1") int page,
-                                              @RequestParam(defaultValue = "20") int pageSize) {
+                                              @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize) {
         return users.searchPage(keyword, role, status, grade, page, pageSize);
     }
 
