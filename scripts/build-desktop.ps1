@@ -61,7 +61,8 @@ try {
     $env:CSC_IDENTITY_AUTO_DISCOVERY = $previousSigningSetting
 }
 
-$package = Get-Content -Raw -LiteralPath (Join-Path $desktopRoot 'package.json') | ConvertFrom-Json
+$packagePath = Join-Path $desktopRoot 'package.json'
+$package = [System.IO.File]::ReadAllText($packagePath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 $version = $package.version
 $installer = Join-Path $desktopRelease "CA-Attendance-System-Setup-$version.exe"
 $unpackedApp = Join-Path $desktopRelease 'win-unpacked'
@@ -85,8 +86,14 @@ Copy-Item -Path (Join-Path $unpackedApp '*') -Destination $portableApp -Recurse 
 foreach ($directory in 'data', 'backups', 'exports', 'logs') {
     New-Item -ItemType Directory -Force -Path (Join-Path $portableRoot $directory) | Out-Null
 }
-Copy-Item -LiteralPath (Join-Path $desktopRoot 'portable\启动管理系统.bat') -Destination $portableRoot
-Copy-Item -LiteralPath (Join-Path $desktopRoot 'portable\使用说明.txt') -Destination $portableRoot
+$portableFiles = Get-ChildItem -LiteralPath (Join-Path $desktopRoot 'portable') -File
+$portableLaunchers = @($portableFiles | Where-Object Extension -eq '.bat')
+$portableInstructions = @($portableFiles | Where-Object Extension -eq '.txt')
+if ($portableLaunchers.Count -ne 1 -or $portableInstructions.Count -ne 1) {
+    throw 'Portable resources must contain exactly one .bat launcher and one .txt instruction file.'
+}
+Copy-Item -LiteralPath $portableLaunchers[0].FullName -Destination $portableRoot
+Copy-Item -LiteralPath $portableInstructions[0].FullName -Destination $portableRoot
 
 $portableZip = Join-Path $artifactRoot "CA-Attendance-System-Portable-$version.zip"
 Compress-Archive -LiteralPath $portableRoot -DestinationPath $portableZip -CompressionLevel Optimal

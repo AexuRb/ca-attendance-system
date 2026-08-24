@@ -10,10 +10,11 @@
       <p v-if="sessionNotice" class="auth-session-notice" role="status">
         {{ sessionNotice }}
       </p>
-      <label class="field">
-        <span>账号</span>
+      <div class="field">
+        <label for="login-account">账号</label>
         <div class="input-with-icon">
           <UserRound aria-hidden="true" /><input
+            id="login-account"
             ref="accountInput"
             v-model.trim="form.studentNo"
             name="username"
@@ -22,11 +23,12 @@
             placeholder="学号或管理员账号"
           />
         </div>
-      </label>
-      <label class="field">
-        <span>密码</span>
+      </div>
+      <div class="field">
+        <label for="login-password">密码</label>
         <div class="input-with-icon">
           <LockKeyhole aria-hidden="true" /><input
+            id="login-password"
             v-model="form.password"
             name="password"
             :type="showPassword ? 'text' : 'password'"
@@ -42,7 +44,7 @@
             <EyeOff v-if="showPassword" /><Eye v-else />
           </button>
         </div>
-      </label>
+      </div>
       <div class="auth-form-options">
         <label class="check-row"
           ><input v-model="remember" type="checkbox" /><span>{{

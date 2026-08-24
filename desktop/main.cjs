@@ -20,6 +20,7 @@ const {
   resolveAppRoot,
   selectSmokeScenario,
   shouldHideWindowOnClose,
+  visualZoomLimitsForUrl,
   waitForApplication
 } = require('./runtime.cjs');
 
@@ -124,8 +125,11 @@ function configureZoomBehavior(window) {
   const webContents = window.webContents;
   const updateLimits = () => {
     const kiosk = isKioskUrl(webContents.getURL());
+    const limits = visualZoomLimitsForUrl(webContents.getURL());
     if (kiosk) webContents.setZoomFactor(1);
-    void webContents.setVisualZoomLevelLimits(kiosk ? 0 : -3, kiosk ? 0 : 3);
+    void webContents
+      .setVisualZoomLevelLimits(limits.minimumLevel, limits.maximumLevel)
+      .catch(error => writeDesktopLog(`visual zoom limits failed: ${error.message}`));
   };
   webContents.on('did-finish-load', updateLimits);
   webContents.on('did-navigate-in-page', updateLimits);

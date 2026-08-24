@@ -180,6 +180,12 @@ function isKioskUrl(value) {
   }
 }
 
+function visualZoomLimitsForUrl(value) {
+  return isKioskUrl(value)
+    ? { minimumLevel: 1, maximumLevel: 1 }
+    : { minimumLevel: 1, maximumLevel: 3 };
+}
+
 function isZoomShortcut(input = {}) {
   return Boolean(input.control || input.meta)
     && ['+', '=', '-', '0', 'Add', 'Subtract'].includes(input.key);
@@ -296,5 +302,6 @@ module.exports = {
   resolveAppRoot,
   selectSmokeScenario,
   shouldHideWindowOnClose,
+  visualZoomLimitsForUrl,
   waitForApplication
 };

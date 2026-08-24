@@ -23,7 +23,7 @@ const state = reactive({
     kioskAvailable: true,
     allowedRemoteRoles: [],
   } as AccessContext,
-  setup: { initialized: true } as SetupStatus,
+  setup: { initialized: false } as SetupStatus,
 });
 
 let bootPromise: Promise<void> | null = null;
@@ -43,10 +43,11 @@ async function bootstrap() {
       };
     }
     if (state.access.mode === "LOCAL") {
+      state.setup.initialized = false;
       try {
         state.setup = await get<SetupStatus>("/api/setup/status");
       } catch {
-        /* initialized servers may reject this */
+        // Keep first-run recovery reachable after a transient local status failure.
       }
     }
     if (getToken()) {

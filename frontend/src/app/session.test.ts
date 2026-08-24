@@ -9,6 +9,23 @@ afterEach(() => {
 });
 
 describe("session token persistence", () => {
+  it("keeps first-run setup reachable when the initial status request fails", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(localAccess()))
+      .mockRejectedValueOnce(new TypeError("temporary connection failure"));
+    vi.stubGlobal("fetch", fetchMock);
+    const { useSession } = await import("./session");
+    const session = useSession();
+    session.state.setup.initialized = true;
+
+    await session.bootstrap();
+
+    expect(session.state.ready).toBe(true);
+    expect(session.state.setup.initialized).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("discards legacy persistent tokens at the remote entry", async () => {
     localStorage.setItem("ca_attendance_token", "legacy-remote-token");
     const fetchMock = vi

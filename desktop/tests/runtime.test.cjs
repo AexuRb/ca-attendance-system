@@ -20,6 +20,7 @@ const {
   restoreApplicationWindow,
   selectSmokeScenario,
   shouldHideWindowOnClose,
+  visualZoomLimitsForUrl,
   resolveAppRoot
 } = require('../runtime.cjs');
 
@@ -228,6 +229,17 @@ test('locks zoom shortcuts only on the public kiosk route', () => {
   assert.equal(isZoomShortcut({ control: true, key: '+' }), true);
   assert.equal(isZoomShortcut({ control: true, key: '0' }), true);
   assert.equal(isZoomShortcut({ control: false, key: '+' }), false);
+});
+
+test('uses positive visual zoom factors so the Electron viewport remains visible', () => {
+  assert.deepEqual(visualZoomLimitsForUrl('http://127.0.0.1:8080/#/'), {
+    minimumLevel: 1,
+    maximumLevel: 1
+  });
+  assert.deepEqual(visualZoomLimitsForUrl('http://127.0.0.1:8080/#/setup'), {
+    minimumLevel: 1,
+    maximumLevel: 3
+  });
 });
 
 test('accepts only operating-system window frame differences within two pixels', () => {

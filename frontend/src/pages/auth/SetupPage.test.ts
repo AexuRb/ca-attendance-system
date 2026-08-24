@@ -37,4 +37,61 @@ describe("SetupPage", () => {
     expect(wrapper.text()).toContain("两次输入的密码不一致");
     expect(mocks.initialize).not.toHaveBeenCalled();
   });
+
+  it("creates the administrator once and opens the admin home", async () => {
+    mocks.initialize.mockResolvedValue({ role: "ADMIN" });
+    const wrapper = mount(SetupPage);
+    await fillValidSetupForm(wrapper);
+    await wrapper.get("form").trigger("submit");
+
+    expect(mocks.initialize).toHaveBeenCalledWith(
+      "9900000001",
+      "首位管理员",
+      "setup-password",
+    );
+    expect(mocks.replace).toHaveBeenCalledWith({ name: "today" });
+  });
+
+  it("does not submit the initialization request twice while it is pending", async () => {
+    let finishInitialization: (() => void) | undefined;
+    mocks.initialize.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishInitialization = resolve;
+        }),
+    );
+    const wrapper = mount(SetupPage);
+    await fillValidSetupForm(wrapper);
+
+    await wrapper.get("form").trigger("submit");
+    await wrapper.get("form").trigger("submit");
+
+    expect(mocks.initialize).toHaveBeenCalledOnce();
+    finishInitialization?.();
+    await vi.waitFor(() => expect(mocks.replace).toHaveBeenCalled());
+  });
+
+  it("lets the administrator inspect each password field independently", async () => {
+    const wrapper = mount(SetupPage);
+    const password = wrapper.get('input[name="password"]');
+    const confirmation = wrapper.get('input[name="confirmation"]');
+
+    await wrapper.get('button[aria-label="显示初始密码"]').trigger("click");
+    expect(password.attributes("type")).toBe("text");
+    expect(confirmation.attributes("type")).toBe("password");
+
+    await wrapper.get('button[aria-label="显示确认密码"]').trigger("click");
+    expect(confirmation.attributes("type")).toBe("text");
+  });
 });
+
+async function fillValidSetupForm(
+  wrapper: ReturnType<typeof mount<typeof SetupPage>>,
+) {
+  await wrapper.get('input[name="account"]').setValue("9900000001");
+  await wrapper.get('input[name="name"]').setValue("首位管理员");
+  await wrapper.get('input[name="password"]').setValue("setup-password");
+  await wrapper
+    .get('input[name="confirmation"]')
+    .setValue("setup-password");
+}

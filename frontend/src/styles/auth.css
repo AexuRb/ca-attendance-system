@@ -182,8 +182,8 @@
 }
 
 .auth-signal-layout .auth-form--setup {
-  gap: 12px;
-  padding-block: 24px;
+  gap: 14px;
+  padding: 28px 32px;
 }
 
 .auth-signal-layout .auth-form--setup .auth-heading {
@@ -248,7 +248,8 @@
   gap: 7px;
 }
 
-.auth-signal-layout .field > span {
+.auth-signal-layout .field > span,
+.auth-signal-layout .field > label {
   color: var(--ink-700);
   font-size: 11px;
   font-weight: 650;
@@ -492,7 +493,7 @@
 
   .auth-signal-layout .auth-form--setup {
     gap: 12px;
-    padding-block: 22px;
+    padding: 24px 20px;
   }
 
   .auth-signal-layout .auth-heading h2 {
