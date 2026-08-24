@@ -179,10 +179,18 @@ jobs:
       - name: Run script tests
         shell: powershell
         run: |
-          & python -m unittest discover -s scripts -p "test_*.py" 2>&1 |
-            Tee-Object -FilePath script-test-output.txt
-          $testExit = $LASTEXITCODE
-          $output = Get-Content -LiteralPath script-test-output.txt -Raw
+          $python = (Get-Command python).Source
+          $process = Start-Process -FilePath $python `
+            -ArgumentList @("-m", "unittest", "discover", "-s", "scripts", "-p", "test_*.py") `
+            -NoNewWindow -Wait -PassThru `
+            -RedirectStandardOutput script-test-stdout.txt `
+            -RedirectStandardError script-test-stderr.txt
+          $testExit = $process.ExitCode
+          $output = @(
+            Get-Content -LiteralPath script-test-stdout.txt -Raw -ErrorAction SilentlyContinue
+            Get-Content -LiteralPath script-test-stderr.txt -Raw -ErrorAction SilentlyContinue
+          ) -join "`n"
+          Write-Host $output
           $count = [regex]::Match($output, 'Ran (?<value>\d+) tests?').Groups['value'].Value
           if ([string]::IsNullOrWhiteSpace($count)) {
             $summary = "- No unittest summary was generated."

@@ -22,7 +22,7 @@ describe("MemberPasswordResetDialog", () => {
       props: { open: true, member: baseMember },
     });
 
-    expect(document.body.textContent).toContain("231224");
+    expect(document.body.textContent).toContain("000001");
     await document
       .querySelector<HTMLButtonElement>('button[type="submit"]')!
       .click();
