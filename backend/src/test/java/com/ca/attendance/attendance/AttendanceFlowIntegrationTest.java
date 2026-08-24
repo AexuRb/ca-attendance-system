@@ -11,6 +11,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -20,10 +24,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,12 +41,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@Import(AttendanceFlowIntegrationTest.FixedClockConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AttendanceFlowIntegrationTest {
     private static final Path STORAGE_ROOT = createStorageRoot();
+    private static final java.time.ZoneId TEST_ZONE = java.time.ZoneId.systemDefault();
+    private static final Clock FLOW_CLOCK = Clock.fixed(
+            LocalDate.now().atTime(23, 0).atZone(TEST_ZONE).toInstant(),
+            TEST_ZONE
+    );
+
+    @TestConfiguration
+    static class FixedClockConfiguration {
+        @Bean
+        @Primary
+        Clock testClock() {
+            return FLOW_CLOCK;
+        }
+    }
 
     @Autowired
     private AttendanceService attendance;
+
+    @Autowired
+    private AttendanceRepository records;
 
     @Autowired
     private AttendancePolicyService policies;
@@ -100,7 +128,7 @@ class AttendanceFlowIntegrationTest {
 
         jdbc.update(
                 "UPDATE attendance_records SET check_in_time = ? WHERE id = ?",
-                LocalDateTime.now().minusMinutes(91),
+                Timestamp.valueOf(LocalDateTime.now(FLOW_CLOCK).minusMinutes(91)),
                 checkIn.recordId()
         );
         AttendanceService.PublicLookupResponse checkOutLookup = attendance.lookupByInput("attendance-flow-member");
@@ -142,7 +170,7 @@ class AttendanceFlowIntegrationTest {
         );
         jdbc.update(
                 "UPDATE attendance_records SET check_in_time = ? WHERE id = ?",
-                LocalDateTime.now().minusMinutes(60),
+                Timestamp.valueOf(LocalDateTime.now(FLOW_CLOCK).minusMinutes(60)),
                 checkIn.recordId()
         );
         AttendanceService.PublicLookupResponse checkOutLookup = attendance.lookupByInput("attendance-flow-minister");
@@ -153,6 +181,65 @@ class AttendanceFlowIntegrationTest {
         assertEquals("AUTO_APPROVED", record.checkOutStatus());
         assertEquals("VALID", record.effectiveStatus());
         assertFalse(attendance.pending().stream().anyMatch(item -> item.userId() == ministerId));
+    }
+
+    @Test
+    void publicSubmissionPrunesReceiptsOlderThanThirtyDays() {
+        jdbc.update("""
+                INSERT INTO public_attendance_submissions (
+                  request_id, student_no, record_id, action, name, submitted_at,
+                  review_status, message, created_at
+                ) VALUES
+                  ('attendance-old-receipt', 'attendance-flow-member', 800001,
+                   'CHECK_IN', '流程测试成员', datetime('now', '-31 days'),
+                   'PENDING', '过期回执', datetime('now', '-31 days')),
+                  ('attendance-recent-receipt', 'attendance-flow-member', 800002,
+                   'CHECK_IN', '流程测试成员', datetime('now', '-29 days'),
+                   'PENDING', '保留回执', datetime('now', '-29 days'))
+                """);
+
+        AttendanceService.PublicLookupResponse lookup = attendance.lookupByInput("attendance-flow-member");
+        attendance.submitPublicSelection(lookup.memberToken(), "attendance-retention-check");
+
+        assertEquals(0, submissionCount("attendance-old-receipt"));
+        assertEquals(1, submissionCount("attendance-recent-receipt"));
+        assertEquals(1, submissionCount("attendance-retention-check"));
+    }
+
+    @Test
+    void concurrentRetriesProduceOneAttendanceRecordAndOneReceipt() throws Exception {
+        AttendanceService.PublicLookupResponse lookup = attendance.lookupByInput("attendance-flow-member");
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<AttendanceService.SubmitResponse> first = executor.submit(() -> {
+                ready.countDown();
+                start.await(2, TimeUnit.SECONDS);
+                return attendance.submitPublicSelection(
+                        lookup.memberToken(),
+                        "attendance-concurrent-retry"
+                );
+            });
+            Future<AttendanceService.SubmitResponse> second = executor.submit(() -> {
+                ready.countDown();
+                start.await(2, TimeUnit.SECONDS);
+                return attendance.submitPublicSelection(
+                        lookup.memberToken(),
+                        "attendance-concurrent-retry"
+                );
+            });
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+
+            AttendanceService.SubmitResponse firstResponse = first.get(5, TimeUnit.SECONDS);
+            AttendanceService.SubmitResponse secondResponse = second.get(5, TimeUnit.SECONDS);
+            assertEquals(firstResponse.recordId(), secondResponse.recordId());
+            assertEquals(firstResponse.action(), secondResponse.action());
+        }
+
+        assertEquals(1, recordCount(memberId));
+        assertEquals(1, submissionCount("attendance-concurrent-retry"));
     }
 
     @Test
@@ -224,6 +311,153 @@ class AttendanceFlowIntegrationTest {
     }
 
     @Test
+    void manualCreateAllowsNonDutyDatesAndPreservesEligibilitySnapshotOnUpdate() {
+        LocalDate date = LocalDate.now().minusDays(1);
+        LocalDateTime checkIn = date.atTime(14, 0);
+        LocalDateTime checkOut = date.atTime(16, 0);
+        policies.update(new AttendancePolicyService.UpdateAttendancePolicyRequest(true, true));
+        jdbc.update("UPDATE duty_weekday_settings SET enabled = 0 WHERE weekday = ?",
+                date.getDayOfWeek().getValue());
+        jdbc.update("""
+                UPDATE app_settings
+                SET setting_value = '[{"startTime":"23:58","endTime":"23:59","enabled":true}]'
+                WHERE setting_key = 'DUTY_TIME_PERIODS'
+                """);
+
+        AttendanceRecord created = attendance.manualCreate(new AttendanceService.ManualCreateRequest(
+                "attendance-flow-member", checkIn, checkOut, "补录非值班时段记录"
+        ));
+
+        assertFalse(created.dutyDay());
+        assertFalse(created.withinDutyPeriod());
+        assertTrue(created.requireDutyDay());
+        assertTrue(created.requireDutyPeriod());
+        assertEquals("INVALID", created.effectiveStatus());
+
+        policies.update(new AttendancePolicyService.UpdateAttendancePolicyRequest(false, false));
+        jdbc.update("UPDATE duty_weekday_settings SET enabled = 1 WHERE weekday = ?",
+                date.getDayOfWeek().getValue());
+        jdbc.update("""
+                UPDATE app_settings
+                SET setting_value = '[{"startTime":"00:00","endTime":"23:59","enabled":true}]'
+                WHERE setting_key = 'DUTY_TIME_PERIODS'
+                """);
+
+        AttendanceRecord updated = attendance.manualUpdate(created.id(), new AttendanceService.ManualUpdateRequest(
+                checkIn.plusMinutes(5), checkOut, "APPROVED", "APPROVED", "修正签到时间"
+        ));
+
+        assertFalse(updated.dutyDay());
+        assertFalse(updated.withinDutyPeriod());
+        assertTrue(updated.requireDutyDay());
+        assertTrue(updated.requireDutyPeriod());
+        assertEquals("INVALID", updated.effectiveStatus());
+
+        AttendanceRecord reevaluated = attendance.manualUpdate(created.id(), new AttendanceService.ManualUpdateRequest(
+                checkIn.plusMinutes(10), checkOut,
+                "APPROVED", "APPROVED", "按当前规则重新评估", true
+        ));
+
+        assertTrue(reevaluated.dutyDay());
+        assertTrue(reevaluated.withinDutyPeriod());
+        assertFalse(reevaluated.requireDutyDay());
+        assertFalse(reevaluated.requireDutyPeriod());
+        assertEquals("VALID", reevaluated.effectiveStatus());
+    }
+
+    @Test
+    void manualRecordsAllowAdjacentPeriodsButRejectOverlaps() {
+        LocalDate date = LocalDate.now().minusDays(1);
+        AttendanceRecord first = attendance.manualCreate(new AttendanceService.ManualCreateRequest(
+                "attendance-flow-member", date.atTime(14, 0), date.atTime(16, 0), "第一段值班"
+        ));
+
+        ApiException overlap = assertThrows(ApiException.class, () ->
+                attendance.manualCreate(new AttendanceService.ManualCreateRequest(
+                        "attendance-flow-member", date.atTime(15, 0), date.atTime(17, 0), "重叠值班"
+                )));
+        AttendanceRecord adjacent = attendance.manualCreate(new AttendanceService.ManualCreateRequest(
+                "attendance-flow-member", date.atTime(16, 0), date.atTime(18, 0), "相邻值班"
+        ));
+
+        assertTrue(overlap.getMessage().contains("重叠"));
+        assertEquals(2, recordCount(memberId));
+        assertEquals(date.atTime(14, 0), attendanceRecord(first.id(), date).checkInTime());
+        assertEquals(date.atTime(16, 0), attendanceRecord(adjacent.id(), date).checkInTime());
+
+        ApiException updateOverlap = assertThrows(ApiException.class, () ->
+                attendance.manualUpdate(adjacent.id(), new AttendanceService.ManualUpdateRequest(
+                        date.atTime(15, 30), date.atTime(17, 30),
+                        "APPROVED", "APPROVED", "尝试改为重叠区间"
+                )));
+
+        assertTrue(updateOverlap.getMessage().contains("重叠"));
+        assertEquals(date.atTime(16, 0), attendanceRecord(adjacent.id(), date).checkInTime());
+    }
+
+    @Test
+    void attendancePaginationUsesIdAsTieBreakerForEqualTimes() {
+        LocalDate date = LocalDate.now().minusDays(1);
+        LocalDateTime checkIn = date.atTime(14, 0);
+        List<Long> ids = List.of(
+                insertApprovedRecord(memberId, "attendance-flow-member", "流程测试成员", checkIn),
+                insertApprovedRecord(memberId, "attendance-flow-member", "流程测试成员", checkIn),
+                insertApprovedRecord(memberId, "attendance-flow-member", "流程测试成员", checkIn),
+                insertApprovedRecord(memberId, "attendance-flow-member", "流程测试成员", checkIn)
+        );
+
+        AttendanceRepository.AttendancePage firstPage = attendance.searchPage(date, date, "", "", 1, 2);
+        AttendanceRepository.AttendancePage secondPage = attendance.searchPage(date, date, "", "", 2, 2);
+
+        assertEquals(List.of(ids.get(3), ids.get(2)),
+                firstPage.items().stream().map(AttendanceRecord::id).toList());
+        assertEquals(List.of(ids.get(1), ids.get(0)),
+                secondPage.items().stream().map(AttendanceRecord::id).toList());
+    }
+
+    @Test
+    void batchEffectiveUpdateStoresTheOperator() {
+        LocalDate date = LocalDate.now().minusDays(1);
+        long recordId = insertApprovedRecord(
+                memberId, "attendance-flow-member", "流程测试成员", date.atTime(14, 0));
+        jdbc.update("UPDATE attendance_records SET updated_by = NULL WHERE id = ?", recordId);
+
+        int[] counts = records.batchUpdateEffective(List.of(
+                new AttendanceRepository.EffectiveUpdate(recordId, 120, 2, "VALID")
+        ), adminId);
+
+        assertEquals(1, counts.length);
+        assertEquals(1, counts[0]);
+        assertEquals(adminId, jdbc.queryForObject(
+                "SELECT updated_by FROM attendance_records WHERE id = ?", Long.class, recordId));
+    }
+
+    @Test
+    void concurrentOverlappingManualCreatesAllowOnlyOneRecord() throws Exception {
+        LocalDate date = LocalDate.now().minusDays(1);
+        LocalDateTime checkIn = date.atTime(10, 0);
+        LocalDateTime checkOut = date.atTime(12, 0);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<String> first = executor.submit(() -> manualCreateOutcome(ready, start, checkIn, checkOut));
+            Future<String> second = executor.submit(() -> manualCreateOutcome(ready, start, checkIn, checkOut));
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+
+            List<String> outcomes = List.of(
+                    first.get(5, TimeUnit.SECONDS),
+                    second.get(5, TimeUnit.SECONDS)
+            );
+            assertEquals(1, outcomes.stream().filter("CREATED"::equals).count());
+            assertEquals(1, outcomes.stream().filter("CONFLICT"::equals).count());
+        }
+
+        assertEquals(1, recordCount(memberId));
+    }
+
+    @Test
     void ministerPendingListExcludesTheirOwnRecord() {
         long ownRecordId = insertPendingRecord(
                 ministerId,
@@ -251,7 +485,11 @@ class AttendanceFlowIntegrationTest {
     }
 
     private AttendanceRecord attendanceRecord(long id) {
-        return attendance.search(LocalDate.now(), LocalDate.now(), "", "").stream()
+        return attendanceRecord(id, LocalDate.now());
+    }
+
+    private AttendanceRecord attendanceRecord(long id, LocalDate date) {
+        return attendance.search(date, date, "", "").stream()
                 .filter(record -> record.id() == id)
                 .findFirst()
                 .orElseThrow();
@@ -262,6 +500,32 @@ class AttendanceFlowIntegrationTest {
                 "SELECT COUNT(*) FROM attendance_records WHERE user_id = ?",
                 Integer.class,
                 userId
+        );
+        return count == null ? 0 : count;
+    }
+
+    private String manualCreateOutcome(CountDownLatch ready, CountDownLatch start,
+                                       LocalDateTime checkIn, LocalDateTime checkOut) throws InterruptedException {
+        authenticate(adminId, "attendance-flow-admin", "流程测试管理员", Role.ADMIN);
+        ready.countDown();
+        start.await(2, TimeUnit.SECONDS);
+        try {
+            attendance.manualCreate(new AttendanceService.ManualCreateRequest(
+                    "attendance-flow-member", checkIn, checkOut, "并发补录"
+            ));
+            return "CREATED";
+        } catch (ApiException ex) {
+            return ex.getMessage().contains("重叠") ? "CONFLICT" : "UNEXPECTED";
+        } finally {
+            AuthContext.clear();
+        }
+    }
+
+    private int submissionCount(String requestId) {
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public_attendance_submissions WHERE request_id = ?",
+                Integer.class,
+                requestId
         );
         return count == null ? 0 : count;
     }
@@ -283,6 +547,26 @@ class AttendanceFlowIntegrationTest {
                 Timestamp.valueOf(date.atTime(16, 0)));
         if (id == null) {
             throw new IllegalStateException("待审核测试记录创建失败");
+        }
+        return id;
+    }
+
+    private long insertApprovedRecord(long userId, String studentNo, String name, LocalDateTime checkIn) {
+        Long id = jdbc.queryForObject("""
+                INSERT INTO attendance_records (
+                  user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                  is_duty_day, within_duty_period, require_duty_day, require_duty_period,
+                  check_in_time, check_out_time, check_in_status, check_out_status,
+                  duration_minutes, valid_hours, effective_status, source
+                )
+                VALUES (?, ?, ?, ?, ?, 1, 1, 0, 0, ?, ?,
+                        'APPROVED', 'APPROVED', 120, 2, 'VALID', 'ADMIN_MANUAL')
+                RETURNING id
+                """, Long.class, userId, studentNo, name, checkIn.toLocalDate(),
+                checkIn.toLocalDate().getDayOfWeek().getValue(),
+                Timestamp.valueOf(checkIn), Timestamp.valueOf(checkIn.plusHours(2)));
+        if (id == null) {
+            throw new IllegalStateException("考勤测试记录创建失败");
         }
         return id;
     }

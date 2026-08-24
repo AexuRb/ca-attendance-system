@@ -3,7 +3,7 @@
     :open="open"
     title="恢复本机备份"
     size="sm"
-    @close="$emit('cancel')"
+    @close="cancel"
   >
     <p class="confirm-copy">
       即将使用 <strong>{{ file?.name }}</strong> 替换当前系统数据。
@@ -25,7 +25,7 @@
         class="button secondary"
         type="button"
         :disabled="busy"
-        @click="$emit('cancel')"
+        @click="cancel"
       >
         取消
       </button>
@@ -65,5 +65,9 @@ function confirm() {
   if (!props.busy && confirmation.value.trim() === requiredText) {
     emit("confirm");
   }
+}
+
+function cancel() {
+  if (!props.busy) emit("cancel");
 }
 </script>

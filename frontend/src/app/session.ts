@@ -1,10 +1,15 @@
 import { computed, reactive } from "vue";
-import { get, getToken, post, setToken } from "../shared/api";
+import {
+  configureTokenStorage,
+  get,
+  getToken,
+  post,
+  setToken,
+} from "../shared/api";
 import type { AccessContext, UserSession } from "../shared/types";
 
 interface SetupStatus {
   initialized: boolean;
-  userCount: number;
 }
 interface LoginResponse extends UserSession {
   token: string;
@@ -18,7 +23,7 @@ const state = reactive({
     kioskAvailable: true,
     allowedRemoteRoles: [],
   } as AccessContext,
-  setup: { initialized: true, userCount: 0 } as SetupStatus,
+  setup: { initialized: true } as SetupStatus,
 });
 
 let bootPromise: Promise<void> | null = null;
@@ -29,6 +34,7 @@ async function bootstrap() {
   bootPromise = (async () => {
     try {
       state.access = await get<AccessContext>("/api/access/context");
+      configureTokenStorage(state.access.mode);
     } catch {
       state.access = {
         mode: "LOCAL",

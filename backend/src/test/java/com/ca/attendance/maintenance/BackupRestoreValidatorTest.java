@@ -1,7 +1,7 @@
 package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -47,11 +47,63 @@ class BackupRestoreValidatorTest {
     }
 
     @Test
+    void rejectsCurrentSchemaArchiveMissingADeclaredTable() throws Exception {
+        Map<String, byte[]> entries = currentEmptyEntries();
+        entries.remove("training_sessions.json");
+
+        ApiException error = assertInvalid(entries);
+
+        assertTrue(error.getMessage().contains("training_sessions.json"));
+    }
+
+    @Test
+    void acceptsSchemaThreeArchiveWithoutRepairSequenceTable() throws Exception {
+        Map<String, byte[]> entries = currentEmptyEntries();
+        entries.remove("repair_case_sequences.json");
+        List<String> schemaThreeTables = BackupSchema.RESTORE_TABLE_ORDER.stream()
+                .filter(table -> !"repair_case_sequences".equals(table))
+                .toList();
+        entries.put("metadata.json", objectMapper.writeValueAsBytes(Map.of(
+                "schemaVersion", 3,
+                "tables", schemaThreeTables
+        )));
+
+        try (ExtractedBackupArchive archive = extract(entries)) {
+            BackupRestorePayload payload = validator.parse(archive);
+
+            assertFalse(payload.tableFiles().containsKey("repair_case_sequences"));
+            assertTrue(payload.tableFiles().containsKey("repair_cases"));
+        }
+    }
+
+    @Test
+    void rejectsTableEntryNotDeclaredByMetadata() throws Exception {
+        Map<String, byte[]> entries = requiredEmptyEntries();
+        entries.put("training_sessions.json", objectMapper.writeValueAsBytes(List.of()));
+
+        ApiException error = assertInvalid(entries);
+
+        assertTrue(error.getMessage().contains("元数据与实际条目不一致"));
+    }
+
+    @Test
+    void rejectsDuplicateAndUnknownMetadataTables() throws Exception {
+        Map<String, byte[]> entries = requiredEmptyEntries();
+        entries.put("metadata.json", objectMapper.writeValueAsBytes(Map.of(
+                "tables", List.of("users", "users", "attendance_records", "operation_logs", "unknown_table")
+        )));
+
+        ApiException error = assertInvalid(entries);
+
+        assertTrue(error.getMessage().contains("重复") || error.getMessage().contains("不支持"));
+    }
+
+    @Test
     void rejectsRowsContainingUnknownColumns() throws Exception {
         Map<String, byte[]> entries = requiredEmptyEntries();
         Map<String, Object> user = new LinkedHashMap<>();
         user.put("id", 1);
-        user.put("student_no", "1004231224");
+        user.put("student_no", "9900000001");
         user.put("name", "测试管理员");
         user.put("password_hash", "hash");
         user.put("role", "ADMIN");
@@ -111,6 +163,18 @@ class BackupRestoreValidatorTest {
         Map<String, byte[]> entries = new LinkedHashMap<>();
         entries.put("metadata.json", objectMapper.writeValueAsBytes(Map.of("tables", requiredTables)));
         for (String table : requiredTables) {
+            entries.put(table + ".json", objectMapper.writeValueAsBytes(List.of()));
+        }
+        return entries;
+    }
+
+    private Map<String, byte[]> currentEmptyEntries() throws Exception {
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        entries.put("metadata.json", objectMapper.writeValueAsBytes(Map.of(
+                "schemaVersion", BackupSchema.SCHEMA_VERSION,
+                "tables", BackupSchema.RESTORE_TABLE_ORDER
+        )));
+        for (String table : BackupSchema.RESTORE_TABLE_ORDER) {
             entries.put(table + ".json", objectMapper.writeValueAsBytes(List.of()));
         }
         return entries;

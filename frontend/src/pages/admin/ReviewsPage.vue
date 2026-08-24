@@ -7,7 +7,7 @@
       <template #actions
         ><button
           class="button secondary"
-          :disabled="busy || !pendingItemCount"
+          :disabled="actions.isPending('bulk') || !pendingItemCount"
           @click="bulkConfirmOpen = true"
         >
           <CheckCheck />全部通过
@@ -24,13 +24,19 @@
           </small>
         </span>
       </span>
-      <button class="icon-button" title="刷新" aria-label="刷新" @click="load">
-        <RefreshCw :class="{ spin: busy }" />
+      <button class="icon-button" title="刷新" aria-label="刷新" :disabled="loading" @click="load">
+        <RefreshCw :class="{ spin: loading }" />
       </button>
     </div>
-    <LoadingBlock v-if="busy && !records.length" />
+    <div v-if="loadError" class="inline-alert danger" role="alert">
+      <span>{{ loadError }}</span>
+      <button class="button secondary small" type="button" data-action="retry-reviews" @click="load">
+        重试
+      </button>
+    </div>
+    <LoadingBlock v-if="loading && !records.length" />
     <EmptyState
-      v-else-if="!records.length"
+      v-else-if="!records.length && !loadError"
       title="待审核已清空"
       description="当前没有需要处理的签到或签退。"
     />
@@ -65,12 +71,14 @@
           <button
             v-if="record.checkInStatus === 'PENDING'"
             class="button small primary review-approve-check-in"
+            :disabled="actions.isPending(reviewKey(record.id, 'CHECK_IN'))"
             @click="review(record.id, 'CHECK_IN', 'APPROVE')"
           >
             通过签到</button
           ><button
             v-if="record.checkOutStatus === 'PENDING'"
             class="button small primary review-approve-check-out"
+            :disabled="actions.isPending(reviewKey(record.id, 'CHECK_OUT'))"
             @click="review(record.id, 'CHECK_OUT', 'APPROVE')"
           >
             通过签退</button
@@ -78,6 +86,7 @@
             class="icon-button danger-ghost review-reject"
             title="驳回"
             aria-label="驳回"
+            :disabled="recordActionPending(record.id)"
             @click="openReject(record)"
           >
             <X />
@@ -89,7 +98,7 @@
       :open="Boolean(rejectTarget)"
       title="驳回记录"
       size="sm"
-      @close="rejectTarget = null"
+      @close="closeReject"
     >
       <label class="field"
         ><span>驳回部分</span
@@ -103,11 +112,11 @@
         ><textarea v-model="rejectReason" rows="3" placeholder="请说明原因" />
       </label>
       <template #footer
-        ><button class="button secondary" @click="rejectTarget = null">
+        ><button class="button secondary" :disabled="rejectPending" @click="closeReject">
           取消</button
         ><button
           class="button danger"
-          :disabled="busy || !rejectReason.trim()"
+          :disabled="rejectPending || !rejectReason.trim()"
           @click="confirmReject"
         >
           确认驳回
@@ -119,6 +128,7 @@
       title="通过全部待审核记录"
       :message="`将通过全部 ${pendingItemCount} 项待审核，涉及 ${pendingRecordCount} 条记录。提交时将按数据库中的最新待审核范围处理。`"
       confirm-label="全部通过"
+      :pending="actions.isPending('bulk')"
       @cancel="bulkConfirmOpen = false"
       @confirm="bulkApprove"
     />
@@ -142,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { CheckCheck, ListChecks, RefreshCw, X } from "@lucide/vue";
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
@@ -152,6 +162,8 @@ import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import { get, post } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { notify } from "../../shared/composables/useToast";
 import { buildBulkApprovalRequest } from "../../features/attendance/reviewBulkApproval";
 
@@ -187,16 +199,26 @@ const records = ref<ReviewRecord[]>([]);
 const pendingRecordCount = ref(0);
 const pendingItemCount = ref(0);
 const queueTruncated = ref(false);
-const { busy, run } = useAsyncTask();
+const task = useAsyncTask();
+const listRequest = useLatestRequest();
+const actions = usePendingActions();
+const { loading, error: loadError } = listRequest;
 const rejectTarget = ref<ReviewRecord | null>(null);
 const rejectPart = ref<ReviewPart>("CHECK_IN");
 const rejectReason = ref("");
 const bulkConfirmOpen = ref(false);
 const bulkErrors = ref<string[]>([]);
+const rejectPending = computed(() =>
+  rejectTarget.value
+    ? actions.isPending(reviewKey(rejectTarget.value.id, rejectPart.value))
+    : false,
+);
 onMounted(load);
 async function load() {
-  const value = await run(() =>
-    get<PendingReviewQueue>("/api/attendance/reviews/pending"),
+  const value = await listRequest.run(
+    (signal) =>
+      get<PendingReviewQueue>("/api/attendance/reviews/pending", { signal }),
+    "待审核记录加载失败",
   );
   if (!value) return;
   records.value = value.items;
@@ -210,40 +232,41 @@ async function review(
   action: ReviewAction,
   reason = "",
 ) {
-  const result = await run(
-    () => post(`/api/attendance/${id}/review`, { part, action, reason }),
-    action === "APPROVE" ? "审核已通过" : "记录已驳回",
-  );
-  if (result === undefined) return false;
-  await load();
-  return true;
+  const result = await actions.run(reviewKey(id, part), async () => {
+    const reviewed = await task.run(
+      () => post(`/api/attendance/${id}/review`, { part, action, reason }),
+      action === "APPROVE" ? "审核已通过" : "记录已驳回",
+    );
+    if (reviewed === undefined) return false;
+    await load();
+    return true;
+  });
+  return result === true;
 }
 async function bulkApprove() {
-  if (busy.value) return;
-  bulkConfirmOpen.value = false;
-  const result = await run(() =>
-    post<BulkReviewResult>(
-      "/api/attendance/reviews/bulk",
-      buildBulkApprovalRequest(),
-    ),
-  );
-  if (!result) {
-    bulkConfirmOpen.value = true;
-    return;
-  }
-  if (result.errors.length) {
-    bulkErrors.value = result.errors;
-    notify(
-      `已通过 ${result.reviewed} 项，${result.skipped} 条未处理`,
-      "warning",
+  await actions.run("bulk", async () => {
+    const result = await task.run(() =>
+      post<BulkReviewResult>(
+        "/api/attendance/reviews/bulk",
+        buildBulkApprovalRequest(),
+      ),
     );
-  } else {
-    notify(
-      `已处理 ${result.matched} 条记录，通过 ${result.reviewed} 项审核`,
-      "success",
-    );
-  }
-  await load();
+    if (!result) return;
+    bulkConfirmOpen.value = false;
+    if (result.errors.length) {
+      bulkErrors.value = result.errors;
+      notify(
+        `已通过 ${result.reviewed} 项，${result.skipped} 条未处理`,
+        "warning",
+      );
+    } else {
+      notify(
+        `已处理 ${result.matched} 条记录，通过 ${result.reviewed} 项审核`,
+        "success",
+      );
+    }
+    await load();
+  });
 }
 function openReject(record: ReviewRecord) {
   rejectTarget.value = record;
@@ -261,6 +284,18 @@ async function confirmReject() {
     rejectReason.value,
   );
   if (succeeded) rejectTarget.value = null;
+}
+function closeReject() {
+  if (!rejectPending.value) rejectTarget.value = null;
+}
+function reviewKey(id: number, part: ReviewPart) {
+  return `review:${id}:${part}`;
+}
+function recordActionPending(id: number) {
+  return (
+    actions.isPending(reviewKey(id, "CHECK_IN")) ||
+    actions.isPending(reviewKey(id, "CHECK_OUT"))
+  );
 }
 const clock = (v?: string) => v?.slice(11, 16) || "—";
 const reviewLabels: Record<string, string> = {

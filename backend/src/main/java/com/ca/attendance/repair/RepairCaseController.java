@@ -1,5 +1,6 @@
 package com.ca.attendance.repair;
 
+import com.ca.attendance.common.PaginationPolicy;
 import com.ca.attendance.user.UserRepository;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
@@ -36,7 +37,7 @@ public class RepairCaseController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "30") int pageSize
+            @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize
     ) {
         return repairs.page(keyword, status, from, to, page, pageSize);
     }

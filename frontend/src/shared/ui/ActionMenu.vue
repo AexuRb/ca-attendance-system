@@ -68,8 +68,11 @@ function menuItems() {
 }
 
 async function toggle() {
-  open.value = !open.value;
-  if (!open.value) return;
+  if (open.value) {
+    close();
+    return;
+  }
+  open.value = true;
   document.addEventListener("pointerdown", onOutsidePointerDown);
   window.addEventListener("resize", positionMenu);
   window.addEventListener("scroll", positionMenu, true);
@@ -108,14 +111,18 @@ function onKeydown(event: KeyboardEvent) {
 
   const items = menuItems();
   if (!items.length) return;
+  const first = items[0];
+  const last = items.at(-1);
+  if (!first || !last) return;
   event.preventDefault();
   const activeIndex = items.indexOf(document.activeElement as HTMLElement);
-  if (event.key === "Home") items[0].focus();
-  else if (event.key === "End") items.at(-1)?.focus();
-  else if (event.key === "ArrowDown")
-    items[(activeIndex + 1 + items.length) % items.length].focus();
-  else
-    items[(activeIndex - 1 + items.length) % items.length].focus();
+  if (event.key === "Home") first.focus();
+  else if (event.key === "End") last.focus();
+  else if (event.key === "ArrowDown") {
+    items[(activeIndex + 1 + items.length) % items.length]?.focus();
+  } else {
+    items[(activeIndex - 1 + items.length) % items.length]?.focus();
+  }
 }
 
 function positionMenu() {

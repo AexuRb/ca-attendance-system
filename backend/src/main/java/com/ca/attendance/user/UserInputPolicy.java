@@ -2,6 +2,7 @@ package com.ca.attendance.user;
 
 import com.ca.attendance.common.ApiException;
 
+import java.time.LocalDate;
 import java.util.regex.Pattern;
 
 public final class UserInputPolicy {
@@ -73,7 +74,21 @@ public final class UserInputPolicy {
     }
 
     public static String grade(String value) {
-        return optional(value, GRADE_MAX_LENGTH, "年级");
+        String normalized = optional(value, GRADE_MAX_LENGTH, "年级");
+        if (normalized == null) {
+            return null;
+        }
+        if (!normalized.matches("\\d{4}(?:级)?")) {
+            throw ApiException.badRequest("年级格式应为四位年份，例如 2026级");
+        }
+        int year = Integer.parseInt(normalized.substring(0, 4));
+        int currentYear = LocalDate.now().getYear();
+        int minimum = currentYear - 30;
+        int maximum = currentYear + 2;
+        if (year < minimum || year > maximum) {
+            throw ApiException.badRequest("年级范围应为 " + minimum + "级 到 " + maximum + "级");
+        }
+        return year + "级";
     }
 
     public static String qq(String value) {

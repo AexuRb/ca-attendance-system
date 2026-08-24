@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, ref } from "vue";
@@ -53,7 +54,7 @@ describe("RepairsPage workspace", () => {
       const status = params.get("status") as RepairStatus;
       const page = Number(params.get("page"));
       const total = status === "REPAIRING" ? 31 : status === "COMPLETED" ? 4 : 2;
-      const count = status === "REPAIRING" && page === 1 ? 30 : page === 2 ? 1 : total;
+      const count = status === "REPAIRING" && page === 1 ? 20 : page === 2 ? 11 : total;
       return Promise.resolve(repairPage(status, page, count, total));
     });
 
@@ -70,12 +71,12 @@ describe("RepairsPage workspace", () => {
     await flushPromises();
 
     expect(requests()).toEqual([
-      { status: "REPAIRING", page: "1", pageSize: "30" },
+      { status: "REPAIRING", page: "1", pageSize: "20" },
     ]);
     expect(
       wrapper.findAll(".repair-status-tabs b").map((item) => item.text()),
     ).toEqual(["31", "4", "2"]);
-    expect(wrapper.findAll(".repair-active-card")).toHaveLength(30);
+    expect(wrapper.findAll(".repair-active-card")).toHaveLength(20);
     expect(wrapper.find(".repair-history-table").exists()).toBe(false);
 
     await wrapper.get(".repair-workspace-pagination button:last-child").trigger("click");
@@ -84,9 +85,9 @@ describe("RepairsPage workspace", () => {
     expect(requests().at(-1)).toEqual({
       status: "REPAIRING",
       page: "2",
-      pageSize: "30",
+      pageSize: "20",
     });
-    expect(wrapper.findAll(".repair-active-card")).toHaveLength(1);
+    expect(wrapper.findAll(".repair-active-card")).toHaveLength(11);
 
     await wrapper
       .findAll('[role="tab"]')
@@ -97,7 +98,7 @@ describe("RepairsPage workspace", () => {
     expect(requests().at(-1)).toEqual({
       status: "COMPLETED",
       page: "1",
-      pageSize: "30",
+      pageSize: "20",
     });
     expect(wrapper.findAll(".repair-active-card")).toHaveLength(0);
     expect(wrapper.findAll(".repair-history-row")).toHaveLength(4);
@@ -151,6 +152,31 @@ describe("RepairsPage workspace", () => {
     expect(wrapper.get(".agreement-probe").text()).not.toContain("第一份旧协议");
     expect(wrapper.get(".agreement-probe").text()).toContain("第二份协议");
   });
+
+  it("rejects an inverted date range before filtering or exporting", async () => {
+    apiGet.mockResolvedValue([]);
+    apiRequest.mockResolvedValue(repairPage("REPAIRING", 1, 0, 0));
+    const wrapper = mount(RepairsPage);
+    await flushPromises();
+    apiRequest.mockClear();
+
+    await wrapper.get(".repair-filter-toggle").trigger("click");
+    const dates = wrapper.findAll('input[type="date"]');
+    await dates[0].setValue("2026-08-22");
+    await dates[1].setValue("2026-08-21");
+    await wrapper.get("form.repair-filter-shell").trigger("submit");
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      "开始日期不能晚于结束日期",
+    );
+    expect(wrapper.get(".page-header .button.secondary").attributes("disabled"))
+      .toBeDefined();
+    expect(apiRequest).not.toHaveBeenCalled();
+
+    await wrapper.get(".page-header .button.secondary").trigger("click");
+    expect(apiRequest).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
 });
 
 function requests() {
@@ -172,12 +198,12 @@ function repairPage(
 ): RepairPage {
   return {
     items: Array.from({ length: count }, (_, index) =>
-      repairCase((page - 1) * 30 + index + statusOffset(status), status),
+      repairCase((page - 1) * 20 + index + statusOffset(status), status),
     ),
     total,
     page,
-    pageSize: 30,
-    hasMore: page * 30 < total,
+    pageSize: 20,
+    hasMore: page * 20 < total,
     statusCounts: {
       REPAIRING: 31,
       COMPLETED: 4,

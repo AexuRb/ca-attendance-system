@@ -4,7 +4,7 @@
     :title="member ? '编辑成员' : '新增成员'"
     eyebrow="MEMBER PROFILE"
     size="lg"
-    @close="$emit('close')"
+    @close="close"
   >
     <form
       ref="formElement"
@@ -85,7 +85,7 @@
         <span>年级</span>
         <select v-model="form.grade" name="grade" :aria-invalid="Boolean(errors.grade)">
           <option value="">暂不填写</option>
-          <option v-for="grade in gradeChoices" :key="grade" :value="grade">
+          <option v-for="grade in availableGradeChoices" :key="grade" :value="grade">
             {{ grade }}
           </option>
         </select>
@@ -111,7 +111,7 @@
       </label>
     </form>
     <template #footer>
-      <button class="button secondary" type="button" @click="$emit('close')">
+      <button class="button secondary" type="button" :disabled="busy" @click="close">
         取消
       </button>
       <button
@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import {
   focusFirstInvalid,
@@ -165,6 +165,10 @@ const emit = defineEmits<{
   ];
 }>();
 
+function close() {
+  if (!props.busy) emit("close");
+}
+
 const form = reactive({
   studentNo: "",
   name: "",
@@ -178,6 +182,11 @@ const form = reactive({
 });
 const formElement = ref<HTMLFormElement | null>(null);
 const errors = reactive<InputErrors>({});
+const availableGradeChoices = computed(() =>
+  form.grade && !props.gradeChoices.includes(form.grade)
+    ? [form.grade, ...props.gradeChoices]
+    : props.gradeChoices,
+);
 watch(
   () => [props.open, props.member] as const,
   ([open, member]) => {

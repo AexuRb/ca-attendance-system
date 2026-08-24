@@ -39,4 +39,19 @@ describe("training form validation", () => {
       durationHours: "时长不能小于 0",
     });
   });
+
+  it("rejects a session title longer than one hundred characters", () => {
+    expect(
+      validateTrainingSessionForm({
+        id: null,
+        title: "培".repeat(101),
+        trainingDate: "2026-08-21",
+        startTime: "14:00",
+        endTime: "16:00",
+        location: "",
+        speaker: "",
+        description: "",
+      }),
+    ).toEqual({ title: "培训标题不能超过 100 个字符" });
+  });
 });

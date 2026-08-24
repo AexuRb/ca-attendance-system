@@ -7,10 +7,6 @@
   right: 0;
 }
 
-.refined-admin-layout .record-list-item {
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-}
-
 .refined-admin-layout .record-list-copy {
   min-width: 0;
 }
@@ -21,10 +17,6 @@
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-
-.refined-admin-layout .record-list-item b {
-  white-space: nowrap;
 }
 
 .refined-admin-layout .training-detail-heading > div:first-child {
@@ -45,14 +37,6 @@
 }
 
 @media (max-width: 820px) {
-  .refined-admin-layout .split-workspace {
-    grid-template-columns: 1fr;
-  }
-
-  .refined-admin-layout .record-list {
-    max-height: 300px;
-    overflow: auto;
-  }
 }
 
 @media (max-width: 620px) {

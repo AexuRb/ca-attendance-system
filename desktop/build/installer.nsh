@@ -1,4 +1,5 @@
 !macro preInit
+  ; electron-builder reads these keys before directory selection. Recheck this workaround after builder upgrades.
   SetRegView 64
   WriteRegExpandStr HKLM "${INSTALL_REGISTRY_KEY}" InstallLocation "C:\CAAttendance\app"
   WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" InstallLocation "C:\CAAttendance\app"

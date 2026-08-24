@@ -6,6 +6,7 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ public class MaintenanceSummaryService {
         this.backups = backups;
     }
 
+    @Transactional(readOnly = true)
     public MaintenanceSummary summary() {
         Role role = AuthContext.current().role();
         RolePermissionPolicy.require(role,

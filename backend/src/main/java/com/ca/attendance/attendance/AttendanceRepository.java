@@ -1,5 +1,9 @@
 package com.ca.attendance.attendance;
 
+import com.ca.attendance.common.ExportRowLimit;
+import com.ca.attendance.common.PaginationPolicy;
+import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.SqlLike;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -79,7 +83,7 @@ public class AttendanceRepository {
                       AND ar.check_out_time IS NULL
                       AND ar.check_out_status = 'NOT_SUBMITTED'
                       AND ar.check_in_status <> 'REJECTED'
-                    ORDER BY ar.check_in_time DESC
+                    ORDER BY ar.check_in_time DESC, ar.id DESC
                     LIMIT 1
                     """, mapper, userId, databaseDate(dutyDate)));
         } catch (EmptyResultDataAccessException ex) {
@@ -116,6 +120,38 @@ public class AttendanceRepository {
         jdbc.update("UPDATE users SET updated_at = updated_at WHERE id = ?", reviewerId);
     }
 
+    public int acquireUserAttendanceWriteLock(long userId) {
+        return jdbc.update("UPDATE users SET updated_at = updated_at WHERE id = ?", userId);
+    }
+
+    public int acquireAttendanceRecordWriteLock(long recordId) {
+        return jdbc.update("UPDATE attendance_records SET updated_at = updated_at WHERE id = ?", recordId);
+    }
+
+    public boolean hasOverlappingRecord(long userId, Long excludedRecordId,
+                                        Timestamp checkInTime, Timestamp checkOutTime) {
+        List<Object> args = new ArrayList<>();
+        args.add(userId);
+        StringBuilder sql = new StringBuilder("""
+                SELECT COUNT(*)
+                FROM attendance_records ar
+                WHERE ar.user_id = ?
+                  AND ar.check_in_status <> 'REJECTED'
+                """);
+        if (excludedRecordId != null) {
+            sql.append(" AND ar.id <> ?");
+            args.add(excludedRecordId);
+        }
+        if (checkOutTime != null) {
+            sql.append(" AND ar.check_in_time < ?");
+            args.add(checkOutTime);
+        }
+        sql.append(" AND (ar.check_out_time IS NULL OR ar.check_out_time > ?)");
+        args.add(checkInTime);
+        Integer count = jdbc.queryForObject(sql.toString(), Integer.class, args.toArray());
+        return count != null && count > 0;
+    }
+
     public List<AttendanceRecord> findAllByIds(List<Long> ids) {
         if (ids.isEmpty()) {
             return List.of();
@@ -138,10 +174,11 @@ public class AttendanceRepository {
         return batchApprove(ids, reviewerId, false);
     }
 
-    public int[] batchUpdateEffective(List<EffectiveUpdate> updates) {
+    public int[] batchUpdateEffective(List<EffectiveUpdate> updates, long updatedBy) {
         return jdbc.batchUpdate("""
                 UPDATE attendance_records
                 SET duration_minutes = ?, valid_hours = ?, effective_status = ?,
+                    updated_by = ?,
                     updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, updates.stream()
@@ -149,35 +186,25 @@ public class AttendanceRepository {
                         update.durationMinutes(),
                         update.validHours(),
                         update.effectiveStatus(),
+                        updatedBy,
                         update.id()
                 })
                 .toList());
     }
 
-    public List<AttendanceRecord> openRecords(LocalDate from, LocalDate to) {
-        return jdbc.query("""
-                SELECT ar.*, u.role AS user_role
-                FROM attendance_records ar
-                JOIN users u ON u.id = ar.user_id
-                WHERE ar.duty_date BETWEEN ? AND ?
-                  AND ar.check_out_time IS NULL
-                  AND ar.check_out_status = 'NOT_SUBMITTED'
-                  AND ar.check_in_status <> 'REJECTED'
-                ORDER BY ar.check_in_time DESC
-                LIMIT 500
-                """, mapper, databaseDate(from), databaseDate(to));
-    }
-
     public List<AttendanceRecord> search(LocalDate from, LocalDate to, String studentNo, String status) {
         SearchQuery query = searchQuery(from, to, studentNo, status);
+        List<Object> args = new ArrayList<>(query.args());
+        args.add(ExportRowLimit.FETCH_LIMIT);
         return jdbc.query("""
                 SELECT ar.*, u.role AS user_role
                 FROM attendance_records ar
                 JOIN users u ON u.id = ar.user_id
                 """ + query.where() + """
 
-                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
-                """, mapper, query.args().toArray());
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC, ar.id DESC
+                LIMIT ?
+                """, mapper, args.toArray());
     }
 
     public AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo, String status,
@@ -189,8 +216,7 @@ public class AttendanceRepository {
                 JOIN users u ON u.id = ar.user_id
                 """ + query.where(), Long.class, query.args().toArray());
         long totalRows = total == null ? 0 : total;
-        int lastPage = Math.max(1, (int) Math.ceil((double) totalRows / pageSize));
-        int resolvedPage = Math.min(page, lastPage);
+        int resolvedPage = PaginationPolicy.resolvePage(page, totalRows, pageSize);
         List<Object> args = new ArrayList<>(query.args());
         args.add(pageSize);
         args.add((resolvedPage - 1) * pageSize);
@@ -200,7 +226,7 @@ public class AttendanceRepository {
                 JOIN users u ON u.id = ar.user_id
                 """ + query.where() + """
 
-                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC, ar.id DESC
                 LIMIT ? OFFSET ?
                 """, mapper, args.toArray());
         return new AttendancePage(items, totalRows, resolvedPage, pageSize);
@@ -213,8 +239,9 @@ public class AttendanceRepository {
                 JOIN users u ON u.id = ar.user_id
                 WHERE ar.user_id = ?
                   AND ar.duty_date BETWEEN ? AND ?
-                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
-                """, mapper, userId, databaseDate(from), databaseDate(to));
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC, ar.id DESC
+                LIMIT ?
+                """, mapper, userId, databaseDate(from), databaseDate(to), ExportRowLimit.FETCH_LIMIT);
     }
 
     public long insertCheckIn(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
@@ -235,17 +262,22 @@ public class AttendanceRepository {
     }
 
     public long insertManual(long userId, String studentNo, String name, LocalDate dutyDate, int weekday,
+                             boolean isDutyDay, boolean withinDutyPeriod,
+                             boolean requireDutyDay, boolean requireDutyPeriod,
                              Timestamp checkInTime, Timestamp checkOutTime, String checkInStatus,
                              String checkOutStatus, String reason, long operatorId) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO attendance_records (
                   user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday, is_duty_day, within_duty_period,
+                  require_duty_day, require_duty_period,
                   check_in_time, check_out_time, check_in_status, check_out_status, effective_status,
                   source, manual_reason, created_by, updated_by
                 )
-                VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'INCOMPLETE', 'ADMIN_MANUAL', ?, ?, ?)
                 RETURNING id
-                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday, checkInTime, checkOutTime,
+                """, Long.class, userId, studentNo, name, databaseDate(dutyDate), weekday,
+                isDutyDay, withinDutyPeriod, requireDutyDay, requireDutyPeriod,
+                checkInTime, checkOutTime,
                 checkInStatus, checkOutStatus, reason, operatorId, operatorId);
         return id == null ? 0 : id;
     }
@@ -259,20 +291,26 @@ public class AttendanceRepository {
     }
 
     public void updateReview(long recordId, String part, String status, long reviewerId, String reason) {
+        int updated;
         if ("CHECK_IN".equals(part)) {
-            jdbc.update("""
+            updated = jdbc.update("""
                     UPDATE attendance_records
                     SET check_in_status = ?, check_in_reviewed_by = ?, check_in_reviewed_at = datetime('now', 'localtime'),
                         check_in_reject_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ?
                     """, status, reviewerId, reason, reviewerId, recordId);
-        } else {
-            jdbc.update("""
+        } else if ("CHECK_OUT".equals(part)) {
+            updated = jdbc.update("""
                     UPDATE attendance_records
                     SET check_out_status = ?, check_out_reviewed_by = ?, check_out_reviewed_at = datetime('now', 'localtime'),
                         check_out_reject_reason = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                     WHERE id = ?
                     """, status, reviewerId, reason, reviewerId, recordId);
+        } else {
+            throw ApiException.badRequest("审核部分只能是 CHECK_IN 或 CHECK_OUT");
+        }
+        if (updated != 1) {
+            throw ApiException.notFound("值班记录不存在或已被删除");
         }
     }
 
@@ -322,7 +360,7 @@ public class AttendanceRepository {
                 WHERE (ar.check_in_status = 'PENDING' OR ar.check_out_status = 'PENDING')
                 """ + reviewerClause + """
 
-                ORDER BY ar.duty_date DESC, ar.check_in_time DESC
+                ORDER BY ar.duty_date DESC, ar.check_in_time DESC, ar.id DESC
                 """ + (limited ? " LIMIT 500" : ""), mapper, args.toArray());
     }
 
@@ -351,19 +389,22 @@ public class AttendanceRepository {
     }
 
     private SearchQuery searchQuery(LocalDate from, LocalDate to, String studentNo, String status) {
-        String keywordLike = studentNo == null || studentNo.isBlank() ? "%" : "%" + studentNo.trim() + "%";
-        String effectiveStatus = status == null || status.isBlank() ? "%" : status;
-        return new SearchQuery("""
+        String keywordLike = SqlLike.contains(studentNo);
+        StringBuilder where = new StringBuilder("""
                 WHERE ar.duty_date BETWEEN ? AND ?
-                  AND (ar.student_no_snapshot LIKE ? OR ar.name_snapshot LIKE ?)
-                  AND ar.effective_status LIKE ?
-                """, List.of(
+                  AND (ar.student_no_snapshot LIKE ? ESCAPE '\\' OR ar.name_snapshot LIKE ? ESCAPE '\\')
+                """);
+        List<Object> args = new ArrayList<>(List.of(
                 databaseDate(from),
                 databaseDate(to),
                 keywordLike,
-                keywordLike,
-                effectiveStatus
+                keywordLike
         ));
+        if (status != null && !status.isBlank()) {
+            where.append(" AND ar.effective_status = ?");
+            args.add(status);
+        }
+        return new SearchQuery(where.toString(), args);
     }
 
     public record AttendancePage(List<AttendanceRecord> items, long total, int page, int pageSize) {

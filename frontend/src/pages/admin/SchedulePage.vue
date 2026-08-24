@@ -7,7 +7,7 @@
       <template #actions>
         <button
           class="button primary"
-          :disabled="busy || !periods.length"
+          :disabled="loading || actions.isPending('save') || !periods.length"
           @click="openFixed(null)"
         >
           <Plus />新增排班
@@ -16,7 +16,7 @@
           <button
             role="menuitem"
             type="button"
-            :disabled="busy"
+            :disabled="actions.isPending('template')"
             @click="downloadImportTemplate"
           >
             <Download aria-hidden="true" />下载导入模板
@@ -24,7 +24,7 @@
           <button
             role="menuitem"
             type="button"
-            :disabled="busy"
+            :disabled="loading"
             @click="importOpen = true"
           >
             <Upload aria-hidden="true" />批量导入
@@ -35,7 +35,7 @@
           type="button"
           aria-label="刷新排班"
           title="刷新排班"
-          :disabled="busy"
+          :disabled="loading"
           @click="loadBase"
         >
           <RefreshCw aria-hidden="true" />
@@ -43,7 +43,24 @@
       </template>
     </PageHeader>
 
-    <LoadingBlock v-if="busy && !slots.length" />
+    <div v-if="loadError && slots.length" class="inline-alert danger" role="alert">
+      <span>{{ loadError }}</span>
+      <button class="button secondary small" type="button" data-action="retry-schedule" @click="loadBase">
+        重试
+      </button>
+    </div>
+    <LoadingBlock v-if="loading && !slots.length" />
+    <div v-else-if="loadError && !slots.length" class="inline-alert danger" role="alert">
+      <span>{{ loadError }}</span>
+      <button
+        class="button secondary small"
+        type="button"
+        data-action="retry-schedule"
+        @click="loadBase"
+      >
+        重试
+      </button>
+    </div>
     <FixedScheduleBoard
       v-else
       :slots="slots"
@@ -58,7 +75,7 @@
       :open="editorOpen"
       :title="fixedForm.id ? '编辑固定排班' : '新增固定排班'"
       size="lg"
-      @close="editorOpen = false"
+      @close="closeEditor"
     >
       <div class="form-grid two">
         <label class="field">
@@ -99,6 +116,7 @@
           <ScheduleAssigneePicker
             v-model="fixedForm.assignees"
             :candidates="assigneeCandidates"
+            :open="editorOpen"
           />
         </div>
         <div class="field span-2 schedule-visibility-field">
@@ -117,12 +135,12 @@
         </label>
       </div>
       <template #footer>
-        <button class="button secondary" @click="editorOpen = false">
+        <button class="button secondary" :disabled="actions.isPending('save')" @click="closeEditor">
           取消
         </button>
         <button
           class="button primary"
-          :disabled="busy || !fixedForm.period || !fixedForm.title.trim()"
+          :disabled="actions.isPending('save') || !fixedForm.period || !fixedForm.title.trim()"
           @click="saveFixed"
         >
           保存
@@ -141,6 +159,7 @@
       title="归档固定排班"
       :message="`归档 ${deleteTarget?.weekdayName || ''} ${shortTime(deleteTarget?.startTime)} 的固定排班。`"
       confirm-label="确认归档"
+      :pending="actions.isPending('archive')"
       @cancel="deleteTarget = null"
       @confirm="confirmDeleteFixed"
     />
@@ -160,6 +179,8 @@ import ScheduleImportDialog from "./schedule/ScheduleImportDialog.vue";
 import ScheduleAssigneePicker from "../../features/schedule/ScheduleAssigneePicker.vue";
 import { del, downloadBlob, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
 import {
   normalizeDutyWeekdays,
   type DutyWeekdaySetting,
@@ -172,7 +193,10 @@ import type {
   ScheduleSlot,
 } from "../../features/schedule/scheduleTypes";
 
-const { busy, run } = useAsyncTask();
+const task = useAsyncTask();
+const request = useLatestRequest();
+const actions = usePendingActions();
+const { loading, error: loadError } = request;
 const editorOpen = ref(false);
 const importOpen = ref(false);
 const deleteTarget = ref<ScheduleSlot | null>(null);
@@ -213,13 +237,14 @@ const fixedForm = reactive<ScheduleEditorForm>({
 onMounted(loadBase);
 
 async function loadBase() {
-  const result = await run(() =>
+  const result = await request.run((signal) =>
     Promise.all([
-      get<ScheduleSlot[]>("/api/schedules"),
-      get<DutyPeriod[]>("/api/settings/duty-periods"),
-      get<DutyWeekdaySetting[]>("/api/settings/weekdays"),
-      get<ScheduleAssigneeOption[]>("/api/schedules/assignee-candidates"),
+      get<ScheduleSlot[]>("/api/schedules", { signal }),
+      get<DutyPeriod[]>("/api/settings/duty-periods", { signal }),
+      get<DutyWeekdaySetting[]>("/api/settings/weekdays", { signal }),
+      get<ScheduleAssigneeOption[]>("/api/schedules/assignee-candidates", { signal }),
     ]),
+    "排班数据加载失败",
   );
   if (!result) return;
   const [scheduleSlots, dutyPeriods, weekdaySettings, managerCandidates] =
@@ -289,24 +314,32 @@ function openFixedForPeriod(weekday: number, period: string) {
 }
 
 async function downloadImportTemplate() {
-  const blob = await run(
-    () => get<Blob>("/api/schedules/import-template"),
-    "排班导入模板已下载",
-  );
-  if (blob) downloadBlob(blob, "部长排班导入模板.xlsx");
+  await actions.run("template", async () => {
+    const blob = await task.run(
+      () => get<Blob>("/api/schedules/import-template"),
+      "排班导入模板已下载",
+    );
+    if (blob) downloadBlob(blob, "部长排班导入模板.xlsx");
+  });
 }
 
 async function saveFixed() {
-  const payload = schedulePayload(fixedForm);
-  const saved = fixedForm.id
-    ? await run(
-        () => put(`/api/schedules/${fixedForm.id}`, payload),
-        "排班已更新",
-      )
-    : await run(() => post("/api/schedules", payload), "排班已新增");
-  if (!saved) return;
-  editorOpen.value = false;
-  await loadBase();
+  await actions.run("save", async () => {
+    const payload = schedulePayload(fixedForm);
+    const saved = fixedForm.id
+      ? await task.run(
+          () => put(`/api/schedules/${fixedForm.id}`, payload),
+          "排班已更新",
+        )
+      : await task.run(() => post("/api/schedules", payload), "排班已新增");
+    if (saved === undefined) return;
+    editorOpen.value = false;
+    await loadBase();
+  });
+}
+
+function closeEditor() {
+  if (!actions.isPending("save")) editorOpen.value = false;
 }
 
 function deleteFixed(item: ScheduleSlot) {
@@ -316,13 +349,15 @@ function deleteFixed(item: ScheduleSlot) {
 async function confirmDeleteFixed() {
   const target = deleteTarget.value;
   if (!target) return;
-  const archived = await run(
-    () => del(`/api/schedules/${target.id}`),
-    "排班已归档",
-  );
-  if (archived === undefined) return;
-  deleteTarget.value = null;
-  await loadBase();
+  await actions.run("archive", async () => {
+    const archived = await task.run(
+      () => del(`/api/schedules/${target.id}`),
+      "排班已归档",
+    );
+    if (archived === undefined) return;
+    deleteTarget.value = null;
+    await loadBase();
+  });
 }
 
 function periodKey(value: Pick<DutyPeriod, "startTime" | "endTime">) {

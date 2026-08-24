@@ -59,8 +59,14 @@
       </ul>
     </div>
 
-    <LoadingBlock v-if="busy && !members.length" />
-    <EmptyState v-else-if="!members.length" title="没有符合条件的成员" />
+    <div v-if="listError" class="inline-alert danger" role="alert">
+      <span>{{ listError }}</span>
+      <button class="button secondary small" type="button" data-action="retry-members" @click="load()">
+        重试
+      </button>
+    </div>
+    <LoadingBlock v-if="listLoading && !members.length" />
+    <EmptyState v-else-if="!members.length && !listError" title="没有符合条件的成员" />
     <div v-else class="table-shell member-table">
       <table>
         <thead>
@@ -127,6 +133,7 @@
                 :editable="canEdit(item)"
                 :self="item.id === user?.id"
                 :deletable="user?.role === 'ADMIN'"
+                :pending="actions.isPending(`member:${item.id}`)"
                 @edit="openEdit(item)"
                 @toggle-status="toggleStatus(item)"
                 @reset-password="resetTarget = item"
@@ -143,7 +150,7 @@
       <div>
         <button
           class="button secondary small"
-          :disabled="page <= 1"
+          :disabled="page <= 1 || listLoading"
           @click="load(page - 1)"
         >
           <ChevronLeft />上一页
@@ -151,7 +158,7 @@
         <span>第 {{ page }} / {{ totalPages }} 页</span>
         <button
           class="button secondary small"
-          :disabled="page >= totalPages"
+          :disabled="page >= totalPages || listLoading"
           @click="load(page + 1)"
         >
           下一页<ChevronRight />
@@ -164,7 +171,7 @@
       :member="editorTarget"
       :operator-role="user?.role"
       :grade-choices="gradeChoices"
-      :busy="busy"
+      :busy="actions.isPending('save')"
       :lock-account-controls="lockEditorAccountControls"
       @close="closeEditor"
       @save="saveMember"
@@ -175,7 +182,7 @@
       title="批量导入成员"
       eyebrow="EXCEL IMPORT"
       size="sm"
-      @close="importOpen = false"
+      @close="closeImport"
     >
       <div class="upload-zone">
         <Upload />
@@ -203,7 +210,7 @@
         </a>
         <button
           class="button primary"
-          :disabled="!importFile || busy"
+          :disabled="!importFile || actions.isPending('import')"
           @click="importMembers"
         >
           开始导入
@@ -215,16 +222,16 @@
       :open="bulkOpen"
       :count="selected.size"
       :status="bulkTargetStatus"
-      :busy="busy"
-      @close="bulkOpen = false"
+      :busy="actions.isPending('bulk')"
+      @close="closeBulk"
       @confirm="applyBulkStatus"
     />
 
     <MemberPasswordResetDialog
       :open="Boolean(resetTarget)"
       :member="resetTarget"
-      :busy="busy"
-      @close="resetTarget = null"
+      :busy="actions.isPending('reset-password')"
+      @close="closeReset"
       @confirm="resetPassword"
     />
     <ConfirmDialog
@@ -234,6 +241,7 @@
       confirm-label="删除成员"
       danger
       require-reason
+      :pending="actions.isPending('delete')"
       @cancel="deleteTarget = null"
       @confirm="remove"
     />
@@ -275,10 +283,16 @@ import {
 } from "../../features/members/memberDirectory";
 import { del, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { excelFileError } from "../../shared/validation/fileValidation";
 import { useSession } from "../../app/session";
 
 const { user } = useSession();
-const { busy, error: taskError, run } = useAsyncTask();
+const task = useAsyncTask();
+const listRequest = useLatestRequest();
+const actions = usePendingActions();
+const { loading: listLoading, error: listError } = listRequest;
 const members = ref<MemberSummary[]>([]);
 const grades = ref<string[]>([]);
 const total = ref(0);
@@ -296,13 +310,13 @@ const bulkResult = ref<BulkStatusResult | null>(null);
 const resetTarget = ref<MemberSummary | null>(null);
 const deleteTarget = ref<MemberSummary | null>(null);
 const filters = reactive({ keyword: "", role: "", status: "", grade: "" });
-const importError = computed(() => (importOpen.value ? taskError.value : ""));
+const importError = ref("");
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(total.value / pageSize)),
 );
 const gradeChoices = Array.from(
-  { length: 30 },
+  { length: 33 },
   (_, index) => `${new Date().getFullYear() + 2 - index}级`,
 );
 const selectableIds = computed(() =>
@@ -332,8 +346,9 @@ async function load(target = page.value) {
   if (filters.role) query.set("role", filters.role);
   if (filters.status) query.set("status", filters.status);
   if (filters.grade) query.set("grade", filters.grade);
-  const value = await run(() =>
-    get<MemberPage>(`/api/users/page?${query}`),
+  const value = await listRequest.run(
+    (signal) => get<MemberPage>(`/api/users/page?${query}`, { signal }),
+    "成员名册加载失败",
   );
   if (!value) return;
   members.value = value.items;
@@ -342,7 +357,8 @@ async function load(target = page.value) {
 }
 
 async function loadGrades() {
-  grades.value = await get<string[]>("/api/users/grades");
+  const value = await task.run(() => get<string[]>("/api/users/grades"));
+  if (value) grades.value = value;
 }
 
 function canEdit(member: MemberSummary) {
@@ -360,6 +376,7 @@ function openEdit(member: MemberSummary) {
 }
 
 function closeEditor() {
+  if (actions.isPending("save")) return;
   editorOpen.value = false;
   editorTarget.value = null;
 }
@@ -375,58 +392,63 @@ async function saveMember(payload: {
   qq: string;
   reason?: string;
 }) {
-  const target = editorTarget.value;
-  const value = target
-    ? await run(
-        () =>
-          put<MemberSummary>(`/api/users/${target.id}`, {
-            name: payload.name,
-            role: payload.role,
-            status: payload.status,
-            phone: payload.phone,
-            major: payload.major,
-            grade: payload.grade,
-            qq: payload.qq,
-            reason: payload.reason,
-          }),
-        "成员资料已更新",
-      )
-    : await run(
-        () =>
-          post<MemberSummary>("/api/users", {
-            studentNo: payload.studentNo,
-            name: payload.name,
-            role: payload.role,
-            phone: payload.phone,
-            major: payload.major,
-            grade: payload.grade,
-            qq: payload.qq,
-          }),
-        "成员已新增，初始密码为学号后六位",
-      );
-  if (!value) return;
-  closeEditor();
-  await Promise.all([load(target ? page.value : 1), loadGrades()]);
+  await actions.run("save", async () => {
+    const target = editorTarget.value;
+    const value = target
+      ? await task.run(
+          () =>
+            put<MemberSummary>(`/api/users/${target.id}`, {
+              name: payload.name,
+              role: payload.role,
+              status: payload.status,
+              phone: payload.phone,
+              major: payload.major,
+              grade: payload.grade,
+              qq: payload.qq,
+              reason: payload.reason,
+            }),
+          "成员资料已更新",
+        )
+      : await task.run(
+          () =>
+            post<MemberSummary>("/api/users", {
+              studentNo: payload.studentNo,
+              name: payload.name,
+              role: payload.role,
+              phone: payload.phone,
+              major: payload.major,
+              grade: payload.grade,
+              qq: payload.qq,
+            }),
+          "成员已新增，初始密码为学号后六位",
+        );
+    if (!value) return;
+    editorOpen.value = false;
+    editorTarget.value = null;
+    await Promise.all([load(target ? page.value : 1), loadGrades()]);
+  });
 }
 
 async function toggleStatus(member: MemberSummary) {
   const status: MemberStatus =
     member.status === "ACTIVE" ? "DISABLED" : "ACTIVE";
-  const value = await run(
-    () =>
-      put<MemberSummary>(`/api/users/${member.id}`, {
-        name: member.name,
-        role: member.role,
-        status,
-        phone: member.phone,
-        major: member.major,
-        grade: member.grade,
-        qq: member.qq,
-        reason: status === "ACTIVE" ? "启用成员账号" : "停用成员账号",
-      }),
-    "账号状态已更新",
-  );
-  if (value) await load();
+  await actions.run(`member:${member.id}`, async () => {
+    const value = await task.run(
+      () =>
+        put<MemberSummary>(`/api/users/${member.id}`, {
+          name: member.name,
+          role: member.role,
+          status,
+          phone: member.phone,
+          major: member.major,
+          grade: member.grade,
+          qq: member.qq,
+          reason: status === "ACTIVE" ? "启用成员账号" : "停用成员账号",
+        }),
+      "账号状态已更新",
+    );
+    if (value) await load();
+  });
 }
 
 function toggleMember(id: number) {
@@ -450,73 +472,105 @@ function openBulk(status: MemberStatus) {
 }
 
 async function applyBulkStatus(reason: string) {
-  const result = await run(
-    () =>
-      put<BulkStatusResult>(
-        "/api/users/bulk-status",
-        bulkStatusPayload(selected.value, bulkTargetStatus.value, reason),
-      ),
-    "批量状态操作已完成",
-  );
-  if (!result) return;
-  bulkResult.value = result;
-  bulkOpen.value = false;
-  selected.value = new Set();
-  await load();
+  await actions.run("bulk", async () => {
+    const result = await task.run(
+      () =>
+        put<BulkStatusResult>(
+          "/api/users/bulk-status",
+          bulkStatusPayload(selected.value, bulkTargetStatus.value, reason),
+        ),
+      "批量状态操作已完成",
+    );
+    if (!result) return;
+    bulkResult.value = result;
+    bulkOpen.value = false;
+    selected.value = new Set();
+    await load();
+  });
 }
 
 function openImport() {
-  taskError.value = "";
+  importError.value = "";
   importResult.value = null;
   importFile.value = null;
   importOpen.value = true;
 }
 
 function pickFile(event: Event) {
-  importFile.value = (event.target as HTMLInputElement).files?.[0] || null;
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0] || null;
   importResult.value = null;
-  taskError.value = "";
+  importError.value = "";
+  if (file) importError.value = excelFileError(file, "成员 Excel 文件");
+  importFile.value = importError.value ? null : file;
+  if (importError.value) input.value = "";
 }
 
 async function importMembers() {
   if (!importFile.value) return;
-  const body = new FormData();
-  body.append("file", importFile.value);
-  const value = await run(
-    () => post<MemberImportResult>("/api/users/import", body),
-    "成员导入完成",
-  );
-  if (!value) return;
-  importResult.value = value;
-  importFile.value = null;
-  await Promise.all([load(1), loadGrades()]);
+  await actions.run("import", async () => {
+    importError.value = "";
+    const body = new FormData();
+    body.append("file", importFile.value as File);
+    const value = await task.run(
+      () => post<MemberImportResult>("/api/users/import", body),
+      "成员导入完成",
+    );
+    if (!value) {
+      importError.value = task.error.value;
+      return;
+    }
+    importResult.value = value;
+    importFile.value = null;
+    await Promise.all([load(1), loadGrades()]);
+  });
 }
 
 async function resetPassword(newPassword: string) {
   if (!resetTarget.value) return;
-  const result = await run(
-    async () => {
-      await post(`/api/users/${resetTarget.value?.id}/reset-password`, {
-        newPassword: newPassword || undefined,
-        reason: "后台重置密码",
-      });
-      return true;
-    },
-    "密码已重置",
-  );
-  if (!result) return;
-  resetTarget.value = null;
+  await actions.run("reset-password", async () => {
+    const target = resetTarget.value;
+    if (!target) return;
+    const result = await task.run(
+      async () => {
+        await post(`/api/users/${target.id}/reset-password`, {
+          newPassword: newPassword || undefined,
+          reason: "后台重置密码",
+        });
+        return true;
+      },
+      "密码已重置",
+    );
+    if (!result) return;
+    resetTarget.value = null;
+  });
 }
 
 async function remove(reason: string) {
   if (!deleteTarget.value) return;
-  const removed = await run(
-    () => del(`/api/users/${deleteTarget.value?.id}`, { reason }),
-    "成员已删除",
-  );
-  if (removed === undefined) return;
-  deleteTarget.value = null;
-  await load();
+  await actions.run("delete", async () => {
+    const target = deleteTarget.value;
+    if (!target) return;
+    const removed = await task.run(
+      () => del(`/api/users/${target.id}`, { reason }),
+      "成员已删除",
+    );
+    if (removed === undefined) return;
+    deleteTarget.value = null;
+    await load();
+  });
+}
+
+function closeImport() {
+  if (!actions.isPending("import")) importOpen.value = false;
+}
+
+function closeBulk() {
+  if (!actions.isPending("bulk")) bulkOpen.value = false;
+}
+
+function closeReset() {
+  if (!actions.isPending("reset-password")) resetTarget.value = null;
 }
 
 const roleLabel = (role: string) =>

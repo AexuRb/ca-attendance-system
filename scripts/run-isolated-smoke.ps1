@@ -2,12 +2,19 @@
 param(
     [int]$Port = 18080,
     [int]$RemotePort = 18081,
-    [string]$AdminStudentNo = "1004231224",
-    [string]$AdminPassword = "123456",
+    [string]$AdminStudentNo = $env:CA_TEST_ADMIN_STUDENT_NO,
+    [string]$AdminPassword = $env:CA_TEST_ADMIN_PASSWORD,
     [switch]$IncludeUi
 )
 
 $ErrorActionPreference = "Stop"
+if ([string]::IsNullOrWhiteSpace($AdminStudentNo)) {
+    $AdminStudentNo = "9{0:D9}" -f (Get-Random -Minimum 0 -Maximum 1000000000)
+}
+if ([string]::IsNullOrWhiteSpace($AdminPassword)) {
+    $AdminPassword = "Aa1!" + [Guid]::NewGuid().ToString("N")
+}
+
 $workspace = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $jar = Join-Path $workspace "backend\target\attendance-backend.jar"
 if (-not (Test-Path -LiteralPath $jar)) {

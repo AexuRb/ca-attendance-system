@@ -16,12 +16,6 @@ public class PublicAttendanceController {
         this.requestGuard = requestGuard;
     }
 
-    @GetMapping("/lookup/{studentNo}")
-    public AttendanceService.PublicLookupResponse lookup(@PathVariable String studentNo, HttpServletRequest servletRequest) {
-        requestGuard.requireLookup(servletRequest.getRemoteAddr());
-        return attendance.lookupByInput(studentNo);
-    }
-
     @GetMapping("/lookup")
     public AttendanceService.PublicLookupResponse lookupByInput(@RequestParam String query,
                                                                  HttpServletRequest servletRequest) {

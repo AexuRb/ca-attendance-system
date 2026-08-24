@@ -1,19 +1,5 @@
 /* Final admin visual layer. Base component and page files own structure. */
 .refined-admin-layout {
-  --primary-rail-width: 74px;
-  --section-sidebar-width: 214px;
-  --admin-canvas: #f4f6f8;
-  --admin-surface: #ffffff;
-  --admin-surface-subtle: #f8fafb;
-  --admin-line: #d9e2e8;
-  --admin-line-soft: #e9eef2;
-  --admin-blue: #0f779b;
-  --admin-blue-deep: #086786;
-  --admin-blue-soft: #e8f4f8;
-  --admin-green: #28715f;
-  --admin-amber: #936515;
-  --admin-red: #a24646;
-  --admin-ease: cubic-bezier(0.22, 0.78, 0.18, 1);
   background: var(--admin-canvas);
   transition: grid-template-columns 0.42s var(--admin-ease);
 }
@@ -216,10 +202,6 @@
 .refined-admin-layout small,
 .refined-admin-layout .priority-item > small,
 .refined-admin-layout .today-page .section-heading h2 + span,
-.refined-admin-layout .record-date,
-.refined-admin-layout .record-list-item small,
-.refined-admin-layout .record-list-item b,
-.refined-admin-layout .compact-metrics span,
 .refined-admin-layout .export-steps button span,
 .refined-admin-layout .weekday-selector strong,
 .refined-admin-layout .period-enabled-toggle span,
@@ -760,15 +742,5 @@
   .refined-admin-layout .reviews-page .filter-bar .icon-button {
     width: 38px;
     justify-self: end;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .refined-admin-layout *,
-  .refined-admin-layout *::before,
-  .refined-admin-layout *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
   }
 }

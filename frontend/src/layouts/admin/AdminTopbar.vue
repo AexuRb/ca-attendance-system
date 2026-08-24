@@ -39,7 +39,7 @@
         <HeartHandshake aria-hidden="true" />
         <span>鸣谢</span>
       </button>
-      <ServiceStatus :online="true" compact />
+      <ServiceStatus :online="online" compact />
       <span class="local-clock">{{ clock }}</span>
     </div>
   </header>
@@ -53,6 +53,9 @@ import {
   PanelLeftOpen,
 } from "@lucide/vue";
 import ServiceStatus from "../../shared/ui/ServiceStatus.vue";
+import { useServiceHealth } from "../../shared/composables/useServiceHealth";
+
+const { online } = useServiceHealth();
 
 defineProps<{
   currentSection: string;

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ReviewsPage from "./ReviewsPage.vue";
@@ -85,5 +86,45 @@ describe("ReviewsPage bulk approval", () => {
     expect(mocks.apiGet).toHaveBeenCalledTimes(2);
     expect(wrapper.text()).toContain("0 项待审核");
     expect(wrapper.text()).toContain("待审核已清空");
+  });
+
+  it("prevents duplicate approval of the same review item", async () => {
+    let resolveReview!: (value: unknown) => void;
+    mocks.apiPost.mockReturnValue(
+      new Promise((resolve) => {
+        resolveReview = resolve;
+      }),
+    );
+    const wrapper = mount(ReviewsPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+
+    const approve = wrapper.get(".review-approve-check-in");
+    await approve.trigger("click");
+    await approve.trigger("click");
+    expect(mocks.apiPost).toHaveBeenCalledTimes(1);
+    expect(approve.attributes("disabled")).toBeDefined();
+
+    resolveReview({});
+    await flushPromises();
+    wrapper.unmount();
+  });
+
+  it("keeps the bulk confirmation open when approval fails", async () => {
+    mocks.apiPost.mockRejectedValue(new Error("批量审核失败"));
+    const wrapper = mount(ReviewsPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+
+    await wrapper.get(".page-actions .button").trigger("click");
+    await wrapper.get(".modal-footer .button.primary").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("通过全部待审核记录");
+    expect(mocks.apiGet).toHaveBeenCalledTimes(1);
+    expect(mocks.notify).toHaveBeenCalledWith("批量审核失败", "danger");
+    wrapper.unmount();
   });
 });

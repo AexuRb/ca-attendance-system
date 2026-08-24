@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from "vue";
+import { ref } from "vue";
 import { X } from "@lucide/vue";
 import { useDialogFocus } from "../../shared/ui/useDialogFocus";
 import TrainingSessionList from "./TrainingSessionList.vue";
@@ -74,34 +74,11 @@ const emit = defineEmits<{
   retry: [];
 }>();
 const dialog = ref<HTMLElement | null>(null);
-let restorePageScroll: (() => void) | null = null;
 useDialogFocus({
   root: dialog,
   open: () => props.open,
   close: () => emit("close"),
 });
-
-watch(
-  () => props.open,
-  (open) => {
-    if (open && !restorePageScroll) {
-      const htmlOverflow = document.documentElement.style.overflow;
-      const bodyOverflow = document.body.style.overflow;
-      document.documentElement.style.overflow = "hidden";
-      document.body.style.overflow = "hidden";
-      restorePageScroll = () => {
-        document.documentElement.style.overflow = htmlOverflow;
-        document.body.style.overflow = bodyOverflow;
-        restorePageScroll = null;
-      };
-    } else if (!open) {
-      restorePageScroll?.();
-    }
-  },
-  { immediate: true },
-);
-
-onBeforeUnmount(() => restorePageScroll?.());
 
 function choose(session: TrainingSession) {
   emit("select", session);

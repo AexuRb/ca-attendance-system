@@ -1,8 +1,3 @@
-:root {
-  --primary-rail-width: 88px;
-  --section-sidebar-width: 224px;
-}
-
 .refined-admin-layout {
   display: grid;
   grid-template-columns:
@@ -239,10 +234,6 @@
   padding: 8px;
 }
 
-.section-sidebar-foot .sidebar-credit {
-  min-height: 34px;
-}
-
 .section-user {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 34px;
@@ -398,17 +389,6 @@
 
   .refined-admin-layout .nav-scrim {
     z-index: 50;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .refined-admin-layout,
-  .admin-primary-rail,
-  .admin-section-sidebar,
-  .primary-nav a,
-  .section-navigation a {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
   }
 }
 

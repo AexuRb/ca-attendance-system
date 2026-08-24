@@ -1,48 +1,48 @@
 import argparse
 import os
+import re
 import time
 import zipfile
 from pathlib import Path
 
-from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import (
+    Browser,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+    expect,
+    sync_playwright,
+)
 
 
-TAB_GROUPS = {
-    "今日": "值班",
-    "审核": "值班",
-    "记录": "值班",
-    "统计": "值班",
-    "排班": "值班",
-    "成员": "人员",
-    "个人": "人员",
-    "培训": "事务",
-    "维修": "事务",
-    "数据": "系统",
-    "维护": "系统",
-    "设置": "系统",
-    "日志": "系统",
-}
+ADMIN_PAGES = [
+    ("today", "今日"),
+    ("reviews", "签到审核"),
+    ("attendance", "值班记录"),
+    ("stats", "值班统计"),
+    ("schedules", "排班管理"),
+    ("members", "成员名册"),
+    ("profile", "个人资料"),
+    ("repairs", "维修事务"),
+    ("trainings", "培训记录"),
+    ("data", "数据与备份"),
+    ("settings", "系统设置"),
+    ("logs", "操作日志"),
+]
 
 
 def env_or_default(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
-def click_tab(page, label: str) -> None:
-    group_label = TAB_GROUPS[label]
-    group = page.locator(".admin-primary-nav button", has_text=group_label).first
-    if group.get_attribute("aria-current") != "page":
-        expect(group).to_be_visible(timeout=10_000)
-        group.click()
-        page.wait_for_timeout(180)
-    tab = page.locator(".admin-subnav nav button", has_text=label).first
-    expect(tab).to_be_visible(timeout=10_000)
-    tab.click()
-    page.wait_for_timeout(250)
+def admin_url(base_url: str, route: str) -> str:
+    return f"{base_url}/#/admin/{route}"
 
 
-def assert_no_page_overflow(page, label: str) -> None:
+def expect_route(page: Page, suffix: str) -> None:
+    expect(page).to_have_url(re.compile(rf"{re.escape(suffix)}(?:\?.*)?$"))
+
+
+def assert_no_page_overflow(page: Page, label: str) -> None:
     metrics = page.evaluate(
         """() => ({
             clientWidth: document.documentElement.clientWidth,
@@ -52,413 +52,506 @@ def assert_no_page_overflow(page, label: str) -> None:
     if metrics["scrollWidth"] > metrics["clientWidth"] + 2:
         raise AssertionError(
             f"{label} page has horizontal overflow: "
-            f"scrollWidth={metrics['scrollWidth']}, clientWidth={metrics['clientWidth']}"
+            f"scrollWidth={metrics['scrollWidth']}, "
+            f"clientWidth={metrics['clientWidth']}"
         )
 
 
+def assert_xlsx(download, label: str) -> None:
+    path = download.path()
+    if not path or not zipfile.is_zipfile(path):
+        raise AssertionError(f"{label} did not produce a valid xlsx file")
+
+
+def go_admin(page: Page, base_url: str, route: str, heading: str) -> None:
+    page.goto(admin_url(base_url, route), wait_until="networkidle")
+    expect(page.get_by_role("heading", name=heading, exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    expect_route(page, f"/#/admin/{route}")
+
+
+def screenshot(page: Page, directory: Path, name: str, full_page: bool = True) -> None:
+    page.screenshot(path=str(directory / name), full_page=full_page)
+
+
+def initialize_system(
+    page: Page,
+    base_url: str,
+    account: str,
+    password: str,
+    name: str,
+    screenshot_dir: Path,
+) -> None:
+    page.goto(base_url, wait_until="networkidle")
+    expect(page.get_by_role("heading", name="初始化本机", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    expect_route(page, "/#/setup")
+    screenshot(page, screenshot_dir, "setup-desktop.png")
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    assert_no_page_overflow(page, "mobile setup")
+    screenshot(page, screenshot_dir, "setup-mobile.png")
+    page.set_viewport_size({"width": 1440, "height": 980})
+
+    page.locator("input[name='account']").fill(account)
+    page.locator("input[name='name']").fill(name)
+    page.locator("input[name='password']").fill(password)
+    page.locator("input[name='confirmation']").fill(password)
+    page.get_by_role("button", name="创建本地系统", exact=True).click()
+    expect(page.get_by_role("heading", name="今日", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    expect_route(page, "/#/admin/today")
+
+    page.get_by_role("button", name="退出登录", exact=True).click()
+    expect(page.get_by_role("heading", name="登录后台", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    page.get_by_role("link", name="返回签到台", exact=True).click()
+    expect(page.get_by_role("heading", name="签到 / 签退", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+
+
+def verify_kiosk(
+    page: Page,
+    account: str,
+    admin_name: str,
+    screenshot_dir: Path,
+) -> None:
+    expect_route(page, "/#/")
+    expect(
+        page.get_by_role("heading", name="今日部长排班", exact=True)
+    ).to_be_visible()
+    lookup_input = page.locator("#member-query")
+    expect(lookup_input).to_be_focused(timeout=10_000)
+
+    lookup_attempts = {"count": 0}
+
+    def retry_lookup(route) -> None:
+        lookup_attempts["count"] += 1
+        if lookup_attempts["count"] == 1:
+            route.abort("failed")
+            return
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=(
+                '{"exists":false,"dutyDay":true,"withinDutyPeriod":true,'
+                '"message":"未找到该成员","matches":[]}'
+            ),
+        )
+
+    page.route("**/api/public/attendance/lookup?*", retry_lookup)
+    lookup_input.fill("断线保留测试")
+    page.get_by_role("button", name="继续", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text(
+        "已保留当前输入", timeout=10_000
+    )
+    expect(lookup_input).to_have_value("断线保留测试")
+    expect(page.get_by_role("alert")).to_contain_text(
+        "请检查学号", timeout=8_000
+    )
+    if lookup_attempts["count"] < 2:
+        raise AssertionError("offline lookup was not retried automatically")
+    page.unroute("**/api/public/attendance/lookup?*")
+
+    def same_name_lookup(route) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=(
+                '{"exists":false,"message":"找到多位同名成员",'
+                '"matches":['
+                '{"memberToken":"member-a","maskedStudentNo":"******1224",'
+                '"name":"同名测试","grade":"2025级"},'
+                '{"memberToken":"member-b","maskedStudentNo":"******8877",'
+                '"name":"同名测试","grade":"2024级"}]}'
+            ),
+        )
+
+    lookup_input.fill("同名测试")
+    page.route("**/api/public/attendance/lookup?*", same_name_lookup)
+    page.get_by_role("button", name="继续", exact=True).click()
+    expect(page.get_by_role("heading", name="选择账号", exact=True)).to_be_visible()
+    expect(page.get_by_text("******1224", exact=False)).to_be_visible()
+    expect(page.get_by_text("******8877", exact=False)).to_be_visible()
+    expect(page.get_by_text("8800001224", exact=True)).to_have_count(0)
+    page.get_by_role("button", name="重新输入", exact=True).click()
+    page.unroute("**/api/public/attendance/lookup?*")
+
+    lookup_input.fill(account)
+    page.get_by_role("button", name="继续", exact=True).click()
+    expect(page.get_by_role("heading", name="确认身份", exact=True)).to_be_visible(
+        timeout=10_000
+    )
+    expect(page.get_by_text(admin_name, exact=True)).to_be_visible()
+    page.get_by_role("button", name="确认签到", exact=True).click()
+    expect(
+        page.get_by_role("heading", name=f"{admin_name}，签到成功", exact=True)
+    ).to_be_visible(timeout=10_000)
+    screenshot(page, screenshot_dir, "kiosk-success.png")
+
+    expect(lookup_input).to_be_visible(timeout=7_000)
+    expect(lookup_input).to_be_focused(timeout=2_000)
+    lookup_input.fill(account)
+    page.get_by_role("button", name="继续", exact=True).click()
+    expect(page.get_by_role("button", name="确认签退", exact=True)).to_be_visible(
+        timeout=10_000
+    )
+    page.get_by_role("button", name="确认签退", exact=True).click()
+    expect(
+        page.get_by_role("heading", name=f"{admin_name}，签退成功", exact=True)
+    ).to_be_visible(timeout=10_000)
+    page.get_by_role("button", name="下一位", exact=True).click()
+    expect(lookup_input).to_be_focused(timeout=2_000)
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    assert_no_page_overflow(page, "mobile kiosk")
+    screenshot(page, screenshot_dir, "kiosk-mobile.png")
+    page.set_viewport_size({"width": 1440, "height": 980})
+    screenshot(page, screenshot_dir, "kiosk-desktop.png")
+
+
+def login_admin(
+    page: Page,
+    account: str,
+    password: str,
+    screenshot_dir: Path,
+) -> None:
+    page.get_by_role("link", name="后台", exact=True).click()
+    expect(page.get_by_role("heading", name="登录后台", exact=True)).to_be_visible(
+        timeout=10_000
+    )
+    expect_route(page, "/#/login")
+    expect(page.get_by_role("link", name="返回签到台", exact=True)).to_be_visible()
+
+    account_input = page.locator("input[name='username']")
+    password_input = page.locator("input[name='password']")
+    account_input.fill(account)
+    password_input.fill(password)
+    expect(password_input).to_have_attribute("type", "password")
+    page.get_by_role("button", name="显示密码", exact=True).click()
+    expect(password_input).to_have_attribute("type", "text")
+    page.get_by_role("button", name="隐藏密码", exact=True).click()
+    expect(password_input).to_have_attribute("type", "password")
+    page.get_by_role("checkbox").check()
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    assert_no_page_overflow(page, "mobile login")
+    screenshot(page, screenshot_dir, "login-mobile.png")
+    page.set_viewport_size({"width": 1440, "height": 980})
+
+    page.get_by_role("button", name="进入后台", exact=True).click()
+    expect(page.get_by_role("heading", name="今日", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    expect_route(page, "/#/admin/today")
+    remembered = page.evaluate(
+        "() => localStorage.getItem('ca_remembered_account')"
+    )
+    if remembered != account:
+        raise AssertionError(f"remembered account mismatch: {remembered!r}")
+    storage = page.evaluate(
+        """() => ({
+            localToken: localStorage.getItem('ca_attendance_token'),
+            sessionToken: sessionStorage.getItem('ca_attendance_token'),
+            legacyCredentials: localStorage.getItem('ca_remembered_credentials')
+        })"""
+    )
+    if not storage["localToken"] or storage["sessionToken"]:
+        raise AssertionError("local login token was not stored only in localStorage")
+    if storage["legacyCredentials"] is not None:
+        raise AssertionError("legacy remembered credentials were not removed")
+    screenshot(page, screenshot_dir, "admin-today.png")
+
+
+def verify_unsaved_repair(page: Page, base_url: str) -> None:
+    go_admin(page, base_url, "repairs", "维修事务")
+    page.get_by_role("button", name="新建维修", exact=True).click()
+    expect(
+        page.get_by_role("heading", name="新建维修事务", exact=True)
+    ).to_be_visible()
+    owner = page.locator("input[name='repair-owner-name']")
+    owner.fill("未保存测试")
+    page.evaluate("() => { window.location.hash = '#/admin/today'; }")
+
+    confirm = page.locator(
+        "[role='dialog']", has_text="当前维修事务还有未保存的内容"
+    )
+    expect(confirm).to_be_visible(timeout=10_000)
+    confirm.get_by_role("button", name="取消", exact=True).click()
+    expect(confirm).not_to_be_visible(timeout=5_000)
+    expect(owner).to_have_value("未保存测试")
+    expect_route(page, "/#/admin/repairs")
+
+    page.evaluate("() => { window.location.hash = '#/admin/today'; }")
+    expect(confirm).to_be_visible(timeout=10_000)
+    confirm.get_by_role("button", name="放弃修改", exact=True).click()
+    expect(page.get_by_role("heading", name="今日", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+
+
+def verify_exports(page: Page, base_url: str) -> None:
+    go_admin(page, base_url, "stats", "值班统计")
+    with page.expect_download(timeout=20_000) as download_info:
+        page.get_by_role("button", name="导出 Excel", exact=True).click()
+    assert_xlsx(download_info.value, "statistics export")
+
+    go_admin(page, base_url, "data", "数据与备份")
+    expect(page.get_by_role("heading", name="选择数据源", exact=True)).to_be_visible()
+    for heading in ["设置筛选条件", "选择导出字段", "预览与导出"]:
+        page.get_by_role("button", name="下一步", exact=True).click()
+        expect(page.get_by_role("heading", name=heading, exact=True)).to_be_visible()
+    page.get_by_role("button", name="生成预览", exact=True).click()
+    expect(page.locator(".preview-table")).to_be_visible(timeout=15_000)
+    with page.expect_download(timeout=20_000) as download_info:
+        page.get_by_role("button", name="导出 Excel", exact=True).click()
+    assert_xlsx(download_info.value, "custom export")
+
+    go_admin(page, base_url, "logs", "操作日志")
+    with page.expect_download(timeout=20_000) as download_info:
+        page.get_by_role("button", name="导出日志", exact=True).click()
+    assert_xlsx(download_info.value, "operation log export")
+
+
+def verify_admin_pages(
+    page: Page,
+    base_url: str,
+    screenshot_dir: Path,
+) -> None:
+    for route, heading in ADMIN_PAGES:
+        go_admin(page, base_url, route, heading)
+        assert_no_page_overflow(page, f"desktop {route}")
+        if route in {"members", "trainings", "repairs", "data"}:
+            screenshot(page, screenshot_dir, f"admin-{route}.png")
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    for route, heading in [
+        ("today", "今日"),
+        ("members", "成员名册"),
+        ("repairs", "维修事务"),
+        ("data", "数据与备份"),
+    ]:
+        go_admin(page, base_url, route, heading)
+        assert_no_page_overflow(page, f"mobile {route}")
+    screenshot(page, screenshot_dir, "admin-mobile.png")
+    page.set_viewport_size({"width": 1440, "height": 980})
+
+
+def verify_first_password_change(
+    page: Page,
+    base_url: str,
+) -> None:
+    forced_student_no = f"88{int(time.time() * 1000) % 10_000_000_000:010d}"
+    create_result = page.evaluate(
+        """async ({ studentNo }) => {
+            const token = localStorage.getItem('ca_attendance_token');
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    studentNo,
+                    name: '首次改密测试',
+                    role: 'MEMBER',
+                    phone: '',
+                    major: '',
+                    grade: '',
+                    qq: ''
+                })
+            });
+            return { status: response.status, text: await response.text() };
+        }""",
+        {"studentNo": forced_student_no},
+    )
+    if create_result["status"] not in {200, 201}:
+        raise AssertionError(f"failed to create forced-password user: {create_result}")
+
+    page.get_by_role("button", name="退出登录", exact=True).click()
+    expect(page.get_by_role("heading", name="登录后台", exact=True)).to_be_visible()
+    page.locator("input[name='username']").fill(forced_student_no)
+    page.locator("input[name='password']").fill(forced_student_no[-6:])
+    page.get_by_role("button", name="进入后台", exact=True).click()
+    expect(page.get_by_role("heading", name="设置新密码", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    expect_route(page, "/#/password")
+
+    new_password = f"UiSmoke-{forced_student_no[-6:]}"
+    page.locator("input[name='oldPassword']").fill(forced_student_no[-6:])
+    page.locator("input[name='newPassword']").fill(new_password)
+    page.locator("input[name='confirmation']").fill(new_password)
+    page.get_by_role("button", name="更新密码", exact=True).click()
+    expect(page.get_by_role("heading", name="登录后台", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+
+    page.locator("input[name='username']").fill(forced_student_no)
+    page.locator("input[name='password']").fill(new_password)
+    page.get_by_role("button", name="进入后台", exact=True).click()
+    expect(page.get_by_role("heading", name="个人资料", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    expect_route(page, "/#/admin/profile")
+
+
+def verify_remote_entry(
+    browser: Browser,
+    remote_base_url: str,
+    account: str,
+    password: str,
+    screenshot_dir: Path,
+) -> None:
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    context.add_init_script(
+        "() => localStorage.setItem('ca_attendance_token', 'stale-browser-session')"
+    )
+    page = context.new_page()
+    page.goto(remote_base_url, wait_until="networkidle")
+    expect(page.get_by_role("heading", name="登录后台", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    expect_route(page, "/#/login")
+    expect(page.get_by_role("link", name="返回签到台", exact=True)).to_have_count(0)
+    if page.evaluate("() => localStorage.getItem('ca_attendance_token')") is not None:
+        raise AssertionError("remote entry did not remove a legacy persistent token")
+
+    page.locator("input[name='username']").fill(account)
+    page.locator("input[name='password']").fill(password)
+    page.get_by_role("button", name="进入后台", exact=True).click()
+    expect(page.get_by_role("heading", name="今日", exact=True)).to_be_visible(
+        timeout=15_000
+    )
+    storage = page.evaluate(
+        """() => ({
+            localToken: localStorage.getItem('ca_attendance_token'),
+            sessionToken: sessionStorage.getItem('ca_attendance_token')
+        })"""
+    )
+    if storage["localToken"] or not storage["sessionToken"]:
+        raise AssertionError("remote login token was not stored only in sessionStorage")
+    public_status = page.evaluate(
+        """async () => {
+            const response = await fetch('/api/public/attendance/lookup?query=test');
+            return response.status;
+        }"""
+    )
+    if public_status < 400:
+        raise AssertionError("remote entry exposed the public attendance API")
+    assert_no_page_overflow(page, "remote admin")
+    screenshot(page, screenshot_dir, "remote-admin.png")
+    context.close()
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Smoke-test the local CA attendance web UI.")
-    parser.add_argument("--base-url", default=env_or_default("CA_TEST_BASE_URL", "http://127.0.0.1:8080"))
-    parser.add_argument("--admin-student-no", default=env_or_default("CA_TEST_ADMIN_STUDENT_NO"))
-    parser.add_argument("--admin-password", default=env_or_default("CA_TEST_ADMIN_PASSWORD"))
-    parser.add_argument("--admin-name", default=env_or_default("CA_TEST_ADMIN_NAME", "UI 测试管理员"))
+    parser = argparse.ArgumentParser(
+        description="Smoke-test the current CA attendance web UI."
+    )
+    parser.add_argument(
+        "--base-url",
+        default=env_or_default("CA_TEST_BASE_URL", "http://127.0.0.1:8080"),
+    )
+    parser.add_argument(
+        "--remote-base-url",
+        default=env_or_default("CA_TEST_REMOTE_BASE_URL"),
+    )
+    parser.add_argument(
+        "--admin-student-no",
+        default=env_or_default("CA_TEST_ADMIN_STUDENT_NO"),
+    )
+    parser.add_argument(
+        "--admin-password",
+        default=env_or_default("CA_TEST_ADMIN_PASSWORD"),
+    )
+    parser.add_argument(
+        "--admin-name",
+        default=env_or_default("CA_TEST_ADMIN_NAME", "UI 测试管理员"),
+    )
     parser.add_argument("--screenshot-dir", default="frontend/ui-check")
     args = parser.parse_args()
 
     if not args.admin_student_no or not args.admin_password:
-        raise SystemExit("Provide --admin-student-no/--admin-password or CA_TEST_ADMIN_STUDENT_NO/CA_TEST_ADMIN_PASSWORD.")
+        raise SystemExit(
+            "Provide --admin-student-no/--admin-password or "
+            "CA_TEST_ADMIN_STUDENT_NO/CA_TEST_ADMIN_PASSWORD."
+        )
 
     base_url = args.base_url.rstrip("/")
+    remote_base_url = args.remote_base_url.rstrip("/")
     screenshot_dir = Path(args.screenshot_dir)
     screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 980})
-        console_errors = []
-        page.on("console", lambda msg: console_errors.append(msg.text) if msg.type == "error" else None)
-        page.on("pageerror", lambda err: console_errors.append(str(err)))
+        console_errors: list[str] = []
+        page.on(
+            "console",
+            lambda message: (
+                console_errors.append(message.text)
+                if message.type == "error"
+                else None
+            ),
+        )
+        page.on("pageerror", lambda error: console_errors.append(str(error)))
 
-        page.goto(base_url, wait_until="networkidle")
-        if not page.url.endswith("/#/kiosk"):
-            raise AssertionError(f"kiosk route mismatch: {page.url}")
-        setup_heading = page.get_by_role("heading", name="创建管理员")
-        if setup_heading.is_visible():
-            page.screenshot(path=str(screenshot_dir / "setup.png"), full_page=True)
-            page.set_viewport_size({"width": 390, "height": 844})
-            assert_no_page_overflow(page, "mobile setup")
-            page.screenshot(path=str(screenshot_dir / "setup-mobile.png"), full_page=True)
-            page.set_viewport_size({"width": 1440, "height": 980})
-
-            page.locator("#setupAccount").fill(args.admin_student_no)
-            page.locator("#setupName").fill(args.admin_name)
-            page.locator("#setupPassword").fill(args.admin_password)
-            page.locator("#setupPasswordConfirm").fill(args.admin_password)
-            page.get_by_role("button", name="完成初始化").click()
-            expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
-            page.get_by_title("退出后台").click()
-            page.get_by_role("button", name="返回签到台").click()
-
-        expect(page.locator(".kiosk-portal-brand small")).to_have_text("值班签到台", timeout=10_000)
-        expect(page.get_by_text("签到 / 签退")).to_be_visible(timeout=10_000)
-        expect(page.get_by_text("今日部长排班", exact=True)).to_be_visible(timeout=10_000)
-
-        lookup_input = page.locator("#studentNo")
-        expect(lookup_input).to_be_focused(timeout=10_000)
-
-        lookup_attempts = {"count": 0}
-
-        def retry_lookup(route):
-            lookup_attempts["count"] += 1
-            if lookup_attempts["count"] == 1:
-                route.abort()
-                return
-            route.fulfill(
-                status=200,
-                content_type="application/json",
-                body=(
-                    '{"exists":false,"dutyDay":true,"withinDutyPeriod":true,'
-                    '"studentNo":null,"name":null,"action":null,'
-                    '"message":"未找到该学号或姓名，或账号已停用","matches":[]}'
-                ),
+        initialize_system(
+            page,
+            base_url,
+            args.admin_student_no,
+            args.admin_password,
+            args.admin_name,
+            screenshot_dir,
+        )
+        verify_kiosk(
+            page,
+            args.admin_student_no,
+            args.admin_name,
+            screenshot_dir,
+        )
+        login_admin(
+            page,
+            args.admin_student_no,
+            args.admin_password,
+            screenshot_dir,
+        )
+        verify_unsaved_repair(page, base_url)
+        verify_exports(page, base_url)
+        verify_admin_pages(page, base_url, screenshot_dir)
+        verify_first_password_change(page, base_url)
+        if remote_base_url:
+            verify_remote_entry(
+                browser,
+                remote_base_url,
+                args.admin_student_no,
+                args.admin_password,
+                screenshot_dir,
             )
-
-        page.route("**/api/public/attendance/lookup**", retry_lookup)
-        lookup_input.fill("断线保留测试")
-        page.locator(".lookup-form button[type='submit']").click()
-        expect(page.get_by_text("本机服务连接中断", exact=True)).to_be_visible(timeout=10_000)
-        expect(lookup_input).to_have_value("断线保留测试")
-        expect(page.get_by_text("仍无法查询时，请联系管理员确认账号是否停用。", exact=True)).to_be_visible(timeout=8_000)
-        if lookup_attempts["count"] < 2:
-            raise AssertionError("offline lookup was not retried automatically")
-        page.unroute("**/api/public/attendance/lookup**")
-
-        page.route(
-            "**/api/public/attendance/lookup**",
-            lambda route: route.fulfill(
-                status=200,
-                content_type="application/json",
-                body=(
-                    '{"exists":false,"dutyDay":true,"withinDutyPeriod":true,'
-                    '"studentNo":null,"name":null,"action":null,'
-                    '"message":"找到多位同名成员，请选择自己的学号",'
-                    '"matches":['
-                    '{"studentNo":"1004231224","name":"同名测试","grade":"2025级","major":"计算机学院"},'
-                    '{"studentNo":"1004998877","name":"同名测试","grade":"2024级","major":"计算机学院"}'
-                    ']}'
-                ),
-            ),
-        )
-        lookup_input.fill("同名测试")
-        page.locator(".lookup-form button[type='submit']").click()
-        expect(page.get_by_text("学号尾号 1224", exact=True)).to_be_visible(timeout=10_000)
-        expect(page.get_by_text("学号尾号 8877", exact=True)).to_be_visible(timeout=10_000)
-        expect(page.get_by_text("1004231224", exact=True)).to_have_count(0)
-        page.unroute("**/api/public/attendance/lookup**")
-
-        lookup_input.fill(args.admin_student_no)
-        page.locator(".lookup-form button[type='submit']").click()
-        expect(page.get_by_text("查询结果")).to_be_visible(timeout=10_000)
-        page.screenshot(path=str(screenshot_dir / "kiosk.png"), full_page=True)
-
-        page.route(
-            "**/api/public/attendance/submit",
-            lambda route: route.fulfill(
-                status=200,
-                content_type="application/json",
-                body='{"message":"测试签到流程完成"}',
-            ),
-        )
-        page.locator(".kiosk-confirm-button").click()
-        expect(page.get_by_role("button", name="下一位")).to_be_visible(timeout=10_000)
-        page.screenshot(path=str(screenshot_dir / "kiosk-success.png"), full_page=True)
-        expect(lookup_input).to_be_visible(timeout=6_000)
-        expect(lookup_input).to_be_focused(timeout=2_000)
-
-        lookup_input.fill(args.admin_student_no)
-        page.locator(".lookup-form button[type='submit']").click()
-        expect(page.get_by_text("查询结果")).to_be_visible(timeout=10_000)
-        page.locator(".kiosk-confirm-button").click()
-        expect(page.get_by_role("button", name="下一位")).to_be_visible(timeout=10_000)
-        page.get_by_role("button", name="下一位").click()
-        expect(lookup_input).to_be_visible(timeout=10_000)
-        expect(lookup_input).to_be_focused(timeout=2_000)
-        page.unroute("**/api/public/attendance/submit")
-
-        page.set_viewport_size({"width": 390, "height": 844})
-        assert_no_page_overflow(page, "mobile kiosk")
-        page.screenshot(path=str(screenshot_dir / "kiosk-mobile.png"), full_page=True)
-        page.set_viewport_size({"width": 1440, "height": 980})
-
-        page.get_by_role("button", name="进入后台").click()
-        expect(page.get_by_role("heading", name="后台身份验证")).to_be_visible(timeout=10_000)
-        if not page.url.endswith("/#/login"):
-            raise AssertionError(f"login route mismatch: {page.url}")
-        page.wait_for_timeout(800)
-        page.screenshot(path=str(screenshot_dir / "login.png"), full_page=True)
-        expect(page.get_by_role("button", name="返回签到台")).to_be_visible(timeout=10_000)
-
-        page.set_viewport_size({"width": 390, "height": 844})
-        assert_no_page_overflow(page, "mobile login")
-        page.screenshot(path=str(screenshot_dir / "login-mobile.png"), full_page=True)
-        page.set_viewport_size({"width": 1440, "height": 980})
-
-        account_input = page.get_by_placeholder("输入后台账号或学号")
-        password_input = page.get_by_placeholder("输入密码")
-        account_input.fill(args.admin_student_no)
-        password_input.fill(args.admin_password)
-        expect(password_input).to_have_attribute("type", "password")
-        page.get_by_role("button", name="显示密码").click()
-        expect(password_input).to_have_attribute("type", "text")
-        page.get_by_role("button", name="隐藏密码").click()
-        expect(password_input).to_have_attribute("type", "password")
-        page.evaluate(
-            """() => {
-                window.__loginVerifiedSeen = false;
-                const observer = new MutationObserver(() => {
-                    if (document.querySelector('.login-verified-state')) {
-                        window.__loginVerifiedSeen = true;
-                    }
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
-                window.__loginVerifiedObserver = observer;
-            }"""
-        )
-        page.get_by_role("button", name="登录后台").click()
-        expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
-        verified_seen = page.evaluate(
-            """() => {
-                window.__loginVerifiedObserver?.disconnect();
-                return window.__loginVerifiedSeen === true;
-            }"""
-        )
-        if not verified_seen:
-            raise AssertionError("login verified transition was not rendered")
-        remembered_account = page.evaluate("() => localStorage.getItem('ca-attendance-remembered-account')")
-        if remembered_account != args.admin_student_no:
-            raise AssertionError(f"remembered login account mismatch: {remembered_account!r}")
-        page.wait_for_timeout(750)
-        page.screenshot(path=str(screenshot_dir / "dashboard-home.png"), full_page=True)
-        if not page.url.endswith("/#/admin/today"):
-            raise AssertionError(f"today route mismatch: {page.url}")
-
-        click_tab(page, "成员")
-        if "/#/admin/members" not in page.url:
-            raise AssertionError(f"members route mismatch: {page.url}")
-        page.locator("#memberKeyword").fill("初始")
-        page.locator(".member-filters").get_by_role("button", name="搜索").click()
-        page.wait_for_timeout(250)
-        if "q=" not in page.url:
-            raise AssertionError(f"member filter was not stored in URL: {page.url}")
-        page.reload(wait_until="networkidle")
-        expect(page.get_by_role("heading", name="成员管理")).to_be_visible(timeout=15_000)
-        expect(page.locator("#memberKeyword")).to_have_value("初始")
-        page.go_back(wait_until="networkidle")
-        expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
-
-        click_tab(page, "成员")
-        page.locator(".member-action-strip").get_by_role("button", name="新增成员").click()
-        page.locator("#newMemberStudentNo").fill("8800000001")
-        page.locator("#newMemberName").fill("未保存测试")
-        page.locator(".admin-primary-nav button", has_text="值班").click()
-        dirty_dialog = page.get_by_role("dialog")
-        expect(dirty_dialog).to_be_visible(timeout=10_000)
-        dirty_dialog.get_by_role("button", name="取消").click()
-        expect(page.locator("#newMemberName")).to_have_value("未保存测试")
-        if "/#/admin/members" not in page.url:
-            raise AssertionError(f"cancelled dirty navigation changed route: {page.url}")
-        page.locator(".admin-primary-nav button", has_text="值班").click()
-        dirty_dialog = page.get_by_role("dialog")
-        expect(dirty_dialog).to_be_visible(timeout=10_000)
-        dirty_dialog.get_by_role("button", name="放弃修改").click()
-        expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
-
-        click_tab(page, "记录")
-        expect(page.get_by_role("heading", name="签到记录")).to_be_visible(timeout=10_000)
-        expect(page.get_by_role("button", name="新增记录")).to_be_visible(timeout=10_000)
-        page.locator("#recordKeyword").fill(args.admin_student_no)
-        page.locator(".record-filters").get_by_role("button", name="查询").click()
-        page.wait_for_timeout(250)
-        if "q=" not in page.url:
-            raise AssertionError(f"record filter was not stored in URL: {page.url}")
-        page.reload(wait_until="networkidle")
-        expect(page.get_by_role("heading", name="签到记录")).to_be_visible(timeout=15_000)
-        expect(page.locator("#recordKeyword")).to_have_value(args.admin_student_no)
-        page.get_by_role("button", name="新增记录").click()
-        page.locator("#manualStudentNo").fill(args.admin_student_no)
-        page.locator(".admin-primary-nav button", has_text="人员").click()
-        dirty_dialog = page.get_by_role("dialog")
-        expect(dirty_dialog).to_be_visible(timeout=10_000)
-        dirty_dialog.get_by_role("button", name="取消").click()
-        expect(page.locator("#manualStudentNo")).to_have_value(args.admin_student_no)
-        page.locator(".record-create-form").get_by_role("button", name="取消", exact=True).click()
-
-        click_tab(page, "统计")
-        expect(page.get_by_role("heading", name="统计与导出")).to_be_visible(timeout=10_000)
-        stats_from = page.locator("#statsFrom").input_value()
-        stats_to = page.locator("#statsTo").input_value()
-        page.locator(".stats-filters").get_by_role("button", name="查询").click()
-        page.wait_for_timeout(250)
-        if "from=" not in page.url or "to=" not in page.url:
-            raise AssertionError(f"stats range was not stored in URL: {page.url}")
-        page.reload(wait_until="networkidle")
-        expect(page.get_by_role("heading", name="统计与导出")).to_be_visible(timeout=15_000)
-        expect(page.locator("#statsFrom")).to_have_value(stats_from)
-        expect(page.locator("#statsTo")).to_have_value(stats_to)
-        page.get_by_role("button", name="本周", exact=True).click()
-        expect(page.get_by_role("heading", name="本周值班日明细")).to_be_visible(timeout=10_000)
-        page.wait_for_function("() => window.location.href.includes('preset=week')", timeout=10_000)
-        if "preset=week" not in page.url:
-            raise AssertionError(f"stats preset was not stored in URL: {page.url}")
-        with page.expect_download(timeout=15_000) as download_info:
-            page.get_by_role("button", name="导出", exact=True).click()
-        download_path = download_info.value.path()
-        if not download_path or not zipfile.is_zipfile(download_path):
-            raise AssertionError("stats export did not produce a valid xlsx file")
-
-        click_tab(page, "设置")
-        expect(page.get_by_role("heading", name="值班设置")).to_be_visible(timeout=10_000)
-        if page.locator(".duty-period-row").count() == 0:
-            page.get_by_role("button", name="新增时间段").click()
-        first_period = page.locator(".duty-period-row").first
-        first_period.locator("input[name='startTime']").fill("14:00")
-        first_period.locator("input[name='endTime']").fill("16:00")
-        page.get_by_role("button", name="保存时间段").click()
-        expect(page.get_by_text("值班时间段已保存", exact=True)).to_be_visible(timeout=10_000)
-        first_period = page.locator(".duty-period-row").first
-        first_period.locator("input[name='startTime']").fill("14:01")
-        page.locator(".admin-primary-nav button", has_text="值班").click()
-        dirty_dialog = page.get_by_role("dialog")
-        expect(dirty_dialog).to_be_visible(timeout=10_000)
-        dirty_dialog.get_by_role("button", name="取消").click()
-        expect(first_period.locator("input[name='startTime']")).to_have_value("14:01")
-        page.locator(".admin-primary-nav button", has_text="值班").click()
-        dirty_dialog = page.get_by_role("dialog")
-        expect(dirty_dialog).to_be_visible(timeout=10_000)
-        dirty_dialog.get_by_role("button", name="放弃修改").click()
-        expect(page.locator("#admin-duty-title")).to_be_visible(timeout=15_000)
-
-        click_tab(page, "日志")
-        expect(page.get_by_role("heading", name="操作日志")).to_be_visible(timeout=10_000)
-        page.locator("#logKeyword").fill(args.admin_student_no)
-        page.locator(".log-filters").get_by_role("button", name="查询").click()
-        page.wait_for_timeout(250)
-        if "q=" not in page.url:
-            raise AssertionError(f"log filter was not stored in URL: {page.url}")
-        page.reload(wait_until="networkidle")
-        expect(page.get_by_role("heading", name="操作日志")).to_be_visible(timeout=15_000)
-        expect(page.locator("#logKeyword")).to_have_value(args.admin_student_no)
-        if page.locator(".log-table .actions button").count() > 0:
-            page.locator(".log-table .actions button").first.click()
-            expect(page.locator(".log-detail-panel")).to_be_visible(timeout=10_000)
-        with page.expect_download(timeout=15_000) as download_info:
-            page.get_by_role("button", name="导出日志", exact=True).click()
-        download_path = download_info.value.path()
-        if not download_path or not zipfile.is_zipfile(download_path):
-            raise AssertionError("log export did not produce a valid xlsx file")
-        page.get_by_role("button", name="清空日志", exact=True).click()
-        clear_log_dialog = page.get_by_role("dialog")
-        expect(clear_log_dialog).to_be_visible(timeout=10_000)
-        clear_log_dialog.get_by_role("button", name="取消").click()
-
-        for label in ["今日", "审核", "记录", "成员", "统计", "培训", "排班", "维修", "数据", "设置", "日志", "个人"]:
-            click_tab(page, label)
-            assert_no_page_overflow(page, label)
-            if label in {"成员", "个人", "培训", "排班", "数据", "设置"}:
-                page.screenshot(path=str(screenshot_dir / f"dashboard-{label}.png"), full_page=True)
-
-        click_tab(page, "培训")
-        expect(page.get_by_role("heading", name="培训管理")).to_be_visible(timeout=10_000)
-        expect(page.get_by_role("button", name="新培训")).to_be_visible(timeout=10_000)
-
-        click_tab(page, "数据")
-        expect(page.get_by_role("heading", name="数据中心")).to_be_visible(timeout=10_000)
-        expect(page.get_by_role("tab", name="自定义导出")).to_have_attribute("aria-selected", "true")
-        page.get_by_role("tab", name="导入模板").click()
-        expect(page.get_by_text("培训导入模板")).to_be_visible(timeout=10_000)
-        page.get_by_role("tab", name="自定义导出").click()
-        expect(page.locator("#exportSectionTitle")).to_have_text("自定义 Excel 导出", timeout=10_000)
-        expect(page.get_by_role("button", name="选择数据源")).to_have_attribute("aria-current", "step")
-        page.get_by_role("button", name="下一步").click()
-        expect(page.get_by_role("heading", name="设置筛选范围")).to_be_visible(timeout=10_000)
-        page.get_by_role("button", name="下一步").click()
-        expect(page.get_by_role("heading", name="选择字段与顺序")).to_be_visible(timeout=10_000)
-        page.get_by_role("button", name="生成预览").click()
-        expect(page.get_by_role("heading", name="预览真实数据")).to_be_visible(timeout=10_000)
-        expect(page.locator(".export-preview-summary")).to_be_visible(timeout=15_000)
-        page.screenshot(path=str(screenshot_dir / "dashboard-data-preview.png"), full_page=True)
-        page.get_by_role("button", name="确认并继续").click()
-        expect(page.get_by_role("heading", name="确认并导出")).to_be_visible(timeout=10_000)
-        with page.expect_download(timeout=15_000) as download_info:
-            page.get_by_role("button", name="导出 成员 Excel").click()
-        download_path = download_info.value.path()
-        if not download_path or not zipfile.is_zipfile(download_path):
-            raise AssertionError("custom export did not produce a valid xlsx file")
-        page.get_by_role("tab", name="备份与恢复").click()
-        expect(page.get_by_role("heading", name="完整系统备份")).to_be_visible(timeout=10_000)
-
-        click_tab(page, "排班")
-        expect(page.get_by_role("button", name="批量导入")).to_be_visible(timeout=10_000)
-
-        click_tab(page, "维修")
-        expect(page.get_by_role("heading", name="维修事务")).to_be_visible(timeout=10_000)
-        expect(page.get_by_role("button", name="回收站")).to_be_visible(timeout=10_000)
-
-        page.screenshot(path=str(screenshot_dir / "dashboard.png"), full_page=True)
-        page.set_viewport_size({"width": 390, "height": 844})
-        click_tab(page, "数据")
-        assert_no_page_overflow(page, "mobile data center")
-        page.screenshot(path=str(screenshot_dir / "dashboard-data-mobile.png"), full_page=True)
-        click_tab(page, "今日")
-        assert_no_page_overflow(page, "mobile home")
-        page.screenshot(path=str(screenshot_dir / "dashboard-mobile.png"), full_page=True)
-
-        page.set_viewport_size({"width": 1440, "height": 980})
-        forced_student_no = f"88{int(time.time() * 1000) % 10_000_000_000:010d}"
-        create_result = page.evaluate(
-            """async ({ studentNo }) => {
-                const response = await fetch('/api/users', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${localStorage.getItem('ca_attendance_token')}`
-                    },
-                    body: JSON.stringify({ studentNo, name: '首次改密测试', role: 'MEMBER' })
-                });
-                return { status: response.status, text: await response.text() };
-            }""",
-            {"studentNo": forced_student_no},
-        )
-        if create_result["status"] != 200:
-            raise AssertionError(f"failed to create forced-password user: {create_result}")
-        page.get_by_title("退出后台").click()
-        expect(page.get_by_role("heading", name="后台身份验证")).to_be_visible(timeout=10_000)
-        page.get_by_placeholder("输入后台账号或学号").fill(forced_student_no)
-        page.get_by_placeholder("输入密码").fill(forced_student_no[-6:])
-        page.get_by_role("button", name="登录后台").click()
-        expect(page.get_by_role("heading", name="设置你的新密码")).to_be_visible(timeout=15_000)
-        if not page.url.endswith("/#/password-change"):
-            raise AssertionError(f"required password route mismatch: {page.url}")
-        page.locator("#requiredOldPassword").fill(forced_student_no[-6:])
-        page.locator("#requiredNewPassword").fill("UiMember-2026")
-        page.locator("#requiredConfirmPassword").fill("UiMember-2026")
-        page.get_by_role("button", name="修改密码并重新登录").click()
-        expect(page.get_by_role("heading", name="后台身份验证")).to_be_visible(timeout=15_000)
-        page.get_by_placeholder("输入后台账号或学号").fill(forced_student_no)
-        page.get_by_placeholder("输入密码").fill("UiMember-2026")
-        page.get_by_role("button", name="登录后台").click()
-        expect(page.get_by_role("heading", name="个人中心")).to_be_visible(timeout=15_000)
         browser.close()
 
         fatal_errors = [
-            item for item in console_errors
+            item
+            for item in console_errors
             if "favicon" not in item.lower()
             and "failed to load resource" not in item.lower()
+            and "net::err_failed" not in item.lower()
         ]
         if fatal_errors:
-            raise AssertionError("Browser console/page errors:\n" + "\n".join(fatal_errors[:10]))
+            raise AssertionError(
+                "Browser console/page errors:\n" + "\n".join(fatal_errors[:10])
+            )
 
-    print("UI_SMOKE_TEST_OK")
+    print(
+        "UI_SMOKE_TEST_OK "
+        f"pages={len(ADMIN_PAGES)} "
+        f"remote={bool(remote_base_url)}"
+    )
 
 
 if __name__ == "__main__":

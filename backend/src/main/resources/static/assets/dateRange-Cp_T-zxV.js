@@ -1,0 +1,1 @@
+function e(e,t){return e&&t&&e>t?`开始日期不能晚于结束日期`:``}export{e as t};

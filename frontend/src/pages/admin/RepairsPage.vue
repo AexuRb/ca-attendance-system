@@ -4,7 +4,12 @@
       title="维修事务"
       description="维护维修受理过程、协议与交付状态。"
       ><template #actions
-        ><button v-if="canExport" class="button secondary" :disabled="isPending('export-repairs')" @click="exportCases">
+        ><button
+          v-if="canExport"
+          class="button secondary"
+          :disabled="isPending('export-repairs') || Boolean(filterError)"
+          @click="exportCases"
+        >
           <Download />{{ isPending('export-repairs') ? "正在导出" : "导出" }}</button
         ><button v-if="canManage" class="button primary" @click="openEditor()">
           <Plus />新建维修
@@ -43,6 +48,9 @@
         </div>
       </Transition>
     </form>
+    <div v-if="filterError" class="inline-alert danger" role="alert">
+      {{ filterError }}
+    </div>
 
     <RepairStatusTabs
       :active-status="activeStatus"
@@ -51,9 +59,12 @@
     />
 
     <section
+      :id="`repair-panel-${activeStatus}`"
       class="repair-workspace"
-      :aria-labelledby="activeStatus === 'REPAIRING' ? 'repair-active-title' : 'repair-history-title'"
+      role="tabpanel"
+      :aria-labelledby="`repair-tab-${activeStatus}`"
       :aria-busy="repairPage.loading"
+      tabindex="0"
     >
       <header class="repair-workspace-heading">
         <div>
@@ -170,7 +181,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import {
   ArrowLeft,
@@ -193,6 +204,7 @@ import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import {
   canDeleteRepairs,
   canExportRepairs,
@@ -230,7 +242,7 @@ const {
   filters,
   counts: statusCounts,
   page: repairPage,
-  applyFilters: load,
+  applyFilters: applyWorkspaceFilters,
   setStatus,
   setPage,
   retry,
@@ -278,6 +290,7 @@ const historyStatus = computed(
 const repairTotalPages = computed(() =>
   Math.max(1, Math.ceil(repairPage.total / repairPage.pageSize)),
 );
+const filterError = computed(() => dateRangeError(filters.from, filters.to));
 const editorBaseline = ref("");
 const unsaved = useUnsavedChanges(
   () => editorOpen.value && editorSnapshot() !== editorBaseline.value,
@@ -285,6 +298,7 @@ const unsaved = useUnsavedChanges(
 onMounted(async () => {
   await Promise.all([workspace.initialize(), loadHandlerCandidates()]);
 });
+onBeforeUnmount(workspace.dispose);
 watch(
   () => route.query,
   async (query) => {
@@ -298,6 +312,10 @@ async function updateRouteQuery(
 ) {
   if (sameQuery(route.query, query)) return;
   await router[mode]({ query });
+}
+async function load() {
+  if (filterError.value) return;
+  await applyWorkspaceFilters();
 }
 function openEditor(item?: RepairCase) {
   Object.assign(
@@ -451,6 +469,7 @@ function closeAgreement() {
   agreementError.value = "";
 }
 async function exportCases() {
+  if (filterError.value) return;
   const p = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => v && p.set(k, v));
   p.set("status", "ALL");

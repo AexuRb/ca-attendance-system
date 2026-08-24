@@ -1,10 +1,13 @@
+// @vitest-environment jsdom
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
+import { vi } from "vitest";
 import { nextTick } from "vue";
 import ActionMenu from "./ActionMenu.vue";
 
 afterEach(() => {
   document.body.innerHTML = "";
+  vi.restoreAllMocks();
 });
 
 function mountMenu() {
@@ -50,6 +53,36 @@ describe("ActionMenu", () => {
     await nextTick();
     expect(document.querySelector('[role="menu"]')).toBeNull();
     expect(document.activeElement).toBe(trigger.element);
+    wrapper.unmount();
+  });
+
+  it("removes global listeners when closed from the trigger", async () => {
+    const removeDocumentListener = vi.spyOn(document, "removeEventListener");
+    const removeWindowListener = vi.spyOn(window, "removeEventListener");
+    const wrapper = mountMenu();
+    const trigger = wrapper.get<HTMLButtonElement>(
+      'button[aria-haspopup="menu"]',
+    );
+
+    await trigger.trigger("click");
+    await nextTick();
+    await trigger.trigger("click");
+    await nextTick();
+
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(removeDocumentListener).toHaveBeenCalledWith(
+      "pointerdown",
+      expect.any(Function),
+    );
+    expect(removeWindowListener).toHaveBeenCalledWith(
+      "resize",
+      expect.any(Function),
+    );
+    expect(removeWindowListener).toHaveBeenCalledWith(
+      "scroll",
+      expect.any(Function),
+      true,
+    );
     wrapper.unmount();
   });
 });

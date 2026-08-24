@@ -7,8 +7,7 @@ import com.ca.attendance.config.DatabaseMigrator;
 import com.ca.attendance.config.SQLiteDataSourceConfiguration;
 import com.ca.attendance.config.StoragePaths;
 import com.ca.attendance.log.OperationLogService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
@@ -51,7 +50,13 @@ class TrainingProfileIntegrationTest {
                 Role.MEMBER,
                 Instant.now().plusSeconds(3600)
         ));
-        trainings = new TrainingService(jdbc, mock(OperationLogService.class));
+        trainings = new TrainingService(
+                jdbc,
+                mock(OperationLogService.class),
+                new TrainingQueryService(jdbc),
+                new TrainingExcelExportService(),
+                new TrainingParticipantImportParser()
+        );
     }
 
     @AfterEach
@@ -94,8 +99,12 @@ class TrainingProfileIntegrationTest {
                 Instant.now().plusSeconds(3600)
         ));
 
-        var participantJson = objectMapper().valueToTree(trainings.participants(sessionId).getFirst());
-        var sessionJson = objectMapper().valueToTree(trainings.list(null, null, date, date).getFirst());
+        var participantJson = objectMapper().valueToTree(
+                trainings.participantPage(sessionId, null, 1, 30).items().getFirst()
+        );
+        var sessionJson = objectMapper().valueToTree(
+                trainings.page(null, null, date, date, 1, 20).items().getFirst()
+        );
 
         assertEquals(1.25, participantJson.get("durationHours").asDouble());
         assertFalse(participantJson.has("attendanceStatus"));
@@ -141,7 +150,7 @@ class TrainingProfileIntegrationTest {
     }
 
     private ObjectMapper objectMapper() {
-        return new ObjectMapper().registerModule(new JavaTimeModule());
+        return new ObjectMapper();
     }
 
     private long insertSession(LocalDate date) {

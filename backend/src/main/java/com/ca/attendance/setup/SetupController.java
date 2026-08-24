@@ -1,6 +1,7 @@
 package com.ca.attendance.setup;
 
 import com.ca.attendance.auth.AuthService;
+import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.common.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -16,9 +17,11 @@ import java.net.InetAddress;
 @RequestMapping("/api/setup")
 public class SetupController {
     private final SetupService setupService;
+    private final RemoteAccessPolicy remoteAccess;
 
-    public SetupController(SetupService setupService) {
+    public SetupController(SetupService setupService, RemoteAccessPolicy remoteAccess) {
         this.setupService = setupService;
+        this.remoteAccess = remoteAccess;
     }
 
     @GetMapping("/status")
@@ -39,6 +42,9 @@ public class SetupController {
     }
 
     private void requireLoopback(HttpServletRequest request) {
+        if (remoteAccess.isRemote(request)) {
+            throw ApiException.forbidden("初始化信息仅限主机本机访问");
+        }
         try {
             if (!InetAddress.getByName(request.getRemoteAddr()).isLoopbackAddress()) {
                 throw ApiException.forbidden("初始化只能在本机完成");

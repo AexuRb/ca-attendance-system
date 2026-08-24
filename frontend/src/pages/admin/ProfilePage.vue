@@ -10,6 +10,10 @@
         </button>
       </template>
     </PageHeader>
+    <div v-if="pageError" class="inline-alert danger" role="alert">
+      <span>{{ pageError }}</span>
+      <button class="button secondary small" type="button" @click="retryFailedLoad">重试</button>
+    </div>
 
     <div class="profile-summary">
       <span class="avatar profile-avatar">{{ user?.name?.slice(0, 1) }}</span>
@@ -62,8 +66,7 @@
           </label>
           <label class="field">
             <span>年级</span>
-            <input v-model.trim="profile.grade" name="grade" maxlength="16" :aria-invalid="Boolean(profileErrors.grade)" />
-            <small v-if="profileErrors.grade" class="field-error" role="alert">{{ profileErrors.grade }}</small>
+            <input :value="profile.grade || '未设置'" name="grade" readonly />
           </label>
           <div class="form-actions">
             <button class="button primary" type="submit" :disabled="busy">
@@ -108,10 +111,11 @@
             </button>
           </form>
         </div>
+        <p v-if="filterError" class="form-error" role="alert">{{ filterError }}</p>
 
-        <LoadingBlock v-if="busy && !activeRecords.length" />
+        <LoadingBlock v-if="recordsLoading && !activeRecords.length" />
         <EmptyState
-          v-else-if="!activeRecords.length"
+          v-else-if="!activeRecords.length && !recordsError"
           :title="
             activeRecordTab === 'attendance'
               ? '该时间段暂无值班记录'
@@ -225,6 +229,10 @@ import {
 import { get, put, setToken } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { dateRangeError } from "../../shared/validation/dateRange";
+import { notify } from "../../shared/composables/useToast";
 import {
   focusFirstInvalid,
   validateProfileInput,
@@ -233,7 +241,12 @@ import {
 
 const router = useRouter();
 const { state, user, refreshUser } = useSession();
-const { busy, run } = useAsyncTask();
+const task = useAsyncTask();
+const actions = usePendingActions();
+const busy = computed(() => actions.isPending("save-profile"));
+const profileRequest = useLatestRequest();
+const recordsRequest = useLatestRequest();
+const { loading: recordsLoading, error: recordsError } = recordsRequest;
 const attendanceRecords = ref<AttendanceProfileRecord[]>([]);
 const trainingRecords = ref<TrainingProfileRecord[]>([]);
 const activeRecordTab = ref<"attendance" | "training">("attendance");
@@ -243,6 +256,8 @@ const to = ref(date(new Date()));
 const profile = reactive({ phone: "", qq: "", major: "", grade: "" });
 const profileForm = ref<HTMLFormElement | null>(null);
 const profileErrors = reactive<InputErrors>({});
+const filterError = computed(() => dateRangeError(from.value, to.value));
+const pageError = computed(() => profileRequest.error.value || recordsError.value);
 
 const activeRecords = computed(() =>
   activeRecordTab.value === "attendance"
@@ -262,29 +277,35 @@ const totalHours = computed(
   () => attendanceHours.value + trainingHours.value,
 );
 
-onMounted(async () => {
-  const me = await get<{
+onMounted(() => {
+  void Promise.all([loadProfile(), loadRecords()]);
+});
+
+async function loadProfile() {
+  const me = await profileRequest.run((signal) => get<{
     phone?: string;
     qq?: string;
     major?: string;
     grade?: string;
-  }>("/api/auth/me");
+  }>("/api/auth/me", { signal }), "个人资料加载失败");
+  if (!me) return;
   Object.assign(profile, {
     phone: me.phone || "",
     qq: me.qq || "",
     major: me.major || "",
     grade: me.grade || "",
   });
-  await loadRecords();
-});
+}
 
 async function loadRecords() {
+  if (filterError.value) return;
   const query = new URLSearchParams({ from: from.value, to: to.value });
-  const value = await run(() =>
+  const value = await recordsRequest.run((signal) =>
     Promise.all([
-      get<AttendanceProfileRecord[]>(`/api/attendance/me?${query}`),
-      get<TrainingProfileRecord[]>(`/api/trainings/me?${query}`),
+      get<AttendanceProfileRecord[]>(`/api/attendance/me?${query}`, { signal }),
+      get<TrainingProfileRecord[]>(`/api/trainings/me?${query}`, { signal }),
     ]),
+    "个人记录加载失败",
   );
   if (!value) return;
   [attendanceRecords.value, trainingRecords.value] = value;
@@ -295,7 +316,6 @@ async function save() {
     phone: profile.phone,
     qq: profile.qq,
     college: profile.major,
-    grade: profile.grade,
   });
   Object.keys(profileErrors).forEach((key) => delete profileErrors[key]);
   Object.assign(profileErrors, nextErrors);
@@ -303,18 +323,30 @@ async function save() {
     focusFirstInvalid(profileForm.value, profileErrors);
     return;
   }
-  const result = await run(
-    () => put("/api/me/profile", profile),
-    "个人资料已保存",
-  );
-  if (result !== undefined) await refreshUser();
+  await actions.run("save-profile", async () => {
+    const result = await task.run(
+      () => put("/api/me/profile", {
+        phone: profile.phone,
+        major: profile.major,
+        qq: profile.qq,
+      }),
+      "个人资料已保存",
+    );
+    if (result !== undefined) await refreshUser();
+  });
 }
 
 async function passwordChanged() {
   passwordOpen.value = false;
+  notify("密码修改成功，请使用新密码登录", "success");
   setToken("");
   state.user = null;
-  await router.replace({ name: "login" });
+  await router.replace({ name: "login", query: { reason: "password-changed" } });
+}
+
+function retryFailedLoad() {
+  if (profileRequest.error.value) void loadProfile();
+  if (recordsError.value) void loadRecords();
 }
 
 function attendanceNote(record: AttendanceProfileRecord) {

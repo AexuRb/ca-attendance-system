@@ -14,13 +14,16 @@ public class RemoteAccessConfiguration implements WebServerFactoryCustomizer<Tom
 
     public RemoteAccessConfiguration(@Value("${app.remote.port:8081}") int remotePort,
                                      @Value("${server.port:8080}") int localPort) {
+        if (remotePort > 0 && remotePort == localPort) {
+            throw new IllegalArgumentException("远程管理端口不能与本机服务端口相同");
+        }
         this.remotePort = remotePort;
         this.localPort = localPort;
     }
 
     @Override
     public void customize(TomcatServletWebServerFactory factory) {
-        if (remotePort <= 0 || remotePort == localPort) {
+        if (remotePort <= 0) {
             return;
         }
         Connector connector = new Connector(TomcatWebServerFactory.DEFAULT_PROTOCOL);

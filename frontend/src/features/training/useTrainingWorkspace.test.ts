@@ -86,7 +86,7 @@ describe("training workspace requests", () => {
         new Promise((resolve) =>
           requests.push({ keyword: filters.keyword, signal, resolve }),
         ),
-      loadParticipants: async () => pageResult([], 0, 1, 30),
+      loadParticipants: async () => pageResult([], 0, 1, 20),
     });
 
     workspace.filters.keyword = "旧条件";
@@ -102,6 +102,32 @@ describe("training workspace requests", () => {
 
     expect(workspace.selected.value?.id).toBe(2);
     expect(workspace.sessions.items.map((item) => item.id)).toEqual([2]);
+  });
+
+  it("aborts and ignores a session response after disposal", async () => {
+    let resolveRequest!: (page: TrainingPage<TrainingSession>) => void;
+    let signal!: AbortSignal;
+    const workspace = useTrainingWorkspace({
+      defaults,
+      loadSessions: ({ signal: requestSignal }) => {
+        signal = requestSignal;
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+      loadParticipants: async () => pageResult([], 0, 1, 20),
+    });
+
+    const initialization = workspace.initialize();
+    await Promise.resolve();
+    workspace.dispose();
+
+    expect(signal.aborted).toBe(true);
+    resolveRequest(pageResult([session(9)], 1, 1, 20));
+    await initialization;
+
+    expect(workspace.sessions.items).toEqual([]);
+    expect(workspace.selected.value).toBeNull();
   });
 
   it("restores the selected session and both page numbers from URL state", async () => {
@@ -123,7 +149,7 @@ describe("training workspace requests", () => {
       },
       loadParticipants: async ({ sessionId, page }) => {
         participantCalls.push({ sessionId, page });
-        return pageResult([participant(301, sessionId)], 65, page, 30);
+        return pageResult([participant(301, sessionId)], 65, page, 20);
       },
     });
 
@@ -152,7 +178,7 @@ describe("training workspace requests", () => {
       },
       loadParticipants: async ({ sessionId, page }) => {
         calls.push({ kind: "participants", page, sessionId });
-        return pageResult([participant(sessionId * 10 + page, sessionId)], 61, page, 30);
+        return pageResult([participant(sessionId * 10 + page, sessionId)], 61, page, 20);
       },
     });
     await workspace.initialize();
@@ -193,15 +219,15 @@ describe("training workspace requests", () => {
     const initialization = workspace.initialize();
     await Promise.resolve();
     await Promise.resolve();
-    requests[0].resolve(pageResult([], 0, 1, 30));
+    requests[0].resolve(pageResult([], 0, 1, 20));
     await initialization;
 
     const oldRequest = workspace.selectSession(session(2));
     const newRequest = workspace.selectSession(session(1));
     expect(requests[1].signal.aborted).toBe(true);
-    requests[2].resolve(pageResult([participant(11, 1)], 1, 1, 30));
+    requests[2].resolve(pageResult([participant(11, 1)], 1, 1, 20));
     await newRequest;
-    requests[1].resolve(pageResult([participant(22, 2)], 1, 1, 30));
+    requests[1].resolve(pageResult([participant(22, 2)], 1, 1, 20));
     await oldRequest;
 
     expect(workspace.selected.value?.id).toBe(1);
@@ -216,7 +242,7 @@ describe("training workspace requests", () => {
       loadParticipants: async ({ sessionId }) => {
         attempts += 1;
         if (attempts === 1) throw new Error("名单读取失败");
-        return pageResult([participant(71, sessionId)], 1, 1, 30);
+        return pageResult([participant(71, sessionId)], 1, 1, 20);
       },
     });
 
@@ -241,8 +267,8 @@ describe("training workspace requests", () => {
       loadParticipants: async ({ page }) => {
         pages.push(page);
         return page === 3
-          ? pageResult([], 60, 3, 30)
-          : pageResult([participant(59, 9)], 60, 2, 30);
+          ? pageResult([], 40, 3, 20)
+          : pageResult([participant(59, 9)], 40, 2, 20);
       },
     });
 

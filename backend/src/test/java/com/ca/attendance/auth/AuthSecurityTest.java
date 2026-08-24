@@ -9,6 +9,7 @@ import com.ca.attendance.user.UserSummary;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -115,7 +116,8 @@ class AuthSecurityTest {
         when(passwords.encode("new-password")).thenReturn("new-hash");
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
-                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(), logs
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
         );
 
         service.changePassword("old-password", "new-password");
@@ -135,7 +137,8 @@ class AuthSecurityTest {
         when(passwords.matches("old-password", "old-hash")).thenReturn(true);
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
-                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(), logs
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
         );
 
         assertThatThrownBy(() -> service.changePassword("old-password", "12345"))
@@ -156,7 +159,8 @@ class AuthSecurityTest {
         when(passwords.matches("correct-password", "hash")).thenReturn(true);
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
-                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(), logs
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
         );
 
         assertThatThrownBy(() -> service.login(
@@ -176,9 +180,15 @@ class AuthSecurityTest {
         ));
         when(passwords.matches("correct-password", "hash")).thenReturn(true);
         when(tokenService.issue(3L, "president", "测试会长", Role.PRESIDENT)).thenReturn("remote-token");
+        when(jdbc.update(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(LocalDateTime.class),
+                org.mockito.ArgumentMatchers.eq(3L)
+        )).thenReturn(1);
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
-                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(), logs
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
         );
         AuthService.LoginContext context = new AuthService.LoginContext(true, "203.0.113.12", "test-agent");
 
@@ -186,9 +196,14 @@ class AuthSecurityTest {
 
         assertThat(response.token()).isEqualTo("remote-token");
         assertThat(response.role()).isEqualTo("PRESIDENT");
-        verify(logs).logRemoteAuthentication(
-                true, users.findLoginByStudentNo("president").orElseThrow(), "president",
-                "203.0.113.12", "test-agent", "远程后台登录成功"
+        verify(logs).logAuthentication(
+                OperationLogService.AuthenticationOutcome.SUCCESS,
+                true,
+                users.findLoginByStudentNo("president").orElseThrow(),
+                "president",
+                "203.0.113.12",
+                "test-agent",
+                "远程后台登录成功"
         );
     }
 
@@ -201,15 +216,84 @@ class AuthSecurityTest {
         ));
         when(passwords.matches("correct-password", "hash")).thenReturn(true);
         when(tokenService.issue(2L, "minister", "测试部长", Role.MINISTER)).thenReturn("local-token");
+        when(jdbc.update(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(LocalDateTime.class),
+                org.mockito.ArgumentMatchers.eq(2L)
+        )).thenReturn(1);
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
-                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(), logs
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
         );
 
         AuthService.LoginResponse response = service.login("minister", "correct-password");
 
         assertThat(response.token()).isEqualTo("local-token");
         assertThat(response.role()).isEqualTo("MINISTER");
+        verify(logs).logAuthentication(
+                OperationLogService.AuthenticationOutcome.SUCCESS,
+                false,
+                users.findLoginByStudentNo("minister").orElseThrow(),
+                "minister",
+                "127.0.0.1",
+                "local",
+                "本机后台登录成功"
+        );
+    }
+
+    @Test
+    void nonexistentAccountStillPerformsAnEqualCostPasswordCheck() {
+        AuthService service = new AuthService(
+                users, jdbc, passwords, tokenService,
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
+        );
+
+        assertThatThrownBy(() -> service.login("missing", "wrong-password"))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("学号或密码错误");
+
+        ArgumentCaptor<String> dummyHash = ArgumentCaptor.forClass(String.class);
+        verify(passwords).matches(org.mockito.ArgumentMatchers.eq("wrong-password"), dummyHash.capture());
+        assertThat(dummyHash.getValue()).startsWith("$2");
+        verify(logs).logAuthentication(
+                OperationLogService.AuthenticationOutcome.FAILURE,
+                false,
+                null,
+                "missing",
+                "127.0.0.1",
+                "local",
+                "学号或密码错误"
+        );
+    }
+
+    @Test
+    void localLoginIsRateLimitedAndFirstLockIsAudited() {
+        AuthService service = new AuthService(
+                users, jdbc, passwords, tokenService,
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
+        );
+
+        for (int attempt = 0; attempt < LoginAttemptGuard.LOCAL_MAX_FAILURES; attempt++) {
+            assertThatThrownBy(() -> service.login("unknown", "wrong-password"))
+                    .isInstanceOf(ApiException.class)
+                    .hasMessageContaining("学号或密码错误");
+        }
+        assertThatThrownBy(() -> service.login("unknown", "wrong-password"))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("尝试次数过多");
+
+        verify(logs).logAuthentication(
+                OperationLogService.AuthenticationOutcome.LOCKED,
+                false,
+                null,
+                "unknown",
+                "127.0.0.1",
+                "local",
+                "学号或密码错误"
+        );
     }
 
     @Test
@@ -236,7 +320,8 @@ class AuthSecurityTest {
     void remoteLoginIsRateLimitedAfterRepeatedFailures() {
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
-                new RemoteAccessPolicy(8081), new RemoteLoginAttemptGuard(), logs
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
         );
         AuthService.LoginContext context = new AuthService.LoginContext(true, "203.0.113.11", "test-agent");
 
@@ -267,7 +352,7 @@ class AuthSecurityTest {
     @Test
     void spoofedForwardedAddressesCannotBypassRemoteLoginLimit() {
         RemoteAccessPolicy policy = new RemoteAccessPolicy(8081);
-        RemoteLoginAttemptGuard guard = new RemoteLoginAttemptGuard();
+        LoginAttemptGuard guard = new LoginAttemptGuard();
 
         for (int attempt = 0; attempt < 5; attempt++) {
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/login");

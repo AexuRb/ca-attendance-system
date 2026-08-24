@@ -25,7 +25,6 @@ interface ProfileInput {
   phone?: string;
   college?: string;
   major?: string;
-  grade?: string;
   qq?: string;
 }
 
@@ -48,6 +47,7 @@ export function validateMemberInput(
     errors.name = "姓名不能超过 64 个字符";
   }
   Object.assign(errors, validateProfileInput(input));
+  validateGrade(errors, input.grade);
   if (options.requireReason) {
     const reason = input.reason?.trim() || "";
     if (!reason) errors.reason = "请填写修改原因";
@@ -68,9 +68,29 @@ export function validateProfileInput(input: ProfileInput): InputErrors {
     USER_INPUT_LIMITS.collegeMax,
     "学院",
   );
-  checkMax(errors, "grade", input.grade, USER_INPUT_LIMITS.gradeMax, "年级");
   checkMax(errors, "qq", input.qq, USER_INPUT_LIMITS.qqMax, "QQ");
   return errors;
+}
+
+function validateGrade(errors: InputErrors, value?: string) {
+  const normalized = value?.trim() || "";
+  if (!normalized) return;
+  if (normalized.length > USER_INPUT_LIMITS.gradeMax) {
+    errors.grade = `年级不能超过 ${USER_INPUT_LIMITS.gradeMax} 个字符`;
+    return;
+  }
+  const match = /^(\d{4})(?:级)?$/.exec(normalized);
+  if (!match) {
+    errors.grade = "年级格式应为四位年份，例如 2026级";
+    return;
+  }
+  const currentYear = new Date().getFullYear();
+  const minimum = currentYear - 30;
+  const maximum = currentYear + 2;
+  const year = Number(match[1]);
+  if (year < minimum || year > maximum) {
+    errors.grade = `年级范围应为 ${minimum}级 到 ${maximum}级`;
+  }
 }
 
 export function validatePassword(value: string): string {
@@ -86,14 +106,15 @@ export function validatePassword(value: string): string {
 
 export function focusFirstInvalid(
   root: HTMLFormElement | null,
-  errors: InputErrors,
+  errors: object,
 ) {
   const firstName = Object.keys(errors)[0];
   if (!firstName) return;
   requestAnimationFrame(() => {
-    root
-      ?.querySelector<HTMLElement>(`[name="${firstName}"]`)
-      ?.focus();
+    const field =
+      root?.querySelector<HTMLElement>(`[name="${firstName}"]`) ||
+      root?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    field?.focus();
   });
 }
 

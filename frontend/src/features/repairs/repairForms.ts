@@ -7,6 +7,7 @@ export type RepairField =
   | "deviceType"
   | "faultDescription"
   | "receivedAt"
+  | "completedAt"
   | "handler";
 export type RepairErrors = Partial<Record<RepairField, string>>;
 
@@ -24,6 +25,14 @@ export function validateRepairForm(
     errors.faultDescription = "请填写故障描述";
   }
   if (!form.receivedAt) errors.receivedAt = "请选择受理时间";
+  if (
+    form.status === "COMPLETED" &&
+    form.completedAt &&
+    form.receivedAt &&
+    form.completedAt <= form.receivedAt
+  ) {
+    errors.completedAt = "完成时间必须晚于受理时间";
+  }
   if (!handler) errors.handler = "请选择负责人";
 
   const stepOneFields: RepairField[] = [

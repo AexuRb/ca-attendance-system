@@ -4,7 +4,7 @@
     title="重置成员密码"
     eyebrow="ACCOUNT SECURITY"
     size="sm"
-    @close="$emit('close')"
+    @close="close"
   >
     <form
       ref="formElement"
@@ -41,7 +41,7 @@
       </label>
     </form>
     <template #footer>
-      <button class="button secondary" type="button" @click="$emit('close')">
+      <button class="button secondary" type="button" :disabled="busy" @click="close">
         取消
       </button>
       <button
@@ -73,6 +73,10 @@ const newPassword = ref("");
 const error = ref("");
 const supportsDefault = computed(() => /^\d{6,32}$/.test(props.member?.studentNo || ""));
 const defaultPassword = computed(() => props.member?.studentNo.slice(-6) || "");
+
+function close() {
+  if (!props.busy) emit("close");
+}
 
 watch(
   () => props.open,

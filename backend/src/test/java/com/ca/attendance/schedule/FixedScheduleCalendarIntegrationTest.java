@@ -7,8 +7,7 @@ import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.schedule.application.FixedScheduleCalendarService;
 import com.ca.attendance.schedule.domain.FixedScheduleDay;
 import com.ca.attendance.settings.DutyPeriodService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,7 +46,7 @@ class FixedScheduleCalendarIntegrationTest {
         insertAssignee(slotId, "m001", 0);
         insertAssignee(slotId, "m002", 1);
 
-        ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        ObjectMapper objectMapper = new ObjectMapper();
         OperationLogService logs = new OperationLogService(jdbc, objectMapper);
         DutyPeriodService periods = new DutyPeriodService(jdbc, objectMapper, logs);
         calendar = new FixedScheduleCalendarService(new DutyScheduleService(jdbc, logs, periods));

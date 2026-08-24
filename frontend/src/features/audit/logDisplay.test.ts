@@ -15,9 +15,18 @@ describe("audit log display", () => {
       auditTargetLabel({ targetType: "duty_schedule_slots", targetId: 12 }),
     ).toBe("固定排班 #12");
     expect(auditActionLabel("EXPORT_DATA")).toBe("导出业务数据");
+    expect(auditActionLabel("LOCAL_LOGIN_LOCKED")).toBe("本机登录锁定");
+    expect(auditActionLabel("REMOTE_LOGIN_LOCKED")).toBe("远程登录锁定");
+    expect(auditTargetLabel({ targetType: "authentication" })).toBe(
+      "登录认证",
+    );
     expect(auditTargetLabel({ targetType: "data_exports" })).toBe(
       "数据导出",
     );
+    expect(auditActionLabel("BULK_REVIEW_ATTENDANCE")).toBe("批量审核值班记录");
+    expect(auditActionLabel("ATTENDANCE_STATS")).toBe("导出值班统计");
+    expect(auditActionLabel("CUSTOM_MEMBERS")).toBe("自定义导出");
+    expect(auditActionLabel("UNKNOWN_ACTION")).toBe("业务操作");
   });
 
   it("renders export audit filters and details in readable language", () => {
@@ -97,6 +106,31 @@ describe("audit log display", () => {
         label: "值班人员",
         before: "—",
         after: "陈晨、林舟",
+      },
+    ]);
+  });
+
+  it("keeps historical Jackson date arrays readable", () => {
+    const rows = buildAuditDiff(
+      undefined,
+      JSON.stringify({
+        trainingDate: [2026, 8, 21],
+        receivedAt: [2026, 8, 21, 14, 30],
+      }),
+    );
+
+    expect(rows).toEqual([
+      {
+        key: "trainingDate",
+        label: "培训日期",
+        before: "—",
+        after: "2026-08-21",
+      },
+      {
+        key: "receivedAt",
+        label: "受理时间",
+        before: "—",
+        after: "2026-08-21 14:30",
       },
     ]);
   });

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import MemberPasswordResetDialog from "./MemberPasswordResetDialog.vue";
@@ -8,7 +9,7 @@ afterEach(() => {
 
 const baseMember = {
   id: 2,
-  studentNo: "1004231224",
+  studentNo: "9900000001",
   name: "测试成员",
   role: "MEMBER" as const,
   status: "ACTIVE" as const,

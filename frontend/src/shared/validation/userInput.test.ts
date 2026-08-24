@@ -40,4 +40,23 @@ describe("user input validation", () => {
       expect.objectContaining({ college: expect.stringContaining("128") }),
     );
   });
+
+  it("uses the backend dynamic grade range for member editing", () => {
+    const currentYear = new Date().getFullYear();
+
+    expect(
+      validateMemberInput({
+        studentNo: "123456",
+        name: "张三",
+        grade: `${currentYear - 30}级`,
+      }),
+    ).toEqual({});
+    expect(
+      validateMemberInput({
+        studentNo: "123456",
+        name: "张三",
+        grade: `${currentYear + 3}级`,
+      }),
+    ).toEqual(expect.objectContaining({ grade: expect.stringContaining("年级范围") }));
+  });
 });

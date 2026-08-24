@@ -594,7 +594,7 @@
 
   .training-drawer-backdrop {
     position: fixed;
-    z-index: 130;
+    z-index: var(--z-drawer);
     inset: 0;
     display: flex;
     align-items: stretch;
@@ -744,17 +744,5 @@
   .training-participant-pagination > div {
     width: 100%;
     justify-content: space-between;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .training-session-item,
-  .training-session-item::before,
-  .training-drawer-enter-active,
-  .training-drawer-leave-active,
-  .training-drawer-enter-active .training-session-drawer,
-  .training-drawer-leave-active .training-session-drawer {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
   }
 }

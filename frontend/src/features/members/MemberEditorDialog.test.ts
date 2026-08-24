@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import MemberEditorDialog from "./MemberEditorDialog.vue";
@@ -47,6 +48,7 @@ describe("MemberEditorDialog", () => {
     expect(document.body.textContent).toContain("6 至 32 位纯数字");
     expect(document.body.textContent).toContain("姓名不能为空");
     expect(wrapper.emitted("save")).toBeUndefined();
+    wrapper.unmount();
   });
 
   it("allows an unchanged historical account to be edited", async () => {
@@ -64,10 +66,11 @@ describe("MemberEditorDialog", () => {
     await wrapper.get("form").trigger("submit");
 
     expect(wrapper.emitted("save")).toHaveLength(1);
+    wrapper.unmount();
   });
 
   it("locks role and status when editing the current administrator", () => {
-    mount(MemberEditorDialog, {
+    const wrapper = mount(MemberEditorDialog, {
       attachTo: document.body,
       props: {
         open: true,
@@ -81,10 +84,11 @@ describe("MemberEditorDialog", () => {
     const controls = accountControls();
     expect(controls.role.disabled).toBe(true);
     expect(controls.status.disabled).toBe(true);
+    wrapper.unmount();
   });
 
   it("keeps role and status editable for another administrator", () => {
-    mount(MemberEditorDialog, {
+    const wrapper = mount(MemberEditorDialog, {
       attachTo: document.body,
       props: {
         open: true,
@@ -98,5 +102,27 @@ describe("MemberEditorDialog", () => {
     const controls = accountControls();
     expect(controls.role.disabled).toBe(false);
     expect(controls.status.disabled).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("keeps a historical grade selectable while editing", () => {
+    const wrapper = mount(MemberEditorDialog, {
+      attachTo: document.body,
+      props: {
+        open: true,
+        member: { ...admin, grade: "1998级" },
+        operatorRole: "ADMIN",
+        gradeChoices: ["2025级", "2026级"],
+      },
+    });
+
+    const values = Array.from(
+      document.querySelectorAll<HTMLOptionElement>('select[name="grade"] option'),
+    ).map((option) => option.value);
+    expect(values).toContain("1998级");
+    expect(document.querySelector<HTMLSelectElement>('select[name="grade"]')?.value).toBe(
+      "1998级",
+    );
+    wrapper.unmount();
   });
 });

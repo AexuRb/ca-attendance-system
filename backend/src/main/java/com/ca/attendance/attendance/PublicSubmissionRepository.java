@@ -56,6 +56,13 @@ public class PublicSubmissionRepository {
         );
     }
 
+    public int deleteCreatedBefore(LocalDateTime cutoff) {
+        return jdbc.update(
+                "DELETE FROM public_attendance_submissions WHERE created_at < ?",
+                Timestamp.valueOf(cutoff)
+        );
+    }
+
     public record Receipt(
             String requestId,
             String studentNo,

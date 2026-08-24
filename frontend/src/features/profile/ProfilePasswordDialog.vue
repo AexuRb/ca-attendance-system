@@ -106,6 +106,7 @@ function close() {
 }
 
 async function submit() {
+  if (busy.value) return;
   error.value = "";
   const nextErrors: InputErrors = {};
   if (!form.oldPassword) nextErrors.oldPassword = "请输入当前密码";

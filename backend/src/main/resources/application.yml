@@ -20,6 +20,10 @@ app:
   initial-admin:
     student-no: ${INITIAL_ADMIN_ACCOUNT:${INITIAL_ADMIN_STUDENT_NO:}}
     password: ${INITIAL_ADMIN_PASSWORD:}
+  backup:
+    retention:
+      max-files: ${APP_BACKUP_MAX_FILES:50}
+      max-total-bytes: ${APP_BACKUP_MAX_TOTAL_BYTES:5368709120}
 
 logging:
   level:

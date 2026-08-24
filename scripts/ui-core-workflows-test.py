@@ -1,3 +1,9 @@
+"""Fixture-driven browser smoke test for frontend rendering and workflows.
+
+Business API responses are intercepted in the browser. Use ui-role-regression.py
+when validating role permissions against a real backend.
+"""
+
 import argparse
 import json
 from pathlib import Path
@@ -9,7 +15,7 @@ MEMBER_PAGE = {
     "items": [
         {
             "id": 1,
-            "studentNo": "1004231224",
+            "studentNo": "9900000001",
             "name": "测试管理员",
             "role": "ADMIN",
             "status": "ACTIVE",
@@ -71,6 +77,10 @@ ATTENDANCE_PAGE = {
             "studentNo": "2025000001",
             "name": "陈测试",
             "dutyDate": "2026-07-28",
+            "dutyDay": True,
+            "withinDutyPeriod": True,
+            "requireDutyDay": True,
+            "requireDutyPeriod": True,
             "checkInTime": "2026-07-28T14:00:00",
             "checkOutTime": "2026-07-28T16:00:00",
             "checkInStatus": "APPROVED",
@@ -87,7 +97,7 @@ ATTENDANCE_PAGE = {
 ACCOUNT_CANDIDATES = [
     {
         "id": 1,
-        "studentNo": "1004231224",
+        "studentNo": "9900000001",
         "name": "测试管理员",
         "role": "ADMIN",
     },

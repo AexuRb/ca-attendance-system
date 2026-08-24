@@ -1,5 +1,6 @@
 package com.ca.attendance.attendance;
 
+import com.ca.attendance.common.PaginationPolicy;
 import com.ca.attendance.user.UserRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -35,7 +36,7 @@ public class AttendanceController {
             @RequestParam(required = false) String studentNo,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize
+            @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize
     ) {
         return attendance.searchPage(from, to, studentNo, status, page, pageSize);
     }
@@ -58,14 +59,6 @@ public class AttendanceController {
     @GetMapping("/reviews/pending")
     public AttendanceService.PendingReviewQueue pending() {
         return attendance.pendingQueue();
-    }
-
-    @GetMapping("/open")
-    public List<AttendanceRecord> open(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
-    ) {
-        return attendance.openRecords(from, to);
     }
 
     @PostMapping("/{id}/review")

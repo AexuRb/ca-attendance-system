@@ -4,6 +4,9 @@ import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.DownloadFilename;
+import com.ca.attendance.common.ExportRowLimit;
+import com.ca.attendance.common.SqlLike;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import org.apache.poi.ss.usermodel.BorderStyle;
@@ -18,7 +21,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -36,8 +39,8 @@ import java.util.Set;
 
 @Service
 public class CustomExportService {
-    private static final int MAX_ROWS = 50_000;
     private static final int PREVIEW_ROWS = 12;
+    private static final String PREVIEW_TOTAL_COLUMN = "__preview_total";
     private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
     private static final DateTimeFormatter DISPLAY_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final List<SourceDefinition> SOURCES = List.of(
@@ -99,9 +102,8 @@ public class CustomExportService {
         AuthUser current = AuthContext.current();
         requireExporter(current);
         PreparedExport prepared = prepare(request, current);
-        List<Map<String, Object>> rows = queryRows(prepared);
-        List<Map<String, Object>> previewRows = rows.stream()
-                .limit(PREVIEW_ROWS)
+        PreviewRows preview = queryPreview(prepared);
+        List<Map<String, Object>> previewRows = preview.rows().stream()
                 .map(row -> previewRow(row, prepared.fields()))
                 .toList();
 
@@ -110,8 +112,8 @@ public class CustomExportService {
                 prepared.source().label(),
                 prepared.fields(),
                 prepared.filters(),
-                rows.size(),
-                rows.size() > previewRows.size(),
+                preview.totalRows(),
+                preview.totalRows() > previewRows.size(),
                 previewRows
         );
     }
@@ -136,11 +138,18 @@ public class CustomExportService {
     }
 
     private List<Map<String, Object>> queryRows(PreparedExport prepared) {
-        List<Map<String, Object>> rows = query(prepared.source().id(), prepared.filters());
-        if (rows.size() > MAX_ROWS) {
-            throw ApiException.badRequest("导出结果超过 " + MAX_ROWS + " 行，请缩小筛选范围");
-        }
+        List<Map<String, Object>> rows = limited(query(prepared.source().id(), prepared.filters()));
+        ExportRowLimit.requireWithinLimit(rows.size());
         return rows;
+    }
+
+    private PreviewRows queryPreview(PreparedExport prepared) {
+        QueryBuilder source = query(prepared.source().id(), prepared.filters());
+        String sql = "SELECT preview_source.*, COUNT(*) OVER () AS " + PREVIEW_TOTAL_COLUMN
+                + " FROM (" + source.sql() + ") preview_source LIMIT " + PREVIEW_ROWS;
+        List<Map<String, Object>> rows = jdbc.queryForList(sql, source.args().toArray());
+        int totalRows = rows.isEmpty() ? 0 : ((Number) rows.getFirst().get(PREVIEW_TOTAL_COLUMN)).intValue();
+        return new PreviewRows(totalRows, rows);
     }
 
     private Map<String, Object> previewRow(Map<String, Object> row, List<FieldOption> fields) {
@@ -199,7 +208,7 @@ public class CustomExportService {
         return result;
     }
 
-    private List<Map<String, Object>> query(String source, Map<String, String> filters) {
+    private QueryBuilder query(String source, Map<String, String> filters) {
         return switch (source) {
             case "members" -> queryMembers(filters);
             case "attendance" -> queryAttendance(filters);
@@ -211,7 +220,7 @@ public class CustomExportService {
         };
     }
 
-    private List<Map<String, Object>> queryMembers(Map<String, String> filters) {
+    private QueryBuilder queryMembers(Map<String, String> filters) {
         QueryBuilder query = new QueryBuilder("""
                 SELECT u.student_no AS studentNo,
                        u.name AS name,
@@ -237,10 +246,10 @@ public class CustomExportService {
         query.equals(filters.get("status"), "u.status");
         query.equals(filters.get("grade"), "u.grade");
         query.append(" ORDER BY CASE u.role WHEN 'ADMIN' THEN 1 WHEN 'PRESIDENT' THEN 2 WHEN 'MINISTER' THEN 3 ELSE 4 END, u.student_no");
-        return limited(query);
+        return query;
     }
 
-    private List<Map<String, Object>> queryAttendance(Map<String, String> filters) {
+    private QueryBuilder queryAttendance(Map<String, String> filters) {
         QueryBuilder query = new QueryBuilder("""
                 SELECT a.duty_date AS dutyDate,
                        a.student_no_snapshot AS studentNo,
@@ -272,10 +281,10 @@ public class CustomExportService {
         query.keyword(filters.get("keyword"), "a.student_no_snapshot", "a.name_snapshot");
         query.equals(filters.get("effectiveStatus"), "a.effective_status");
         query.append(" ORDER BY a.duty_date DESC, a.check_in_time DESC, a.id DESC");
-        return limited(query);
+        return query;
     }
 
-    private List<Map<String, Object>> queryTraining(Map<String, String> filters) {
+    private QueryBuilder queryTraining(Map<String, String> filters) {
         QueryBuilder query = new QueryBuilder("""
                 SELECT s.training_date AS trainingDate,
                        s.title AS title,
@@ -294,10 +303,10 @@ public class CustomExportService {
         query.dateRange(filters, "s.training_date");
         query.keyword(filters.get("keyword"), "s.title", "s.location", "s.speaker", "p.student_no_snapshot", "p.name_snapshot");
         query.append(" ORDER BY s.training_date DESC, s.id DESC, p.id");
-        return limited(query);
+        return query;
     }
 
-    private List<Map<String, Object>> querySchedule(Map<String, String> filters) {
+    private QueryBuilder querySchedule(Map<String, String> filters) {
         QueryBuilder query = new QueryBuilder("""
                 SELECT CASE s.weekday
                          WHEN 1 THEN '星期一' WHEN 2 THEN '星期二' WHEN 3 THEN '星期三'
@@ -319,10 +328,10 @@ public class CustomExportService {
         query.equals(filters.get("weekday"), "CAST(s.weekday AS TEXT)");
         query.equals(filters.get("enabled"), "CAST(s.enabled AS TEXT)");
         query.append(" ORDER BY s.weekday, s.start_time, s.end_time, s.id, a.sort_order, a.id");
-        return limited(query);
+        return query;
     }
 
-    private List<Map<String, Object>> queryRepairs(Map<String, String> filters) {
+    private QueryBuilder queryRepairs(Map<String, String> filters) {
         QueryBuilder query = new QueryBuilder("""
                 SELECT r.case_no AS caseNo,
                        CASE r.status
@@ -358,10 +367,10 @@ public class CustomExportService {
             query.equals(status, "r.status");
         }
         query.append(" ORDER BY r.received_at DESC, r.id DESC");
-        return limited(query);
+        return query;
     }
 
-    private List<Map<String, Object>> queryLogs(Map<String, String> filters) {
+    private QueryBuilder queryLogs(Map<String, String> filters) {
         QueryBuilder query = new QueryBuilder("""
                 SELECT l.created_at AS createdAt,
                        l.operator_student_no AS operatorStudentNo,
@@ -380,11 +389,11 @@ public class CustomExportService {
                 "l.operator_student_no", "l.operator_name", "l.action_type", "l.target_type", "l.reason");
         query.equals(filters.get("actionType"), "l.action_type");
         query.append(" ORDER BY l.created_at DESC, l.id DESC");
-        return limited(query);
+        return query;
     }
 
     private List<Map<String, Object>> limited(QueryBuilder query) {
-        query.append(" LIMIT " + (MAX_ROWS + 1));
+        query.append(" LIMIT " + ExportRowLimit.FETCH_LIMIT);
         return jdbc.queryForList(query.sql(), query.args().toArray());
     }
 
@@ -425,9 +434,19 @@ public class CustomExportService {
         }
         sheet.createFreezePane(0, 4);
         for (int column = 0; column < fields.size(); column++) {
-            sheet.autoSizeColumn(column);
-            sheet.setColumnWidth(column, Math.min(Math.max(sheet.getColumnWidth(column) + 768, 12 * 256), 42 * 256));
+            sheet.setColumnWidth(column, columnWidth(fields.get(column)) * 256);
         }
+    }
+
+    private int columnWidth(FieldOption field) {
+        return switch (field.id()) {
+            case "reason", "remark", "note", "description", "faultDescription", "serviceDescription",
+                    "beforeData", "afterData" -> 42;
+            case "title", "location", "speaker", "accessories" -> 28;
+            case "createdAt", "lastLoginAt", "receivedAt", "completedAt", "checkInTime",
+                    "checkOutTime" -> 22;
+            default -> 16;
+        };
     }
 
     private void setCellValue(Cell cell, Object value) {
@@ -443,12 +462,16 @@ public class CustomExportService {
     }
 
     private byte[] workbookBytes(WorkbookWriter writer) {
-        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+        SXSSFWorkbook workbook = new SXSSFWorkbook(200);
+        workbook.setCompressTempFiles(true);
+        try (workbook; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             writer.write(workbook);
             workbook.write(output);
             return output.toByteArray();
         } catch (Exception ex) {
             throw ApiException.badRequest("生成自定义 Excel 失败");
+        } finally {
+            workbook.dispose();
         }
     }
 
@@ -495,14 +518,10 @@ public class CustomExportService {
     }
 
     private String filename(String requested, String sourceLabel) {
-        String value = text(requested);
-        if (value.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
-            value = value.substring(0, value.length() - 5);
-        }
-        value = value.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").trim();
-        if (value.isBlank()) value = sourceLabel + "_" + LocalDateTime.now().format(FILE_TIME);
-        if (value.length() > 80) value = value.substring(0, 80);
-        return value + ".xlsx";
+        return DownloadFilename.xlsx(
+                requested,
+                sourceLabel + "_" + LocalDateTime.now().format(FILE_TIME)
+        );
     }
 
     private void validateDateRange(Map<String, String> filters) {
@@ -692,6 +711,9 @@ public class CustomExportService {
     ) {
     }
 
+    private record PreviewRows(int totalRows, List<Map<String, Object>> rows) {
+    }
+
     private record SourceDefinition(
             String id,
             String label,
@@ -724,8 +746,8 @@ public class CustomExportService {
             sql.append(" AND (");
             for (int index = 0; index < columns.length; index++) {
                 if (index > 0) sql.append(" OR ");
-                sql.append(columns[index]).append(" LIKE ?");
-                args.add("%" + value + "%");
+                sql.append(columns[index]).append(" LIKE ? ESCAPE '\\'");
+                args.add(SqlLike.contains(value));
             }
             sql.append(')');
         }

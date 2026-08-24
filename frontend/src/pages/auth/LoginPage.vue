@@ -82,6 +82,7 @@ import {
 } from "@lucide/vue";
 import AuthLayout from "../../layouts/AuthLayout.vue";
 import { useSession } from "../../app/session";
+import { safeLoginNext } from "../../app/router";
 import {
   clearRememberedLogin,
   isDesktopCredentialMode,
@@ -104,6 +105,7 @@ const rememberLabel = isDesktopCredentialMode()
 const sessionNotice = computed(() => {
   if (route.query.reason === "restored") return "数据已恢复，请重新登录";
   if (route.query.reason === "expired") return "登录状态已失效，请重新登录";
+  if (route.query.reason === "password-changed") return "密码修改成功，请使用新密码登录";
   return "";
 });
 
@@ -119,6 +121,7 @@ onMounted(async () => {
 });
 
 async function submit() {
+  if (busy.value) return;
   busy.value = true;
   error.value = "";
   try {
@@ -129,8 +132,9 @@ async function submit() {
     } catch {
       await clearRememberedLogin().catch(() => undefined);
     }
+    const next = safeLoginNext(route.query.next);
     if (user.mustChangePassword) await router.replace({ name: "password" });
-    else if (route.query.next) await router.replace(String(route.query.next));
+    else if (next) await router.replace(next);
     else
       await router.replace({
         name: user.role === "MEMBER" ? "profile" : "today",

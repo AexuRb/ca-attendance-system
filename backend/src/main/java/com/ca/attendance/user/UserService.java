@@ -5,10 +5,12 @@ import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.ExcelCellTextReader;
+import com.ca.attendance.common.ExcelImportPolicy;
+import com.ca.attendance.common.PaginationPolicy;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
-import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -33,8 +35,6 @@ import java.util.Set;
 @Service
 public class UserService {
     private static final int IMPORT_ISSUE_LIMIT = 20;
-    private static final int MAX_PAGE_SIZE = 100;
-
     private final UserRepository users;
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
@@ -55,18 +55,22 @@ public class UserService {
         this.deletionHistory = deletionHistory;
     }
 
+    @Transactional(readOnly = true)
     public List<UserSummary> search(String keyword, String role, String status, String grade) {
         requireManageUsers();
-        return users.search(keyword, role, status, grade);
+        SearchFilters filters = searchFilters(role, status, grade);
+        return users.search(keyword, filters.role(), filters.status(), filters.grade());
     }
 
+    @Transactional(readOnly = true)
     public UserRepository.UserPage searchPage(String keyword, String role, String status, String grade, int page, int pageSize) {
         requireManageUsers();
-        int safePage = Math.max(1, page);
-        int safePageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
-        return users.searchPage(keyword, role, status, grade, safePage, safePageSize);
+        PaginationPolicy.PageRequest paging = PaginationPolicy.normalize(page, pageSize);
+        SearchFilters filters = searchFilters(role, status, grade);
+        return users.searchPage(keyword, filters.role(), filters.status(), filters.grade(), paging.page(), paging.pageSize());
     }
 
+    @Transactional(readOnly = true)
     public List<String> grades() {
         requireManageUsers();
         return users.grades();
@@ -83,7 +87,7 @@ public class UserService {
         String name = UserInputPolicy.name(request.name());
         String phone = UserInputPolicy.phone(request.phone());
         String college = UserInputPolicy.college(request.major());
-        String grade = normalizeGrade(request.grade());
+        String grade = UserInputPolicy.grade(request.grade());
         String qq = UserInputPolicy.qq(request.qq());
         try {
             jdbc.update("""
@@ -118,16 +122,14 @@ public class UserService {
         RolePermissionPolicy.require(current.role(),
                 RolePermissionPolicy.Permission.MEMBERS_MANAGE,
                 "只有会长或管理员可以批量导入成员");
-        if (file == null || file.isEmpty()) {
-            throw ApiException.badRequest("请选择 Excel 文件");
-        }
+        ExcelImportPolicy.validateFile(file, "成员");
 
         try (InputStream input = file.getInputStream(); Workbook workbook = WorkbookFactory.create(input)) {
             Sheet sheet = workbook.getNumberOfSheets() == 0 ? null : workbook.getSheetAt(0);
             if (sheet == null) {
                 throw ApiException.badRequest("Excel 文件没有工作表");
             }
-            ImportResult result = importMembersFromSheet(sheet, current);
+            ImportResult result = importMembersFromSheet(sheet, current, new ExcelCellTextReader(workbook));
             if (!result.errors().isEmpty()) {
                 throw ApiException.badRequest(importFailureMessage("成员文件校验未通过", result.errors()));
             }
@@ -142,17 +144,27 @@ public class UserService {
         }
     }
 
+    @Transactional
     public void updateProfile(ProfileRequest request) {
         AuthUser current = AuthContext.current();
+        if (request.grade() != null && !request.grade().isBlank()) {
+            throw ApiException.badRequest("年级只能由会长或管理员在成员管理中修改");
+        }
+        UserSummary before = users.findSummaryById(current.id())
+                .orElseThrow(() -> ApiException.notFound("用户不存在"));
         String phone = UserInputPolicy.phone(request.phone());
         String college = UserInputPolicy.college(request.major());
-        String grade = normalizeGrade(request.grade());
         String qq = UserInputPolicy.qq(request.qq());
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE users
-                SET phone = ?, major = ?, grade = ?, qq = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
+                SET phone = ?, major = ?, qq = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
-                """, phone, college, grade, qq, current.id(), current.id());
+                """, phone, college, qq, current.id(), current.id());
+        if (updated != 1) {
+            throw ApiException.notFound("用户不存在");
+        }
+        UserSummary after = users.findSummaryById(current.id()).orElseThrow();
+        logs.log("UPDATE_PROFILE", "users", current.id(), before, after, "修改个人资料");
     }
 
     @Transactional
@@ -173,7 +185,7 @@ public class UserService {
         String name = UserInputPolicy.name(request.name() == null ? before.name() : request.name());
         String phone = UserInputPolicy.phone(request.phone() == null ? before.phone() : request.phone());
         String college = UserInputPolicy.college(request.major() == null ? before.major() : request.major());
-        String grade = normalizeGrade(request.grade() == null ? before.grade() : request.grade());
+        String grade = UserInputPolicy.grade(request.grade() == null ? before.grade() : request.grade());
         String qq = UserInputPolicy.qq(request.qq() == null ? before.qq() : request.qq());
         String reason = UserInputPolicy.reason(request.reason());
         jdbc.update("""
@@ -246,7 +258,7 @@ public class UserService {
             throw ApiException.notFound("用户不存在或已被删除");
         }
         UserSummary target = users.findSummaryById(id).orElseThrow(() -> ApiException.notFound("用户不存在"));
-        rejectDeletionWithHistory(id, target.studentNo());
+        rejectDeletionWithHistory(id);
         BackupService.BackupItem safetyBackup = backups.create();
         int deleted = jdbc.update("DELETE FROM users WHERE id = ?", id);
         if (deleted != 1) {
@@ -257,8 +269,8 @@ public class UserService {
         tokens.revokeUser(id);
     }
 
-    private void rejectDeletionWithHistory(long id, String studentNo) {
-        List<String> references = deletionHistory.findReferences(id, studentNo);
+    private void rejectDeletionWithHistory(long id) {
+        List<String> references = deletionHistory.findReferences(id);
         if (!references.isEmpty()) {
             throw ApiException.conflict(
                     "该成员已有" + String.join("、", references) + "，不能永久删除，请改为停用账号"
@@ -271,8 +283,9 @@ public class UserService {
         AuthUser current = AuthContext.current();
         requireManageUsers();
         String reason = UserInputPolicy.reason(request.reason());
+        SearchFilters filters = searchFilters(request.role(), request.statusFilter(), request.grade());
         List<Long> targetIds = request.ids() == null || request.ids().isEmpty()
-                ? users.searchIds(request.keyword(), request.role(), request.statusFilter(), request.grade())
+                ? users.searchIds(request.keyword(), filters.role(), filters.status(), filters.grade())
                 : request.ids();
         if (targetIds.isEmpty()) {
             throw ApiException.badRequest("请选择要处理的成员");
@@ -362,13 +375,13 @@ public class UserService {
         return safetyBackup == null ? text : text + "；停用前自动备份：" + safetyBackup.filename();
     }
 
-    private ImportResult importMembersFromSheet(Sheet sheet, AuthUser current) {
-        DataFormatter formatter = new DataFormatter();
-        int headerRowIndex = findHeaderRow(sheet, formatter);
+    private ImportResult importMembersFromSheet(Sheet sheet, AuthUser current, ExcelCellTextReader reader) {
+        int headerRowIndex = findHeaderRow(sheet, reader);
         Map<String, Integer> columns = headerRowIndex >= 0
-                ? readHeaderColumns(sheet.getRow(headerRowIndex), formatter)
+                ? readHeaderColumns(sheet.getRow(headerRowIndex), reader)
                 : fallbackColumns();
         int startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 2;
+        ExcelImportPolicy.validateRowCount(sheet, startRow, "成员");
 
         int created = 0;
         int updated = 0;
@@ -381,7 +394,7 @@ public class UserService {
             if (row == null) {
                 continue;
             }
-            ImportCandidate candidate = readImportCandidate(row, columns, formatter);
+            ImportCandidate candidate = readImportCandidate(row, columns, reader);
             if (candidate.isBlank()) {
                 continue;
             }
@@ -402,7 +415,7 @@ public class UserService {
                 name = UserInputPolicy.name(candidate.name());
                 phone = UserInputPolicy.phone(candidate.phone());
                 college = UserInputPolicy.college(candidate.major());
-                grade = normalizeGrade(candidate.grade());
+                grade = UserInputPolicy.grade(candidate.grade());
                 qq = UserInputPolicy.qq(candidate.qq());
             } catch (ApiException ex) {
                 skipped++;
@@ -423,7 +436,8 @@ public class UserService {
                 }
                 jdbc.update("""
                         UPDATE users
-                        SET name = ?, phone = ?, major = ?, grade = ?, qq = COALESCE(?, qq),
+                        SET name = ?, phone = COALESCE(?, phone), major = COALESCE(?, major),
+                            grade = COALESCE(?, grade), qq = COALESCE(?, qq),
                             updated_by = ?, updated_at = datetime('now', 'localtime')
                         WHERE student_no = ?
                         """,
@@ -466,7 +480,7 @@ public class UserService {
         return summary + "，未写入任何成员：" + String.join("；", issues);
     }
 
-    private int findHeaderRow(Sheet sheet, DataFormatter formatter) {
+    private int findHeaderRow(Sheet sheet, ExcelCellTextReader reader) {
         int last = Math.min(sheet.getLastRowNum(), 9);
         for (int rowIndex = 0; rowIndex <= last; rowIndex++) {
             Row row = sheet.getRow(rowIndex);
@@ -476,7 +490,7 @@ public class UserService {
             boolean hasName = false;
             boolean hasStudentNo = false;
             for (int col = Math.max(row.getFirstCellNum(), 0); col < row.getLastCellNum(); col++) {
-                String text = cleanCell(formatter.formatCellValue(row.getCell(col)));
+                String text = reader.read(row, col);
                 if (text.contains("姓名")) {
                     hasName = true;
                 }
@@ -491,13 +505,13 @@ public class UserService {
         return -1;
     }
 
-    private Map<String, Integer> readHeaderColumns(Row row, DataFormatter formatter) {
+    private Map<String, Integer> readHeaderColumns(Row row, ExcelCellTextReader reader) {
         Map<String, Integer> columns = new HashMap<>();
         if (row == null) {
             return fallbackColumns();
         }
         for (int col = Math.max(row.getFirstCellNum(), 0); col < row.getLastCellNum(); col++) {
-            String header = cleanCell(formatter.formatCellValue(row.getCell(col))).toLowerCase();
+            String header = reader.read(row, col).toLowerCase();
             if (header.contains("姓名")) {
                 columns.putIfAbsent("name", col);
             }
@@ -538,26 +552,22 @@ public class UserService {
         );
     }
 
-    private ImportCandidate readImportCandidate(Row row, Map<String, Integer> columns, DataFormatter formatter) {
+    private ImportCandidate readImportCandidate(Row row, Map<String, Integer> columns, ExcelCellTextReader reader) {
         return new ImportCandidate(
-                cell(row, columns.get("studentNo"), formatter),
-                cell(row, columns.get("name"), formatter),
-                cell(row, columns.get("phone"), formatter),
-                cell(row, columns.get("major"), formatter),
-                cell(row, columns.get("grade"), formatter),
-                cell(row, columns.get("qq"), formatter)
+                cell(row, columns.get("studentNo"), reader),
+                cell(row, columns.get("name"), reader),
+                cell(row, columns.get("phone"), reader),
+                cell(row, columns.get("major"), reader),
+                cell(row, columns.get("grade"), reader),
+                cell(row, columns.get("qq"), reader)
         );
     }
 
-    private String cell(Row row, Integer index, DataFormatter formatter) {
+    private String cell(Row row, Integer index, ExcelCellTextReader reader) {
         if (row == null || index == null || index < 0) {
             return "";
         }
-        return cleanCell(formatter.formatCellValue(row.getCell(index)));
-    }
-
-    private String cleanCell(String value) {
-        return value == null ? "" : value.trim();
+        return reader.read(row, index);
     }
 
     private boolean userExists(String studentNo) {
@@ -641,20 +651,19 @@ public class UserService {
         }
     }
 
-    private String normalizeGrade(String value) {
-        String text = UserInputPolicy.grade(value);
-        if (text == null) {
-            return null;
+    private SearchFilters searchFilters(String role, String status, String grade) {
+        String normalizedRole = null;
+        if (role != null && !role.isBlank()) {
+            normalizedRole = parseRole(role).name();
         }
-        String digits = text.replaceAll("[^0-9]", "");
-        if (digits.length() != 4) {
-            throw ApiException.badRequest("年级格式应为 2007级 到 2057级");
+        String normalizedStatus = null;
+        if (status != null && !status.isBlank()) {
+            normalizedStatus = status.trim().toUpperCase();
+            if (!normalizedStatus.equals("ACTIVE") && !normalizedStatus.equals("DISABLED")) {
+                throw ApiException.badRequest("账号状态只能是 ACTIVE 或 DISABLED");
+            }
         }
-        int year = Integer.parseInt(digits);
-        if (year < 2007 || year > 2057) {
-            throw ApiException.badRequest("年级范围应为 2007级 到 2057级");
-        }
-        return year + "级";
+        return new SearchFilters(normalizedRole, normalizedStatus, UserInputPolicy.grade(grade));
     }
 
     public record CreateUserRequest(String studentNo, String name, String role, String phone, String major, String grade, String qq) {
@@ -685,5 +694,8 @@ public class UserService {
         boolean isBlank() {
             return studentNo.isBlank() && name.isBlank() && phone.isBlank() && major.isBlank() && grade.isBlank() && qq.isBlank();
         }
+    }
+
+    private record SearchFilters(String role, String status, String grade) {
     }
 }

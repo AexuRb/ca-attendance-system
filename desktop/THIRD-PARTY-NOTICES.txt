@@ -1,4 +1,6 @@
-CA Attendance System includes the following redistributable runtimes:
+CA Attendance System includes the following redistributable runtimes and
+open-source components. Exact versions are recorded in pom.xml, package.json,
+and their lock files.
 
 - Eclipse Temurin OpenJDK Runtime Environment 21
   Copyright Eclipse Adoptium contributors and others.
@@ -7,4 +9,30 @@ CA Attendance System includes the following redistributable runtimes:
 
 - Electron
   Copyright OpenJS Foundation and Electron contributors.
-  Electron and Chromium license files are included in the packaged app.
+  Distributed under the MIT License. Electron and Chromium license files are
+  included in the packaged app.
+
+- Spring Boot, Spring Framework, and Spring Security
+  Copyright Broadcom Inc. and contributors.
+  Distributed under the Apache License 2.0.
+
+- Xerial SQLite JDBC
+  Copyright Taro L. Saito and contributors.
+  Distributed under the Apache License 2.0. The bundled SQLite engine is in the
+  public domain.
+
+- Apache POI and Apache PDFBox
+  Copyright The Apache Software Foundation.
+  Distributed under the Apache License 2.0.
+
+- Vue.js and Vue Router
+  Copyright Evan You and contributors.
+  Distributed under the MIT License.
+
+- Lucide
+  Copyright Lucide contributors.
+  Distributed under the ISC License.
+
+Additional transitive Java notices and license files remain available in the
+bundled backend JAR under each dependency's META-INF directory. Additional
+Electron and Chromium notices remain available in the packaged runtime.

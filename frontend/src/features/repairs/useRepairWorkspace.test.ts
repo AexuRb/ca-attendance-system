@@ -19,15 +19,15 @@ const defaults: Pick<RepairFilters, "from" | "to"> = {
 
 describe("repair workspace", () => {
   it("loads only the active status while receiving all filtered counts", async () => {
-    const calls: Array<{ status: RepairStatus; page: number }> = [];
+    const calls: Array<{ status: RepairStatus; page: number; pageSize: number }> = [];
     const queries: Array<{
       query: Record<string, string>;
       mode: "push" | "replace";
     }> = [];
     const workspace = useRepairWorkspace({
       defaults,
-      loadPage: async ({ status, page }) => {
-        calls.push({ status, page });
+      loadPage: async ({ status, page, pageSize }) => {
+        calls.push({ status, page, pageSize });
         return repairPage(status, page, 2, 7, {
           REPAIRING: 7,
           COMPLETED: 48,
@@ -39,7 +39,7 @@ describe("repair workspace", () => {
 
     await workspace.initialize();
 
-    expect(calls).toEqual([{ status: "REPAIRING", page: 1 }]);
+    expect(calls).toEqual([{ status: "REPAIRING", page: 1, pageSize: 20 }]);
     expect(workspace.page.items).toHaveLength(2);
     expect(workspace.counts).toEqual({
       REPAIRING: 7,
@@ -110,6 +110,35 @@ describe("repair workspace", () => {
 
     expect(workspace.activeStatus.value).toBe("COMPLETED");
     expect(workspace.page.items[0]?.id).toBe(201);
+  });
+
+  it("aborts and ignores a page response after disposal", async () => {
+    let resolveRequest!: (page: RepairPage) => void;
+    let signal!: AbortSignal;
+    const workspace = useRepairWorkspace({
+      defaults,
+      loadPage: ({ signal: requestSignal }) => {
+        signal = requestSignal;
+        return new Promise((resolve) => {
+          resolveRequest = resolve;
+        });
+      },
+    });
+
+    const initialization = workspace.initialize();
+    await Promise.resolve();
+    workspace.dispose();
+
+    expect(signal.aborted).toBe(true);
+    resolveRequest(repairPage("REPAIRING", 1, 1, 1));
+    await initialization;
+
+    expect(workspace.page.items).toEqual([]);
+    expect(workspace.counts).toEqual({
+      REPAIRING: 0,
+      COMPLETED: 0,
+      CANCELED: 0,
+    });
   });
 
   it("restores filters, status and page from the URL query", async () => {

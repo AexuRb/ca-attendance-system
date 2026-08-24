@@ -3,6 +3,8 @@ package com.ca.attendance.user;
 import com.ca.attendance.common.ApiException;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -41,8 +43,21 @@ class UserInputPolicyTest {
     }
 
     @Test
+    void normalizesGradeWithinTheCurrentDynamicRange() {
+        int currentYear = LocalDate.now().getYear();
+
+        assertThat(UserInputPolicy.grade((currentYear - 30) + "级"))
+                .isEqualTo((currentYear - 30) + "级");
+        assertThat(UserInputPolicy.grade(String.valueOf(currentYear + 2)))
+                .isEqualTo((currentYear + 2) + "级");
+        assertBadRequest(() -> UserInputPolicy.grade((currentYear - 31) + "级"), "年级范围应为");
+        assertBadRequest(() -> UserInputPolicy.grade((currentYear + 3) + "级"), "年级范围应为");
+        assertBadRequest(() -> UserInputPolicy.grade("本科" + currentYear), "年级格式应为");
+    }
+
+    @Test
     void defaultPasswordRequiresAtLeastSixAccountDigits() {
-        assertThat(UserInputPolicy.defaultPassword("1004231224")).isEqualTo("231224");
+        assertThat(UserInputPolicy.defaultPassword("9900000001")).isEqualTo("000001");
         assertBadRequest(() -> UserInputPolicy.defaultPassword("12345"), "手动输入");
     }
 

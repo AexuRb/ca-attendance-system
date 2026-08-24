@@ -11,6 +11,7 @@ exports/
 logs/
 materials/
 tasks/
+plan.md
 *.sql.gz
 *.db
 *.db-wal
@@ -30,11 +31,14 @@ backend/target/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/vitest-results.json
 __pycache__/
 *.py[cod]
 desktop/node_modules/
 desktop/dist/
 desktop/release/
+desktop/desktop-test-output.txt
+script-test-output.txt
 runtime/
 
 # Runtime logs and process files

@@ -10,7 +10,7 @@ import com.ca.attendance.config.StoragePaths;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.settings.DutyWeekdayService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +45,7 @@ class DutyScheduleServiceIntegrationTest {
                 .dataSource(new StoragePaths(tempDirectory.toString()));
         new DatabaseMigrator(dataSource).run();
         jdbc = new JdbcTemplate(dataSource);
-        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+        ObjectMapper objectMapper = new ObjectMapper();
         OperationLogService logs = new OperationLogService(jdbc, objectMapper);
         long adminId = insertUser("1000", "管理员", "ADMIN", "ACTIVE");
         ministerId = insertUser("1001", "张部长", "MINISTER", "ACTIVE");

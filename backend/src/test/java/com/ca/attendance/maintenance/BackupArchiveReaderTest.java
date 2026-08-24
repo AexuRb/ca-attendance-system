@@ -1,10 +1,11 @@
 package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +21,8 @@ import java.util.zip.ZipOutputStream;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class BackupArchiveReaderTest {
     @TempDir
@@ -105,6 +108,68 @@ class BackupArchiveReaderTest {
         );
 
         assertTrue(error.getMessage().contains("过多条目"));
+        assertTemporaryRootIsEmpty();
+    }
+
+    @Test
+    void cleansTemporaryDirectoryAfterUnexpectedRuntimeFailure() throws Exception {
+        MultipartFile upload = mock(MultipartFile.class);
+        when(upload.isEmpty()).thenReturn(false);
+        when(upload.getSize()).thenReturn(1L);
+        when(upload.getOriginalFilename()).thenReturn("backup_runtime_failure.zip");
+        when(upload.getInputStream()).thenThrow(new IllegalStateException("simulated stream failure"));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> reader.extract(upload, Set.of("metadata.json"))
+        );
+
+        assertTemporaryRootIsEmpty();
+    }
+
+    @Test
+    void rejectsAnEntryThatExceedsTheRestoreOnlyUncompressedLimitAndCleansUp() throws Exception {
+        BackupArchiveReader limitedReader = new BackupArchiveReader(
+                tempDirectory,
+                new BackupRestoreLimits(1024, 4, 8, 16)
+        );
+        MockMultipartFile upload = zipUpload(Map.of(
+                "metadata.json",
+                "123456789".getBytes(StandardCharsets.UTF_8)
+        ));
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> limitedReader.extract(upload, Set.of("metadata.json"))
+        );
+
+        assertTrue(error.getMessage().contains("解压后过大"));
+        assertTemporaryRootIsEmpty();
+    }
+
+    @Test
+    void rejectsAnUploadThatExceedsTheRestoreOnlyArchiveLimitBeforeExtraction() throws Exception {
+        BackupArchiveReader limitedReader = new BackupArchiveReader(
+                tempDirectory,
+                new BackupRestoreLimits(8, 4, 8, 16)
+        );
+        MockMultipartFile upload = new MockMultipartFile(
+                "file",
+                "backup_too_large.zip",
+                "application/zip",
+                new byte[9]
+        );
+
+        ApiException error = assertThrows(
+                ApiException.class,
+                () -> limitedReader.extract(upload, Set.of("metadata.json"))
+        );
+
+        assertTrue(error.getMessage().contains("文件过大"));
+        assertTemporaryRootIsEmpty();
+    }
+
+    private void assertTemporaryRootIsEmpty() throws Exception {
         try (var children = Files.list(tempDirectory)) {
             assertTrue(children.findAny().isEmpty(), "失败的解压不应遗留临时目录");
         }

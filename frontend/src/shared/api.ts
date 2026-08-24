@@ -1,8 +1,10 @@
 const TOKEN_KEY = "ca_attendance_token";
 type UnauthorizedHandler = () => void;
+type TokenStorageMode = "LOCAL" | "REMOTE_ADMIN";
 
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 let invalidatedToken = "";
+let tokenStorageMode: TokenStorageMode = "REMOTE_ADMIN";
 
 export class ApiError extends Error {
   status: number;
@@ -17,15 +19,31 @@ export class ApiError extends Error {
 }
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || "";
+  return activeTokenStorage().getItem(TOKEN_KEY) || "";
+}
+
+export function configureTokenStorage(mode: TokenStorageMode) {
+  tokenStorageMode = mode;
+  inactiveTokenStorage().removeItem(TOKEN_KEY);
 }
 
 export function setToken(token: string) {
   if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
+    activeTokenStorage().setItem(TOKEN_KEY, token);
+    inactiveTokenStorage().removeItem(TOKEN_KEY);
     invalidatedToken = "";
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
   }
-  else localStorage.removeItem(TOKEN_KEY);
+}
+
+function activeTokenStorage(): Storage {
+  return tokenStorageMode === "LOCAL" ? localStorage : sessionStorage;
+}
+
+function inactiveTokenStorage(): Storage {
+  return tokenStorageMode === "LOCAL" ? sessionStorage : localStorage;
 }
 
 export function setUnauthorizedHandler(handler: UnauthorizedHandler | null) {
@@ -78,7 +96,8 @@ export async function api<T = unknown>(
   return response.blob() as Promise<T>;
 }
 
-export const get = <T = unknown>(path: string) => api<T>(path);
+export const get = <T = unknown>(path: string, options: RequestInit = {}) =>
+  api<T>(path, options);
 export const post = <T = unknown>(path: string, body?: unknown) =>
   api<T>(path, {
     method: "POST",
@@ -95,11 +114,28 @@ export const del = <T = unknown>(path: string, body?: unknown) =>
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
+export function safeDownloadFilename(filename: string) {
+  const cleaned = filename
+    .replace(/[\u0000-\u001f<>:"/\\|?*]/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^[._]+|[._]+$/g, "");
+  const fallback = cleaned || "download";
+  const extensionIndex = fallback.lastIndexOf(".");
+  const hasExtension =
+    extensionIndex > 0 && fallback.length - extensionIndex <= 10;
+  const extension = hasExtension ? fallback.slice(extensionIndex) : "";
+  const stem = (
+    hasExtension ? fallback.slice(0, extensionIndex) : fallback
+  ).slice(0, 80);
+  return `${stem || "download"}${extension}`;
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = filename;
+  anchor.download = safeDownloadFilename(filename);
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -31,8 +31,20 @@
         </select></label
       ><button class="button secondary" type="submit"><Search />查询</button>
     </form>
-    <LoadingBlock v-if="busy && !records.length" />
-    <EmptyState v-else-if="!records.length" title="没有符合条件的记录" />
+    <div v-if="displayError" class="inline-alert danger" role="alert">
+      <span>{{ displayError }}</span>
+      <button
+        v-if="listError"
+        class="button secondary small"
+        type="button"
+        data-action="retry-attendance"
+        @click="load()"
+      >
+        重试
+      </button>
+    </div>
+    <LoadingBlock v-if="listLoading && !records.length" />
+    <EmptyState v-else-if="!records.length && !listError" title="没有符合条件的记录" />
     <div v-else class="table-shell">
       <table>
         <thead>
@@ -108,7 +120,7 @@
       <div>
         <button
           class="button secondary small"
-          :disabled="page <= 1 || busy"
+          :disabled="page <= 1 || listLoading"
           @click="load(page - 1)"
         >
           <ChevronLeft />上一页
@@ -116,7 +128,7 @@
         <span>第 {{ page }} / {{ totalPages }} 页</span>
         <button
           class="button secondary small"
-          :disabled="page >= totalPages || busy"
+          :disabled="page >= totalPages || listLoading"
           @click="load(page + 1)"
         >
           下一页<ChevronRight />
@@ -127,7 +139,7 @@
       :open="editorOpen"
       :title="editing ? '修改值班记录' : '补录值班记录'"
       size="lg"
-      @close="editorOpen = false"
+      @close="closeEditor"
     >
       <div class="form-grid two">
         <div v-if="!editing" class="field span-2">
@@ -135,6 +147,7 @@
           <AccountPicker
             v-model="selectedMember"
             :candidates="manualCandidates"
+            :open="editorOpen"
             aria-label="选择补录成员"
             placeholder="搜索姓名或学号"
           />
@@ -167,13 +180,24 @@
           ><span>操作原因</span
           ><textarea v-model="form.reason" rows="3" required />
         </label>
+        <label
+          v-if="editing && canReviewStatus"
+          class="attendance-reevaluate span-2"
+        >
+          <input v-model="form.recomputeSnapshot" type="checkbox" />
+          <span>
+            <strong>按当前值班设置重新评估</strong>
+            <small>关闭时保留该记录产生时的值班日与时段规则</small>
+          </span>
+        </label>
       </div>
       <template #footer
-        ><button class="button secondary" @click="editorOpen = false">
+        ><button class="button secondary" :disabled="actions.isPending('save')" @click="closeEditor">
           取消</button
         ><button
           class="button primary"
           :disabled="
+            actions.isPending('save') ||
             !form.reason.trim() || (!editing && !selectedMember)
           "
           @click="save"
@@ -189,6 +213,7 @@
       confirm-label="删除记录"
       danger
       require-reason
+      :pending="actions.isPending('delete')"
       @cancel="deleteTarget = null"
       @confirm="remove"
     />
@@ -215,6 +240,9 @@ import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AccountPicker from "../../features/accounts/AccountPicker.vue";
 import { del, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import { useSession } from "../../app/session";
 import {
   attendancePageQuery,
@@ -233,19 +261,25 @@ const records = ref<AttendanceRecordItem[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 20;
-const { busy, run } = useAsyncTask();
+const task = useAsyncTask();
+const listRequest = useLatestRequest();
+const actions = usePendingActions();
+const { loading: listLoading, error: listError } = listRequest;
 const editorOpen = ref(false);
 const editing = ref<AttendanceRecordItem | null>(null);
 const deleteTarget = ref<AttendanceRecordItem | null>(null);
 const manualCandidates = ref<AccountCandidate[]>([]);
 const selectedMember = ref<AccountCandidate | null>(null);
 const filters = reactive({ from: "", to: "", keyword: "", status: "" });
+const filterError = computed(() => dateRangeError(filters.from, filters.to));
+const displayError = computed(() => filterError.value || listError.value);
 const form = reactive({
   studentNo: "",
   checkInTime: "",
   checkOutTime: "",
   checkInStatus: "APPROVED",
   checkOutStatus: "APPROVED",
+  recomputeSnapshot: false,
   reason: "",
 });
 const canCreate = computed(() =>
@@ -272,9 +306,12 @@ onMounted(async () => {
   await Promise.all([load(), canCreate.value ? loadManualCandidates() : undefined]);
 });
 async function load(target = page.value) {
+  if (filterError.value) return;
   const query = attendancePageQuery(filters, target, pageSize);
-  const value = await run(() =>
-    get<AttendanceRecordPage>(`/api/attendance/page?${query}`),
+  const value = await listRequest.run(
+    (signal) =>
+      get<AttendanceRecordPage>(`/api/attendance/page?${query}`, { signal }),
+    "值班记录加载失败",
   );
   if (!value) return;
   records.value = value.items;
@@ -290,6 +327,7 @@ function openCreate() {
     checkOutTime: "",
     checkInStatus: "APPROVED",
     checkOutStatus: "APPROVED",
+    recomputeSnapshot: false,
     reason: "",
   });
   editorOpen.value = true;
@@ -303,29 +341,34 @@ function openEdit(item: AttendanceRecordItem) {
     checkOutTime: toInput(item.checkOutTime),
     checkInStatus: item.checkInStatus,
     checkOutStatus: item.checkOutStatus,
+    recomputeSnapshot: false,
     reason: "",
   });
   editorOpen.value = true;
 }
 async function save() {
-  const current = editing.value;
-  const payload = {
-    ...form,
-    studentNo: current
-      ? form.studentNo
-      : selectedMember.value?.studentNo || "",
-    checkOutTime: form.checkOutTime || null,
-  };
-  const ok = current
-    ? await run(
-        () => put(`/api/attendance/${current.id}/manual`, payload),
-        "记录已更新",
-      )
-    : await run(() => post("/api/attendance/manual", payload), "记录已补录");
-  if (ok) {
+  await actions.run("save", async () => {
+    const current = editing.value;
+    const payload = {
+      ...form,
+      studentNo: current
+        ? form.studentNo
+        : selectedMember.value?.studentNo || "",
+      checkOutTime: form.checkOutTime || null,
+    };
+    const result = current
+      ? await task.run(
+          () => put(`/api/attendance/${current.id}/manual`, payload),
+          "记录已更新",
+        )
+      : await task.run(
+          () => post("/api/attendance/manual", payload),
+          "记录已补录",
+        );
+    if (result === undefined) return;
     editorOpen.value = false;
     await load();
-  }
+  });
 }
 function askDelete(item: AttendanceRecordItem) {
   if (!actionAccess(item).allowed) return;
@@ -334,15 +377,18 @@ function askDelete(item: AttendanceRecordItem) {
 async function remove(reason: string) {
   const target = deleteTarget.value;
   if (!target) return;
-  await run(
-    () =>
-      del(
-        `/api/attendance/${target.id}?reason=${encodeURIComponent(reason)}`,
-      ),
-    "记录已删除",
-  );
-  deleteTarget.value = null;
-  await load();
+  await actions.run("delete", async () => {
+    const removed = await task.run(
+      () =>
+        del(
+          `/api/attendance/${target.id}?reason=${encodeURIComponent(reason)}`,
+        ),
+      "记录已删除",
+    );
+    if (removed === undefined) return;
+    deleteTarget.value = null;
+    await load();
+  });
 }
 const statusLabels: Record<string, string> = {
   VALID: "有效",
@@ -369,10 +415,13 @@ function actionAccess(item: AttendanceRecordItem): AttendanceActionAccess {
   );
 }
 async function loadManualCandidates() {
-  const value = await run(() =>
+  const value = await task.run(() =>
     get<AccountCandidate[]>("/api/attendance/manual-candidates"),
   );
   if (value) manualCandidates.value = value;
+}
+function closeEditor() {
+  if (!actions.isPending("save")) editorOpen.value = false;
 }
 function localDate(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

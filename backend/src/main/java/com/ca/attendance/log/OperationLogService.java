@@ -3,8 +3,8 @@ package com.ca.attendance.log;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.user.UserRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -63,9 +63,14 @@ public class OperationLogService {
         log("EXPORT_DATA", "data_exports", null, null, payload, "导出" + exportLabel);
     }
 
-    public void logRemoteAuthentication(boolean success, UserRepository.UserLoginRow user, String attemptedAccount,
-                                        String ipAddress, String userAgent, String reason) {
-        jdbc.update("""
+    public void logAuthentication(AuthenticationOutcome outcome,
+                                  boolean remote,
+                                  UserRepository.UserLoginRow user,
+                                  String attemptedAccount,
+                                  String ipAddress,
+                                  String userAgent,
+                                  String reason) {
+        int inserted = jdbc.update("""
                 INSERT INTO operation_logs (
                   operator_user_id, operator_student_no, operator_name, action_type, target_type,
                   target_id, reason, ip_address, user_agent
@@ -73,14 +78,25 @@ public class OperationLogService {
                 VALUES (?, ?, ?, ?, 'authentication', ?, ?, ?, ?)
                 """,
                 user == null ? null : user.id(),
-                user == null ? attemptedAccount : user.studentNo(),
+                user == null ? limited(attemptedAccount, 64) : user.studentNo(),
                 user == null ? null : user.name(),
-                success ? "REMOTE_LOGIN_SUCCESS" : "REMOTE_LOGIN_FAILURE",
+                (remote ? "REMOTE_LOGIN_" : "LOCAL_LOGIN_") + outcome.name(),
                 user == null ? null : user.id(),
-                reason,
-                ipAddress,
-                userAgent
+                limited(reason, 255),
+                limited(ipAddress, 255),
+                limited(userAgent, 255)
         );
+        if (inserted != 1) {
+            throw new IllegalStateException("认证审计日志写入失败");
+        }
+    }
+
+    private String limited(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        String clean = value.replace("\r", "").replace("\n", "").trim();
+        return clean.substring(0, Math.min(clean.length(), maxLength));
     }
 
     private String toJson(Object value) {
@@ -89,8 +105,14 @@ public class OperationLogService {
         }
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             return "{\"error\":\"json_encode_failed\"}";
         }
+    }
+
+    public enum AuthenticationOutcome {
+        SUCCESS,
+        FAILURE,
+        LOCKED
     }
 }

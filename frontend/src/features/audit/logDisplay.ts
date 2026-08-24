@@ -20,6 +20,7 @@ const actionLabels: Record<string, string> = {
   CREATE_USER: "新增成员",
   IMPORT_USERS: "导入成员",
   UPDATE_USER: "修改成员",
+  UPDATE_PROFILE: "修改个人资料",
   RESET_PASSWORD: "重置密码",
   DELETE_USER: "删除成员",
   BULK_UPDATE_USER_STATUS: "批量修改成员状态",
@@ -31,6 +32,7 @@ const actionLabels: Record<string, string> = {
   UPDATE_DUTY_PERIODS: "调整值班时间段",
   UPDATE_ATTENDANCE_POLICY: "调整有效时长规则",
   REVIEW_ATTENDANCE: "审核值班记录",
+  BULK_REVIEW_ATTENDANCE: "批量审核值班记录",
   MANUAL_CREATE_ATTENDANCE: "补录值班记录",
   MANUAL_UPDATE_ATTENDANCE: "修改值班记录",
   DELETE_ATTENDANCE_RECORD: "删除值班记录",
@@ -48,8 +50,16 @@ const actionLabels: Record<string, string> = {
   PURGE_REPAIR_CASE: "彻底删除维修事务",
   EXPORT_CUSTOM_DATA: "自定义导出数据",
   EXPORT_DATA: "导出业务数据",
+  ATTENDANCE_STATS: "导出值班统计",
+  REPAIR_CASES: "导出维修事务",
+  TRAINING_SESSION: "导出培训名单",
+  TRAINING_SUMMARY: "导出培训统计",
   REMOTE_LOGIN_SUCCESS: "远程登录成功",
   REMOTE_LOGIN_FAILURE: "远程登录失败",
+  REMOTE_LOGIN_LOCKED: "远程登录锁定",
+  LOCAL_LOGIN_SUCCESS: "本机登录成功",
+  LOCAL_LOGIN_FAILURE: "本机登录失败",
+  LOCAL_LOGIN_LOCKED: "本机登录锁定",
   SEED_DEMO_DATA: "初始化演示数据",
 };
 
@@ -63,6 +73,7 @@ const targetLabels: Record<string, string> = {
   training_participants: "培训参与记录",
   repair_cases: "维修事务",
   system: "系统",
+  authentication: "登录认证",
   remote_auth: "远程登录",
   custom_export: "数据导出",
   data_exports: "数据导出",
@@ -82,6 +93,7 @@ const fieldLabels: Record<string, string> = {
   weekday: "星期",
   weekdayName: "星期",
   dutyDate: "值班日期",
+  trainingDate: "培训日期",
   startTime: "开始时间",
   endTime: "结束时间",
   checkInTime: "签到时间",
@@ -172,7 +184,8 @@ const valueLabels: Record<string, string> = {
 
 export function auditActionLabel(value?: string) {
   if (!value) return "未知操作";
-  return actionLabels[value] || value.replaceAll("_", " ");
+  if (value.startsWith("CUSTOM_")) return "自定义导出";
+  return actionLabels[value] || "业务操作";
 }
 
 export function auditTargetLabel(target: AuditTarget) {
@@ -227,6 +240,7 @@ function formatAuditValue(value: unknown, key: string): string {
   if (Array.isArray(value)) {
     if (isNumberArray(value)) {
       if (isDateTimeField(key) && value.length >= 3) return dateTimeArray(value);
+      if (isDateField(key) && value.length >= 3) return dateArray(value);
       if (isTimeField(key) && value.length >= 2) return timeArray(value);
     }
 
@@ -262,14 +276,26 @@ function isDateTimeField(key: string) {
   return /(?:created|updated|received|completed)At$/i.test(key);
 }
 
+function isDateField(key: string) {
+  return /Date$/i.test(key);
+}
+
 function timeArray(value: number[]) {
-  return `${pad(value[0])}:${pad(value[1])}`;
+  const [hours = 0, minutes = 0] = value;
+  return `${pad(hours)}:${pad(minutes)}`;
 }
 
 function dateTimeArray(value: number[]) {
-  const date = `${value[0]}-${pad(value[1])}-${pad(value[2])}`;
+  const date = dateArray(value);
   if (value.length < 5) return date;
-  return `${date} ${pad(value[3])}:${pad(value[4])}`;
+  const hours = value[3] ?? 0;
+  const minutes = value[4] ?? 0;
+  return `${date} ${pad(hours)}:${pad(minutes)}`;
+}
+
+function dateArray(value: number[]) {
+  const [year = 0, month = 0, day = 0] = value;
+  return `${year}-${pad(month)}-${pad(day)}`;
 }
 
 function pad(value: number) {

@@ -13,6 +13,17 @@ import javax.sql.DataSource;
 public class SQLiteDataSourceConfiguration {
     @Bean(destroyMethod = "close")
     public DataSource dataSource(StoragePaths storagePaths) {
+        HikariDataSource dataSource = createUnmigratedDataSource(storagePaths);
+        try {
+            new DatabaseMigrator(dataSource).run();
+            return dataSource;
+        } catch (Exception ex) {
+            dataSource.close();
+            throw new IllegalStateException("SQLite 数据库迁移失败，服务未启动", ex);
+        }
+    }
+
+    HikariDataSource createUnmigratedDataSource(StoragePaths storagePaths) {
         SQLiteConfig sqlite = new SQLiteConfig();
         sqlite.enforceForeignKeys(true);
         sqlite.setBusyTimeout(10_000);

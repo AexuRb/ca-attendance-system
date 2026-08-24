@@ -28,8 +28,43 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Run backend tests
         run: mvn --batch-mode test
+      - name: Summarize backend tests
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          reports = list(Path("target/surefire-reports").glob("TEST-*.xml"))
+          for report in reports:
+              root = ET.parse(report).getroot()
+              for key in totals:
+                  totals[key] += int(root.attrib.get(key, 0))
+
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          with summary.open("a", encoding="utf-8") as output:
+              output.write("### Backend\n")
+              if reports:
+                  output.write(
+                      f"- Tests: {totals['tests']}, failures: {totals['failures']}, "
+                      f"errors: {totals['errors']}, skipped: {totals['skipped']}\n"
+                  )
+              else:
+                  output.write("- No Surefire reports were generated.\n")
+          PY
+      - name: Check dependency upper bounds
+        run: >-
+          mvn --batch-mode
+          org.apache.maven.plugins:maven-enforcer-plugin:3.6.2:enforce
+          -Denforcer.rules=requireUpperBoundDeps
 
   frontend:
     name: Frontend tests and build
@@ -47,11 +82,43 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run frontend tests
-        run: npm test
+        run: >-
+          npx --no-install vitest run
+          --reporter=default
+          --reporter=json
+          --outputFile.json=vitest-results.json
+      - name: Summarize frontend tests
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+
+          const lines = ['### Frontend']
+          if (fs.existsSync('vitest-results.json')) {
+            const report = JSON.parse(fs.readFileSync('vitest-results.json', 'utf8'))
+            lines.push(
+              `- Files: ${report.testResults.length}, tests: ${report.numTotalTests}, ` +
+              `failed: ${report.numFailedTests}, skipped: ${report.numPendingTests}`,
+            )
+          } else {
+            lines.push('- No Vitest report was generated.')
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join('\n')}\n`)
+          NODE
       - name: Check frontend types
         run: npm run typecheck
       - name: Build frontend
         run: npm run build
+      - name: Check committed frontend assets
+        shell: bash
+        run: |
+          changes="$(git status --porcelain -- ../backend/src/main/resources/static)"
+          if [[ -n "$changes" ]]; then
+            echo "Frontend build output differs from committed static assets:"
+            echo "$changes"
+            exit 1
+          fi
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
@@ -71,14 +138,88 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run desktop tests
-        run: npm test
+        shell: powershell
+        run: |
+          & npm test 2>&1 | Tee-Object -FilePath desktop-test-output.txt
+          $testExit = $LASTEXITCODE
+          $output = Get-Content -LiteralPath desktop-test-output.txt -Raw
+          $tests = [regex]::Match($output, '(?m)^[^\r\n]*\btests (?<value>\d+)\s*$').Groups['value'].Value
+          $failed = [regex]::Match($output, '(?m)^[^\r\n]*\bfail (?<value>\d+)\s*$').Groups['value'].Value
+          if ([string]::IsNullOrWhiteSpace($tests)) {
+            $summary = "- No Node test summary was generated."
+          } else {
+            $summary = "- Tests: $tests, failed: $failed"
+          }
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "### Desktop`n$summary"
+          if ($testExit -ne 0) {
+            exit $testExit
+          }
+      - name: Check desktop JavaScript syntax
+        shell: powershell
+        run: |
+          Get-ChildItem -Path . -Filter *.cjs -File | ForEach-Object {
+            & node --check $_.FullName
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
+
+  repository-quality:
+    name: Repository scripts and formatting
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run script tests
+        shell: powershell
+        run: |
+          & python -m unittest discover -s scripts -p "test_*.py" 2>&1 |
+            Tee-Object -FilePath script-test-output.txt
+          $testExit = $LASTEXITCODE
+          $output = Get-Content -LiteralPath script-test-output.txt -Raw
+          $count = [regex]::Match($output, 'Ran (?<value>\d+) tests?').Groups['value'].Value
+          if ([string]::IsNullOrWhiteSpace($count)) {
+            $summary = "- No unittest summary was generated."
+          } else {
+            $summary = "- Tests: $count"
+          }
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "### Repository scripts`n$summary"
+          if ($testExit -ne 0) {
+            exit $testExit
+          }
+      - name: Check Python syntax
+        run: python -m compileall -q scripts
+      - name: Check PowerShell syntax
+        shell: powershell
+        run: |
+          Get-ChildItem -Path scripts -Filter *.ps1 -File | ForEach-Object {
+            [scriptblock]::Create([IO.File]::ReadAllText($_.FullName)) | Out-Null
+          }
+      - name: Check patch formatting
+        shell: powershell
+        run: |
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            git diff --check "${{ github.event.pull_request.base.sha }}...${{ github.sha }}"
+          } elseif ("${{ github.event_name }}" -eq "push" -and
+                    "${{ github.event.before }}" -notmatch '^0+$') {
+            git diff --check "${{ github.event.before }}" "${{ github.sha }}"
+          } else {
+            git show --check --format= "${{ github.sha }}"
+          }
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
 
   desktop-package:
     name: Build unsigned Windows packages
     if: github.event_name == 'workflow_dispatch'
-    needs: [backend, frontend, desktop]
+    needs: [backend, frontend, desktop, repository-quality]
     runs-on: windows-latest
     timeout-minutes: 45
     steps:

@@ -7,7 +7,7 @@ describe("attendance lookup", () => {
       canConfirmAttendance({
         exists: true,
         memberToken: "sel_member_1",
-        maskedStudentNo: "2023****0001",
+        maskedStudentNo: "****0001",
         name: "张三",
         action: "CHECK_IN",
         message: "请确认姓名后提交",

@@ -5,7 +5,7 @@
     size="sm"
     @close="close"
   >
-    <form id="training-participant-editor" class="form-grid" novalidate @submit.prevent="submit">
+    <form ref="formElement" id="training-participant-editor" class="form-grid" novalidate @submit.prevent="submit">
       <label class="field">
         <span>学号</span>
         <input
@@ -58,14 +58,16 @@
 
 <script setup lang="ts">
 import { LoaderCircle } from "@lucide/vue";
-import { nextTick, reactive, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
+import { focusFirstInvalid } from "../../shared/validation/userInput";
 import { validateParticipantForm, type TrainingParticipantErrors } from "./trainingForms";
 import type { TrainingParticipantForm } from "./trainingTypes";
 
 const props = defineProps<{ open: boolean; form: TrainingParticipantForm; pending: boolean }>();
 const emit = defineEmits<{ close: []; save: [] }>();
 const errors = reactive<TrainingParticipantErrors>({});
+const formElement = ref<HTMLFormElement | null>(null);
 
 function close() {
   if (!props.pending) emit("close");
@@ -77,8 +79,7 @@ async function submit() {
   clearErrors();
   Object.assign(errors, validateParticipantForm(props.form));
   if (Object.keys(errors).length) {
-    await nextTick();
-    document.querySelector<HTMLElement>('#training-participant-editor [aria-invalid="true"]')?.focus();
+    focusFirstInvalid(formElement.value, errors);
     return;
   }
   emit("save");

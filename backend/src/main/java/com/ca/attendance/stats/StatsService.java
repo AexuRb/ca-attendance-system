@@ -3,13 +3,15 @@ package com.ca.attendance.stats;
 import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.ExportRowLimit;
 import com.ca.attendance.log.OperationLogService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.ss.util.CellReference;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -44,6 +46,7 @@ public class StatsService {
         this.logs = logs;
     }
 
+    @Transactional(readOnly = true)
     public List<SummaryItem> summary(LocalDate from, LocalDate to) {
         requireManager();
         validateRange(from, to);
@@ -92,6 +95,7 @@ public class StatsService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> weeklyDetail(LocalDate from, LocalDate to) {
         requireManager();
         validateRange(from, to);
@@ -189,6 +193,7 @@ public class StatsService {
         return result;
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> dashboard(LocalDate date) {
         requireManager();
         LocalDate weekStart = date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
@@ -251,7 +256,9 @@ public class StatsService {
         List<ExportUserRow> userRows = exportUserRows(from, to);
 
         byte[] bytes;
-        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        SXSSFWorkbook wb = new SXSSFWorkbook(200);
+        wb.setCompressTempFiles(true);
+        try (wb; ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = wb.createSheet("值班记录");
             CellStyle weekStyle = weekHeaderStyle(wb);
             CellStyle headerStyle = headerStyle(wb);
@@ -323,6 +330,8 @@ public class StatsService {
             bytes = out.toByteArray();
         } catch (Exception ex) {
             throw ApiException.badRequest("导出 Excel 失败");
+        } finally {
+            wb.dispose();
         }
         String filename = "值班记录_" + from + "_" + to + ".xlsx";
         logs.logExport("ATTENDANCE_STATS", "值班统计",
@@ -359,43 +368,41 @@ public class StatsService {
 
     private List<ExportUserRow> exportUserRows(LocalDate from, LocalDate to) {
         Map<Long, ExportUserRow> users = new LinkedHashMap<>();
-        jdbc.queryForList("""
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                WITH hour_rows AS (
+                  SELECT
+                    r.user_id AS userId,
+                    r.student_no_snapshot AS studentNo,
+                    r.name_snapshot AS name,
+                    r.duty_date AS dutyDate,
+                    r.valid_hours AS hours
+                  FROM attendance_records r
+                  WHERE r.effective_status = 'VALID'
+                    AND r.duty_date BETWEEN ? AND ?
+                  UNION ALL
+                  SELECT
+                    p.user_id AS userId,
+                    p.student_no_snapshot AS studentNo,
+                    p.name_snapshot AS name,
+                    s.training_date AS dutyDate,
+                    p.duration_hours AS hours
+                  FROM training_participants p
+                  JOIN training_sessions s ON s.id = p.session_id
+                  WHERE s.status <> 'ARCHIVED'
+                    AND s.training_date BETWEEN ? AND ?
+                    AND p.user_id IS NOT NULL
+                    AND p.duration_hours > 0
+                )
                 SELECT
-                  r.user_id AS userId,
-                  r.student_no_snapshot AS studentNo,
-                  r.name_snapshot AS name,
-                  r.duty_date AS dutyDate,
-                  COALESCE(SUM(r.valid_hours), 0) AS totalHours
-                FROM attendance_records r
-                WHERE r.effective_status = 'VALID'
-                  AND r.duty_date BETWEEN ? AND ?
-                GROUP BY r.user_id, r.student_no_snapshot, r.name_snapshot, r.duty_date
-                ORDER BY r.student_no_snapshot, r.duty_date
-                """, from, to).forEach(row -> {
-            long userId = ((Number) row.get("userId")).longValue();
-            ExportUserRow user = users.computeIfAbsent(userId, id -> new ExportUserRow(
-                    String.valueOf(row.get("studentNo")),
-                    String.valueOf(row.get("name")),
-                    new LinkedHashMap<>()
-            ));
-            mergeExportHours(user.hoursByDate(), row.get("dutyDate"), row.get("totalHours"));
-        });
-        jdbc.queryForList("""
-                SELECT
-                  p.user_id AS userId,
-                  p.student_no_snapshot AS studentNo,
-                  p.name_snapshot AS name,
-                  s.training_date AS dutyDate,
-                  COALESCE(SUM(p.duration_hours), 0) AS totalHours
-                FROM training_participants p
-                JOIN training_sessions s ON s.id = p.session_id
-                WHERE s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
-                  AND p.user_id IS NOT NULL
-                  AND p.duration_hours > 0
-                GROUP BY p.user_id, p.student_no_snapshot, p.name_snapshot, s.training_date
-                ORDER BY p.student_no_snapshot, s.training_date
-                """, from, to).forEach(row -> {
+                  userId, studentNo, name, dutyDate,
+                  COALESCE(SUM(hours), 0) AS totalHours
+                FROM hour_rows
+                GROUP BY userId, studentNo, name, dutyDate
+                ORDER BY studentNo, dutyDate
+                LIMIT ?
+                """, from, to, from, to, ExportRowLimit.FETCH_LIMIT);
+        ExportRowLimit.requireWithinLimit(rows.size());
+        rows.forEach(row -> {
             long userId = ((Number) row.get("userId")).longValue();
             ExportUserRow user = users.computeIfAbsent(userId, id -> new ExportUserRow(
                     String.valueOf(row.get("studentNo")),

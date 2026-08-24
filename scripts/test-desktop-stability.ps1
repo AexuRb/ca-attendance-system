@@ -216,7 +216,7 @@ function Test-DirectoryMigration {
 }
 
 function Test-WindowResize {
-    Write-Host '[5/5] Testing supported desktop window sizes...'
+    Write-Host '[5/5] Testing supported desktop window sizes and state restore...'
     $appRoot = Join-Path $sessionRoot 'roots\resize'
     $userData = Join-Path $sessionRoot 'user-data\resize'
     $process = Start-IsolatedDesktop $appRoot $userData @{
@@ -226,7 +226,20 @@ function Test-WindowResize {
     Wait-PortsReleased
     $log = Get-DesktopLog $appRoot
     Assert-True $log.Contains('resize smoke-test passed=true') '桌面窗口缩放或页面溢出烟测失败'
-    $results.Add([pscustomobject]@{ Scenario = '桌面窗口缩放与内容溢出'; Result = '通过' })
+    $statePath = Join-Path $appRoot 'data\window-state.json'
+    Assert-True (Test-Path -LiteralPath $statePath -PathType Leaf) '桌面窗口状态没有保存'
+    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    Assert-True ($state.version -eq 1) '桌面窗口状态版本无效'
+    Assert-True ($state.bounds.width -ge 1080 -and $state.bounds.height -ge 720) '桌面窗口状态尺寸无效'
+
+    $restored = Start-IsolatedDesktop $appRoot (Join-Path $sessionRoot 'user-data\resize-restored') @{
+        CA_ATTENDANCE_SMOKE_EXIT_MS = 1800
+    }
+    Wait-DesktopExit $restored
+    Wait-PortsReleased
+    $restoredLog = Get-DesktopLog $appRoot
+    Assert-True $restoredLog.Contains('window state restored bounds=') '桌面窗口状态没有在再次启动时恢复'
+    $results.Add([pscustomobject]@{ Scenario = '桌面窗口缩放、内容溢出与状态恢复'; Result = '通过' })
 }
 
 function Remove-IsolatedSession {

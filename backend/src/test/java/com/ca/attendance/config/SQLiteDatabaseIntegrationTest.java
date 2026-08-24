@@ -10,18 +10,23 @@ import com.ca.attendance.common.Role;
 import com.ca.attendance.export.CustomExportService;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
+import com.ca.attendance.repair.RepairAgreementService;
 import com.ca.attendance.repair.RepairCaseItem;
+import com.ca.attendance.repair.RepairCaseQueryService;
 import com.ca.attendance.repair.RepairCaseService;
+import com.ca.attendance.repair.RepairExcelExportService;
 import com.ca.attendance.schedule.DutyScheduleImportService;
 import com.ca.attendance.schedule.DutyScheduleService;
 import com.ca.attendance.schedule.DutyScheduleSlotItem;
 import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.training.TrainingParticipantItem;
+import com.ca.attendance.training.TrainingExcelExportService;
+import com.ca.attendance.training.TrainingParticipantImportParser;
+import com.ca.attendance.training.TrainingQueryService;
 import com.ca.attendance.training.TrainingService;
 import com.ca.attendance.training.TrainingSessionItem;
 import com.ca.attendance.user.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 import com.zaxxer.hikari.HikariDataSource;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -82,9 +87,8 @@ class SQLiteDatabaseIntegrationTest {
         StoragePaths storagePaths = new StoragePaths(tempDirectory.toString());
         DataSource configured = new SQLiteDataSourceConfiguration().dataSource(storagePaths);
         dataSource = (HikariDataSource) configured;
-        new DatabaseMigrator(dataSource).run();
         jdbc = new JdbcTemplate(dataSource);
-        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        objectMapper = new ObjectMapper();
 
         adminId = requiredId(jdbc.queryForObject("""
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
@@ -206,7 +210,8 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void versionNinePreservesReviewBasedEligibilityForLegacyRecords() throws Exception {
         StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v8-attendance").toString());
-        try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
+        try (HikariDataSource legacyDataSource = new SQLiteDataSourceConfiguration()
+                .createUnmigratedDataSource(legacyPaths)) {
             try (Connection connection = legacyDataSource.getConnection()) {
                 for (String resource : List.of(
                         "db/sqlite/V1__initial_schema.sql",
@@ -260,7 +265,8 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void versionTenNormalizesLegacyTrainingStatusesWithoutChangingHours() throws Exception {
         StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v9-training").toString());
-        try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
+        try (HikariDataSource legacyDataSource = new SQLiteDataSourceConfiguration()
+                .createUnmigratedDataSource(legacyPaths)) {
             try (Connection connection = legacyDataSource.getConnection()) {
                 for (String resource : List.of(
                         "db/sqlite/V1__initial_schema.sql",
@@ -330,7 +336,8 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void migratesVersionOneRepairRowsWithoutDataLoss() throws Exception {
         StoragePaths legacyPaths = new StoragePaths(tempDirectory.resolve("legacy-v1").toString());
-        try (HikariDataSource legacyDataSource = (HikariDataSource) new SQLiteDataSourceConfiguration().dataSource(legacyPaths)) {
+        try (HikariDataSource legacyDataSource = new SQLiteDataSourceConfiguration()
+                .createUnmigratedDataSource(legacyPaths)) {
             try (Connection connection = legacyDataSource.getConnection()) {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/sqlite/V1__initial_schema.sql"));
                 try (Statement statement = connection.createStatement()) {
@@ -417,7 +424,13 @@ class SQLiteDatabaseIntegrationTest {
         assertEquals("14:00:00", jdbc.queryForObject(
                 "SELECT start_time FROM duty_schedule_slots WHERE id = ?", String.class, slot.id()));
 
-        TrainingService trainings = new TrainingService(jdbc, logs);
+        TrainingService trainings = new TrainingService(
+                jdbc,
+                logs,
+                new TrainingQueryService(jdbc),
+                new TrainingExcelExportService(),
+                new TrainingParticipantImportParser()
+        );
         TrainingSessionItem session = trainings.create(new TrainingService.SessionRequest(
                 "离线系统培训",
                 today,
@@ -438,9 +451,18 @@ class SQLiteDatabaseIntegrationTest {
                 "SELECT training_date FROM training_sessions WHERE id = ?", String.class, session.id()));
         assertEquals("14:00:00", jdbc.queryForObject(
                 "SELECT start_time FROM training_sessions WHERE id = ?", String.class, session.id()));
-        assertEquals(1, trainings.list("离线系统培训", null, today, today).size());
+        assertEquals(1, trainings.page("离线系统培训", null, today, today, 1, 20).items().size());
 
-        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backupService(), new UserRepository(jdbc));
+        UserRepository repairUsers = new UserRepository(jdbc);
+        RepairCaseService repairs = new RepairCaseService(
+                jdbc,
+                logs,
+                backupService(),
+                repairUsers,
+                new RepairCaseQueryService(jdbc, repairUsers),
+                new RepairAgreementService(),
+                new RepairExcelExportService()
+        );
         RepairCaseItem repair = repairs.create(new RepairCaseService.RepairCaseRequest(
                 "PERSONAL_DEVICE",
                 "送修同学",
@@ -473,7 +495,16 @@ class SQLiteDatabaseIntegrationTest {
     void protectsRepairRecycleBinAndBacksUpPermanentDeletion() {
         OperationLogService logs = new OperationLogService(jdbc, objectMapper);
         BackupService backups = backupService();
-        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backups, new UserRepository(jdbc));
+        UserRepository repairUsers = new UserRepository(jdbc);
+        RepairCaseService repairs = new RepairCaseService(
+                jdbc,
+                logs,
+                backups,
+                repairUsers,
+                new RepairCaseQueryService(jdbc, repairUsers),
+                new RepairAgreementService(),
+                new RepairExcelExportService()
+        );
         LocalDateTime receivedAt = LocalDateTime.now();
         RepairCaseItem repair = repairs.create(new RepairCaseService.RepairCaseRequest(
                 "PERSONAL_DEVICE", "回收站测试", "13800000001", null,
@@ -527,7 +558,16 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void repairNumbersRemainMonotonicAfterPurgingAMiddleCase() {
         OperationLogService logs = new OperationLogService(jdbc, objectMapper);
-        RepairCaseService repairs = new RepairCaseService(jdbc, logs, backupService(), new UserRepository(jdbc));
+        UserRepository repairUsers = new UserRepository(jdbc);
+        RepairCaseService repairs = new RepairCaseService(
+                jdbc,
+                logs,
+                backupService(),
+                repairUsers,
+                new RepairCaseQueryService(jdbc, repairUsers),
+                new RepairAgreementService(),
+                new RepairExcelExportService()
+        );
 
         RepairCaseItem first = createRepair(repairs, "编号测试一");
         RepairCaseItem second = createRepair(repairs, "编号测试二");
@@ -774,7 +814,11 @@ class SQLiteDatabaseIntegrationTest {
                 SET setting_value = 'keep-current'
                 WHERE setting_key = 'legacy_restore_test'
                 """);
-        byte[] legacyBytes = withoutTables(Files.readAllBytes(backupPath), List.of("app_settings"));
+        byte[] legacyBytes = withoutTables(
+                Files.readAllBytes(backupPath),
+                List.of("app_settings"),
+                null
+        );
         MockMultipartFile upload = new MockMultipartFile(
                 "file",
                 "backup_legacy.zip",
@@ -794,11 +838,15 @@ class SQLiteDatabaseIntegrationTest {
 
     @Test
     void legacyBackupWithoutRepairSequenceRebuildsTheNextCaseNumber() throws Exception {
+        UserRepository repairUsers = new UserRepository(jdbc);
         RepairCaseService repairs = new RepairCaseService(
                 jdbc,
                 new OperationLogService(jdbc, objectMapper),
                 backupService(),
-                new UserRepository(jdbc)
+                repairUsers,
+                new RepairCaseQueryService(jdbc, repairUsers),
+                new RepairAgreementService(),
+                new RepairExcelExportService()
         );
         createRepair(repairs, "旧备份编号一");
         createRepair(repairs, "旧备份编号二");
@@ -807,7 +855,11 @@ class SQLiteDatabaseIntegrationTest {
         BackupService backups = backupService();
         BackupService.BackupItem backup = backups.create();
         Path backupPath = new StoragePaths(tempDirectory.toString()).backupDirectory().resolve(backup.filename());
-        byte[] legacyBytes = withoutTables(Files.readAllBytes(backupPath), List.of("repair_case_sequences"));
+        byte[] legacyBytes = withoutTables(
+                Files.readAllBytes(backupPath),
+                List.of("repair_case_sequences"),
+                3
+        );
         MockMultipartFile upload = new MockMultipartFile(
                 "file",
                 "backup_without_repair_sequences.zip",
@@ -872,7 +924,11 @@ class SQLiteDatabaseIntegrationTest {
     }
 
     @SuppressWarnings("unchecked")
-    private byte[] withoutTables(byte[] source, List<String> omittedTables) throws Exception {
+    private byte[] withoutTables(
+            byte[] source,
+            List<String> omittedTables,
+            Integer schemaVersion
+    ) throws Exception {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         try (ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(source), StandardCharsets.UTF_8);
              ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
@@ -885,6 +941,11 @@ class SQLiteDatabaseIntegrationTest {
                 byte[] bytes = input.readAllBytes();
                 if ("metadata.json".equals(entry.getName())) {
                     Map<String, Object> metadata = objectMapper.readValue(bytes, Map.class);
+                    if (schemaVersion == null) {
+                        metadata.remove("schemaVersion");
+                    } else {
+                        metadata.put("schemaVersion", schemaVersion);
+                    }
                     List<Object> tables = (List<Object>) metadata.get("tables");
                     metadata.put("tables", tables.stream()
                             .filter(table -> !omittedTables.contains(String.valueOf(table)))

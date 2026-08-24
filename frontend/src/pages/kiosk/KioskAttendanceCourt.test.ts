@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it } from "vitest";
 import KioskAttendanceCourt from "./KioskAttendanceCourt.vue";
@@ -14,7 +15,7 @@ const matches = [
 function props(overrides: Record<string, unknown> = {}) {
   return {
     step: "input" as const,
-    query: "1004231224",
+    query: "9900000001",
     busy: false,
     error: "",
     online: true,
@@ -33,6 +34,14 @@ afterEach(() => {
 });
 
 describe("KioskAttendanceCourt", () => {
+  it("does not make the changing attendance court a live region", () => {
+    const wrapper = mount(KioskAttendanceCourt, {
+      props: props(),
+    });
+
+    expect(wrapper.get(".kiosk-focus-court").attributes("aria-live")).toBeUndefined();
+  });
+
   it("shows lookup errors while choosing a same-name account", () => {
     const wrapper = mount(KioskAttendanceCourt, {
       props: props({ step: "choose", matches, error: "连接失败" }),
@@ -47,6 +56,20 @@ describe("KioskAttendanceCourt", () => {
     });
 
     expect(wrapper.get('.kiosk-focus-query-row button').text()).toContain("正在查询");
+  });
+
+  it("announces success text without making its action area a live region", () => {
+    const wrapper = mount(KioskAttendanceCourt, {
+      props: props({
+        step: "success",
+        successName: "测试成员",
+        successAction: "签到成功",
+        successTime: "14:00",
+      }),
+    });
+
+    expect(wrapper.get(".kiosk-focus-success-state").attributes("role")).toBeUndefined();
+    expect(wrapper.get(".kiosk-signal-success-copy").attributes("role")).toBe("status");
   });
 
   it("keeps the inline service message consistent with the header state", () => {

@@ -4,7 +4,7 @@
       title="值班统计"
       description="签到与培训时长按成员合并统计。"
       ><template #actions
-        ><button class="button primary" @click="exportExcel">
+        ><button class="button primary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportExcel">
           <Download />导出 Excel
         </button></template
       ></PageHeader
@@ -25,6 +25,18 @@
       ><label><span>结束日期</span><input v-model="to" type="date" /></label
       ><button class="button secondary" type="submit"><BarChart3 />统计</button>
     </form>
+    <div v-if="displayError" class="inline-alert danger" role="alert">
+      <span>{{ displayError }}</span>
+      <button
+        v-if="loadError"
+        class="button secondary small"
+        type="button"
+        data-action="retry-stats"
+        @click="load"
+      >
+        重试
+      </button>
+    </div>
     <section class="metric-strip compact">
       <article>
         <span>统计成员</span><strong>{{ rows.length }}</strong
@@ -43,8 +55,8 @@
         ><small>次</small>
       </article>
     </section>
-    <LoadingBlock v-if="busy && !hasData" />
-    <EmptyState v-else-if="!hasData" title="该时间段暂无有效统计" />
+    <LoadingBlock v-if="loading && !hasData" />
+    <EmptyState v-else-if="!hasData && !loadError" title="该时间段暂无有效统计" />
     <WeeklyStatsTable
       v-else-if="preset === 'week'"
       :detail="weeklyDetail"
@@ -100,12 +112,18 @@ import EmptyState from "../../shared/ui/EmptyState.vue";
 import WeeklyStatsTable from "../../features/stats/WeeklyStatsTable.vue";
 import { downloadBlob, get } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import {
   effectiveDutyCount,
   type StatsSummaryRow,
 } from "../../features/stats/statsSummary";
 import type { WeeklyStatsDetail } from "../../features/stats/weeklyStats";
-const { busy, run } = useAsyncTask();
+const task = useAsyncTask();
+const request = useLatestRequest();
+const actions = usePendingActions();
+const { loading, error: loadError } = request;
 const rows = ref<StatsSummaryRow[]>([]);
 const weeklyDetail = ref<WeeklyStatsDetail>({
   days: [],
@@ -137,6 +155,8 @@ const hasData = computed(() =>
     ? weeklyDetail.value.users.length > 0
     : rows.value.length > 0,
 );
+const filterError = computed(() => dateRangeError(from.value, to.value));
+const displayError = computed(() => filterError.value || loadError.value);
 onMounted(() => {
   applyPreset("year");
 });
@@ -149,34 +169,40 @@ function applyPreset(id: "week" | "month" | "year") {
   else if (id === "month") start.setDate(1);
   else if (id === "year") start.setMonth(0, 1);
   from.value = date(start);
-  load();
+  void load();
 }
 async function load() {
-  const query = new URLSearchParams({ from: from.value, to: to.value });
-  const value = await run(async () => {
-    const summary = get<StatsSummaryRow[]>(`/api/stats/summary?${query}`);
-    if (preset.value !== "week") {
+  if (filterError.value) return;
+  const snapshot = { from: from.value, to: to.value, preset: preset.value };
+  const query = new URLSearchParams({ from: snapshot.from, to: snapshot.to });
+  const value = await request.run(async (signal) => {
+    const summary = get<StatsSummaryRow[]>(`/api/stats/summary?${query}`, { signal });
+    if (snapshot.preset !== "week") {
       return { summary: await summary, weekly: null };
     }
     const [summaryRows, weekly] = await Promise.all([
       summary,
-      get<WeeklyStatsDetail>(`/api/stats/weekly-detail?${query}`),
+      get<WeeklyStatsDetail>(`/api/stats/weekly-detail?${query}`, { signal }),
     ]);
     return { summary: summaryRows, weekly };
-  });
+  }, "统计数据加载失败");
   if (!value) return;
   rows.value = value.summary;
-  if (value.weekly) weeklyDetail.value = value.weekly;
+  weeklyDetail.value = value.weekly || { days: [], users: [], cells: {} };
 }
 function loadCustom() {
   preset.value = "custom";
-  load();
+  void load();
 }
 async function exportExcel() {
-  const blob = await run(() =>
-    get<Blob>(`/api/stats/export?from=${from.value}&to=${to.value}`),
-  );
-  if (blob) downloadBlob(blob, `值班统计_${from.value}_${to.value}.xlsx`);
+  if (filterError.value) return;
+  const snapshot = { from: from.value, to: to.value };
+  await actions.run("export", async () => {
+    const blob = await task.run(() =>
+      get<Blob>(`/api/stats/export?from=${snapshot.from}&to=${snapshot.to}`),
+    );
+    if (blob) downloadBlob(blob, `值班统计_${snapshot.from}_${snapshot.to}.xlsx`);
+  });
 }
 const number = (v: number | string | null | undefined) =>
   Number(v || 0).toFixed(Number(v || 0) % 1 ? 1 : 0);

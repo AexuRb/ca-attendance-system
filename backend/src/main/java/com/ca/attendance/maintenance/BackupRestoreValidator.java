@@ -1,12 +1,12 @@
 package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -23,31 +23,27 @@ final class BackupRestoreValidator {
     };
 
     private final ObjectMapper objectMapper;
+    private final BackupRestoreValueConverter valueConverter;
 
     BackupRestoreValidator(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+        this.valueConverter = new BackupRestoreValueConverter(objectMapper);
     }
 
     BackupRestorePayload parse(ExtractedBackupArchive archive) {
         validateRequiredEntries(archive.names());
         Map<String, Object> metadata = readMetadata(archive.entry("metadata.json"));
-        Set<String> tableNames = validateMetadata(metadata);
+        int schemaVersion = validateSchemaVersion(metadata.get("schemaVersion"));
+        Set<String> tableNames = validateMetadata(metadata, schemaVersion);
+        validateDeclaredEntries(archive.names(), tableNames);
 
         Map<String, Path> tableFiles = new LinkedHashMap<>();
-        int totalRows = 0;
         for (String table : BackupSchema.RESTORE_TABLE_ORDER) {
             Path tableFile = archive.entry(table + ".json");
             if (tableFile == null) {
-                if (tableNames.contains(table) || !BackupSchema.OPTIONAL_RESTORE_TABLES.contains(table)) {
-                    throw ApiException.badRequest("备份文件缺少 " + table + ".json");
-                }
                 continue;
             }
-            int tableRows = validateTable(tableFile, table);
-            totalRows += tableRows;
-            if (totalRows > BackupArchiveLimits.MAX_TOTAL_ROWS) {
-                throw ApiException.badRequest("备份文件包含的数据行数过多");
-            }
+            validateTable(tableFile, table);
             tableFiles.put(table, tableFile);
         }
         return new BackupRestorePayload(Collections.unmodifiableMap(new LinkedHashMap<>(tableFiles)));
@@ -62,47 +58,68 @@ final class BackupRestoreValidator {
     }
 
     private void validateRequiredEntries(Set<String> entries) {
-        Set<String> required = new LinkedHashSet<>();
-        required.add("metadata.json");
-        for (String table : BackupSchema.RESTORE_TABLE_ORDER) {
-            if (!BackupSchema.OPTIONAL_RESTORE_TABLES.contains(table)) {
-                required.add(table + ".json");
-            }
-        }
-        for (String name : required) {
-            if (!entries.contains(name)) {
-                throw ApiException.badRequest("备份文件缺少 " + name);
-            }
+        if (!entries.contains("metadata.json")) {
+            throw ApiException.badRequest("备份文件缺少 metadata.json");
         }
     }
 
     private Map<String, Object> readMetadata(Path path) {
         try {
             return objectMapper.readValue(path.toFile(), MAP_TYPE);
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             throw ApiException.badRequest("备份元数据格式不正确");
         }
     }
 
-    private Set<String> validateMetadata(Map<String, Object> metadata) {
-        validateSchemaVersion(metadata.get("schemaVersion"));
+    private Set<String> validateMetadata(Map<String, Object> metadata, int schemaVersion) {
         Object tables = metadata.get("tables");
         if (!(tables instanceof List<?> tableList)) {
             throw ApiException.badRequest("备份元数据缺少表信息");
         }
-        Set<String> tableNames = new LinkedHashSet<>(tableList.stream().map(String::valueOf).toList());
-        List<String> requiredTables = BackupSchema.RESTORE_TABLE_ORDER.stream()
-                .filter(table -> !BackupSchema.OPTIONAL_RESTORE_TABLES.contains(table))
-                .toList();
-        if (!tableNames.containsAll(requiredTables)) {
-            throw ApiException.badRequest("备份表信息不完整");
+        Set<String> tableNames = new LinkedHashSet<>();
+        for (Object value : tableList) {
+            if (!(value instanceof String table) || table.isBlank()) {
+                throw ApiException.badRequest("备份表信息不正确");
+            }
+            if (!BackupSchema.TABLE_COLUMNS.containsKey(table)) {
+                throw ApiException.badRequest("备份表信息包含不支持的表：" + table);
+            }
+            if (!tableNames.add(table)) {
+                throw ApiException.badRequest("备份表信息包含重复表：" + table);
+            }
+        }
+        Set<String> missingRequired = new LinkedHashSet<>(BackupSchema.requiredTables(schemaVersion));
+        missingRequired.removeAll(tableNames);
+        if (!missingRequired.isEmpty()) {
+            throw ApiException.badRequest("备份表信息不完整：" + String.join("、", missingRequired));
         }
         return tableNames;
     }
 
-    private void validateSchemaVersion(Object value) {
+    private void validateDeclaredEntries(Set<String> entries, Set<String> tableNames) {
+        Set<String> actualTables = new LinkedHashSet<>();
+        for (String entry : entries) {
+            if (entry.endsWith(".json") && !"metadata.json".equals(entry)) {
+                actualTables.add(entry.substring(0, entry.length() - 5));
+            }
+        }
+        Set<String> missingEntries = new LinkedHashSet<>(tableNames);
+        missingEntries.removeAll(actualTables);
+        if (!missingEntries.isEmpty()) {
+            String table = missingEntries.iterator().next();
+            throw ApiException.badRequest("备份元数据与实际条目不一致：缺少 " + table + ".json");
+        }
+        Set<String> undeclaredEntries = new LinkedHashSet<>(actualTables);
+        undeclaredEntries.removeAll(tableNames);
+        if (!undeclaredEntries.isEmpty()) {
+            String table = undeclaredEntries.iterator().next();
+            throw ApiException.badRequest("备份元数据与实际条目不一致：未声明 " + table + ".json");
+        }
+    }
+
+    private int validateSchemaVersion(Object value) {
         if (value == null) {
-            return;
+            return BackupSchema.LEGACY_SCHEMA_VERSION;
         }
         int schemaVersion;
         try {
@@ -116,10 +133,11 @@ final class BackupRestoreValidator {
         if (schemaVersion > BackupSchema.SCHEMA_VERSION) {
             throw ApiException.badRequest("备份版本高于当前程序，请先升级程序后再恢复");
         }
+        return schemaVersion;
     }
 
-    private int validateTable(Path path, String table) {
-        try (JsonParser parser = objectMapper.getFactory().createParser(path.toFile())) {
+    private void validateTable(Path path, String table) {
+        try (JsonParser parser = objectMapper.createParser(path)) {
             if (parser.nextToken() != JsonToken.START_ARRAY) {
                 throw ApiException.badRequest(table + " 数据格式不正确");
             }
@@ -130,18 +148,14 @@ final class BackupRestoreValidator {
                     throw ApiException.badRequest(table + " 数据格式不正确");
                 }
                 rowCount++;
-                if (rowCount > BackupArchiveLimits.MAX_ROWS_PER_TABLE) {
-                    throw ApiException.badRequest(table + " 数据行数过多");
-                }
-                validateRow(table, rowCount, objectMapper.readValue(parser, ROW_TYPE));
+                validateRow(table, rowCount, parser.readValueAs(ROW_TYPE));
             }
             if (parser.nextToken() != null) {
                 throw ApiException.badRequest(table + " 数据格式不正确");
             }
-            return rowCount;
         } catch (ApiException ex) {
             throw ex;
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             throw ApiException.badRequest(table + " 数据格式不正确");
         }
     }
@@ -161,5 +175,6 @@ final class BackupRestoreValidator {
                     table + " 第 " + rowNumber + " 行缺少字段：" + String.join("、", missingKeys)
             );
         }
+        row.forEach((column, value) -> valueConverter.convert(table, rowNumber, column, value));
     }
 }

@@ -4,8 +4,25 @@
       title="今日"
       :meta="todayLabel"
     />
-    <LoadingBlock v-if="busy && !dashboard" />
+    <LoadingBlock v-if="loading && !dashboard" />
+    <div v-else-if="error && !dashboard" class="inline-alert danger" role="alert">
+      <span>{{ error }}</span>
+      <button
+        class="button secondary small"
+        type="button"
+        data-action="retry-today"
+        @click="refresh"
+      >
+        重试
+      </button>
+    </div>
     <template v-else>
+      <div v-if="error" class="inline-alert danger" role="alert">
+        <span>{{ error }}</span>
+        <button class="button secondary small" type="button" data-action="retry-today" @click="refresh">
+          重试
+        </button>
+      </div>
       <TodayPriority :dashboard="dashboard || {}" />
       <div class="today-grid">
         <TodayRecords
@@ -31,6 +48,7 @@ import TodayPriority from "./today/TodayPriority.vue";
 import TodayRecords from "./today/TodayRecords.vue";
 import TodaySchedule from "./today/TodaySchedule.vue";
 import { get } from "../../shared/api";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { useSession } from "../../app/session";
 import type {
   TodayAttendanceRecord,
@@ -39,7 +57,8 @@ import type {
 } from "./today/types";
 
 const { user } = useSession();
-const busy = ref(false);
+const request = useLatestRequest();
+const { loading, error } = request;
 const dashboard = ref<TodayDashboardData | null>(null);
 const schedule = ref<TodayScheduleData | null>(null);
 const records = ref<TodayAttendanceRecord[]>([]);
@@ -76,24 +95,26 @@ onBeforeUnmount(() => {
 });
 
 function refresh() {
-  if (!busy.value) void load().catch(() => undefined);
+  void load();
 }
 
 async function load() {
-  busy.value = true;
-  try {
-    currentDate.value = new Date();
-    const queryDate = today.value;
-    [dashboard.value, schedule.value, records.value] = await Promise.all([
-      get<TodayDashboardData>(`/api/stats/dashboard?date=${queryDate}`),
-      get<TodayScheduleData>("/api/public/schedules/today"),
-      get<TodayAttendanceRecord[]>(
-        `/api/attendance?from=${queryDate}&to=${queryDate}`,
-      ),
-    ]);
-  } finally {
-    busy.value = false;
-  }
+  currentDate.value = new Date();
+  const queryDate = today.value;
+  const result = await request.run(
+    (signal) =>
+      Promise.all([
+        get<TodayDashboardData>(`/api/stats/dashboard?date=${queryDate}`, { signal }),
+        get<TodayScheduleData>("/api/public/schedules/today", { signal }),
+        get<TodayAttendanceRecord[]>(
+          `/api/attendance?from=${queryDate}&to=${queryDate}`,
+          { signal },
+        ),
+      ]),
+    "今日数据加载失败",
+  );
+  if (!result) return;
+  [dashboard.value, schedule.value, records.value] = result;
 }
 
 function localDate(date: Date) {

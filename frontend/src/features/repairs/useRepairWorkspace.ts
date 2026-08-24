@@ -1,4 +1,5 @@
 import { reactive, ref } from "vue";
+import { dateRangeError } from "../../shared/validation/dateRange";
 import type {
   RepairFilters,
   RepairPage,
@@ -7,7 +8,7 @@ import type {
   RepairWorkspaceRouteState,
 } from "./repairTypes";
 
-const DEFAULT_PAGE_SIZE = 30;
+const DEFAULT_PAGE_SIZE = 20;
 const STATUSES: RepairStatus[] = ["REPAIRING", "COMPLETED", "CANCELED"];
 
 type QueryValue = string | null | undefined | Array<string | null>;
@@ -54,31 +55,41 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
   );
   let version = 0;
   let controller: AbortController | null = null;
+  let disposed = false;
 
   async function initialize() {
+    if (disposed) return;
     await loadCurrent(initial.page);
+    if (disposed) return;
     syncQuery("replace");
   }
 
   async function applyFilters() {
+    if (disposed || dateRangeError(filters.from, filters.to)) return;
     await loadCurrent(1);
+    if (disposed) return;
     syncQuery("push");
   }
 
   async function setStatus(status: RepairStatus) {
-    if (activeStatus.value === status) return;
+    if (disposed || activeStatus.value === status) return;
     activeStatus.value = status;
     await loadCurrent(1);
+    if (disposed) return;
     syncQuery("push");
   }
 
   async function setPage(nextPage: number) {
+    if (disposed) return;
     await loadCurrent(normalizePage(nextPage));
+    if (disposed) return;
     syncQuery("push");
   }
 
   async function retry() {
+    if (disposed) return;
     await loadCurrent(page.page, false);
+    if (disposed) return;
     syncQuery("replace");
   }
 
@@ -86,11 +97,14 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
     _previousStatus?: RepairStatus | null,
     _nextStatus?: RepairStatus | null,
   ) {
+    if (disposed) return;
     await loadCurrent(page.page, false);
+    if (disposed) return;
     syncQuery("replace");
   }
 
   async function restoreQuery(query: RepairWorkspaceQuery) {
+    if (disposed) return;
     const restored = parseRepairWorkspaceQuery(query, options.defaults);
     activeStatus.value = restored.status;
     Object.assign(filters, {
@@ -99,6 +113,7 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
       to: restored.to,
     });
     await loadCurrent(restored.page);
+    if (disposed) return;
     syncQuery("replace");
   }
 
@@ -111,6 +126,7 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
   }
 
   async function loadCurrent(targetPage: number, clearItems = true): Promise<boolean> {
+    if (disposed || dateRangeError(filters.from, filters.to)) return false;
     controller?.abort();
     controller = new AbortController();
     const requestController = controller;
@@ -128,7 +144,7 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
         filters: copyFilters(filters),
         signal: requestController.signal,
       });
-      if (!isCurrent(requestVersion, requestStatus)) return false;
+      if (!isCurrent(requestVersion, requestStatus, requestController)) return false;
       if (!result.items.length && result.page > 1 && result.total > 0) {
         return loadCurrent(lastPage(result));
       }
@@ -136,21 +152,40 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
       Object.assign(counts, result.statusCounts);
       return true;
     } catch (cause) {
-      if (isCurrent(requestVersion, requestStatus) && !requestController.signal.aborted) {
+      if (isCurrent(requestVersion, requestStatus, requestController)) {
         page.error = cause instanceof Error ? cause.message : "维修事务加载失败";
       }
       return false;
     } finally {
-      if (isCurrent(requestVersion, requestStatus)) page.loading = false;
+      if (isCurrent(requestVersion, requestStatus, requestController)) page.loading = false;
     }
   }
 
-  function isCurrent(requestVersion: number, requestStatus: RepairStatus) {
-    return requestVersion === version && requestStatus === activeStatus.value;
+  function isCurrent(
+    requestVersion: number,
+    requestStatus: RepairStatus,
+    requestController: AbortController,
+  ) {
+    return (
+      !disposed &&
+      requestVersion === version &&
+      controller === requestController &&
+      requestStatus === activeStatus.value &&
+      !requestController.signal.aborted
+    );
   }
 
   function syncQuery(mode: "push" | "replace") {
+    if (disposed) return;
     options.onQueryChange?.(currentQuery(), mode);
+  }
+
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    version += 1;
+    controller?.abort();
+    controller = null;
   }
 
   return {
@@ -166,6 +201,7 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
     refreshAfterMutation,
     restoreQuery,
     currentQuery,
+    dispose,
   };
 }
 

@@ -74,6 +74,7 @@ const error = ref("");
 const formElement = ref<HTMLFormElement | null>(null);
 const fieldErrors = reactive<InputErrors>({});
 async function submit() {
+  if (busy.value) return;
   error.value = "";
   const nextErrors: InputErrors = {};
   if (!form.oldPassword) nextErrors.oldPassword = "请输入原密码";
@@ -94,7 +95,7 @@ async function submit() {
     await post("/api/auth/change-password", form);
     setToken("");
     state.user = null;
-    await router.replace({ name: "login" });
+    await router.replace({ name: "login", query: { reason: "password-changed" } });
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "密码更新失败";
   } finally {
