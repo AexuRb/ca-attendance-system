@@ -2,7 +2,6 @@
   <div class="page-stack">
     <PageHeader
       title="值班记录"
-      description="查询、补录与修正值班记录。"
       ><template #actions
         ><button v-if="canCreate" class="button primary" @click="openCreate">
           <Plus />补录记录

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import ActiveRepairGrid from "./ActiveRepairGrid.vue";
 import RepairDetailDrawer from "./RepairDetailDrawer.vue";
 import RepairHistoryTable from "./RepairHistoryTable.vue";
+import RepairLedgerTable from "./RepairLedgerTable.vue";
 import RepairStatusTabs from "./RepairStatusTabs.vue";
 import type { RepairCase } from "./repairTypes";
 
@@ -106,6 +107,45 @@ describe("repair workspace components", () => {
     expect(wrapper.text()).toContain("**** **** 5678");
     await wrapper.get(".repair-history-row").trigger("click");
     expect(wrapper.emitted("view")?.[0]).toEqual([historyRepair]);
+  });
+
+  it("renders active and archived cases through one ledger surface", async () => {
+    const activeWrapper = mount(RepairLedgerTable, {
+      props: {
+        items: [activeRepair],
+        status: "REPAIRING",
+        loading: false,
+        error: "",
+        revealedPhones: new Set<number>(),
+        canManage: true,
+        canDelete: true,
+      },
+    });
+
+    expect(activeWrapper.findAll(".repair-ledger-row")).toHaveLength(1);
+    expect(activeWrapper.text()).toContain("受理时间");
+    expect(activeWrapper.text()).toContain("进行中");
+    expect(activeWrapper.text()).toContain("**** **** 5678");
+    expect(activeWrapper.find('[title="编辑"]').exists()).toBe(true);
+    expect(activeWrapper.find('[title="移入回收站"]').exists()).toBe(true);
+    await activeWrapper.get(".repair-ledger-row").trigger("click");
+    expect(activeWrapper.emitted("view")?.[0]).toEqual([activeRepair]);
+
+    const archivedWrapper = mount(RepairLedgerTable, {
+      props: {
+        items: [historyRepair],
+        status: "COMPLETED",
+        loading: false,
+        error: "",
+        revealedPhones: new Set<number>(),
+        canManage: true,
+        canDelete: true,
+      },
+    });
+    expect(archivedWrapper.text()).toContain("完成时间");
+    expect(archivedWrapper.text()).toContain("已完成");
+    expect(archivedWrapper.find('[title="编辑"]').exists()).toBe(false);
+    expect(archivedWrapper.find('[title="移入回收站"]').exists()).toBe(false);
   });
 
   it("opens a history row with the Space key", async () => {

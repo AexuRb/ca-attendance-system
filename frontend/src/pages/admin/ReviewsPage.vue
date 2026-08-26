@@ -2,7 +2,6 @@
   <div class="page-stack reviews-page">
     <PageHeader
       title="签到审核"
-      description="逐项确认成员提交的签到与签退。"
     >
       <template #actions
         ><button
@@ -47,51 +46,36 @@
           <strong>{{ record.name }}</strong
           ><span>{{ record.studentNo }} · {{ record.dutyDate }}</span>
         </div>
-        <div class="review-events">
-          <div class="review-event">
-            <span>签到 {{ clock(record.checkInTime) }}</span
-            ><StatusBadge
-              :label="reviewLabel(record.checkInStatus)"
-              :tone="
-                record.checkInStatus === 'PENDING' ? 'warning' : 'success'
-              "
-            />
-          </div>
-          <div class="review-event">
-            <span>签退 {{ clock(record.checkOutTime) }}</span
-            ><StatusBadge
-              :label="reviewLabel(record.checkOutStatus)"
-              :tone="
-                record.checkOutStatus === 'PENDING' ? 'warning' : 'neutral'
-              "
-            />
-          </div>
+        <div
+          class="review-state-actions"
+          :aria-label="`${record.name}的签到与签退状态`"
+        >
+          <ReviewStateAction
+            class="review-approve-check-in"
+            label="签到"
+            :time="clock(record.checkInTime)"
+            :status="record.checkInStatus"
+            :action-pending="actions.isPending(reviewKey(record.id, 'CHECK_IN'))"
+            @approve="review(record.id, 'CHECK_IN', 'APPROVE')"
+          />
+          <ReviewStateAction
+            class="review-approve-check-out"
+            label="签退"
+            :time="clock(record.checkOutTime)"
+            :status="record.checkOutStatus"
+            :action-pending="actions.isPending(reviewKey(record.id, 'CHECK_OUT'))"
+            @approve="review(record.id, 'CHECK_OUT', 'APPROVE')"
+          />
         </div>
-        <div class="row-actions">
-          <button
-            v-if="record.checkInStatus === 'PENDING'"
-            class="button small primary review-approve-check-in"
-            :disabled="actions.isPending(reviewKey(record.id, 'CHECK_IN'))"
-            @click="review(record.id, 'CHECK_IN', 'APPROVE')"
-          >
-            通过签到</button
-          ><button
-            v-if="record.checkOutStatus === 'PENDING'"
-            class="button small primary review-approve-check-out"
-            :disabled="actions.isPending(reviewKey(record.id, 'CHECK_OUT'))"
-            @click="review(record.id, 'CHECK_OUT', 'APPROVE')"
-          >
-            通过签退</button
-          ><button
-            class="icon-button danger-ghost review-reject"
-            title="驳回"
-            aria-label="驳回"
-            :disabled="recordActionPending(record.id)"
-            @click="openReject(record)"
-          >
-            <X />
-          </button>
-        </div>
+        <button
+          class="icon-button danger-ghost review-reject"
+          title="驳回"
+          :aria-label="`驳回${record.name}的记录`"
+          :disabled="recordActionPending(record.id)"
+          @click="openReject(record)"
+        >
+          <X />
+        </button>
       </article>
     </div>
     <ModalDialog
@@ -157,9 +141,9 @@ import { CheckCheck, ListChecks, RefreshCw, X } from "@lucide/vue";
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
-import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import ReviewStateAction from "./reviews/ReviewStateAction.vue";
 import { get, post } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
@@ -298,13 +282,4 @@ function recordActionPending(id: number) {
   );
 }
 const clock = (v?: string) => v?.slice(11, 16) || "—";
-const reviewLabels: Record<string, string> = {
-  PENDING: "待审核",
-  APPROVED: "已通过",
-  AUTO_APPROVED: "自动通过",
-  NOT_SUBMITTED: "未提交",
-  REJECTED: "已驳回",
-};
-const reviewLabel = (v: string) =>
-  reviewLabels[v] || v;
 </script>

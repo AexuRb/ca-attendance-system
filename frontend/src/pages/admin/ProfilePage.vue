@@ -2,7 +2,6 @@
   <div class="page-stack profile-page">
     <PageHeader
       title="个人资料"
-      description="维护联系方式，并核对自己的值班与培训明细。"
     >
       <template #actions>
         <button class="button secondary" @click="passwordOpen = true">

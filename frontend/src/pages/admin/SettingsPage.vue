@@ -2,7 +2,6 @@
   <div class="page-stack settings-page">
     <PageHeader
       title="系统设置"
-      description="设置开放日、值班时间段和有效时长规则。"
     />
     <div v-if="loadError" class="inline-alert danger" role="alert">
       <span>{{ loadError }}</span>
@@ -22,18 +21,7 @@
           <Save />{{ actions.isPending('weekdays') ? "正在保存" : "保存星期" }}
         </button>
       </div>
-      <div class="weekday-selector">
-        <label
-          v-for="day in weekdays"
-          :key="day.weekday"
-          :class="{ selected: day.enabled }"
-          ><input v-model="day.enabled" type="checkbox" /><span>{{
-            shortDay(day)
-          }}</span
-          ><strong>{{ day.enabled ? "开放" : "关闭" }}</strong
-          ><Check v-if="day.enabled" aria-hidden="true"
-        /></label>
-      </div>
+      <WeekdayCalendarSelector :days="weekdays" @toggle="toggleWeekday" />
     </section>
     <section class="panel setting-section attendance-policy-section">
       <div class="section-heading">
@@ -211,7 +199,6 @@ import { onBeforeRouteLeave } from "vue-router";
 import {
   ArrowRight,
   CalendarCheck2,
-  Check,
   ChevronDown,
   ChevronUp,
   Clock3,
@@ -224,6 +211,7 @@ import PageHeader from "../../shared/ui/PageHeader.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import WeekdayCalendarSelector from "./settings/WeekdayCalendarSelector.vue";
 import { get, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
@@ -328,6 +316,10 @@ async function savePeriods() {
     }
   });
 }
+function toggleWeekday(weekday: number) {
+  const day = weekdays.value.find((item) => item.weekday === weekday);
+  if (day) day.enabled = !day.enabled;
+}
 async function saveAttendancePolicy() {
   if (!canEditAttendancePolicy.value) return;
   await actions.run("policy", async () => {
@@ -369,11 +361,5 @@ function duration(v: DutyPeriod) {
   const [sh = 0, sm = 0] = v.startTime.split(":").map(Number),
     [eh = 0, em = 0] = v.endTime.split(":").map(Number);
   return `${((eh * 60 + em - sh * 60 - sm) / 60).toFixed(1).replace(".0", "")} 小时`;
-}
-function shortDay(v: DutyWeekdaySetting) {
-  return (
-    v.weekday_name ||
-    ["", "周一", "周二", "周三", "周四", "周五", "周六", "周日"][v.weekday]
-  );
 }
 </script>

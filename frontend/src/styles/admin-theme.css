@@ -203,7 +203,6 @@
 .refined-admin-layout .priority-item > small,
 .refined-admin-layout .today-page .section-heading h2 + span,
 .refined-admin-layout .export-steps button span,
-.refined-admin-layout .weekday-selector strong,
 .refined-admin-layout .period-enabled-toggle span,
 .refined-admin-layout .log-time span {
   font-size: 11px;
@@ -224,11 +223,11 @@
 /* Page hierarchy */
 .refined-admin-layout .page-header {
   position: relative;
-  min-height: 84px;
-  align-items: flex-start;
+  min-height: 64px;
+  align-items: center;
   gap: 24px;
   border-bottom: 1px solid var(--admin-line);
-  padding-bottom: 17px;
+  padding-bottom: 14px;
 }
 
 .refined-admin-layout .page-header::after {
@@ -272,10 +271,57 @@
 .refined-admin-layout .page-actions {
   min-height: 40px;
   flex-wrap: wrap;
-  align-self: flex-start;
+  align-self: center;
   justify-content: flex-end;
-  gap: 8px;
-  padding-top: 2px;
+  gap: 5px;
+  padding: 4px;
+  border: 1px solid #dceaf1;
+  border-radius: 8px;
+  background: #f5fafc;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.94),
+    0 8px 24px rgba(32, 89, 121, 0.06);
+}
+
+.refined-admin-layout .page-actions .button {
+  min-height: 40px;
+  gap: 9px;
+  border-radius: 6px;
+  padding: 0 13px 0 7px;
+  font-weight: 700;
+}
+
+.refined-admin-layout .page-actions .button > svg {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  padding: 6px;
+  background: #e1f1f7;
+  color: var(--admin-blue-deep);
+  transition:
+    transform 0.34s var(--admin-ease),
+    background 0.34s var(--admin-ease),
+    color 0.34s var(--admin-ease);
+}
+
+.refined-admin-layout .page-actions .button.primary > svg,
+.refined-admin-layout .page-actions .button.danger > svg {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.refined-admin-layout .page-actions .button:hover:not(:disabled) > svg {
+  transform: translateY(1px);
+}
+
+.refined-admin-layout .page-actions .button.primary:hover:not(:disabled) > .lucide-plus {
+  transform: rotate(90deg);
+}
+
+.refined-admin-layout .page-actions .button:focus-visible {
+  outline: 3px solid #d9eff8;
+  outline-offset: 2px;
 }
 
 /* Commands, fields and feedback */

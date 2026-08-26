@@ -14,7 +14,7 @@ const weekdays = [
 ];
 
 describe("FixedScheduleBoard", () => {
-  it("renders a weekday by period matrix and compacts long assignee lists", () => {
+  it("renders a focused weekday schedule without redundant period actions", async () => {
     const wrapper = mount(FixedScheduleBoard, {
       props: {
         periods,
@@ -35,15 +35,44 @@ describe("FixedScheduleBoard", () => {
               sortOrder: index,
             })),
           },
+          {
+            id: 2,
+            weekday: 2,
+            weekdayName: "星期二",
+            startTime: "16:00:00",
+            endTime: "18:00:00",
+            title: "值班",
+            enabled: true,
+            assignees: [
+              {
+                id: 6,
+                studentNo: "2001",
+                name: "星期二成员",
+                sortOrder: 0,
+              },
+            ],
+          },
         ],
       },
     });
 
-    expect(wrapper.findAll(".schedule-matrix-day")).toHaveLength(2);
-    expect(wrapper.findAll(".schedule-matrix-period")).toHaveLength(2);
-    expect(wrapper.findAll(".schedule-matrix-cell")).toHaveLength(4);
+    expect(wrapper.findAll(".schedule-focus-day")).toHaveLength(2);
+    expect(wrapper.findAll(".schedule-focus-period")).toHaveLength(2);
+    expect(wrapper.get(".schedule-focus-day.active").text()).toContain("星期一");
     expect(wrapper.get(".schedule-slot-card").classes()).toContain("muted");
-    expect(wrapper.get(".schedule-assignee-preview").text()).toContain("+2");
+    expect(wrapper.findAll(".schedule-assignee-item")).toHaveLength(5);
+    expect(wrapper.get(".schedule-assignee-preview").text()).toContain("成员5");
+    expect(wrapper.get(".schedule-assignee-preview").text()).not.toContain("+2");
+    expect(
+      wrapper.get(".schedule-slot-top").find(".schedule-card-actions").exists(),
+    ).toBe(true);
     expect(wrapper.text()).toContain("14:00–16:00");
+
+    expect(wrapper.find(".schedule-focus-add").exists()).toBe(false);
+
+    await wrapper.findAll(".schedule-focus-day")[1].trigger("click");
+    expect(wrapper.get(".schedule-focus-day.active").text()).toContain("星期二");
+    expect(wrapper.text()).toContain("星期二成员");
+    expect(wrapper.text()).not.toContain("成员1");
   });
 });

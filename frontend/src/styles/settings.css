@@ -1,3 +1,153 @@
+.weekday-calendar-selector {
+  padding: 18px;
+}
+
+.weekday-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.weekday-calendar-day {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  color: var(--ink-950);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  perspective: 600px;
+}
+
+.weekday-calendar-leaf {
+  position: relative;
+  display: grid;
+  min-height: 152px;
+  grid-template-rows: 36px minmax(70px, 1fr) 34px;
+  overflow: hidden;
+  border: 1px solid var(--admin-line, var(--line));
+  border-radius: 7px;
+  background: var(--surface-soft);
+  transform-origin: center bottom;
+  transition:
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.weekday-calendar-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 11px;
+  color: var(--ink-500);
+  background: color-mix(in srgb, var(--ink-500) 6%, var(--surface));
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  transition:
+    color 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.weekday-calendar-cap i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  transition:
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.weekday-calendar-body {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.weekday-calendar-body strong {
+  color: var(--ink-950);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.weekday-calendar-body small {
+  color: var(--ink-400);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekday-calendar-state {
+  display: grid;
+  place-items: center;
+  color: var(--ink-500);
+  border-top: 1px dashed var(--admin-line, var(--line));
+  font-size: 11px;
+  font-weight: 750;
+  transition:
+    color 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.weekday-calendar-day:hover .weekday-calendar-leaf {
+  border-color: color-mix(in srgb, var(--blue-600) 42%, var(--line));
+  transform: translateY(-3px) rotateX(1deg);
+}
+
+.weekday-calendar-day:focus-visible {
+  outline: none;
+}
+
+.weekday-calendar-day:focus-visible .weekday-calendar-leaf {
+  outline: 3px solid color-mix(in srgb, var(--blue-600) 25%, transparent);
+  outline-offset: 3px;
+}
+
+.weekday-calendar-day[aria-pressed="true"] .weekday-calendar-leaf {
+  border-color: color-mix(in srgb, var(--blue-600) 58%, var(--line));
+  background: color-mix(in srgb, var(--blue-600) 4%, var(--surface));
+  box-shadow: 0 14px 26px rgba(36, 121, 166, 0.13);
+  transform: translateY(-5px);
+}
+
+.weekday-calendar-day[aria-pressed="true"] .weekday-calendar-cap {
+  color: #fff;
+  background: var(--blue-600);
+}
+
+.weekday-calendar-day[aria-pressed="true"] .weekday-calendar-cap i {
+  background: #fff;
+  transform: scale(1.12);
+}
+
+.weekday-calendar-day[aria-pressed="true"] .weekday-calendar-state {
+  color: var(--blue-700);
+  border-color: color-mix(in srgb, var(--blue-600) 24%, var(--line));
+}
+
+.weekday-calendar-day:active .weekday-calendar-leaf {
+  transform: translateY(-1px) scale(0.985);
+  transition-duration: 120ms;
+}
+
+.weekday-calendar-count {
+  margin: 12px 0 0;
+  color: var(--ink-500);
+  font-size: 11px;
+  text-align: right;
+}
+
+.weekday-calendar-count strong {
+  margin: 0 2px;
+  color: var(--blue-700);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
 .attendance-policy-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -130,7 +280,31 @@
 }
 
 @media (max-width: 760px) {
+  .weekday-calendar-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .weekday-calendar-leaf {
+    min-height: 126px;
+    grid-template-rows: 32px minmax(58px, 1fr) 31px;
+  }
+
   .attendance-policy-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .weekday-calendar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weekday-calendar-leaf,
+  .weekday-calendar-cap,
+  .weekday-calendar-cap i,
+  .weekday-calendar-state {
+    transition-duration: 1ms;
   }
 }

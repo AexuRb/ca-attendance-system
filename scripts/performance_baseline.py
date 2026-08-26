@@ -408,6 +408,26 @@ def benchmark_api(
     }
 
 
+def browser_benchmark_cases(large_training_route: str) -> tuple[tuple[str, str, str], ...]:
+    return (
+        ("members", "/#/admin/members", ".member-table tbody tr"),
+        ("attendance", "/#/admin/attendance", ".table-shell tbody tr"),
+        ("trainings", "/#/admin/trainings", ".training-ribbon-event"),
+        (
+            "training_large_roster",
+            large_training_route,
+            ".training-participant-row",
+        ),
+        ("repairs", "/#/admin/repairs", ".repair-ledger-row"),
+        (
+            "repair_history",
+            "/#/admin/repairs?status=COMPLETED&page=1",
+            ".repair-ledger-row",
+        ),
+        ("logs", "/#/admin/logs", ".timeline-list article"),
+    )
+
+
 def benchmark_browser(
     base_url: str,
     student_no: str,
@@ -435,23 +455,7 @@ def benchmark_browser(
     if training_page.get("items"):
         large_training_route += f"?sessionId={training_page['items'][0]['id']}"
 
-    cases = (
-        ("members", "/#/admin/members", ".member-table tbody tr"),
-        ("attendance", "/#/admin/attendance", ".table-shell tbody tr"),
-        ("trainings", "/#/admin/trainings", ".training-session-item"),
-        (
-            "training_large_roster",
-            large_training_route,
-            ".training-participant-row",
-        ),
-        ("repairs", "/#/admin/repairs", ".repair-active-card"),
-        (
-            "repair_history",
-            "/#/admin/repairs?status=COMPLETED&page=1",
-            ".repair-history-row",
-        ),
-        ("logs", "/#/admin/logs", ".timeline-list article"),
-    )
+    cases = browser_benchmark_cases(large_training_route)
     results: dict[str, Any] = {}
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(

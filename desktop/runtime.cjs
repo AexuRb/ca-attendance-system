@@ -10,6 +10,16 @@ const APP_ORIGIN = `http://${APP_HOST}:${APP_PORT}`;
 const HEALTH_PATH = '/api/health';
 const MAX_JSON_RESPONSE_BYTES = 1024 * 1024;
 
+function desktopEntryUrl(startupKey) {
+  const target = new URL(APP_ORIGIN);
+  target.searchParams.set('desktopStart', String(startupKey));
+  return target.toString();
+}
+
+async function clearRendererCache(targetSession) {
+  await targetSession.clearCache();
+}
+
 function resolveAppRoot({ isPackaged, executablePath, moduleDirectory, override }) {
   if (override && override.trim()) {
     return path.resolve(override.trim());
@@ -288,6 +298,8 @@ module.exports = {
   REMOTE_ADMIN_PORT,
   backendFailureMessage,
   backendLocations,
+  clearRendererCache,
+  desktopEntryUrl,
   detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,

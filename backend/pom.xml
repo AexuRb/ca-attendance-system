@@ -13,7 +13,7 @@
 
     <groupId>com.ca</groupId>
     <artifactId>attendance-backend</artifactId>
-    <version>3.0.0</version>
+    <version>3.1.0</version>
     <name>attendance-backend</name>
     <description>Computer Association duty attendance backend</description>
 

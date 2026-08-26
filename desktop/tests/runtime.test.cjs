@@ -9,6 +9,8 @@ const {
   REMOTE_ADMIN_PORT,
   backendFailureMessage,
   backendLocations,
+  clearRendererCache,
+  desktopEntryUrl,
   detectStartupConflict,
   ensureStorageLayout,
   isAttendanceHealth,
@@ -229,6 +231,27 @@ test('locks zoom shortcuts only on the public kiosk route', () => {
   assert.equal(isZoomShortcut({ control: true, key: '+' }), true);
   assert.equal(isZoomShortcut({ control: true, key: '0' }), true);
   assert.equal(isZoomShortcut({ control: false, key: '+' }), false);
+});
+
+test('adds a per-startup cache key to the desktop entry URL', () => {
+  const entry = desktopEntryUrl('3.0.0-1724500000000');
+
+  assert.equal(
+    entry,
+    'http://127.0.0.1:8080/?desktopStart=3.0.0-1724500000000'
+  );
+  assert.equal(isKioskUrl(`${entry}#/`), true);
+});
+
+test('clears the Electron renderer cache before loading the application', async () => {
+  let calls = 0;
+  await clearRendererCache({
+    clearCache: async () => {
+      calls += 1;
+    }
+  });
+
+  assert.equal(calls, 1);
 });
 
 test('uses positive visual zoom factors so the Electron viewport remains visible', () => {

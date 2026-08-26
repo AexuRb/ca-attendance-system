@@ -29,30 +29,61 @@ const row = (name: string) => ({
   trainingCount: 0,
 });
 
-afterEach(() => apiGet.mockReset());
+afterEach(() => {
+  apiGet.mockReset();
+  vi.useRealTimers();
+});
 
 describe("StatsPage request states", () => {
+  it("loads the current week by default", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 26, 12));
+    apiGet.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes("weekly-detail")
+          ? { days: [], users: [], cells: {} }
+          : [],
+      ),
+    );
+
+    const wrapper = mount(StatsPage);
+    await flushPromises();
+
+    const presets = wrapper.findAll(".segmented button");
+    expect(presets[0].classes()).toContain("active");
+    expect(presets[2].classes()).not.toContain("active");
+    expect(apiGet).toHaveBeenCalledWith(
+      "/api/stats/summary?from=2026-08-24&to=2026-08-26",
+      expect.any(Object),
+    );
+    expect(apiGet).toHaveBeenCalledWith(
+      "/api/stats/weekly-detail?from=2026-08-24&to=2026-08-26",
+      expect.any(Object),
+    );
+    wrapper.unmount();
+  });
+
   it("keeps the latest preset result when an older response arrives late", async () => {
-    const annual = deferred<ReturnType<typeof row>[]>();
-    const weeklySummary = deferred<ReturnType<typeof row>[]>();
-    const weeklyDetail = deferred<{
+    const initialSummary = deferred<ReturnType<typeof row>[]>();
+    const initialDetail = deferred<{
       days: never[];
       users: ReturnType<typeof row>[];
       cells: Record<string, never>;
     }>();
+    const monthlySummary = deferred<ReturnType<typeof row>[]>();
     apiGet.mockImplementation((url: string) => {
-      if (url.includes("weekly-detail")) return weeklyDetail.promise;
+      if (url.includes("weekly-detail")) return initialDetail.promise;
       const summaryCalls = apiGet.mock.calls.filter(([path]) => String(path).includes("/summary?"));
-      return summaryCalls.length === 1 ? annual.promise : weeklySummary.promise;
+      return summaryCalls.length === 1 ? initialSummary.promise : monthlySummary.promise;
     });
     const wrapper = mount(StatsPage);
     await flushPromises();
 
-    await wrapper.get(".segmented button").trigger("click");
-    weeklySummary.resolve([row("新筛选成员")]);
-    weeklyDetail.resolve({ days: [], users: [row("新筛选成员")], cells: {} });
+    await wrapper.findAll(".segmented button")[1].trigger("click");
+    monthlySummary.resolve([row("新筛选成员")]);
     await flushPromises();
-    annual.resolve([row("旧筛选成员")]);
+    initialSummary.resolve([row("旧筛选成员")]);
+    initialDetail.resolve({ days: [], users: [row("旧筛选成员")], cells: {} });
     await flushPromises();
 
     expect(wrapper.text()).not.toContain("旧筛选成员");
@@ -61,7 +92,13 @@ describe("StatsPage request states", () => {
   });
 
   it("rejects an inverted custom date range before requesting data", async () => {
-    apiGet.mockResolvedValue([]);
+    apiGet.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes("weekly-detail")
+          ? { days: [], users: [], cells: {} }
+          : [],
+      ),
+    );
     const wrapper = mount(StatsPage);
     await flushPromises();
     apiGet.mockClear();

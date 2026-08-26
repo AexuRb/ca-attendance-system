@@ -2,7 +2,6 @@
   <div class="page-stack">
     <PageHeader
       title="操作日志"
-      description="查看管理员操作轨迹与数据变更前后内容。"
       ><template #actions
         ><button class="button secondary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportLogs">
           <Download />导出日志</button

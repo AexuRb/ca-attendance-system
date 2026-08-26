@@ -76,8 +76,8 @@ describe("RepairsPage workspace", () => {
     expect(
       wrapper.findAll(".repair-status-tabs b").map((item) => item.text()),
     ).toEqual(["31", "4", "2"]);
-    expect(wrapper.findAll(".repair-active-card")).toHaveLength(20);
-    expect(wrapper.find(".repair-history-table").exists()).toBe(false);
+    expect(wrapper.findAll(".repair-ledger-row")).toHaveLength(20);
+    expect(wrapper.find(".repair-ledger-table").exists()).toBe(true);
 
     await wrapper.get(".repair-workspace-pagination button:last-child").trigger("click");
     await flushPromises();
@@ -87,7 +87,7 @@ describe("RepairsPage workspace", () => {
       page: "2",
       pageSize: "20",
     });
-    expect(wrapper.findAll(".repair-active-card")).toHaveLength(11);
+    expect(wrapper.findAll(".repair-ledger-row")).toHaveLength(11);
 
     await wrapper
       .findAll('[role="tab"]')
@@ -100,13 +100,12 @@ describe("RepairsPage workspace", () => {
       page: "1",
       pageSize: "20",
     });
-    expect(wrapper.findAll(".repair-active-card")).toHaveLength(0);
-    expect(wrapper.findAll(".repair-history-row")).toHaveLength(4);
+    expect(wrapper.findAll(".repair-ledger-row")).toHaveLength(4);
     expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toContain(
       "已完成",
     );
 
-    await wrapper.get(".repair-history-row").trigger("click");
+    await wrapper.get(".repair-ledger-row").trigger("click");
     await flushPromises();
 
     expect(document.body.querySelector(".repair-detail-drawer")?.textContent).toContain(
@@ -139,7 +138,9 @@ describe("RepairsPage workspace", () => {
     });
     await flushPromises();
 
-    const previewButtons = wrapper.findAll(".repair-active-card footer .button.text");
+    const previewButtons = wrapper.findAll(
+      '.repair-ledger-actions button[title="查看协议"]',
+    );
     await previewButtons[0].trigger("click");
     await previewButtons[1].trigger("click");
     resolveSecond("<p>第二份协议</p>");

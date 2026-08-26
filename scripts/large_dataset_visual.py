@@ -18,6 +18,8 @@ VIEWPORTS = (
     ("tablet", 768, 1024),
     ("mobile", 390, 844),
 )
+TRAINING_ROW_SELECTOR = ".training-participant-row"
+REPAIR_ROW_SELECTOR = ".repair-ledger-row"
 
 
 def validate_metrics(metrics: dict[str, Any], *, row_limit: int) -> None:
@@ -156,8 +158,8 @@ def audit_large_dataset(
                     f"&from={from_date}&to={to_date}&page=1"
                 )
                 page.goto(training_route, wait_until="domcontentloaded")
-                page.locator(".training-participant-row").first.wait_for(timeout=30_000)
-                training_metrics = collect_metrics(page, ".training-participant-row")
+                page.locator(TRAINING_ROW_SELECTOR).first.wait_for(timeout=30_000)
+                training_metrics = collect_metrics(page, TRAINING_ROW_SELECTOR)
                 validate_metrics(training_metrics, row_limit=30)
                 page.get_by_role("button", name="新建培训").click()
                 page.locator('[name="training-title"]').wait_for()
@@ -178,8 +180,8 @@ def audit_large_dataset(
                     f"&from={from_date}&to={to_date}&page=1"
                 )
                 page.goto(repair_route, wait_until="domcontentloaded")
-                page.locator(".repair-active-card").first.wait_for(timeout=30_000)
-                repair_metrics = collect_metrics(page, ".repair-active-card")
+                page.locator(REPAIR_ROW_SELECTOR).first.wait_for(timeout=30_000)
+                repair_metrics = collect_metrics(page, REPAIR_ROW_SELECTOR)
                 validate_metrics(repair_metrics, row_limit=30)
                 page.get_by_role("button", name="新建维修").click()
                 page.locator('[name="repair-owner-name"]').wait_for()
@@ -200,8 +202,8 @@ def audit_large_dataset(
                     f"&from={from_date}&to={to_date}&page=1"
                 )
                 page.goto(history_route, wait_until="domcontentloaded")
-                page.locator(".repair-history-row").first.wait_for(timeout=30_000)
-                history_metrics = collect_metrics(page, ".repair-history-row")
+                page.locator(REPAIR_ROW_SELECTOR).first.wait_for(timeout=30_000)
+                history_metrics = collect_metrics(page, REPAIR_ROW_SELECTOR)
                 validate_metrics(history_metrics, row_limit=30)
                 history_shot = screenshot_root / f"{name}-repair-history.png"
                 page.screenshot(path=str(history_shot), full_page=False)

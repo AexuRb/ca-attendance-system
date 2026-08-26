@@ -2,7 +2,6 @@
   <div class="page-stack">
     <PageHeader
       title="维修事务"
-      description="维护维修受理过程、协议与交付状态。"
       ><template #actions
         ><button
           v-if="canExport"
@@ -66,19 +65,9 @@
       :aria-busy="repairPage.loading"
       tabindex="0"
     >
-      <header class="repair-workspace-heading">
-        <div>
-          <p class="eyebrow">{{ activeStatus === "REPAIRING" ? "WORK QUEUE" : "ARCHIVE" }}</p>
-          <h2 :id="activeStatus === 'REPAIRING' ? 'repair-active-title' : 'repair-history-title'">
-            {{ activeStatus === "REPAIRING" ? "进行中工作队列" : activeStatus === "COMPLETED" ? "已完成档案" : "已取消档案" }}
-          </h2>
-        </div>
-        <span>共 {{ repairPage.total }} 项</span>
-      </header>
-
-      <ActiveRepairGrid
-        v-if="activeStatus === 'REPAIRING'"
+      <RepairLedgerTable
         :items="repairPage.items"
+        :status="activeStatus"
         :loading="repairPage.loading"
         :error="repairPage.error"
         :revealed-phones="revealedPhones"
@@ -88,18 +77,6 @@
         @preview="preview"
         @edit="openEditor"
         @delete="requestDelete"
-        @toggle-phone="togglePhone"
-        @retry="retry"
-      />
-      <RepairHistoryTable
-        v-else
-        :items="repairPage.items"
-        :status="historyStatus"
-        :loading="repairPage.loading"
-        :error="repairPage.error"
-        :revealed-phones="revealedPhones"
-        @view="detailTarget = $event"
-        @preview="preview"
         @toggle-phone="togglePhone"
         @retry="retry"
       />
@@ -194,10 +171,9 @@ import {
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AgreementDialog from "../../shared/ui/AgreementDialog.vue";
-import ActiveRepairGrid from "../../features/repairs/ActiveRepairGrid.vue";
 import RepairEditorDialog from "../../features/repairs/RepairEditorDialog.vue";
 import RepairDetailDrawer from "../../features/repairs/RepairDetailDrawer.vue";
-import RepairHistoryTable from "../../features/repairs/RepairHistoryTable.vue";
+import RepairLedgerTable from "../../features/repairs/RepairLedgerTable.vue";
 import RepairStatusTabs from "../../features/repairs/RepairStatusTabs.vue";
 import { api, del, get, post, put, downloadBlob } from "../../shared/api";
 import { useSession } from "../../app/session";
@@ -284,9 +260,6 @@ const form = reactive<RepairCaseForm>({
 const canManage = computed(() => canManageRepairs(user.value?.role));
 const canDelete = computed(() => canDeleteRepairs(user.value?.role));
 const canExport = computed(() => canExportRepairs(user.value?.role));
-const historyStatus = computed(
-  () => activeStatus.value as Exclude<RepairStatus, "REPAIRING">,
-);
 const repairTotalPages = computed(() =>
   Math.max(1, Math.ceil(repairPage.total / repairPage.pageSize)),
 );

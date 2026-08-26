@@ -104,6 +104,10 @@ describe("ReviewsPage bulk approval", () => {
     await approve.trigger("click");
     await approve.trigger("click");
     expect(mocks.apiPost).toHaveBeenCalledTimes(1);
+    expect(mocks.apiPost).toHaveBeenCalledWith(
+      "/api/attendance/1/review",
+      { part: "CHECK_IN", action: "APPROVE", reason: "" },
+    );
     expect(approve.attributes("disabled")).toBeDefined();
 
     resolveReview({});

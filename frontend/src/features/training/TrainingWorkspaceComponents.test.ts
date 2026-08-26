@@ -62,7 +62,7 @@ describe("TrainingSessionList", () => {
 });
 
 describe("TrainingSessionHeader", () => {
-  it("keeps secondary session commands in an accessible more menu", async () => {
+  it("keeps edit visible and secondary session commands in an accessible menu", async () => {
     const wrapper = mount(TrainingSessionHeader, {
       attachTo: document.body,
       props: { session: session(8) },
@@ -70,12 +70,15 @@ describe("TrainingSessionHeader", () => {
 
     expect(wrapper.text()).toContain("陈禹杭");
     expect(wrapper.text()).toContain("44 小时");
+    const edit = wrapper.get(".training-overview-edit");
+    expect(edit.text()).toContain("编辑培训");
+    await edit.trigger("click");
+    expect(wrapper.emitted("edit")).toHaveLength(1);
     await wrapper.get('button[aria-haspopup="menu"]').trigger("click");
     await flushPromises();
 
     const menu = document.querySelector('[role="menu"]') as HTMLElement;
     expect(menu.textContent).toContain("导出名单");
-    expect(menu.textContent).toContain("编辑培训");
     expect(menu.textContent).toContain("归档培训");
     wrapper.unmount();
   });

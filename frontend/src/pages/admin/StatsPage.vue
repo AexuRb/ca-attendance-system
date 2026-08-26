@@ -2,7 +2,6 @@
   <div class="page-stack">
     <PageHeader
       title="值班统计"
-      description="签到与培训时长按成员合并统计。"
       ><template #actions
         ><button class="button primary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportExcel">
           <Download />导出 Excel
@@ -132,7 +131,7 @@ const weeklyDetail = ref<WeeklyStatsDetail>({
 });
 const from = ref("");
 const to = ref("");
-const preset = ref<"week" | "month" | "year" | "custom">("year");
+const preset = ref<"week" | "month" | "year" | "custom">("week");
 const presets = [
   { id: "week", label: "本周" },
   { id: "month", label: "本月" },
@@ -158,7 +157,7 @@ const hasData = computed(() =>
 const filterError = computed(() => dateRangeError(from.value, to.value));
 const displayError = computed(() => filterError.value || loadError.value);
 onMounted(() => {
-  applyPreset("year");
+  applyPreset("week");
 });
 function applyPreset(id: "week" | "month" | "year") {
   preset.value = id;

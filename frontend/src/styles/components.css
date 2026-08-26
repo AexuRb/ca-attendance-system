@@ -988,47 +988,6 @@ td small {
 .setting-section {
   overflow: hidden;
 }
-.weekday-selector {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  padding: 18px;
-}
-.weekday-selector label {
-  position: relative;
-  display: grid;
-  min-height: 92px;
-  place-content: center;
-  justify-items: center;
-  gap: 7px;
-  border: 1px solid var(--line);
-  border-right: 0;
-  background: var(--surface);
-  cursor: pointer;
-}
-.weekday-selector label:last-child {
-  border-right: 1px solid var(--line);
-}
-.weekday-selector label.selected {
-  z-index: 1;
-  border-color: var(--blue-500);
-  background: var(--surface-blue);
-  color: var(--blue-700);
-}
-.weekday-selector input {
-  position: absolute;
-  opacity: 0;
-}
-.weekday-selector strong {
-  color: var(--ink-500);
-  font-size: 10px;
-}
-.weekday-selector svg {
-  position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 14px;
-  color: var(--blue-600);
-}
 .period-editor {
   display: grid;
   padding: 4px 18px 18px;
@@ -1330,13 +1289,6 @@ td small {
   .today-grid {
     grid-template-columns: 1fr;
   }
-  .weekday-selector {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 7px;
-  }
-  .weekday-selector label {
-    border-right: 1px solid var(--line);
-  }
   .field-choice-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1377,9 +1329,6 @@ td small {
   .export-summary,
   .diff-grid {
     grid-template-columns: 1fr;
-  }
-  .weekday-selector {
-    grid-template-columns: repeat(2, 1fr);
   }
   .period-editor article {
     grid-template-columns: 64px 1fr 18px 1fr 36px;

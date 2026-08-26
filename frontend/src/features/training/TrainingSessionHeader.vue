@@ -1,45 +1,25 @@
 <template>
-  <header class="training-session-header">
+  <aside class="training-session-overview" aria-labelledby="training-session-title">
     <div class="training-session-heading">
-      <div class="training-session-date" aria-label="培训日期">
-        <CalendarDays aria-hidden="true" />
-        <span>{{ readableDate(session.trainingDate) }}</span>
-      </div>
-      <h2>{{ session.title }}</h2>
+      <time :datetime="session.trainingDate">
+        {{ readableDate(session.trainingDate) }} · {{ timeRange(session) }}
+      </time>
+      <h2 id="training-session-title">{{ session.title }}</h2>
       <p v-if="session.description">{{ session.description }}</p>
     </div>
 
-    <ActionMenu :label="`${session.title}的更多操作`">
-      <button role="menuitem" type="button" :disabled="exportPending" @click="$emit('export')">
-        <LoaderCircle v-if="exportPending" class="spin" aria-hidden="true" />
-        <Download v-else aria-hidden="true" />{{ exportPending ? "正在导出" : "导出名单" }}
-      </button>
-      <button role="menuitem" type="button" @click="$emit('edit')">
-        <Pencil aria-hidden="true" />编辑培训
-      </button>
-      <button
-        class="danger-text"
-        role="menuitem"
-        type="button"
-        :disabled="archivePending"
-        @click="$emit('archive')"
-      >
-        <Archive aria-hidden="true" />归档培训
-      </button>
-    </ActionMenu>
-
     <dl class="training-session-facts">
       <div>
-        <dt><Clock3 aria-hidden="true" />培训时间</dt>
-        <dd>{{ timeRange(session) }}</dd>
+        <dt><UserRound aria-hidden="true" />主讲人</dt>
+        <dd>{{ session.speaker || "未填写" }}</dd>
       </div>
       <div>
         <dt><MapPin aria-hidden="true" />培训地点</dt>
         <dd>{{ session.location || "未填写" }}</dd>
       </div>
       <div>
-        <dt><UserRound aria-hidden="true" />主讲人</dt>
-        <dd>{{ session.speaker || "未填写" }}</dd>
+        <dt><Clock3 aria-hidden="true" />培训时长</dt>
+        <dd>{{ duration(session) }}</dd>
       </div>
       <div>
         <dt><UsersRound aria-hidden="true" />参与人数</dt>
@@ -50,13 +30,38 @@
         <dd>{{ hours(session.totalDurationHours) }} 小时</dd>
       </div>
     </dl>
-  </header>
+
+    <div class="training-session-overview-actions">
+      <button class="button training-overview-edit" type="button" @click="$emit('edit')">
+        <Pencil aria-hidden="true" />编辑培训
+      </button>
+      <ActionMenu :label="`${session.title}的更多操作`">
+        <button
+          role="menuitem"
+          type="button"
+          :disabled="exportPending"
+          @click="$emit('export')"
+        >
+          <LoaderCircle v-if="exportPending" class="spin" aria-hidden="true" />
+          <Download v-else aria-hidden="true" />{{ exportPending ? "正在导出" : "导出名单" }}
+        </button>
+        <button
+          class="danger-text"
+          role="menuitem"
+          type="button"
+          :disabled="archivePending"
+          @click="$emit('archive')"
+        >
+          <Archive aria-hidden="true" />归档培训
+        </button>
+      </ActionMenu>
+    </div>
+  </aside>
 </template>
 
 <script setup lang="ts">
 import {
   Archive,
-  CalendarDays,
   Clock3,
   Download,
   MapPin,
@@ -85,6 +90,14 @@ function timeRange(value: Pick<TrainingSession, "startTime" | "endTime">) {
   return value.startTime && value.endTime
     ? `${value.startTime.slice(0, 5)}–${value.endTime.slice(0, 5)}`
     : "未设置";
+}
+
+function duration(value: Pick<TrainingSession, "startTime" | "endTime">) {
+  if (!value.startTime || !value.endTime) return "未设置";
+  const [startHour = 0, startMinute = 0] = value.startTime.split(":").map(Number);
+  const [endHour = 0, endMinute = 0] = value.endTime.split(":").map(Number);
+  const minutes = endHour * 60 + endMinute - startHour * 60 - startMinute;
+  return minutes > 0 ? `${hours(minutes / 60)} 小时` : "未设置";
 }
 
 function hours(value: number | string | null | undefined) {

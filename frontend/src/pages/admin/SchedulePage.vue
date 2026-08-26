@@ -2,7 +2,6 @@
   <div class="page-stack">
     <PageHeader
       title="排班管理"
-      description="按已设置的值班星期和时间段维护部长固定周表。"
     >
       <template #actions>
         <button
@@ -66,7 +65,6 @@
       :slots="slots"
       :periods="periods"
       :weekdays="weekdays"
-      @add="openFixedForPeriod"
       @edit="openFixed"
       @archive="deleteFixed"
     />
@@ -307,10 +305,6 @@ function openFixed(
         },
   );
   editorOpen.value = true;
-}
-
-function openFixedForPeriod(weekday: number, period: string) {
-  openFixed(null, weekday, period);
 }
 
 async function downloadImportTemplate() {

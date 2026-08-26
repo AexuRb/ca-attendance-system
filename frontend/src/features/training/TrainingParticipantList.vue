@@ -1,10 +1,7 @@
 <template>
   <section class="training-participant-section" aria-labelledby="participant-title">
     <header class="training-participant-toolbar">
-      <div>
-        <p class="eyebrow">PARTICIPANTS</p>
-        <h2 id="participant-title">参与名单</h2>
-      </div>
+      <h2 id="participant-title">参与名单</h2>
       <div class="training-participant-actions">
         <button
           class="button secondary small"
@@ -55,7 +52,16 @@
       正在加载参与名单…
     </p>
 
-    <div v-else-if="items.length" class="training-participant-rows">
+    <template v-else-if="items.length">
+      <div class="training-participant-columns" aria-hidden="true">
+        <span></span>
+        <span>成员</span>
+        <span>培训时长</span>
+        <span>备注</span>
+        <span>操作</span>
+      </div>
+
+      <div class="training-participant-rows">
       <article
         v-for="item in items"
         :key="item.id"
@@ -95,7 +101,8 @@
           </button>
         </div>
       </article>
-    </div>
+      </div>
+    </template>
 
     <div v-else class="training-participant-empty">
       <UserRoundSearch aria-hidden="true" />

@@ -1,8 +1,7 @@
 <template>
-  <div class="page-stack">
+  <div class="page-stack training-page">
     <PageHeader
       title="培训记录"
-      description="记录培训场次、参与名单与计入值班的培训时长。"
       ><template #actions
         ><button
           class="button secondary"
@@ -31,71 +30,8 @@
     <div v-if="filterError" class="inline-alert danger" role="alert">
       {{ filterError }}
     </div>
-    <button
-      class="button secondary training-mobile-directory-button"
-      type="button"
-      @click="drawerOpen = true"
-    >
-      <ListFilter aria-hidden="true" />切换培训场次
-      <span>{{ sessionState.total }}</span>
-    </button>
-
-    <div class="training-workspace">
-      <aside class="training-directory panel">
-        <TrainingSessionList
-          :items="sessions"
-          :selected-id="selected?.id || null"
-          :total="sessionState.total"
-          :page="sessionState.page"
-          :page-size="sessionState.pageSize"
-          :has-more="sessionState.hasMore"
-          :loading="sessionState.loading"
-          :error="sessionState.error"
-          @select="selectSession"
-          @page="setSessionPage"
-          @retry="retrySessions"
-        />
-      </aside>
-
-      <main class="training-detail panel">
-        <EmptyState
-          v-if="!selected"
-          title="请选择培训场次"
-          description="从场次目录中选择一场培训查看详情"
-        />
-        <template v-else>
-          <TrainingSessionHeader
-            :session="selected"
-            :export-pending="isPending('export-session')"
-            :archive-pending="isPending('archive-session')"
-            @export="downloadSession"
-            @edit="openSession(selected)"
-            @archive="deleteTarget = selected"
-          />
-          <TrainingParticipantList
-            v-model:keyword="participantKeyword"
-            :items="participants"
-            :total="participantState.total"
-            :page="participantState.page"
-            :page-size="participantState.pageSize"
-            :has-more="participantState.hasMore"
-            :loading="participantState.loading"
-            :error="participantState.error"
-            :delete-pending-id="isPending('delete-participant') ? participantDeleteTarget?.id : null"
-            @search="searchParticipants"
-            @page="setParticipantPage"
-            @add="openParticipant()"
-            @import="openImport"
-            @edit="openParticipant"
-            @delete="participantDeleteTarget = $event"
-            @retry="retryParticipants"
-          />
-        </template>
-      </main>
-    </div>
-
-    <TrainingSessionDrawer
-      :open="drawerOpen"
+    <TrainingMonthRibbon
+      :label="trainingRangeTitle"
       :items="sessions"
       :selected-id="selected?.id || null"
       :total="sessionState.total"
@@ -104,11 +40,45 @@
       :has-more="sessionState.hasMore"
       :loading="sessionState.loading"
       :error="sessionState.error"
-      @close="drawerOpen = false"
       @select="selectSession"
       @page="setSessionPage"
+      @shift-month="shiftVisibleMonth"
       @retry="retrySessions"
     />
+
+    <Transition name="training-stage-swap" mode="out-in">
+      <section v-if="selected" :key="selected.id" class="training-time-stage">
+        <TrainingSessionHeader
+          :session="selected"
+          :export-pending="isPending('export-session')"
+          :archive-pending="isPending('archive-session')"
+          @export="downloadSession"
+          @edit="openSession(selected)"
+          @archive="deleteTarget = selected"
+        />
+        <TrainingParticipantList
+          v-model:keyword="participantKeyword"
+          :items="participants"
+          :total="participantState.total"
+          :page="participantState.page"
+          :page-size="participantState.pageSize"
+          :has-more="participantState.hasMore"
+          :loading="participantState.loading"
+          :error="participantState.error"
+          :delete-pending-id="isPending('delete-participant') ? participantDeleteTarget?.id : null"
+          @search="searchParticipants"
+          @page="setParticipantPage"
+          @add="openParticipant()"
+          @import="openImport"
+          @edit="openParticipant"
+          @delete="participantDeleteTarget = $event"
+          @retry="retryParticipants"
+        />
+      </section>
+      <div v-else class="training-time-stage training-time-stage-empty">
+        <EmptyState title="本月暂无培训" description="可切换月份或调整筛选条件" />
+      </div>
+    </Transition>
 
     <TrainingSessionEditorDialog
       :open="sessionOpen"
@@ -169,7 +139,6 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import {
   Download,
-  ListFilter,
   Plus,
   Search,
 } from "@lucide/vue";
@@ -196,9 +165,13 @@ import TrainingParticipantList from "../../features/training/TrainingParticipant
 import TrainingParticipantEditorDialog from "../../features/training/TrainingParticipantEditorDialog.vue";
 import TrainingSessionEditorDialog from "../../features/training/TrainingSessionEditorDialog.vue";
 import TrainingImportDialog from "../../features/training/TrainingImportDialog.vue";
-import TrainingSessionDrawer from "../../features/training/TrainingSessionDrawer.vue";
 import TrainingSessionHeader from "../../features/training/TrainingSessionHeader.vue";
-import TrainingSessionList from "../../features/training/TrainingSessionList.vue";
+import TrainingMonthRibbon from "../../features/training/TrainingMonthRibbon.vue";
+import {
+  currentTrainingMonth,
+  shiftTrainingMonth,
+  trainingRangeLabel,
+} from "../../features/training/trainingCalendar";
 const task = useAsyncTask();
 const actions = usePendingActions();
 const { isPending } = actions;
@@ -207,17 +180,17 @@ const router = useRouter();
 const sessionOpen = ref(false);
 const participantOpen = ref(false);
 const importOpen = ref(false);
-const drawerOpen = ref(false);
 const importError = ref("");
 const deleteTarget = ref<TrainingSession | null>(null);
 const participantDeleteTarget = ref<TrainingParticipant | null>(null);
 const today = localDate(new Date());
+const initialMonth = currentTrainingMonth();
 const workspace = useTrainingWorkspace({
   loadSessions: fetchTrainingSessionPage,
   loadParticipants: fetchTrainingParticipantPage,
   defaults: {
-    from: `${new Date().getFullYear()}-01-01`,
-    to: today,
+    from: initialMonth.from,
+    to: initialMonth.to,
   },
   initialQuery: route.query,
   onQueryChange: replaceRouteQuery,
@@ -239,6 +212,9 @@ const {
 const sessions = computed(() => sessionState.items);
 const participants = computed(() => participantState.items);
 const filterError = computed(() => dateRangeError(filters.from, filters.to));
+const trainingRangeTitle = computed(() =>
+  trainingRangeLabel(filters.from, filters.to),
+);
 const sessionForm = reactive<TrainingSessionForm>({
   id: null,
   title: "",
@@ -277,6 +253,12 @@ async function replaceRouteQuery(query: Record<string, string>) {
 }
 async function applyFilters() {
   if (filterError.value) return;
+  await applyWorkspaceFilters();
+}
+async function shiftVisibleMonth(step: number) {
+  const next = shiftTrainingMonth(filters.from || today, step);
+  filters.from = next.from;
+  filters.to = next.to;
   await applyWorkspaceFilters();
 }
 function openSession(item?: TrainingSession) {

@@ -7,6 +7,7 @@ import unittest
 from performance_baseline import (
     SeedScale,
     benchmark_cases,
+    browser_benchmark_cases,
     evaluate_performance,
     main,
     percentile,
@@ -248,6 +249,22 @@ class BenchmarkCasesTest(unittest.TestCase):
 
         self.assertNotIn("--minister-password", visual_block)
         self.assertIn("--minister-password $MinisterPassword", validation_block)
+
+    def test_browser_benchmarks_follow_current_training_and_repair_layouts(self):
+        cases = {
+            name: (route, selector)
+            for name, route, selector in browser_benchmark_cases(
+                "/#/admin/trainings?sessionId=5"
+            )
+        }
+
+        self.assertEqual(cases["trainings"][1], ".training-ribbon-event")
+        self.assertEqual(
+            cases["training_large_roster"],
+            ("/#/admin/trainings?sessionId=5", ".training-participant-row"),
+        )
+        self.assertEqual(cases["repairs"][1], ".repair-ledger-row")
+        self.assertEqual(cases["repair_history"][1], ".repair-ledger-row")
 
 
 class PerformanceGateTest(unittest.TestCase):

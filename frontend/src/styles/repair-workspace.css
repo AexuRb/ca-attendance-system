@@ -892,3 +892,338 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   }
 }
+
+/* Unified repair ledger */
+.refined-admin-layout .repair-status-tabs {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.refined-admin-layout .repair-status-tabs button {
+  position: relative;
+  display: grid;
+  min-width: 104px;
+  min-height: 44px;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: start;
+  gap: 7px;
+  border: 0;
+  padding: 9px 14px 12px;
+  background: transparent;
+  color: var(--ink-600);
+  text-align: left;
+  transition:
+    color 220ms var(--ease-out),
+    background 220ms var(--ease-out);
+}
+
+.refined-admin-layout .repair-status-tabs button:hover,
+.refined-admin-layout .repair-status-tabs button.active {
+  background: transparent;
+  color: var(--admin-blue-deep);
+}
+
+.refined-admin-layout .repair-status-tabs button::after {
+  right: 14px;
+  bottom: -1px;
+  left: 14px;
+  height: 2px;
+}
+
+.refined-admin-layout .repair-status-copy {
+  display: block;
+}
+
+.refined-admin-layout .repair-status-copy strong {
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.refined-admin-layout .repair-status-tabs b {
+  min-width: 0;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: #edf5f8;
+  color: var(--ink-600);
+  font: 700 11px var(--font-mono);
+  text-align: center;
+}
+
+.refined-admin-layout .repair-status-tabs button.active b {
+  background: #dcf0f8;
+  color: var(--admin-blue-deep);
+}
+
+.refined-admin-layout .repair-workspace {
+  gap: 12px;
+  min-height: 360px;
+}
+
+.refined-admin-layout .repair-ledger-region {
+  min-width: 0;
+}
+
+.refined-admin-layout .repair-ledger-table {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border-color: #dce9f0;
+  box-shadow: 0 14px 36px rgba(34, 89, 119, 0.06);
+}
+
+.refined-admin-layout .repair-ledger-table table {
+  width: 100%;
+  min-width: 1020px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.refined-admin-layout .repair-ledger-table th {
+  height: 44px;
+  border-bottom: 1px solid #d7e7ef;
+  padding: 0 14px;
+  background: #f7fbfd;
+  color: #5f7c90;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.refined-admin-layout .repair-ledger-table th:nth-child(1) { width: 16%; }
+.refined-admin-layout .repair-ledger-table th:nth-child(2) { width: 24%; }
+.refined-admin-layout .repair-ledger-table th:nth-child(3) { width: 17%; }
+.refined-admin-layout .repair-ledger-table th:nth-child(4) { width: 11%; }
+.refined-admin-layout .repair-ledger-table th:nth-child(5) { width: 14%; }
+.refined-admin-layout .repair-ledger-table th:nth-child(6) { width: 8%; }
+.refined-admin-layout .repair-ledger-table th:nth-child(7) { width: 10%; }
+
+.refined-admin-layout .repair-ledger-row {
+  cursor: pointer;
+  outline: 0;
+  animation: repair-ledger-row-in 460ms var(--ease-out) both;
+  transition:
+    background 220ms var(--ease-out),
+    box-shadow 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+.refined-admin-layout .repair-ledger-row:nth-child(2) { animation-delay: 35ms; }
+.refined-admin-layout .repair-ledger-row:nth-child(3) { animation-delay: 70ms; }
+.refined-admin-layout .repair-ledger-row:nth-child(4) { animation-delay: 105ms; }
+.refined-admin-layout .repair-ledger-row:nth-child(5) { animation-delay: 140ms; }
+.refined-admin-layout .repair-ledger-row:nth-child(6) { animation-delay: 175ms; }
+
+.refined-admin-layout .repair-ledger-row:hover {
+  background: #f7fcfe;
+  transform: translateX(2px);
+}
+
+.refined-admin-layout .repair-ledger-row:focus-visible,
+.refined-admin-layout .repair-ledger-row:focus-within {
+  background: #edf8fc;
+  box-shadow: inset 3px 0 var(--admin-blue);
+}
+
+.refined-admin-layout .repair-ledger-row.is-long-running {
+  box-shadow: inset 3px 0 #d39a30;
+}
+
+.refined-admin-layout .repair-ledger-row td {
+  height: 74px;
+  padding: 10px 14px;
+  color: var(--ink-700);
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.refined-admin-layout .repair-ledger-row td > strong,
+.refined-admin-layout .repair-ledger-row td > small {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refined-admin-layout .repair-ledger-row td > strong {
+  margin-bottom: 5px;
+  color: var(--ink-950);
+  font-size: 14px;
+  font-weight: 720;
+}
+
+.refined-admin-layout .repair-ledger-row td > small,
+.refined-admin-layout .repair-ledger-row time,
+.refined-admin-layout .repair-ledger-phone small {
+  color: var(--ink-500);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.refined-admin-layout .repair-ledger-row time {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.refined-admin-layout .repair-ledger-phone,
+.refined-admin-layout .repair-ledger-actions {
+  display: flex;
+  align-items: center;
+}
+
+.refined-admin-layout .repair-ledger-phone {
+  gap: 4px;
+}
+
+.refined-admin-layout .repair-ledger-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--admin-blue-deep);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.refined-admin-layout .repair-ledger-status::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px #e5f4fa;
+  content: "";
+}
+
+.refined-admin-layout .repair-ledger-status[data-status="COMPLETED"] {
+  color: #347e69;
+}
+
+.refined-admin-layout .repair-ledger-status[data-status="COMPLETED"]::before {
+  box-shadow: 0 0 0 4px #e5f4ee;
+}
+
+.refined-admin-layout .repair-ledger-status[data-status="CANCELED"] {
+  color: #748592;
+}
+
+.refined-admin-layout .repair-ledger-status[data-status="CANCELED"]::before {
+  box-shadow: 0 0 0 4px #edf2f5;
+}
+
+.refined-admin-layout .repair-ledger-actions {
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.refined-admin-layout .repair-ledger-actions .icon-button {
+  width: 31px;
+  min-height: 31px;
+  border: 0;
+  opacity: 0;
+  transform: translateX(5px);
+  transition:
+    opacity 220ms var(--ease-out),
+    transform 260ms var(--ease-out),
+    background 220ms var(--ease-out),
+    color 220ms var(--ease-out);
+}
+
+.refined-admin-layout .repair-ledger-actions .repair-ledger-open {
+  opacity: 1;
+  transform: none;
+  color: #3f718e;
+}
+
+.refined-admin-layout .repair-ledger-row:hover .repair-ledger-actions .icon-button,
+.refined-admin-layout .repair-ledger-row:focus-within .repair-ledger-actions .icon-button {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes repair-ledger-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .refined-admin-layout .repair-ledger-table {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .refined-admin-layout .repair-ledger-table table,
+  .refined-admin-layout .repair-ledger-table tbody {
+    display: block;
+    min-width: 0;
+  }
+
+  .refined-admin-layout .repair-ledger-table thead {
+    display: none;
+  }
+
+  .refined-admin-layout .repair-ledger-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px 16px;
+    margin-bottom: 9px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    background: var(--surface);
+  }
+
+  .refined-admin-layout .repair-ledger-row td {
+    display: block;
+    height: auto;
+    min-height: 0;
+    border: 0;
+    padding: 0;
+  }
+
+  .refined-admin-layout .repair-ledger-row td:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .refined-admin-layout .repair-ledger-row td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .refined-admin-layout .repair-ledger-row td:nth-child(3) { grid-column: 1; grid-row: 3; }
+  .refined-admin-layout .repair-ledger-row td:nth-child(4) { grid-column: 2; grid-row: 3; text-align: right; }
+  .refined-admin-layout .repair-ledger-row td:nth-child(5) { grid-column: 1; grid-row: 4; }
+  .refined-admin-layout .repair-ledger-row td:nth-child(6) { grid-column: 2; grid-row: 1; text-align: right; }
+  .refined-admin-layout .repair-ledger-row td:nth-child(7) { grid-column: 2; grid-row: 4; }
+
+  .refined-admin-layout .repair-ledger-actions .icon-button {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 620px) {
+  .refined-admin-layout .repair-status-tabs button {
+    min-width: 0;
+    flex: 1;
+    justify-content: center;
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+
+  .refined-admin-layout .repair-ledger-row td:nth-child(4) {
+    display: none;
+  }
+
+  .refined-admin-layout .repair-ledger-actions .repair-ledger-secondary-action {
+    display: none;
+  }
+}

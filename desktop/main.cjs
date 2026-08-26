@@ -10,6 +10,8 @@ const {
   REMOTE_ADMIN_PORT,
   backendFailureMessage,
   backendLocations,
+  clearRendererCache,
+  desktopEntryUrl,
   detectStartupConflict,
   ensureStorageLayout,
   isKioskUrl,
@@ -334,8 +336,17 @@ function createMainWindow() {
     saveWindowState();
     mainWindow = null;
   });
-  mainWindow.loadURL(APP_ORIGIN);
+  mainWindow.loadURL(desktopEntryUrl(`${app.getVersion()}-${Date.now()}`));
   createTray();
+}
+
+async function resetRendererCache() {
+  try {
+    await clearRendererCache(session.defaultSession);
+    writeDesktopLog('renderer cache cleared before application load');
+  } catch (error) {
+    writeDesktopLog(`renderer cache clear failed: ${error.message}`);
+  }
 }
 
 function startBackend() {
@@ -493,6 +504,7 @@ if (!hasSingleInstanceLock) {
 
     startBackend();
     await waitForApplication();
+    await resetRendererCache();
     serviceReady = true;
     createMainWindow();
   }).catch(error => {

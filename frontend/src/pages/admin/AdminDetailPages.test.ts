@@ -78,6 +78,8 @@ describe("TrainingPage details", () => {
     const wrapper = mount(TrainingPage);
     await flushPromises();
 
+    expect(wrapper.find(".training-month-shell").exists()).toBe(true);
+    expect(wrapper.findAll(".training-ribbon-event")).toHaveLength(1);
     expect(wrapper.get('button[data-action="add-participant"]').text()).toContain(
       "新增记录",
     );
@@ -88,10 +90,10 @@ describe("TrainingPage details", () => {
     const more = wrapper.get('button[aria-haspopup="menu"]');
     expect(more.attributes("aria-label")).toContain("更多操作");
     expect(more.get("svg").attributes("aria-hidden")).toBe("true");
+    expect(wrapper.get(".training-overview-edit").text()).toContain("编辑培训");
     await more.trigger("click");
     await flushPromises();
     expect(document.body.textContent).toContain("导出名单");
-    expect(document.body.textContent).toContain("编辑培训");
     expect(document.body.textContent).toContain("归档培训");
 
     const participantRows = wrapper.findAll(".training-participant-row");
@@ -162,5 +164,39 @@ describe("SettingsPage details", () => {
     resolveSave({});
     await flushPromises();
     wrapper.unmount();
+  });
+
+  it("saves weekdays selected from the calendar leaves", async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === "/api/settings/weekdays") {
+        return Promise.resolve([
+          { weekday: 1, weekday_name: "星期一", enabled: true },
+          { weekday: 2, weekday_name: "星期二", enabled: false },
+        ]);
+      }
+      if (url === "/api/settings/attendance-policy") {
+        return Promise.resolve({ requireDutyDay: false, requireDutyPeriod: false });
+      }
+      return Promise.resolve([]);
+    });
+    apiPut.mockResolvedValue({});
+    const wrapper = mount(SettingsPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+
+    await wrapper.get('[data-weekday="2"]').trigger("click");
+    expect(wrapper.get('[data-weekday="2"]').attributes("aria-pressed")).toBe(
+      "true",
+    );
+    await wrapper
+      .findAll(".setting-section")[0]
+      .get(".button.primary")
+      .trigger("click");
+    await flushPromises();
+
+    expect(apiPut).toHaveBeenCalledWith("/api/settings/weekdays", {
+      enabledWeekdays: [1, 2],
+    });
   });
 });
