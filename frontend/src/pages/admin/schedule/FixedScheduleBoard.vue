@@ -14,7 +14,7 @@
         }"
         type="button"
         :aria-pressed="selectedWeekday === day.value"
-        @click="selectedWeekday = day.value"
+        @click="selectWeekday(day.value)"
       >
         <span>
           <strong>{{ day.label }}</strong>
@@ -150,11 +150,13 @@ const props = defineProps<{
   slots: ScheduleSlot[];
   periods: DutyPeriod[];
   weekdays: WeekdayOption[];
+  preferredWeekday?: number;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   edit: [slot: ScheduleSlot];
   archive: [slot: ScheduleSlot];
+  "weekday-change": [weekday: number];
 }>();
 
 const visibleWeekdays = computed(() => {
@@ -191,13 +193,31 @@ watch(
   },
   { flush: "sync" },
 );
+watch(
+  () => props.preferredWeekday,
+  (weekday) => {
+    if (weekday && visibleWeekdays.value.some((day) => day.value === weekday)) {
+      selectedWeekday.value = weekday;
+    }
+  },
+  { immediate: true, flush: "sync" },
+);
 
 function initialWeekday() {
   return (
+    (props.preferredWeekday &&
+    visibleWeekdays.value.some((day) => day.value === props.preferredWeekday)
+      ? props.preferredWeekday
+      : undefined) ??
     visibleWeekdays.value.find((day) => day.enabled)?.value ??
     visibleWeekdays.value[0]?.value ??
     1
   );
+}
+
+function selectWeekday(weekday: number) {
+  selectedWeekday.value = weekday;
+  emit("weekday-change", weekday);
 }
 
 function slotsFor(weekday: number, period: DutyPeriod) {

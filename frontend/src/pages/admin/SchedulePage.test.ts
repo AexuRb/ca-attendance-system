@@ -5,6 +5,11 @@ import SchedulePage from "./SchedulePage.vue";
 
 const apiGet = vi.fn();
 
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
 vi.mock("../../shared/api", () => ({
   get: (...args: unknown[]) => apiGet(...args),
   post: vi.fn(),

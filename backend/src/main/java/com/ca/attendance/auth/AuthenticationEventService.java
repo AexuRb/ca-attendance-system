@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 public class AuthenticationEventService {
@@ -58,6 +59,18 @@ public class AuthenticationEventService {
                 context.clientAddress(),
                 context.userAgent(),
                 reason
+        );
+    }
+
+    @Transactional
+    public void recordPasswordChange(UserRepository.UserLoginRow user) {
+        logs.log(
+                "CHANGE_PASSWORD",
+                "users",
+                user.id(),
+                Map.of("mustChangePassword", user.mustChangePassword()),
+                Map.of("mustChangePassword", false),
+                "修改登录密码"
         );
     }
 }

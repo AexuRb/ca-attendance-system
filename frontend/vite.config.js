@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     environment: 'node',
-    clearMocks: true
+    clearMocks: true,
+    exclude: ['e2e/**', '**/node_modules/**', '**/.git/**']
   },
   server: {
     port: 5173,

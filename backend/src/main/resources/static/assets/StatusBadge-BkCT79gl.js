@@ -1,1 +1,0 @@
-import{Ct as e,D as t,S as n,z as r}from"./api-CCJzWAmw.js";var i=[`data-tone`],a=t({__name:`StatusBadge`,props:{label:{},tone:{}},setup(t){return(a,o)=>(r(),n(`span`,{class:`status-badge`,"data-tone":t.tone},e(t.label),9,i))}});export{a as t};

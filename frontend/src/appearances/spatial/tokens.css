@@ -1,0 +1,84 @@
+:root[data-appearance="spatial"] {
+  color-scheme: light;
+  --font-sans:
+    "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", system-ui,
+    sans-serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+  --ink-950: #1d1d1f;
+  --ink-900: #1d1d1f;
+  --ink-850: #29292c;
+  --ink-800: #333333;
+  --ink-700: #4b4b50;
+  --ink-600: #626268;
+  --ink-500: #626268;
+  --ink-400: #7a7a7a;
+  --line-strong: #d2d2d7;
+  --line: #e0e0e0;
+  --line-soft: #f0f0f0;
+  --surface: #ffffff;
+  --surface-soft: #f5f5f7;
+  --surface-blue: #f0f7ff;
+  --surface-pearl: #fafafc;
+  --surface-dark: #272729;
+  --surface-black: #000000;
+  --canvas: #f5f5f7;
+
+  --blue-800: #004f9f;
+  --blue-700: #005eb8;
+  --blue-600: #0066cc;
+  --blue-500: #0071e3;
+  --blue-300: #6eb6f3;
+  --blue-200: #b9dcfb;
+  --blue-100: #e4f2ff;
+  --blue-50: #f3f9ff;
+  --green-700: #247a38;
+  --green-500: #34a853;
+  --green-100: #e5f4e9;
+  --amber-700: #8a5b00;
+  --amber-500: #c48100;
+  --amber-100: #fff2d6;
+  --red-700: #b90c20;
+  --red-500: #d91f35;
+  --red-100: #ffe7ea;
+
+  --primary: #0066cc;
+  --primary-focus: #0071e3;
+  --primary-on-dark: #2997ff;
+  --danger: #b90c20;
+  --muted: #626268;
+  --admin-canvas: #f5f5f7;
+  --admin-surface: #ffffff;
+  --admin-surface-subtle: #fafafc;
+  --admin-line: #e0e0e0;
+  --admin-line-soft: #f0f0f0;
+  --admin-blue: #0066cc;
+  --admin-blue-deep: #004f9f;
+  --admin-blue-soft: #e4f2ff;
+  --admin-green: #247a38;
+  --admin-amber: #8a5b00;
+  --admin-red: #b90c20;
+
+  --sidebar-width: 224px;
+  --primary-rail-width: 76px;
+  --section-sidebar-width: 246px;
+  --topbar-height: 62px;
+  --radius-sm: 8px;
+  --radius: 8px;
+  --shadow-sm: none;
+  --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.16);
+  --ease-out: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --admin-ease: cubic-bezier(0.22, 0.78, 0.18, 1);
+  --z-drawer: 80;
+  --z-modal: 90;
+  --z-menu: 110;
+  --z-toast: 130;
+  --feedback-font-size: 17px;
+  --motion-fast: 160ms;
+  --motion-panel: 240ms;
+  --motion-page-from: translateY(6px) scale(.995);
+  --motion-overlay-from: translateY(10px) scale(.985);
+  --overlay-shadow: 0 18px 48px rgba(0, 0, 0, .16);
+  --overlay-scrim: rgba(0, 0, 0, .32);
+  --focus-ring: var(--primary);
+}

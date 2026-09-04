@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$SkipDependencyInstall,
+    [switch]$SkipTests
+)
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -41,15 +44,26 @@ foreach ($command in 'npm.cmd', 'mvn.cmd') {
 & (Join-Path $PSScriptRoot 'prepare-temurin-runtime.ps1')
 
 Write-Host 'Building frontend...'
-Invoke-Checked $frontendRoot 'npm.cmd' @('ci')
+if (-not $SkipDependencyInstall) {
+    Invoke-Checked $frontendRoot 'npm.cmd' @('ci')
+}
 Invoke-Checked $frontendRoot 'npm.cmd' @('run', 'build')
 
-Write-Host 'Testing and packaging backend...'
-Invoke-Checked $backendRoot 'mvn.cmd' @('-q', 'package')
+Write-Host 'Packaging backend...'
+$backendArguments = @('-q', 'package')
+if ($SkipTests) {
+    Write-Host 'Reusing previous test results as explicitly requested.'
+    $backendArguments += '-DskipTests'
+}
+Invoke-Checked $backendRoot 'mvn.cmd' $backendArguments
 
-Write-Host 'Testing desktop runtime...'
-Invoke-Checked $desktopRoot 'npm.cmd' @('ci')
-Invoke-Checked $desktopRoot 'npm.cmd' @('test')
+if (-not $SkipDependencyInstall) {
+    Invoke-Checked $desktopRoot 'npm.cmd' @('ci')
+}
+if (-not $SkipTests) {
+    Write-Host 'Testing desktop runtime...'
+    Invoke-Checked $desktopRoot 'npm.cmd' @('test')
+}
 
 Remove-BuildDirectory $desktopRelease $desktopRoot
 $previousSigningSetting = $env:CSC_IDENTITY_AUTO_DISCOVERY

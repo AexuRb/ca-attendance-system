@@ -169,7 +169,6 @@ describe("repair workspace", () => {
     expect(workspace.currentQuery()).toEqual({
       status: "CANCELED",
       page: "3",
-      keyword: "显卡",
       from: "2026-03-01",
       to: "2026-08-01",
     });
@@ -245,7 +244,6 @@ describe("repair workspace query", () => {
     ).toEqual({
       status: "COMPLETED",
       page: "2",
-      keyword: "维修",
       from: defaults.from,
       to: defaults.to,
     });

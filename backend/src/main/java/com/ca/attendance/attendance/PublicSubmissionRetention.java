@@ -7,6 +7,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 
 @Component
@@ -16,14 +17,16 @@ public class PublicSubmissionRetention implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PublicSubmissionRetention.class);
     private final PublicSubmissionRepository submissions;
+    private final Clock clock;
 
-    public PublicSubmissionRetention(PublicSubmissionRepository submissions) {
+    public PublicSubmissionRetention(PublicSubmissionRepository submissions, Clock clock) {
         this.submissions = submissions;
+        this.clock = clock;
     }
 
     @Override
     public void run(String... args) {
-        int deleted = cleanupExpired(LocalDateTime.now());
+        int deleted = cleanupExpired(LocalDateTime.now(clock));
         if (deleted > 0) {
             log.info("Cleaned up {} expired public attendance submission receipts", deleted);
         }

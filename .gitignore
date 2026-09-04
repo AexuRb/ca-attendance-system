@@ -32,6 +32,8 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 frontend/vitest-results.json
+frontend/playwright-report/
+frontend/test-results/
 __pycache__/
 *.py[cod]
 desktop/node_modules/

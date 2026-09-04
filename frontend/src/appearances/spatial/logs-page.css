@@ -1,0 +1,329 @@
+/* System events: a compact filter surface and aligned, quiet list rows. */
+
+:root[data-appearance="spatial"] .logs-page .page-actions {
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root[data-appearance="spatial"] .logs-page .page-actions .button {
+  min-height: 44px;
+  padding-inline: 16px;
+  font-size: 15px;
+  font-weight: 600;
+}
+:root[data-appearance="spatial"] .logs-page .page-actions .button > svg {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: currentColor;
+  box-shadow: none;
+}
+:root[data-appearance="spatial"] .logs-page .page-actions .button:focus-visible,
+:root[data-appearance="spatial"] .audit-detail-surface summary:focus-visible {
+  outline: 2px solid var(--blue-600);
+  outline-offset: 3px;
+}
+:root[data-appearance="spatial"] .logs-page .status-badge {
+  min-height: 28px;
+  padding: 3px 9px;
+  border-color: transparent;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: normal;
+}
+:root[data-appearance="spatial"] .logs-page .status-badge[data-tone="info"] {
+  background: var(--blue-50);
+  color: var(--blue-800);
+}
+@media (max-width: 600px) {
+  :root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table .audit-diff-head {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  :root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table > div:not(.audit-diff-head) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  :root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table [role="cell"]:first-child {
+    grid-column: 1 / -1;
+    font-weight: 600;
+  }
+  :root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table [data-label]::before {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--ink-600);
+    font-size: 14px;
+    content: attr(data-label);
+  }
+}
+:root[data-appearance="spatial"] .logs-page {
+  container: audit-page / inline-size;
+  gap: 24px;
+}
+:root[data-appearance="spatial"] .logs-page .filter-bar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) repeat(2, minmax(150px, .8fr)) auto;
+  align-items: end;
+  gap: 16px;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+:root[data-appearance="spatial"] .logs-page .filter-bar label,
+:root[data-appearance="spatial"] .logs-page .filter-bar input,
+:root[data-appearance="spatial"] .logs-page .filter-bar select {
+  width: 100%;
+  min-width: 0;
+}
+:root[data-appearance="spatial"] .logs-page .filter-bar > .button {
+  width: auto;
+  min-height: 44px;
+  justify-self: start;
+}
+:root[data-appearance="spatial"] .logs-page .filter-bar label > span {
+  color: var(--ink-600);
+  font-size: 14px;
+  font-weight: 400;
+}
+:root[data-appearance="spatial"] .logs-page .filter-bar :is(input, select) {
+  min-height: 44px;
+  background: var(--surface);
+  font-size: 17px;
+}
+:root[data-appearance="spatial"] .logs-page .timeline-list {
+  padding: 0;
+  border: 0;
+  border-block: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: none;
+}
+:root[data-appearance="spatial"] .logs-page .timeline-list article {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 24px;
+  min-height: 106px;
+  padding: 20px;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  transition: background-color 140ms ease;
+}
+:root[data-appearance="spatial"] .logs-page .timeline-list article:last-child {
+  border-bottom: 0;
+}
+:root[data-appearance="spatial"] .logs-page .timeline-list article:hover,
+:root[data-appearance="spatial"] .logs-page .timeline-list article:focus-within {
+  background: var(--surface-soft);
+}
+:root[data-appearance="spatial"] .logs-page .timeline-mark,
+:root[data-appearance="spatial"] .logs-page .timeline-list article::before {
+  display: none;
+}
+:root[data-appearance="spatial"] .logs-page .log-time strong {
+  color: var(--ink-900);
+  font: 600 17px/1.5 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+:root[data-appearance="spatial"] .logs-page .log-time span {
+  margin-top: 4px;
+  color: var(--ink-600);
+  font-size: 14px;
+}
+:root[data-appearance="spatial"] .logs-page .log-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+:root[data-appearance="spatial"] .logs-page .log-main > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+:root[data-appearance="spatial"] .logs-page .log-main strong {
+  font: 600 17px/1.5 var(--font-sans);
+  color: var(--ink-900);
+}
+:root[data-appearance="spatial"] .logs-page .log-main p {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink-600);
+  font-size: 17px;
+  line-height: 1.5;
+}
+:root[data-appearance="spatial"] .logs-page .log-main small {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  color: var(--ink-600);
+  font-size: 14px;
+  max-width: 150px;
+}
+:root[data-appearance="spatial"] .logs-page .timeline-list .icon-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border-color: transparent;
+  background: transparent;
+  color: var(--blue-600);
+}
+:root[data-appearance="spatial"] .logs-page .timeline-list .icon-button:hover {
+  background: var(--blue-50);
+}
+:root[data-appearance="spatial"] .logs-page .pagination {
+  padding: 0;
+  font-size: 14px;
+}
+:root[data-appearance="spatial"] .audit-detail-surface {
+  min-width: 0;
+  color: var(--ink-900);
+  font-size: 17px;
+}
+:root[data-appearance="spatial"] .audit-detail-surface dl {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+  background: transparent;
+}
+:root[data-appearance="spatial"] .audit-detail-surface dl > div {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line-soft);
+  background: transparent;
+  overflow-wrap: anywhere;
+}
+:root[data-appearance="spatial"] .audit-detail-surface dt {
+  align-self: baseline;
+  color: var(--ink-600);
+  font-size: 14px;
+}
+:root[data-appearance="spatial"] .audit-detail-surface dd {
+  margin: 0;
+  line-height: 1.5;
+}
+:root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+:root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table > div {
+  grid-template-columns: minmax(80px, .6fr) repeat(2, minmax(0, 1fr));
+  border-color: var(--line-soft);
+}
+:root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table > div > * {
+  padding: 14px 12px;
+  border-color: var(--line-soft);
+  color: var(--ink-900);
+  font: 400 15px/1.5 var(--font-sans);
+}
+:root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table .audit-diff-head,
+:root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table [role="cell"]:first-child {
+  background: var(--surface-soft);
+}
+:root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table .after-value {
+  color: var(--ink-900);
+  background: var(--blue-50);
+}
+:root[data-appearance="spatial"] .audit-detail-surface .audit-raw-details {
+  border-color: var(--line);
+}
+:root[data-appearance="spatial"] .audit-detail-surface .audit-raw-details summary {
+  padding: 8px 0;
+  color: var(--blue-600);
+  font-size: 15px;
+  font-weight: 400;
+}
+:root[data-appearance="spatial"] .audit-detail-surface .diff-grid > section {
+  min-width: 0;
+}
+:root[data-appearance="spatial"] .audit-detail-surface .diff-grid h3 {
+  font: 600 15px/1.5 var(--font-sans);
+}
+:root[data-appearance="spatial"] .audit-detail-surface pre {
+  background: var(--surface-soft);
+  color: var(--ink-900);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+@container audit-page (max-width: 900px) {
+  :root[data-appearance="spatial"] .logs-page .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  :root[data-appearance="spatial"] .logs-page .filter-bar > button {
+    justify-self: start;
+  }
+  :root[data-appearance="spatial"] .logs-page .log-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  :root[data-appearance="spatial"] .logs-page .log-main small {
+    align-self: flex-start;
+    max-width: none;
+  }
+}
+@container audit-page (max-width: 540px) {
+  :root[data-appearance="spatial"] .logs-page .filter-bar {
+    padding: 16px 12px;
+    gap: 12px;
+  }
+  :root[data-appearance="spatial"] .logs-page .timeline-list article {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    padding: 16px 12px;
+    gap: 12px;
+  }
+  :root[data-appearance="spatial"] .logs-page .log-time {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  :root[data-appearance="spatial"] .logs-page .log-time span {
+    margin: 0;
+  }
+  :root[data-appearance="spatial"] .logs-page .log-main {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+  :root[data-appearance="spatial"] .logs-page .timeline-list .icon-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  :root[data-appearance="spatial"] .logs-page .pagination,
+  :root[data-appearance="spatial"] .logs-page .pagination > div {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+}
+@media (max-width: 600px) {
+  :root[data-appearance="spatial"] .audit-detail-surface dl > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  :root[data-appearance="spatial"] .audit-detail-surface .diff-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root[data-appearance="spatial"] .audit-detail-surface .audit-diff-table > div > * {
+    padding: 10px 8px;
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-appearance="spatial"] .logs-page .timeline-list article {
+    transition: none;
+  }
+}

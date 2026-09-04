@@ -1,0 +1,212 @@
+/* Shared geometry and semantics; only the two opt-in appearances use these rules. */
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .page-header .page-actions {
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .page-actions .button {
+  min-height: 44px;
+  padding-inline: 16px;
+  font-size: 15px;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .page-actions .button > svg {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: currentColor;
+  box-shadow: none;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .page-actions .button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-backdrop {
+  background: var(--overlay-scrim);
+  backdrop-filter: blur(4px);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-shell {
+  min-width: 0;
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--overlay-shadow);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-shell::before {
+  display: none;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.modal-header, .modal-footer) {
+  border-color: var(--line);
+  background: var(--surface);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-body {
+  color: var(--ink-800);
+  font-size: var(--feedback-font-size);
+  overflow-wrap: anywhere;
+  scrollbar-gutter: stable;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-footer {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .confirm-copy {
+  margin: 0;
+  color: var(--ink-800);
+  font-size: var(--feedback-font-size);
+  line-height: 1.65;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.modal-shell, .action-menu-popover, .toast) .button,
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .button:is(:hover, :active, :focus-visible) {
+  box-shadow: none;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-shell .button {
+  min-height: 44px;
+  font-size: 15px;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-shell .icon-button {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  box-shadow: none;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(button, a, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .action-menu-popover {
+  border-color: var(--line);
+  padding: 6px;
+  background: var(--surface);
+  box-shadow: var(--overlay-shadow);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .action-menu-popover [role="menuitem"] {
+  min-height: 44px;
+  font-size: 15px;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .action-menu-popover [role="menuitem"]:focus-visible {
+  outline-offset: -2px;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.empty-state, .loading-block) {
+  min-width: 0;
+  min-height: 160px;
+  gap: 12px;
+  padding: 32px 20px;
+  color: var(--ink-600);
+  font-size: var(--feedback-font-size);
+  overflow-wrap: anywhere;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .empty-state > svg {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-600);
+  stroke-width: 1.5;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .loading-block > svg {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--focus-ring);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .empty-state strong {
+  color: var(--ink-900);
+  font: 500 var(--feedback-font-size)/1.5 var(--font-sans);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .empty-state p {
+  margin: 0;
+  color: var(--ink-600);
+  font-size: 14px;
+  line-height: 1.6;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .inline-alert {
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+  border-color: var(--line);
+  color: var(--ink-800);
+  font-size: var(--feedback-font-size);
+  overflow-wrap: anywhere;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .inline-alert.danger {
+  border-color: var(--red-700);
+  background: var(--red-100);
+  color: var(--red-700);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .inline-alert > .button {
+  flex-shrink: 0;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .status-badge {
+  border: 1px solid transparent;
+  box-shadow: none;
+  line-height: 1.4;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .status-badge[data-tone="info"] {
+  color: var(--blue-800);
+  background: var(--blue-50);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .status-badge[data-tone="success"] {
+  color: var(--green-700);
+  background: var(--green-100);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .status-badge[data-tone="warning"] {
+  color: var(--amber-700);
+  background: var(--amber-100);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .status-badge[data-tone="danger"] {
+  color: var(--red-700);
+  background: var(--red-100);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .toast {
+  grid-template-columns: 22px minmax(0, 1fr) 36px;
+  gap: 12px;
+  padding: 14px;
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-900);
+  box-shadow: var(--overlay-shadow);
+  font-size: 15px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .toast > svg {
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--blue-800);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .toast[data-tone="success"] > svg {
+  color: var(--green-700);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .toast[data-tone="warning"] > svg {
+  color: var(--amber-700);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .toast[data-tone="danger"] > svg {
+  color: var(--red-700);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .toast-dismiss {
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  color: var(--ink-600);
+}
+@media (max-width: 600px) {
+  :root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-backdrop {
+    padding: 12px;
+  }
+  :root:is([data-appearance="editorial"], [data-appearance="spatial"]) .modal-shell {
+    max-height: calc(100dvh - 24px);
+  }
+}

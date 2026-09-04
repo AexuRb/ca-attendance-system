@@ -2,27 +2,35 @@
   <div
     v-if="user && activeSection"
     class="admin-layout refined-admin-layout"
+    :data-page="String(route.name || 'admin')"
     :class="{
       'nav-open': navOpen,
       'section-collapsed': sidebarCollapsed,
     }"
   >
-    <PrimaryRail
-      :sections="visibleSections"
-      :active-section-key="activeSection.key"
-      :user-name="user.name"
-      @navigate="navOpen = false"
-    />
-    <SectionSidebar
-      :section="activeSection"
-      :user="user"
-      :user-role-label="roleLabel(user.role)"
-      :aria-hidden="!sidebarInteractive"
-      :inert="sidebarInteractive ? undefined : true"
-      @collapse="collapseSidebar"
-      @logout="signOut"
-      @navigate="navOpen = false"
-    />
+    <a
+      class="admin-skip-link"
+      href="#admin-main-content"
+      @click.prevent="focusMainContent"
+    >跳到主要内容</a>
+    <div class="admin-navigation">
+      <PrimaryRail
+        :sections="visibleSections"
+        :active-section-key="activeSection.key"
+        :user-name="user.name"
+        @navigate="navOpen = false"
+      />
+      <SectionSidebar
+        :section="activeSection"
+        :user="user"
+        :user-role-label="roleLabel(user.role)"
+        :aria-hidden="!sidebarInteractive"
+        :inert="sidebarInteractive ? undefined : true"
+        @collapse="collapseSidebar"
+        @logout="signOut"
+        @navigate="navOpen = false"
+      />
+    </div>
 
     <button
       v-if="navOpen"
@@ -42,7 +50,12 @@
         @expand-sidebar="expandSidebar"
         @open-credits="creditsOpen = true"
       />
-      <main class="admin-content">
+      <main
+        id="admin-main-content"
+        ref="mainContent"
+        class="admin-content"
+        tabindex="-1"
+      >
         <RouterView v-slot="{ Component, route: activeRoute }">
           <Transition name="admin-view" mode="out-in">
             <component
@@ -76,6 +89,7 @@ const { user, logout } = useSession();
 const route = useRoute();
 const router = useRouter();
 const navOpen = ref(false);
+const mainContent = ref<HTMLElement | null>(null);
 const creditsOpen = ref(false);
 const sidebarCollapsed = ref(
   safeStorageGet(sidebarStorageKey) === "true",
@@ -124,6 +138,11 @@ function collapseSidebar() {
 function expandSidebar() {
   sidebarCollapsed.value = false;
   safeStorageSet(sidebarStorageKey, "false");
+}
+
+function focusMainContent() {
+  mainContent.value?.focus();
+  mainContent.value?.scrollIntoView({ block: "start" });
 }
 
 function updateClock() {

@@ -22,9 +22,12 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
@@ -114,6 +117,7 @@ class AuthSecurityTest {
         ));
         when(passwords.matches("old-password", "old-hash")).thenReturn(true);
         when(passwords.encode("new-password")).thenReturn("new-hash");
+        when(jdbc.update(anyString(), eq("new-hash"), eq(1L), eq(1L))).thenReturn(1);
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
                 new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
@@ -269,37 +273,29 @@ class AuthSecurityTest {
     }
 
     @Test
-    void localLoginIsRateLimitedAndFirstLockIsAudited() {
+    void localLoginIsNotRateLimited() {
         AuthService service = new AuthService(
                 users, jdbc, passwords, tokenService,
                 new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
                 new AuthenticationEventService(jdbc, logs)
         );
 
-        for (int attempt = 0; attempt < LoginAttemptGuard.LOCAL_MAX_FAILURES; attempt++) {
+        for (int attempt = 0; attempt < 20; attempt++) {
             assertThatThrownBy(() -> service.login("unknown", "wrong-password"))
                     .isInstanceOf(ApiException.class)
                     .hasMessageContaining("学号或密码错误");
         }
-        assertThatThrownBy(() -> service.login("unknown", "wrong-password"))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("尝试次数过多");
-
-        verify(logs).logAuthentication(
-                OperationLogService.AuthenticationOutcome.LOCKED,
-                false,
-                null,
-                "unknown",
-                "127.0.0.1",
-                "local",
-                "学号或密码错误"
-        );
     }
 
     @Test
     void remoteRequestsRejectKioskAndNonPrivilegedSessions() {
         TokenService tokens = new TokenService(12);
         AuthInterceptor interceptor = new AuthInterceptor(tokens, users, new RemoteAccessPolicy(8081));
+
+        MockHttpServletRequest appearanceRequest = request("/api/public/appearance", "");
+        appearanceRequest.setLocalPort(8081);
+        assertThat(interceptor.preHandle(
+                appearanceRequest, new MockHttpServletResponse(), new Object())).isTrue();
 
         MockHttpServletRequest kioskRequest = request("/api/public/attendance/lookup", "");
         kioskRequest.setLocalPort(8081);
@@ -333,6 +329,36 @@ class AuthSecurityTest {
         assertThatThrownBy(() -> service.login("unknown", "wrong-password", context))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("尝试次数过多");
+    }
+
+    @Test
+    void rotatingRemoteAccountsCreateOneGlobalLockAuditEvent() {
+        AuthService service = new AuthService(
+                users, jdbc, passwords, tokenService,
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
+                new AuthenticationEventService(jdbc, logs)
+        );
+        AuthService.LoginContext context = new AuthService.LoginContext(true, "127.0.0.1", "test-agent");
+
+        for (int attempt = 0; attempt < LoginAttemptGuard.REMOTE_GLOBAL_MAX_FAILURES; attempt++) {
+            String account = "unknown-" + attempt;
+            assertThatThrownBy(() -> service.login(account, "wrong-password", context))
+                    .isInstanceOf(ApiException.class)
+                    .hasMessageContaining("学号或密码错误");
+        }
+        assertThatThrownBy(() -> service.login("another-account", "wrong-password", context))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("远程登录");
+
+        verify(logs, times(1)).logAuthentication(
+                OperationLogService.AuthenticationOutcome.LOCKED,
+                true,
+                null,
+                "unknown-29",
+                "127.0.0.1",
+                "test-agent",
+                "学号或密码错误"
+        );
     }
 
     @Test

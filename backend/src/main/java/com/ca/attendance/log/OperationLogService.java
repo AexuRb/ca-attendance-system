@@ -23,7 +23,7 @@ public class OperationLogService {
 
     public void log(String actionType, String targetType, Long targetId, Object beforeData, Object afterData, String reason) {
         AuthUser operator = AuthContext.current();
-        jdbc.update("""
+        int inserted = jdbc.update("""
                 INSERT INTO operation_logs (
                   operator_user_id, operator_student_no, operator_name, action_type, target_type,
                   target_id, before_data, after_data, reason
@@ -40,6 +40,9 @@ public class OperationLogService {
                 toJson(afterData),
                 reason
         );
+        if (inserted != 1) {
+            throw new IllegalStateException("操作日志写入失败");
+        }
     }
 
     public void logExport(String exportType, String exportLabel, Map<String, ?> filters,

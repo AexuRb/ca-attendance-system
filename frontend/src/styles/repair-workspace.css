@@ -54,7 +54,7 @@
 
 .refined-admin-layout .repair-date-filters label > span {
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -152,7 +152,7 @@
 .refined-admin-layout .repair-status-copy small {
   overflow: hidden;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -191,7 +191,7 @@
 
 .refined-admin-layout .repair-workspace-heading > span {
   color: var(--ink-500);
-  font: 600 11px var(--font-mono);
+  font: 600 12px var(--font-mono);
 }
 
 .refined-admin-layout .repair-active-grid {
@@ -236,7 +236,7 @@
 
 .refined-admin-layout .case-no {
   color: var(--blue-700);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
   letter-spacing: 0;
 }
 
@@ -245,7 +245,7 @@
   align-items: center;
   gap: 5px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .repair-age svg {
@@ -271,7 +271,7 @@
 
 .refined-admin-layout .repair-card-main::after {
   color: var(--blue-700);
-  font-size: 11px;
+  font-size: 12px;
   content: "查看详情  ›";
   opacity: 0;
   transform: translateX(-5px);
@@ -323,7 +323,7 @@
 
 .refined-admin-layout .repair-active-facts dt {
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .repair-active-facts dd {
@@ -433,7 +433,7 @@
 }
 
 .refined-admin-layout .repair-history-row time {
-  font: 600 11px var(--font-mono);
+  font: 600 12px var(--font-mono);
   white-space: nowrap;
 }
 
@@ -474,7 +474,7 @@
   gap: 12px;
   padding-top: 2px;
   color: var(--ink-500);
-  font: 600 11px var(--font-mono);
+  font: 600 12px var(--font-mono);
 }
 
 .repair-drawer-backdrop {
@@ -532,7 +532,7 @@
   align-items: center;
   gap: 8px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .repair-detail-status > span:not(.status-badge) {
@@ -552,7 +552,7 @@
 
 .repair-detail-lead > span {
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .repair-detail-lead h3 {
@@ -603,7 +603,7 @@
   align-items: center;
   gap: 6px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .repair-detail-facts dt svg {
@@ -746,7 +746,7 @@
 
   .refined-admin-layout .repair-status-tabs b {
     min-width: 0;
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .refined-admin-layout .repair-workspace-heading h2 {
@@ -952,7 +952,7 @@
   padding: 2px 6px;
   background: #edf5f8;
   color: var(--ink-600);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
   text-align: center;
 }
 

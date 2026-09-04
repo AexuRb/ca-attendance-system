@@ -35,7 +35,7 @@
   padding-left: 10px;
   border-left: 1px solid var(--line);
   color: var(--ink-500);
-  font: 700 10px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 .mobile-menu {
   display: none;
@@ -89,7 +89,7 @@
 }
 .auth-brand-lockup span {
   opacity: 0.7;
-  font: 700 9px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 .auth-brand-lockup strong {
   margin-top: 4px;
@@ -103,7 +103,7 @@
   border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 9px 12px;
   background: rgba(8, 46, 70, 0.18);
-  font-size: 11px;
+  font-size: 12px;
 }
 .auth-signal span {
   width: 7px;

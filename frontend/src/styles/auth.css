@@ -110,7 +110,7 @@
 .auth-signal-layout .auth-brand-lockup div > span {
   margin-top: 3px;
   color: var(--ink-500);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .auth-signal-context {
@@ -118,7 +118,7 @@
   align-items: center;
   gap: 8px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .auth-signal-context i {
@@ -241,7 +241,7 @@
 .auth-signal-layout .auth-heading > p:last-child {
   margin-top: 8px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .auth-signal-layout .field {
@@ -251,7 +251,7 @@
 .auth-signal-layout .field > span,
 .auth-signal-layout .field > label {
   color: var(--ink-700);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -316,7 +316,7 @@
 .auth-signal-layout .check-row,
 .auth-signal-layout .auth-back {
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .auth-signal-layout .auth-back {
@@ -330,7 +330,7 @@
   padding: 0 10px;
   background: var(--blue-50);
   color: var(--blue-700);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   transition:
     color 0.24s,

@@ -40,22 +40,57 @@ class LoginAttemptGuardTest {
     }
 
     @Test
-    void localLoginHasALooserIndependentFailureLimit() {
+    void localLoginIsNeverRateLimited() {
         LoginAttemptGuard guard = new LoginAttemptGuard(CLOCK);
         AuthService.LoginContext local = AuthService.LoginContext.local();
 
-        for (int attempt = 0; attempt < LoginAttemptGuard.LOCAL_MAX_FAILURES; attempt++) {
+        for (int attempt = 0; attempt < 100; attempt++) {
             guard.requireAllowed("admin", local);
             guard.recordFailure("admin", local);
         }
 
-        assertThatThrownBy(() -> guard.requireAllowed("admin", local))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("尝试次数过多");
+        assertThatCode(() -> guard.requireAllowed("admin", local)).doesNotThrowAnyException();
         assertThatCode(() -> guard.requireAllowed(
                 "admin",
                 new AuthService.LoginContext(true, "127.0.0.1", "test-agent")
         )).doesNotThrowAnyException();
+    }
+
+    @Test
+    void rotatingRemoteAccountsEventuallyLocksTheRemoteEntryPoint() {
+        LoginAttemptGuard guard = new LoginAttemptGuard(CLOCK);
+        AuthService.LoginContext remote = new AuthService.LoginContext(true, "127.0.0.1", "test-agent");
+        LoginAttemptGuard.FailureResult lastFailure = null;
+
+        for (int attempt = 0; attempt < 30; attempt++) {
+            guard.requireAllowed("unknown-" + attempt, remote);
+            lastFailure = guard.recordFailure("unknown-" + attempt, remote);
+        }
+
+        assertThat(lastFailure).isNotNull();
+        assertThat(lastFailure.lockedNow()).isTrue();
+        assertThatThrownBy(() -> guard.requireAllowed("another-account", remote))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("远程登录");
+        assertThatCode(() -> guard.requireAllowed("another-account", AuthService.LoginContext.local()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void globalRemoteLockExpiresAtTheConfiguredBoundary() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-08-21T08:00:00Z"));
+        LoginAttemptGuard guard = new LoginAttemptGuard(clock);
+        AuthService.LoginContext remote = new AuthService.LoginContext(true, "127.0.0.1", "test-agent");
+
+        for (int attempt = 0; attempt < 30; attempt++) {
+            guard.recordFailure("unknown-" + attempt, remote);
+        }
+        assertThatThrownBy(() -> guard.requireAllowed("new-account", remote))
+                .isInstanceOf(ApiException.class);
+
+        clock.advance(Duration.ofMinutes(10));
+
+        assertThatCode(() -> guard.requireAllowed("new-account", remote)).doesNotThrowAnyException();
     }
 
     @Test

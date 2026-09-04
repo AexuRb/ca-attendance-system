@@ -57,6 +57,13 @@ export interface DataMetric {
 
 export interface MaintenanceSummary {
   datasets: DataMetric[];
+  backups?: {
+    count: number;
+    totalSize: number;
+    latestFilename?: string | null;
+    latestCreatedAt?: string | null;
+    latestSize: number;
+  };
   generatedAt: string;
 }
 

@@ -1,0 +1,1 @@
+import{M as e,O as t,V as n,at as r}from"./api-DUPpChTn.js";var i=[`data-tone`],a=e({__name:`StatusBadge`,props:{label:{},tone:{}},setup(e){return(a,o)=>(n(),t(`span`,{class:`status-badge`,"data-tone":e.tone},r(e.label),9,i))}});export{a as t};

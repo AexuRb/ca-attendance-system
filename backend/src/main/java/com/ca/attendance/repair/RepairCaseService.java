@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import static com.ca.attendance.common.JdbcWriteChecks.requireOne;
+
 @Service
 public class RepairCaseService {
     private static final DateTimeFormatter CASE_DAY = DateTimeFormatter.BASIC_ISO_DATE;
@@ -128,7 +130,7 @@ public class RepairCaseService {
         requireManager(current);
         RepairCaseItem before = findCase(id).orElseThrow(() -> ApiException.notFound("维修事务不存在"));
         RepairValues values = repairValues(request, before, current);
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE repair_cases
                 SET agreement_type = ?, owner_name = ?, owner_phone = ?, owner_org = ?,
                     device_type = ?, device_brand = ?, device_model = ?, device_serial = ?,
@@ -161,6 +163,7 @@ public class RepairCaseService {
                 current.id(),
                 id
         );
+        requireOne(updated, "维修事务状态已经变化，请刷新后重试");
         RepairCaseItem after = findCase(id).orElseThrow();
         logs.log("UPDATE_REPAIR_CASE", "repair_cases", id, before, after, "修改维修事务");
         return after;
@@ -202,12 +205,13 @@ public class RepairCaseService {
         AuthUser current = AuthContext.current();
         requireRepairDeleter(current);
         RepairCaseItem before = findCase(id).orElseThrow(() -> ApiException.notFound("维修事务不存在"));
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE repair_cases
                 SET deleted_at = datetime('now', 'localtime'), deleted_by = ?,
                     updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ? AND deleted_at IS NULL
                 """, current.id(), current.id(), id);
+        requireOne(updated, "维修事务状态已经变化，请刷新后重试");
         RepairCaseItem after = findDeletedCase(id).orElseThrow();
         logs.log("DELETE_REPAIR_CASE", "repair_cases", id, before, after, "维修事务移入回收站");
         return after;
@@ -218,12 +222,13 @@ public class RepairCaseService {
         AuthUser current = AuthContext.current();
         requireAdmin(current);
         RepairCaseItem before = findDeletedCase(id).orElseThrow(() -> ApiException.notFound("回收站中不存在该维修事务"));
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE repair_cases
                 SET deleted_at = NULL, deleted_by = NULL,
                     updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ? AND deleted_at IS NOT NULL
                 """, current.id(), id);
+        requireOne(updated, "维修事务状态已经变化，请刷新后重试");
         RepairCaseItem after = findCase(id).orElseThrow();
         logs.log("RESTORE_REPAIR_CASE", "repair_cases", id, before, after, "从回收站恢复维修事务");
         return after;
@@ -241,7 +246,8 @@ public class RepairCaseService {
         BackupService.BackupItem safetyBackup = backups.createSystemBackup(
                 "永久删除维修事务前自动备份：" + before.caseNo()
         );
-        jdbc.update("DELETE FROM repair_cases WHERE id = ? AND deleted_at IS NOT NULL", id);
+        int deleted = jdbc.update("DELETE FROM repair_cases WHERE id = ? AND deleted_at IS NOT NULL", id);
+        requireOne(deleted, "维修事务状态已经变化，请刷新后重试");
         PurgeResult result = new PurgeResult(before.caseNo(), safetyBackup);
         logs.log(
                 "PURGE_REPAIR_CASE",

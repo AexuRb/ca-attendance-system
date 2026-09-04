@@ -1,0 +1,377 @@
+:root[data-appearance="spatial"] .data-center-page {
+  --data-line: var(--line);
+  --data-line-soft: var(--line-soft);
+  --data-ink: var(--ink-950);
+  --data-muted: var(--ink-500);
+  --data-blue: var(--blue-600);
+  --data-blue-deep: var(--blue-700);
+  --data-blue-soft: var(--blue-50);
+  width: min(100%, 1380px);
+  gap: 20px;
+}
+
+:root[data-appearance="spatial"] .data-center-page .page-heading h1 {
+  font-size: clamp(34px, 3vw, 42px);
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .data-center-tabs {
+  display: grid;
+  width: min(100%, 620px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  border: 0;
+  border-radius: 8px;
+  padding: 4px;
+  background: #e9e9ed;
+}
+
+:root[data-appearance="spatial"] .data-center-tabs button {
+  min-height: 42px;
+  justify-content: center;
+  border-radius: 6px;
+  color: var(--ink-600);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .data-center-tabs button.active {
+  background: #fff;
+  color: var(--blue-700);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .data-workspace {
+  gap: 18px;
+}
+
+:root[data-appearance="spatial"] .data-frame {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .data-export-overview,
+:root[data-appearance="spatial"] .data-backup-overview,
+:root[data-appearance="spatial"] .data-recycle-overview {
+  min-height: 238px;
+  overflow: hidden;
+}
+
+:root[data-appearance="spatial"] .data-export-lead,
+:root[data-appearance="spatial"] .data-backup-health,
+:root[data-appearance="spatial"] .data-recycle-lead {
+  background: #1d1d1f;
+  color: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .data-export-lead::after {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .data-source-select > span,
+:root[data-appearance="spatial"] .data-export-total > span,
+:root[data-appearance="spatial"] .data-backup-health span,
+:root[data-appearance="spatial"] .data-recycle-lead > span {
+  color: #a1a1a6;
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-source-select select {
+  min-height: 44px;
+  border-color: #48484a;
+  border-radius: 8px;
+  background: #2c2c2e;
+  color: #fff;
+  font-size: 15px;
+}
+
+:root[data-appearance="spatial"] .data-source-select svg {
+  color: #d1d1d6;
+}
+
+:root[data-appearance="spatial"] .data-export-total strong,
+:root[data-appearance="spatial"] .data-latest-backup strong {
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: clamp(42px, 4vw, 54px);
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .data-export-total small,
+:root[data-appearance="spatial"] .data-latest-backup span {
+  color: #a1a1a6;
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-source-overview,
+:root[data-appearance="spatial"] .data-backup-timeline,
+:root[data-appearance="spatial"] .data-recycle-trend {
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .data-source-overview h2,
+:root[data-appearance="spatial"] .data-backup-timeline h2,
+:root[data-appearance="spatial"] .data-recycle-trend h2,
+:root[data-appearance="spatial"] .data-table-toolbar h2 {
+  color: var(--ink-950);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .data-source-overview header span,
+:root[data-appearance="spatial"] .data-backup-timeline header span,
+:root[data-appearance="spatial"] .data-recycle-trend header span,
+:root[data-appearance="spatial"] .data-table-toolbar > div > span {
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-source-bars button {
+  min-height: 32px;
+  border-radius: 6px;
+  color: var(--ink-600);
+}
+
+:root[data-appearance="spatial"] .data-source-bars button:hover,
+:root[data-appearance="spatial"] .data-source-bars button.active {
+  background: var(--blue-50);
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .data-source-bars button > span,
+:root[data-appearance="spatial"] .data-source-bars button > strong {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-source-bars button > i {
+  background: #e9e9ed;
+}
+
+:root[data-appearance="spatial"] .data-source-bars button > i b {
+  background: var(--blue-500);
+}
+
+:root[data-appearance="spatial"] .data-export-result,
+:root[data-appearance="spatial"] .data-backup-action,
+:root[data-appearance="spatial"] .data-recycle-status {
+  background: var(--surface-pearl);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .data-export-result > span,
+:root[data-appearance="spatial"] .data-backup-action span,
+:root[data-appearance="spatial"] .data-recycle-status > span {
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-export-result > strong,
+:root[data-appearance="spatial"] .data-recycle-lead strong {
+  color: var(--blue-700);
+  font-size: 46px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .data-recycle-lead strong {
+  color: #fff;
+}
+
+:root[data-appearance="spatial"] .data-export-result > p,
+:root[data-appearance="spatial"] .data-export-result i,
+:root[data-appearance="spatial"] .data-recycle-lead p,
+:root[data-appearance="spatial"] .data-recycle-lead small {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-recycle-lead p,
+:root[data-appearance="spatial"] .data-recycle-lead small {
+  color: #a1a1a6;
+}
+
+:root[data-appearance="spatial"] .data-table-toolbar {
+  min-height: 72px;
+  border-bottom: 1px solid var(--line);
+  padding-inline: 18px;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .data-export-table-frame,
+:root[data-appearance="spatial"] .data-backup-table-frame,
+:root[data-appearance="spatial"] .data-recycle-table-frame {
+  min-height: 450px;
+}
+
+:root[data-appearance="spatial"] .data-preview-pending {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-pearl);
+}
+
+:root[data-appearance="spatial"] .data-preview-pending > i {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .data-preview-pending strong,
+:root[data-appearance="spatial"] .data-preview-pending span {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] :is(.data-preview-table, .data-backup-table, .data-recycle-table) th {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-pearl);
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] :is(.data-preview-table, .data-backup-table, .data-recycle-table) td {
+  height: 62px;
+  border-bottom-color: var(--line-soft);
+  font-size: 15px;
+}
+
+:root[data-appearance="spatial"] .data-backup-table tbody tr.selected {
+  background: var(--blue-50);
+  box-shadow: inset 3px 0 var(--blue-600);
+}
+
+:root[data-appearance="spatial"] .data-backup-file > svg,
+:root[data-appearance="spatial"] .data-device-cell > svg {
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .data-search-field {
+  width: min(280px, 30vw);
+  min-height: 44px;
+  border-color: var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface-pearl);
+}
+
+:root[data-appearance="spatial"] .data-search-field:focus-within {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+}
+
+:root[data-appearance="spatial"] .data-search-field input {
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .data-config-drawer,
+:root[data-appearance="spatial"] .data-backup-drawer {
+  border-left-color: var(--line);
+  background: #fafafa;
+}
+
+:root[data-appearance="spatial"] .data-drawer-head {
+  min-height: 72px;
+}
+
+:root[data-appearance="spatial"] .data-drawer-head h3,
+:root[data-appearance="spatial"] .data-backup-drawer h4 {
+  color: var(--ink-950);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .data-drawer-head span,
+:root[data-appearance="spatial"] .data-config-title h4,
+:root[data-appearance="spatial"] .data-field-grid label,
+:root[data-appearance="spatial"] .data-backup-facts :is(dt, dd) {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-field-grid label {
+  min-height: 42px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .data-field-grid label.selected {
+  border-color: var(--blue-500);
+  background: var(--blue-50);
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .data-export-footer {
+  min-height: 80px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-pearl);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .data-backup-metrics b,
+:root[data-appearance="spatial"] .data-health-state {
+  color: #fff;
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .data-timeline-track::before {
+  background: var(--line-strong);
+}
+
+:root[data-appearance="spatial"] .data-timeline-track button > i {
+  box-shadow: inset 0 0 0 3px var(--blue-500), 0 0 0 7px var(--blue-50);
+}
+
+:root[data-appearance="spatial"] .data-trend-chart > i {
+  background: var(--blue-200);
+}
+
+:root[data-appearance="spatial"] .data-trend-chart > i.hot,
+:root[data-appearance="spatial"] .data-trend-chart > i:hover {
+  background: var(--blue-600);
+}
+
+:root[data-appearance="spatial"] .data-recycle-status > div > i {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+@media (max-width: 1040px) {
+  :root[data-appearance="spatial"] :is(.data-export-overview, .data-backup-overview, .data-recycle-overview) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :root[data-appearance="spatial"] :is(.data-source-overview, .data-backup-timeline, .data-recycle-trend) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 640px) {
+  :root[data-appearance="spatial"] .data-center-tabs {
+    width: 100%;
+  }
+
+  :root[data-appearance="spatial"] .data-center-tabs button {
+    min-width: 0;
+    min-height: 52px;
+    flex-direction: column;
+    gap: 3px;
+    padding-inline: 4px;
+    font-size: 13px;
+  }
+
+  :root[data-appearance="spatial"] :is(.data-export-overview, .data-backup-overview, .data-recycle-overview) {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="spatial"] :is(.data-source-overview, .data-backup-timeline, .data-recycle-trend) {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  :root[data-appearance="spatial"] .data-search-field {
+    width: 100%;
+  }
+
+  :root[data-appearance="spatial"] .data-export-footer {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+}

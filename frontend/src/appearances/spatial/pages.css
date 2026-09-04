@@ -1,0 +1,200 @@
+/* Reviews: crisp task queue with state controls as the visual anchor. */
+:root[data-appearance="spatial"] .admin-layout[data-page="reviews"] .reviews-page {
+  width: min(100%, 1180px);
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-list {
+  display: grid;
+  gap: 10px;
+  background: transparent;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-row {
+  grid-template-columns: 230px minmax(0, 1fr) auto;
+  gap: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px 20px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-row:hover {
+  border-color: #b7d9f6;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(20, 27, 36, 0.08);
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-row .avatar {
+  border-radius: 50%;
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-person strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .review-state-actions .button {
+  min-width: 108px;
+}
+
+:root[data-appearance="spatial"] .review-state-action {
+  border-radius: 8px;
+}
+
+/* Attendance: a clean searchable record surface. */
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] .table-shell {
+  min-height: 440px;
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] td {
+  padding-block: 17px;
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--blue-600);
+}
+
+/* Schedule: system calendar canvas. */
+:root[data-appearance="spatial"] .schedule-focus-board {
+  gap: 14px;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-days {
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day {
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day:hover {
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day.active {
+  background: var(--blue-600);
+  color: #fff;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-workspace {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-appearance="spatial"] .schedule-focus-panel,
+:root[data-appearance="spatial"] .schedule-slot-card {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-time {
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .schedule-assignee-initial {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+/* Members: directory table with contact identity emphasis. */
+:root[data-appearance="spatial"] .members-page .selection-toolbar {
+  border: 1px solid #b8daf7;
+  border-radius: 8px;
+  background: var(--blue-50);
+}
+
+:root[data-appearance="spatial"] .members-page .member-table tbody tr:hover {
+  background: var(--blue-50);
+}
+
+:root[data-appearance="spatial"] .members-page .member-identity strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .members-page .avatar.small {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+
+/* Profile: account overview with a dark identity header. */
+:root[data-appearance="spatial"] .profile-page .profile-summary {
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: #1d1d1f;
+  color: #fff;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-summary span,
+:root[data-appearance="spatial"] .profile-page .profile-summary p {
+  color: #b7b7bd;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-avatar {
+  background: #fff;
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-stat strong {
+  color: #fff;
+  font-size: 27px;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-workspace {
+  grid-template-columns: minmax(300px, 0.76fr) minmax(480px, 1.24fr);
+  gap: 18px;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-contact-panel,
+:root[data-appearance="spatial"] .profile-page .profile-record-panel {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+
+
+@media (max-width: 1120px) {
+  :root[data-appearance="spatial"] .profile-page .profile-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="spatial"] .reviews-page .review-row {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  :root[data-appearance="spatial"] .reviews-page .review-state-actions {
+    grid-column: 2;
+  }
+
+}
+
+@media (max-width: 760px) {
+  :root[data-appearance="spatial"] .reviews-page .review-row {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="spatial"] .reviews-page .review-state-actions {
+    grid-column: 1;
+  }
+
+  :root[data-appearance="spatial"] .command-welcome-detail h1 {
+    font-size: 40px;
+  }
+}

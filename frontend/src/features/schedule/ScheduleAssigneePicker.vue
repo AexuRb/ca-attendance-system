@@ -4,7 +4,9 @@
       <Search aria-hidden="true" />
       <input
         v-model.trim="keyword"
+        name="scheduleAssigneeSearch"
         aria-label="搜索排班人员"
+        autocomplete="off"
         placeholder="搜索姓名或学号"
       />
       <span>{{ modelValue.length }} 人已选</span>

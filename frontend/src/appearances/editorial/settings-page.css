@@ -1,0 +1,329 @@
+:root[data-appearance="editorial"] .settings-page .section-heading { background: transparent; border: 0; padding: 0; margin-bottom: 20px; }
+
+/* Settings retain shared behavior; only this appearance is restyled. */
+:root[data-appearance="editorial"] .settings-page { gap: 28px; min-width: 0; }
+
+:root[data-appearance="editorial"] .settings-page :is(.setting-section, .duty-policy-panel, .duty-period-panel, .duty-time-calendar) { min-width: 0; box-shadow: none; }
+
+:root[data-appearance="editorial"] .settings-page :is(.section-heading, .duty-section-heading) { gap: 16px; flex-wrap: wrap; }
+
+:root[data-appearance="editorial"] .settings-page :is(.section-heading, .duty-section-heading) h2 { font-size: 24px; line-height: 1.35; }
+
+:root[data-appearance="editorial"] .settings-page .eyebrow { display: none; }
+
+:root[data-appearance="editorial"] .settings-page :is(.button, .icon-button) { min-height: 44px; font-size: 15px; flex-shrink: 0; }
+
+:root[data-appearance="editorial"] .settings-page :is(.appearance-choice, .weekday-calendar-leaf, .duty-policy-option, .duty-policy-icon, .duty-period-tab, .duty-calendar-block, .duty-calendar-compact-row) { box-shadow: none; transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease; }
+
+:root[data-appearance="editorial"] .settings-page :is(.appearance-choice:hover, .weekday-calendar-day:hover .weekday-calendar-leaf, .weekday-calendar-day[aria-pressed="true"] .weekday-calendar-leaf, .duty-policy-option:not(.readonly):hover, .duty-policy-option:hover .duty-policy-icon, .duty-period-tab:hover, .duty-calendar-block:hover, .duty-calendar-block.selected, .duty-calendar-compact-row:hover) { transform: none; box-shadow: none; }
+
+:root[data-appearance="editorial"] .settings-page .appearance-choice-copy { min-width: 0; }
+
+:root[data-appearance="editorial"] .settings-page .appearance-choice-copy strong { font-size: 18px; }
+
+:root[data-appearance="editorial"] .settings-page :is(.appearance-choice-copy small, .appearance-readonly, .appearance-current, .weekday-calendar-state, .weekday-calendar-count, .duty-policy-copy small, .duty-policy-state, .duty-readonly-state, .duty-period-count, .duty-period-tab small, .duty-period-footer > span, .duty-dirty-state, .duty-calendar-hours > span) { font-size: 14px; }
+
+:root[data-appearance="editorial"] .settings-page .appearance-current { position: static; margin: 6px 4px 0; color: var(--blue-800); }
+
+:root[data-appearance="editorial"] .settings-page .appearance-choice.selected { border-color: var(--blue-600); box-shadow: inset 0 0 0 1px var(--blue-600); }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-selector { padding: 0; border: 0; background: transparent; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-cap { letter-spacing: 0; font-weight: 500; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-body strong { font-size: 20px; font-weight: 500; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-body small { display: none; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-count { margin-top: 16px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-time-workspace {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  align-items: start;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-option {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 12px;
+  border-color: var(--line);
+  color: var(--ink-900);
+  background: var(--surface);
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-option.active { border-color: var(--blue-600); color: var(--ink-900); background: var(--blue-50); }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-option.inactive { border-color: var(--line-strong); background: var(--surface-soft); }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--blue-800);
+  background: var(--blue-100);
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-option.inactive .duty-policy-icon { color: var(--ink-600); background: var(--line-soft); }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-copy strong { font-size: 17px; font-weight: 600; }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-copy small { color: var(--ink-600); }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-state {
+  font-weight: 500;
+  color: var(--surface);
+  background: var(--blue-800);
+  animation: none;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-option.inactive .duty-policy-state { color: var(--ink-600); background: var(--line-soft); }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-option.readonly { border-style: dashed; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-tabs {
+  flex-wrap: wrap;
+  overflow: visible;
+  margin: 0 0 18px;
+  padding: 0;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-period-tab {
+  min-height: 44px;
+  max-width: 100%;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-color: var(--line-strong);
+  color: var(--ink-700);
+  background: var(--surface);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-period-tab.selected { color: var(--surface); border-color: var(--blue-800); background: var(--blue-800); }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-tab.disabled:not(.selected) { color: var(--ink-600); background: var(--surface-soft); }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-form { border-color: var(--line-strong); background: var(--surface); padding: 20px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-form-head { flex-wrap: wrap; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-form-head > div:first-child > span { font-size: 14px; color: var(--ink-600); }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-form-head > div:first-child > strong { font-size: 20px; font-weight: 500; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-actions .icon-button { width: 40px; min-height: 40px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-fields .field > span { font-size: 15px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-fields input {
+  min-width: 0;
+  width: 100%;
+  font-size: 18px;
+  font-weight: 500;
+  min-height: 48px;
+  color: var(--ink-900);
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-period-meta { flex-wrap: wrap; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-enabled {
+  min-height: 40px;
+  color: var(--ink-600);
+  background: var(--surface-soft);
+  font-size: 14px;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-period-enabled.active { color: var(--blue-800); background: var(--blue-50); }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-enabled i { background: var(--ink-400); }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-enabled.active i { background: var(--blue-600); }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-footer { flex-wrap: wrap; padding-top: 16px; border-top: 1px solid var(--line); }
+
+:root[data-appearance="editorial"] .settings-page :is(.duty-calendar-layout, .duty-calendar-hours, .duty-calendar-canvas) { min-height: 520px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-canvas { border-color: var(--line-strong); background: transparent; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-line { background: var(--line); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-block { border-color: var(--blue-300); color: var(--blue-800); background: var(--blue-50); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-block strong { color: inherit; font-size: 17px; font-weight: 500; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-block > span { font-size: 14px; font-weight: 500; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-block.selected { color: var(--surface); background: var(--blue-800); border-color: var(--blue-800); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-block.disabled { color: var(--ink-600); background: var(--surface-soft); border-color: var(--ink-400); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-block.disabled.selected { color: var(--ink-900); background: var(--line); border-color: var(--ink-600); }
+
+:root[data-appearance="editorial"] .settings-page :is(.duty-period-tab.conflict, .duty-calendar-compact-row.conflict) { color: var(--red-700); background: var(--red-100); border-color: var(--red-500); }
+
+:root[data-appearance="editorial"] .settings-page :is(.duty-period-tab.conflict.selected, .duty-calendar-block.conflict, .duty-calendar-block.conflict.selected, .duty-calendar-block.disabled.conflict) {
+  color: #fff;
+  background: var(--red-700);
+  border-color: var(--red-700);
+  box-shadow: none;
+  animation: none;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-period-form.invalid { border-color: var(--red-500); }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-form.invalid .duty-period-fields input { border-color: var(--red-500); box-shadow: none; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row { color: var(--ink-900); background: var(--surface); border-color: var(--line-strong); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row strong { color: inherit; font-size: 16px; font-weight: 500; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row :is(small, span) { font-size: 14px; color: inherit; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row.selected { background: var(--blue-50); border-color: var(--blue-600); box-shadow: none; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row.disabled { color: var(--ink-600); background: var(--surface-soft); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row.conflict { color: var(--red-700); background: var(--red-100); border-color: var(--red-500); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row.conflict small { color: inherit; }
+:root[data-appearance="editorial"] .settings-page > .setting-section:not(.duty-time-workspace) {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  column-gap: 32px;
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-radius: 0;
+  padding: 24px 0;
+  background: transparent;
+  overflow: visible;
+}
+
+:root[data-appearance="editorial"] .settings-page > .setting-section:not(.duty-time-workspace) > .section-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  margin: 0;
+  gap: 20px;
+}
+
+:root[data-appearance="editorial"] .settings-page .appearance-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+:root[data-appearance="editorial"] .settings-page .appearance-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  border-radius: 4px;
+  padding: 10px;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .settings-page .appearance-preview { width: 100%; height: 100px; }
+
+:root[data-appearance="editorial"] .settings-page :is(.appearance-readonly, .appearance-setting-section > .form-error) { grid-column: 2; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-grid { gap: 0; padding: 0; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-leaf {
+  min-height: 132px;
+  grid-template-rows: 30px 64px 36px;
+  border-radius: 0;
+  border-width: 1px 0 1px 1px;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-day:last-child .weekday-calendar-leaf { border-right-width: 1px; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-day[aria-pressed="true"] .weekday-calendar-leaf { border-color: var(--line-strong); background: var(--surface-soft); }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-day[aria-pressed="true"] .weekday-calendar-cap { color: var(--surface); background: var(--surface-dark); }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-body strong { font-family: var(--font-editorial); font-size: 24px; font-weight: 400; }
+
+:root[data-appearance="editorial"] .settings-page .duty-time-workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "policy policy" "editor calendar"; gap: 28px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-time-side { display: contents; }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-panel {
+  grid-area: policy;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 32px;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-panel > .duty-section-heading {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 18px;
+  margin: 0;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-option { grid-template-columns: 40px minmax(0, 1fr); border-radius: 4px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-state { grid-column: 2; justify-self: start; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-panel { grid-area: editor; }
+
+:root[data-appearance="editorial"] .settings-page :is(.duty-policy-panel, .duty-period-panel, .duty-time-calendar) {
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-radius: 0;
+  padding: 24px 0 0;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .settings-page .duty-period-form { border-width: 1px 0; border-radius: 0; background: var(--surface-soft); }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-block { border-radius: 2px; border-left-width: 4px; }
+
+@container settings-page (max-width: 1000px) {
+:root[data-appearance="editorial"] .settings-page .duty-time-workspace { grid-template-columns: minmax(0, 1fr); grid-template-areas: "policy" "editor" "calendar"; }
+
+:root[data-appearance="editorial"] .settings-page > .setting-section:not(.duty-time-workspace) { grid-template-columns: 1fr; gap: 20px; }
+
+:root[data-appearance="editorial"] .settings-page > .setting-section:not(.duty-time-workspace) > .section-heading { flex-direction: row; align-items: center; justify-content: space-between; }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-panel { grid-template-columns: 1fr; gap: 20px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-panel > .duty-section-heading { flex-direction: row; align-items: center; justify-content: space-between; }
+
+:root[data-appearance="editorial"] .settings-page :is(.appearance-readonly, .appearance-setting-section > .form-error) { grid-column: 1; }
+}
+
+@media (max-width: 760px) {
+:root[data-appearance="editorial"] .settings-page .duty-time-workspace { grid-template-columns: minmax(0, 1fr); grid-template-areas: "policy" "editor" "calendar"; }
+
+:root[data-appearance="editorial"] .settings-page .duty-policy-grid { grid-template-columns: 1fr; }
+
+:root[data-appearance="editorial"] .settings-page .appearance-choice-grid { grid-template-columns: 1fr; }
+
+:root[data-appearance="editorial"] .settings-page .appearance-choice {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+:root[data-appearance="editorial"] .settings-page .appearance-preview { width: 90px; height: 80px; grid-row: 1 / 3; }
+
+:root[data-appearance="editorial"] .settings-page .appearance-current { grid-column: 2; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+
+:root[data-appearance="editorial"] .settings-page .weekday-calendar-leaf { border-width: 1px; }
+
+:root[data-appearance="editorial"] .settings-page :is(.section-heading, .duty-section-heading) h2 { font-size: 22px; }
+
+:root[data-appearance="editorial"] .settings-page .duty-period-fields { grid-template-columns: minmax(0, 1fr); }
+
+:root[data-appearance="editorial"] .settings-page .duty-time-divider { display: none; }
+
+:root[data-appearance="editorial"] .settings-page .duty-calendar-compact-row { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; padding: 10px 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+:root[data-appearance="editorial"] .settings-page * { transition-duration: 0s; animation: none; }
+}

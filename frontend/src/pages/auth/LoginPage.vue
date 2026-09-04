@@ -47,7 +47,7 @@
       </div>
       <div class="auth-form-options">
         <label class="check-row"
-          ><input v-model="remember" type="checkbox" /><span>{{
+          ><input v-model="remember" name="rememberAccount" type="checkbox" /><span>{{
             rememberLabel
           }}</span></label
         >

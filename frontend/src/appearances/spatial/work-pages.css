@@ -1,0 +1,495 @@
+/* High-frequency work pages: focused system surfaces with progressive detail. */
+:root[data-appearance="spatial"] .admin-layout:is([data-page="reviews"], [data-page="attendance"], [data-page="schedule"], [data-page="members"], [data-page="profile"]) .admin-route-frame {
+  width: min(100%, 1360px);
+}
+
+:root[data-appearance="spatial"] .admin-layout:is([data-page="reviews"], [data-page="attendance"], [data-page="schedule"], [data-page="members"], [data-page="profile"]) .page-header {
+  margin-bottom: 24px;
+  padding-bottom: 4px;
+}
+
+:root[data-appearance="spatial"] .admin-layout:is([data-page="reviews"], [data-page="attendance"], [data-page="schedule"], [data-page="members"], [data-page="profile"]) .page-heading h1 {
+  font-size: clamp(32px, 3vw, 40px);
+  font-weight: 600;
+}
+
+/* Reviews are a fast task queue, not a stack of floating cards. */
+:root[data-appearance="spatial"] .reviews-page {
+  width: min(100%, 1240px);
+}
+
+:root[data-appearance="spatial"] .reviews-page > .filter-bar {
+  min-height: 58px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px 8px 18px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .reviews-page .filter-summary {
+  color: var(--ink-700);
+  font-size: 15px;
+}
+
+:root[data-appearance="spatial"] .reviews-page .filter-summary > svg {
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .reviews-page .filter-summary small {
+  margin-top: 3px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-list {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-row {
+  display: grid;
+  grid-template-columns: 50px minmax(170px, 0.58fr) minmax(430px, 1.42fr) 44px;
+  align-items: center;
+  gap: 18px;
+  min-height: 104px;
+  border: 0;
+  border-bottom: 1px solid var(--divider-soft);
+  border-radius: 0;
+  padding: 18px 20px;
+  background: #fff;
+  box-shadow: none;
+  transition: background 160ms ease;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-row:last-child {
+  border-bottom: 0;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-row:hover {
+  border-color: var(--divider-soft);
+  background: var(--surface-pearl);
+  box-shadow: none;
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-row .avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--blue-100);
+  color: var(--primary);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-person strong {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-person span {
+  margin-top: 4px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-state-actions {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-state-action {
+  min-height: 62px;
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface-pearl);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-state-action.is-actionable:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: #f2f8ff;
+  box-shadow: none;
+  transform: scale(1.01);
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-state-action__copy small,
+:root[data-appearance="spatial"] .reviews-page .review-state-action__status {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-state-action__copy strong {
+  font-size: 16px;
+}
+
+:root[data-appearance="spatial"] .reviews-page .review-reject {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+}
+
+/* Attendance uses a wide filter dock and one stable data surface. */
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] .filter-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(154px, 0.72fr)) minmax(260px, 1.5fr) minmax(150px, 0.72fr) auto;
+  align-items: end;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] .table-shell {
+  min-height: 460px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] thead {
+  background: var(--canvas-parchment);
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] th {
+  color: var(--ink-600);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] td {
+  border-bottom-color: var(--divider-soft);
+  padding-block: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] tbody tr:hover {
+  background: #f5f9ff;
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+:root[data-appearance="spatial"] .admin-layout[data-page="attendance"] td:first-child strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* Schedule uses a segmented week control and places summaries below the task. */
+:root[data-appearance="spatial"] .schedule-focus-board {
+  gap: 18px;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-days {
+  display: grid;
+  grid-auto-columns: minmax(136px, 1fr);
+  grid-auto-flow: column;
+  gap: 5px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day {
+  min-height: 80px;
+  border: 0;
+  border-radius: 7px;
+  padding: 13px 14px;
+  background: transparent;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day:hover {
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day.active strong,
+:root[data-appearance="spatial"] .schedule-focus-day.active small,
+:root[data-appearance="spatial"] .schedule-focus-day.active b,
+:root[data-appearance="spatial"] .schedule-focus-day.active b::after {
+  color: #fff;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-day small {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-workspace {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-main {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-header {
+  min-height: 82px;
+  background: var(--surface-pearl);
+}
+
+:root[data-appearance="spatial"] .schedule-focus-header h2 {
+  font-size: 23px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-header p,
+:root[data-appearance="spatial"] .schedule-focus-day-state {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .schedule-focus-panel h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .schedule-slot-card {
+  border-color: var(--line);
+  border-left: 3px solid var(--primary);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .schedule-assignee-item {
+  min-height: 44px;
+  border-color: var(--divider-soft);
+  background: var(--surface-pearl);
+}
+
+/* Members use a calm directory surface with an expandable search dock. */
+:root[data-appearance="spatial"] .members-page .member-filter-shell {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .members-page .member-search-field input {
+  min-height: 44px;
+  border-radius: 999px;
+  padding-inline: 18px;
+}
+
+:root[data-appearance="spatial"] .members-page .selection-toolbar {
+  border: 1px solid #b8daf7;
+  border-radius: 8px;
+  background: #f2f8ff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .members-page .member-table {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .members-page .member-table thead {
+  background: var(--canvas-parchment);
+}
+
+:root[data-appearance="spatial"] .members-page .member-table tbody tr:hover,
+:root[data-appearance="spatial"] .members-page .member-table tbody tr.is-selected {
+  background: #f5f9ff;
+}
+
+:root[data-appearance="spatial"] .members-page .member-table td {
+  border-bottom-color: var(--divider-soft);
+  padding-block: 15px;
+}
+
+:root[data-appearance="spatial"] .members-page .member-identity strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .members-page .avatar.small {
+  background: var(--blue-100);
+  color: var(--primary);
+}
+
+/* Profile moves editable details into a horizontal settings surface. */
+:root[data-appearance="spatial"] .profile-page .profile-summary {
+  grid-template-columns: auto minmax(220px, 1.3fr) repeat(3, minmax(120px, 0.5fr));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  background: #fff;
+  color: var(--ink-950);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-summary h2 {
+  font-size: 27px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-summary span,
+:root[data-appearance="spatial"] .profile-page .profile-summary p {
+  color: var(--ink-500);
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-avatar {
+  background: var(--blue-100);
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-stat {
+  border-left: 1px solid var(--line);
+  padding-left: 20px;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-stat strong {
+  color: var(--ink-950);
+  font-size: 28px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-workspace {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-contact-panel,
+:root[data-appearance="spatial"] .profile-page .profile-record-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-contact-panel {
+  min-height: 0;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-contact-panel .form-grid {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  align-items: end;
+  gap: 14px;
+  padding: 20px;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-contact-panel .form-actions {
+  align-self: end;
+  margin: 0;
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-record-toolbar {
+  background: var(--surface-pearl);
+}
+
+:root[data-appearance="spatial"] .profile-page .profile-record-scroll {
+  max-height: 580px;
+}
+
+@media (max-width: 1180px) {
+  :root[data-appearance="spatial"] .reviews-page .review-row {
+    grid-template-columns: 48px minmax(160px, 0.55fr) minmax(360px, 1.45fr) 42px;
+    gap: 14px;
+  }
+
+  :root[data-appearance="spatial"] .admin-layout[data-page="attendance"] .filter-bar {
+    grid-template-columns: repeat(2, minmax(150px, 1fr)) minmax(220px, 1.6fr);
+  }
+
+  :root[data-appearance="spatial"] .admin-layout[data-page="attendance"] .filter-bar > :nth-last-child(-n + 2) {
+    grid-row: 2;
+  }
+
+  :root[data-appearance="spatial"] .profile-page .profile-contact-panel .form-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  :root[data-appearance="spatial"] .reviews-page .review-row {
+    grid-template-columns: 48px minmax(0, 1fr) 42px;
+  }
+
+  :root[data-appearance="spatial"] .reviews-page .review-state-actions {
+    grid-column: 2 / 3;
+  }
+}
+
+@media (max-width: 720px) {
+  :root[data-appearance="spatial"] .reviews-page .review-row {
+    grid-template-columns: 44px minmax(0, 1fr) 40px;
+    padding-inline: 14px;
+  }
+
+  :root[data-appearance="spatial"] .reviews-page .review-state-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="spatial"] .admin-layout[data-page="attendance"] .filter-bar,
+  :root[data-appearance="spatial"] .profile-page .profile-contact-panel .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="spatial"] .admin-layout[data-page="attendance"] .filter-bar > :nth-last-child(-n + 2) {
+    grid-row: auto;
+  }
+
+  :root[data-appearance="spatial"] .schedule-focus-summary {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="spatial"] .profile-page .profile-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  :root[data-appearance="spatial"] .profile-page .profile-stat {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding: 14px 0 0;
+  }
+}

@@ -13,21 +13,22 @@ import java.util.Map;
 
 @Component
 public class LoginAttemptGuard {
-    static final int LOCAL_MAX_FAILURES = 10;
     static final int REMOTE_MAX_FAILURES = 5;
+    static final int REMOTE_GLOBAL_MAX_FAILURES = 30;
 
-    private static final Policy LOCAL_POLICY = new Policy(
-            LOCAL_MAX_FAILURES,
-            Duration.ofMinutes(5),
-            Duration.ofMinutes(1),
-            "本机登录尝试次数过多，请 1 分钟后再试"
-    );
     private static final Policy REMOTE_POLICY = new Policy(
             REMOTE_MAX_FAILURES,
             Duration.ofMinutes(15),
             Duration.ofMinutes(10),
             "远程登录尝试次数过多，请 10 分钟后再试"
     );
+    private static final Policy REMOTE_GLOBAL_POLICY = new Policy(
+            REMOTE_GLOBAL_MAX_FAILURES,
+            Duration.ofMinutes(15),
+            Duration.ofMinutes(10),
+            "远程登录失败次数过多，请 10 分钟后再试"
+    );
+    private static final String REMOTE_GLOBAL_KEY = "REMOTE|*";
     private static final int MAX_TRACKED_KEYS = 2048;
 
     private final Map<String, AttemptState> attempts = new HashMap<>();
@@ -43,16 +44,23 @@ public class LoginAttemptGuard {
     }
 
     public synchronized void requireAllowed(String account, AuthService.LoginContext context) {
-        String key = key(account, context.remote());
+        if (!context.remote()) {
+            return;
+        }
+        Instant now = clock.instant();
+        requireAllowed(REMOTE_GLOBAL_KEY, REMOTE_GLOBAL_POLICY, now);
+        requireAllowed(key(account), REMOTE_POLICY, now);
+    }
+
+    private void requireAllowed(String key, Policy policy, Instant now) {
         AttemptState state = attempts.get(key);
         if (state == null) {
             return;
         }
 
-        Instant now = clock.instant();
         if (state.blockedUntil() != null) {
             if (state.blockedUntil().isAfter(now)) {
-                throw ApiException.tooManyRequests(policy(context.remote()).blockedMessage());
+                throw ApiException.tooManyRequests(policy.blockedMessage());
             }
             attempts.remove(key);
             return;
@@ -63,33 +71,47 @@ public class LoginAttemptGuard {
     }
 
     public synchronized FailureResult recordFailure(String account, AuthService.LoginContext context) {
+        if (!context.remote()) {
+            return new FailureResult(0, false, null);
+        }
         Instant now = clock.instant();
-        Policy policy = policy(context.remote());
-        String key = key(account, context.remote());
+        FailureResult accountFailure = recordFailure(key(account), REMOTE_POLICY, now);
+        FailureResult globalFailure = recordFailure(REMOTE_GLOBAL_KEY, REMOTE_GLOBAL_POLICY, now);
+        cleanup(now);
+        return new FailureResult(
+                accountFailure.failures(),
+                accountFailure.lockedNow() || globalFailure.lockedNow(),
+                latest(accountFailure.blockedUntil(), globalFailure.blockedUntil())
+        );
+    }
+
+    private FailureResult recordFailure(String key, Policy policy, Instant now) {
         AttemptState previous = attempts.get(key);
         boolean previousExpired = previous == null || expired(previous, now);
         int failures = previousExpired ? 1 : previous.failures() + 1;
         boolean lockedNow = failures == policy.maxFailures();
         Instant blockedUntil = failures >= policy.maxFailures() ? now.plus(policy.blockDuration()) : null;
         attempts.put(key, new AttemptState(failures, now, blockedUntil, policy.attemptWindow()));
-        cleanup(now);
         return new FailureResult(failures, lockedNow, blockedUntil);
     }
 
     public synchronized void recordSuccess(String account, AuthService.LoginContext context) {
-        attempts.remove(key(account, context.remote()));
-        if (!context.remote()) {
-            attempts.remove(key(account, true));
-        }
+        attempts.remove(key(account));
     }
 
-    private Policy policy(boolean remote) {
-        return remote ? REMOTE_POLICY : LOCAL_POLICY;
-    }
-
-    private String key(String account, boolean remote) {
+    private String key(String account) {
         String normalizedAccount = account == null ? "" : account.trim().toLowerCase(Locale.ROOT);
-        return (remote ? "REMOTE|" : "LOCAL|") + normalizedAccount;
+        return "REMOTE|" + normalizedAccount;
+    }
+
+    private Instant latest(Instant left, Instant right) {
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+        return left.isAfter(right) ? left : right;
     }
 
     private void cleanup(Instant now) {

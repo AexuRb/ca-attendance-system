@@ -1,0 +1,117 @@
+:root[data-appearance="editorial"] {
+  font-size: 16px;
+}
+
+:root[data-appearance="editorial"] body {
+  color: var(--ink-800);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+:root[data-appearance="editorial"] h1,
+:root[data-appearance="editorial"] h2,
+:root[data-appearance="editorial"] .page-header h1,
+:root[data-appearance="editorial"] .page-header h2,
+:root[data-appearance="editorial"] .modal-header h2,
+:root[data-appearance="editorial"] .drawer-header h2,
+:root[data-appearance="editorial"] .section-heading h2 {
+  color: var(--ink-950);
+  font-family: var(--font-editorial);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+:root[data-appearance="editorial"] h3,
+:root[data-appearance="editorial"] h4,
+:root[data-appearance="editorial"] strong {
+  color: var(--ink-900);
+}
+
+:root[data-appearance="editorial"] .page-header h1,
+:root[data-appearance="editorial"] .page-header h2 {
+  font-size: clamp(32px, 3vw, 40px);
+  line-height: 1.16;
+}
+
+:root[data-appearance="editorial"] .section-heading h2,
+:root[data-appearance="editorial"] .section-heading h3,
+:root[data-appearance="editorial"] .modal-header h2,
+:root[data-appearance="editorial"] .drawer-header h2 {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+:root[data-appearance="editorial"] .page-description,
+:root[data-appearance="editorial"] .section-heading span,
+:root[data-appearance="editorial"] .field small,
+:root[data-appearance="editorial"] .panel-footer,
+:root[data-appearance="editorial"] .topbar-breadcrumbs {
+  color: var(--ink-600);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+:root[data-appearance="editorial"] .field > span,
+:root[data-appearance="editorial"] .filter-bar label > span,
+:root[data-appearance="editorial"] .section-navigation > p,
+:root[data-appearance="editorial"] th {
+  color: var(--ink-600);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+:root[data-appearance="editorial"] .section-navigation a {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+:root[data-appearance="editorial"] .section-brand-copy small,
+:root[data-appearance="editorial"] .eyebrow,
+:root[data-appearance="editorial"] .status-badge,
+:root[data-appearance="editorial"] .badge {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+:root[data-appearance="editorial"] .button,
+:root[data-appearance="editorial"] .icon-button,
+:root[data-appearance="editorial"] input,
+:root[data-appearance="editorial"] select,
+:root[data-appearance="editorial"] textarea {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+:root[data-appearance="editorial"] input,
+:root[data-appearance="editorial"] select,
+:root[data-appearance="editorial"] textarea,
+:root[data-appearance="editorial"] td {
+  font-size: 15px;
+}
+
+:root[data-appearance="editorial"] td {
+  line-height: 1.5;
+}
+
+:root[data-appearance="editorial"] code,
+:root[data-appearance="editorial"] kbd,
+:root[data-appearance="editorial"] .mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-appearance="editorial"] time,
+:root[data-appearance="editorial"] [data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 620px) {
+  :root[data-appearance="editorial"] .page-header h1,
+  :root[data-appearance="editorial"] .page-header h2 {
+    font-size: 30px;
+  }
+}

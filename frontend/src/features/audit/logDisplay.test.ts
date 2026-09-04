@@ -11,6 +11,7 @@ describe("audit log display", () => {
     expect(auditActionLabel("UPDATE_ATTENDANCE_POLICY")).toBe(
       "调整有效时长规则",
     );
+    expect(auditActionLabel("UPDATE_UI_APPEARANCE")).toBe("切换全局界面");
     expect(
       auditTargetLabel({ targetType: "duty_schedule_slots", targetId: 12 }),
     ).toBe("固定排班 #12");

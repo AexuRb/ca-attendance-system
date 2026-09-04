@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   notify: vi.fn(),
 }));
 
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
 vi.mock("../../shared/api", () => ({
   get: (...args: unknown[]) => mocks.get(...args),
   del: (...args: unknown[]) => mocks.del(...args),
@@ -46,6 +51,17 @@ afterEach(() => {
 });
 
 describe("LogsPage request states", () => {
+  it("offers readable operation types instead of a free-form code field", async () => {
+    mocks.get.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
+    const wrapper = mount(LogsPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+
+    const select = wrapper.get('select[name="logActionType"]');
+    expect(select.text()).toContain("修改成员");
+    expect(wrapper.find('input[placeholder="例如 UPDATE"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it("keeps the latest filtered result when an older response arrives late", async () => {
     const oldResult = deferred<ReturnType<typeof page>>();
     const newResult = deferred<ReturnType<typeof page>>();

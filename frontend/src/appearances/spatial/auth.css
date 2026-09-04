@@ -1,0 +1,206 @@
+/* Authentication: a compact system bar over one focused form. */
+:root[data-appearance="spatial"] .auth-signal-layout {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 1fr;
+  grid-template-rows: 84px minmax(0, 1fr) 46px;
+  overflow: hidden;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="spatial"] .auth-signal-layout::before,
+:root[data-appearance="spatial"] .auth-signal-layout::after,
+:root[data-appearance="spatial"] .auth-form-shell::before {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .auth-signal-header {
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  min-height: 84px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 0 clamp(24px, 5vw, 72px);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink-950);
+  backdrop-filter: saturate(180%) blur(24px);
+}
+
+:root[data-appearance="spatial"] .auth-signal-header::after {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .auth-brand-lockup {
+  align-items: center;
+  gap: 14px;
+}
+
+:root[data-appearance="spatial"] .auth-brand-mark {
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ink-950);
+}
+
+:root[data-appearance="spatial"] .auth-brand-mark img {
+  width: 48px;
+  height: 48px;
+  filter: none;
+}
+
+:root[data-appearance="spatial"] .auth-brand-lockup strong {
+  color: var(--ink-950);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .auth-brand-lockup div > span {
+  margin-top: 3px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .auth-signal-context {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding-inline: 15px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--ink-600);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .auth-signal-context i {
+  background: #34c759;
+  box-shadow: 0 0 0 5px rgba(52, 199, 89, 0.12);
+}
+
+:root[data-appearance="spatial"] .auth-form-panel {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  align-items: center;
+  padding: clamp(34px, 7vh, 76px) 22px;
+  overflow-y: auto;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="spatial"] .auth-form-shell {
+  width: min(480px, 100%);
+  margin-inline: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: clamp(30px, 4vw, 46px);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .auth-form {
+  width: 100%;
+  gap: 20px;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .auth-heading {
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+:root[data-appearance="spatial"] .auth-heading h2 {
+  margin: 0 0 9px;
+  color: var(--ink-950);
+  font-size: clamp(35px, 4vw, 46px);
+  font-weight: 600;
+  line-height: 1.12;
+}
+
+:root[data-appearance="spatial"] .auth-heading .eyebrow {
+  color: var(--primary);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .auth-heading > p:last-child {
+  color: var(--ink-600);
+  font-size: 15px;
+}
+
+:root[data-appearance="spatial"] .auth-form .field > label,
+:root[data-appearance="spatial"] .auth-form .field > span {
+  color: var(--ink-800);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .auth-form input {
+  height: 52px;
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 16px;
+}
+
+:root[data-appearance="spatial"] .auth-form input:hover {
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .auth-form input:focus {
+  border-color: var(--primary-focus);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+}
+
+:root[data-appearance="spatial"] .auth-form .check-row,
+:root[data-appearance="spatial"] .auth-back {
+  color: var(--ink-600);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .auth-back {
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  padding-inline: 12px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .auth-back:hover {
+  border-color: transparent;
+  background: var(--blue-50);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .auth-submit {
+  min-height: 52px;
+  margin-top: 4px;
+  border-radius: 999px;
+  font-size: 16px;
+}
+
+:root[data-appearance="spatial"] .auth-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .auth-submit:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+:root[data-appearance="spatial"] .auth-signal-footer {
+  grid-column: 1;
+  grid-row: 3;
+  border: 0;
+  padding: 0 clamp(24px, 5vw, 72px) 18px;
+  background: var(--surface-soft);
+  color: var(--ink-400);
+  font-size: 13px;
+}

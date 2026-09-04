@@ -29,7 +29,7 @@
 }
 .eyebrow {
   color: var(--blue-600);
-  font: 700 10px/1.2 var(--font-mono);
+  font: 700 12px/1.2 var(--font-mono);
   text-transform: uppercase;
 }
 .button,
@@ -177,12 +177,12 @@
 .field > span,
 .filter-bar label > span {
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
 }
 .field small {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 .form-grid {
   display: grid;
@@ -266,7 +266,7 @@ label.check-row {
 }
 .attendance-reevaluate small {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 .segmented {
   display: inline-flex;
@@ -307,7 +307,7 @@ label.check-row {
   padding: 0 9px;
   background: var(--surface-soft);
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -368,7 +368,7 @@ th {
   padding: 0 14px;
   background: #f4f8fb;
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   text-align: left;
   white-space: nowrap;
 }
@@ -395,7 +395,7 @@ td small {
 td small {
   margin-top: 3px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 .compact-table td {
   padding-top: 8px;
@@ -465,7 +465,7 @@ td small {
 .metric-strip span,
 .metric-grid span {
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
 }
 .metric-strip strong,
 .metric-grid strong {
@@ -475,7 +475,7 @@ td small {
 .metric-strip small,
 .metric-grid small {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 .metric-strip.compact article {
   min-height: 88px;
@@ -488,7 +488,7 @@ td small {
   border-radius: 50%;
   background: var(--surface-soft);
   color: var(--ink-600);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 .rank[data-rank="1"] {
   background: var(--amber-100);
@@ -749,7 +749,7 @@ td small {
 .avatar.small {
   width: 30px;
   height: 30px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Schedule */
@@ -757,7 +757,7 @@ td small {
 /* Training, repairs and data */
 .case-no {
   color: var(--blue-700);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 .agreement-dialog {
   display: grid;
@@ -785,7 +785,7 @@ td small {
 }
 .agreement-dialog header span {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 .agreement-dialog header > div:last-child {
   display: flex;
@@ -848,7 +848,7 @@ td small {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 50%;
-  font: 700 10px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 .export-steps button.active {
   background: var(--surface-blue);
@@ -905,7 +905,7 @@ td small {
 .source-grid small {
   margin-top: 4px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 .field-choice-grid {
   display: grid;
@@ -946,7 +946,7 @@ td small {
 }
 .export-summary span {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 .wizard-actions {
   display: flex;
@@ -981,7 +981,7 @@ td small {
 .backup-list span {
   margin-top: 4px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Settings and logs */
@@ -1048,7 +1048,7 @@ td small {
   background: var(--surface);
   color: var(--ink-500);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 .period-enabled-toggle:has(input:checked) {
@@ -1118,7 +1118,7 @@ td small {
 }
 .account-picker-current em {
   color: var(--danger);
-  font-size: 11px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 700;
 }
@@ -1219,7 +1219,7 @@ td small {
 .log-time span {
   margin-top: 4px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 .log-main > div {
   display: flex;
@@ -1246,7 +1246,7 @@ td small {
 }
 .log-detail dt {
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 .log-detail dd {
   margin: 5px 0 0;
@@ -1269,7 +1269,7 @@ td small {
   padding: 12px;
   background: #f4f8fa;
   color: var(--ink-800);
-  font: 11px/1.6 var(--font-mono);
+  font: 12px/1.6 var(--font-mono);
   white-space: pre-wrap;
 }
 

@@ -15,6 +15,7 @@
       <span>请输入“恢复”确认操作</span>
       <input
         v-model="confirmation"
+        name="restoreConfirmation"
         autocomplete="off"
         placeholder="恢复"
         @keyup.enter="confirm"

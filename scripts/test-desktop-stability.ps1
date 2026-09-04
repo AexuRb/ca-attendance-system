@@ -1,12 +1,16 @@
 [CmdletBinding()]
 param(
-    [switch]$KeepData
+    [switch]$KeepData,
+    [string]$ExecutablePath
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $desktopRoot = Join-Path $repoRoot 'desktop'
 $electron = Join-Path $desktopRoot 'node_modules\electron\dist\electron.exe'
+if ($ExecutablePath) {
+    $electron = (Resolve-Path -LiteralPath $ExecutablePath).Path
+}
 $backendJar = Join-Path $repoRoot 'backend\target\attendance-backend.jar'
 $sessionRoot = Join-Path $env:TEMP ("ca-attendance-desktop-stability-{0}" -f [guid]::NewGuid().ToString('N'))
 $startedProcesses = [System.Collections.Generic.List[System.Diagnostics.Process]]::new()
@@ -82,9 +86,12 @@ function Start-IsolatedDesktop(
     $startInfo.WorkingDirectory = $desktopRoot
     $startInfo.UseShellExecute = $false
     $startInfo.CreateNoWindow = $true
-    $startInfo.ArgumentList.Add('.')
+    if (-not $ExecutablePath) {
+        $startInfo.ArgumentList.Add('.')
+    }
     $startInfo.ArgumentList.Add("--user-data-dir=$userData")
     $startInfo.Environment['CA_ATTENDANCE_ROOT'] = $appRoot
+    [void]$startInfo.Environment.Remove('ELECTRON_RUN_AS_NODE')
     foreach ($name in $smokeEnvironmentNames) {
         [void]$startInfo.Environment.Remove($name)
     }

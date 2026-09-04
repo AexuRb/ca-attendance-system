@@ -30,7 +30,7 @@
 .refined-admin-layout .eyebrow {
   display: none;
   color: var(--blue-700);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0;
 }
 
@@ -146,7 +146,7 @@
 .refined-admin-layout .field > span,
 .refined-admin-layout .filter-bar label > span {
   color: #577182;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -160,7 +160,7 @@
 .refined-admin-layout .segmented button {
   min-height: 32px;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .segmented button.active {
@@ -193,7 +193,7 @@
   display: block;
   margin-top: 4px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .panel-footer,
@@ -218,7 +218,7 @@
   padding-inline: 14px;
   background: #edf6fa;
   color: #4e6d80;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0;
 }
 
@@ -234,7 +234,7 @@
 }
 
 .refined-admin-layout td small {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout tbody tr {
@@ -258,13 +258,13 @@
   min-height: 22px;
   border-radius: 4px;
   padding-inline: 7px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .pagination {
   border-top: 1px solid var(--admin-line-soft);
   padding-top: 4px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Metrics */
@@ -292,7 +292,7 @@
 .refined-admin-layout .metric-grid span,
 .refined-admin-layout .metric-strip small,
 .refined-admin-layout .metric-grid small {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Today */
@@ -432,7 +432,7 @@
 .refined-admin-layout .profile-summary p {
   margin-top: 5px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .profile-stat {
@@ -452,7 +452,7 @@
 .refined-admin-layout .profile-stat span {
   margin-top: 4px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .profile-grid {
@@ -533,7 +533,7 @@
 
 .refined-admin-layout .profile-record-filter label > span {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -574,7 +574,7 @@
 .refined-admin-layout .activity-list p {
   margin-top: 4px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .selection-toolbar {
@@ -607,7 +607,7 @@
   padding: 4px;
   background: transparent;
   color: var(--blue-700);
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 
@@ -642,7 +642,7 @@
 .refined-admin-layout .bulk-member-summary p {
   margin-top: 5px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .member-bulk-result {
@@ -658,7 +658,7 @@
   overflow: auto;
   border-top: 1px solid rgba(35, 101, 135, 0.14);
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .weekly-stats-table {
@@ -679,7 +679,7 @@
   padding: 9px 12px;
   background: #fafcfd;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .weekly-stats-workspace .weekly-stats-table {
@@ -729,7 +729,7 @@
 .refined-admin-layout .weekly-stats-table th small {
   margin-top: 3px;
   color: var(--ink-500);
-  font: 600 9px var(--font-mono);
+  font: 600 12px var(--font-mono);
 }
 
 .refined-admin-layout .weekly-stats-table .weekly-member-column {
@@ -822,7 +822,7 @@
   align-items: center;
   gap: 8px;
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .filter-summary svg {
@@ -834,7 +834,7 @@
   display: block;
   margin-top: 2px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .review-list {
@@ -883,7 +883,7 @@
 .refined-admin-layout .review-person span {
   margin-top: 5px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .review-reject {
@@ -961,7 +961,7 @@
   border: 1px solid #c7dde8;
   border-radius: 50%;
   background: white;
-  font: 700 10px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .repair-editor-steps button.active > span {
@@ -1023,18 +1023,18 @@
 .audit-diff-table .audit-diff-head {
   background: #f3f8fa;
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .audit-diff-table > div:not(.audit-diff-head) > strong {
   background: #fbfdfe;
   color: var(--ink-700);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .audit-diff-table > div:not(.audit-diff-head) > span {
   color: var(--ink-600);
-  font: 11px/1.5 var(--font-mono);
+  font: 12px/1.5 var(--font-mono);
 }
 
 .audit-diff-table .after-value {
@@ -1051,7 +1051,7 @@
 .audit-raw-details summary {
   width: fit-content;
   color: var(--blue-700);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }

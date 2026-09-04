@@ -1,0 +1,86 @@
+:root[data-appearance="editorial"] {
+  color-scheme: light;
+  --font-sans:
+    Inter, "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", system-ui,
+    sans-serif;
+  --font-editorial:
+    "Noto Serif SC", "Source Han Serif SC", STZhongsong, Georgia,
+    "Songti SC", "Microsoft YaHei UI", serif;
+  --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+  --ink-950: #141413;
+  --ink-900: #252523;
+  --ink-850: #30302d;
+  --ink-800: #3d3d3a;
+  --ink-700: #52514c;
+  --ink-600: #6c6a64;
+  --ink-500: #6c6a64;
+  --ink-400: #8e8b82;
+  --line-strong: #ddd5cb;
+  --line: #e6dfd8;
+  --line-soft: #ebe6df;
+  --surface: #faf9f5;
+  --surface-soft: #f5f0e8;
+  --surface-blue: #efe9de;
+  --surface-strong: #e8e0d2;
+  --surface-dark: #181715;
+  --surface-dark-elevated: #252320;
+  --canvas: #faf9f5;
+
+  --blue-800: #a9583e;
+  --blue-700: #b9664d;
+  --blue-600: #cc785c;
+  --blue-500: #d58b72;
+  --blue-300: #e4ad99;
+  --blue-200: #edc9ba;
+  --blue-100: #f4ddd4;
+  --blue-50: #fbf1ec;
+  --green-700: #3f7d50;
+  --green-500: #5db872;
+  --green-100: #e5f2e8;
+  --amber-700: #8b6410;
+  --amber-500: #d4a017;
+  --amber-100: #f8edcf;
+  --red-700: #9f3434;
+  --red-500: #c64545;
+  --red-100: #f7e3df;
+
+  --primary: #cc785c;
+  --primary-active: #a9583e;
+  --danger: #c64545;
+  --muted: #6c6a64;
+  --admin-canvas: #faf9f5;
+  --admin-surface: #faf9f5;
+  --admin-surface-subtle: #f5f0e8;
+  --admin-line: #e6dfd8;
+  --admin-line-soft: #ebe6df;
+  --admin-blue: #cc785c;
+  --admin-blue-deep: #a9583e;
+  --admin-blue-soft: #f4ddd4;
+  --admin-green: #3f7d50;
+  --admin-amber: #8b6410;
+  --admin-red: #9f3434;
+
+  --sidebar-width: 224px;
+  --primary-rail-width: 78px;
+  --section-sidebar-width: 236px;
+  --topbar-height: 68px;
+  --radius-sm: 4px;
+  --radius: 8px;
+  --shadow-sm: none;
+  --shadow-md: 0 1px 3px rgba(32, 27, 22, 0.12);
+  --ease-out: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --admin-ease: cubic-bezier(0.22, 0.78, 0.18, 1);
+  --z-drawer: 80;
+  --z-modal: 90;
+  --z-menu: 110;
+  --z-toast: 130;
+  --feedback-font-size: 16px;
+  --motion-fast: 140ms;
+  --motion-panel: 200ms;
+  --motion-page-from: translateY(5px);
+  --motion-overlay-from: translateY(8px);
+  --overlay-shadow: 0 16px 40px rgba(32, 27, 22, .16);
+  --overlay-scrim: rgba(24, 23, 21, .36);
+  --focus-ring: var(--primary-active);
+}

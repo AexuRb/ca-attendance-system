@@ -1,0 +1,134 @@
+:root[data-appearance="editorial"] :is(.admin-layout, .auth-layout, .kiosk-signal-app) * {
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] ::selection {
+  background: #f4ddd4;
+  color: var(--ink-950);
+}
+
+:root[data-appearance="editorial"] input,
+:root[data-appearance="editorial"] select,
+:root[data-appearance="editorial"] textarea {
+  min-height: 40px;
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 9px 14px;
+}
+
+:root[data-appearance="editorial"] input::placeholder,
+:root[data-appearance="editorial"] textarea::placeholder {
+  color: var(--ink-400);
+}
+
+:root[data-appearance="editorial"] input:focus,
+:root[data-appearance="editorial"] select:focus,
+:root[data-appearance="editorial"] textarea:focus {
+  border-color: var(--primary);
+  outline: 3px solid rgba(204, 120, 92, 0.16);
+  outline-offset: 0;
+}
+
+:root[data-appearance="editorial"] button:focus-visible,
+:root[data-appearance="editorial"] a:focus-visible,
+:root[data-appearance="editorial"] [tabindex]:focus-visible {
+  outline: 3px solid rgba(204, 120, 92, 0.32);
+  outline-offset: 2px;
+}
+
+:root[data-appearance="editorial"] .button,
+:root[data-appearance="editorial"] .button.small {
+  min-height: 40px;
+  border-radius: 8px;
+  padding-inline: 18px;
+  font-weight: 500;
+  transform: none;
+}
+
+:root[data-appearance="editorial"] .button:hover:not(:disabled) {
+  transform: none;
+}
+
+:root[data-appearance="editorial"] .button.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+}
+
+:root[data-appearance="editorial"] .button.primary:hover:not(:disabled) {
+  border-color: var(--primary-active);
+  background: var(--primary-active);
+}
+
+:root[data-appearance="editorial"] .button.secondary {
+  border-color: var(--line-strong);
+  background: var(--canvas);
+  color: var(--ink-900);
+}
+
+:root[data-appearance="editorial"] .button.secondary:hover:not(:disabled) {
+  border-color: var(--ink-600);
+  background: var(--surface-soft);
+  color: var(--ink-950);
+}
+
+:root[data-appearance="editorial"] .button.text {
+  color: var(--primary-active);
+}
+
+:root[data-appearance="editorial"] .button.text:hover:not(:disabled) {
+  background: var(--surface-blue);
+}
+
+:root[data-appearance="editorial"] .icon-button {
+  width: 40px;
+  min-height: 40px;
+  border-color: var(--line-strong);
+  border-radius: 50%;
+  background: var(--canvas);
+  color: var(--ink-700);
+  transform: none;
+}
+
+:root[data-appearance="editorial"] .icon-button:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--surface-soft);
+  color: var(--primary-active);
+  transform: none;
+}
+
+:root[data-appearance="editorial"] .panel,
+:root[data-appearance="editorial"] .table-shell,
+:root[data-appearance="editorial"] .filter-bar {
+  border-color: var(--line);
+  background: var(--canvas);
+}
+
+:root[data-appearance="editorial"] .panel {
+  border-radius: 8px;
+}
+
+:root[data-appearance="editorial"] .page-tabs,
+:root[data-appearance="editorial"] .segmented {
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .page-tabs button.active,
+:root[data-appearance="editorial"] .segmented button.active {
+  background: var(--canvas);
+  color: var(--primary-active);
+}
+
+:root[data-appearance="editorial"] .status-badge,
+:root[data-appearance="editorial"] .badge {
+  border-radius: 999px;
+}
+
+:root[data-appearance="editorial"] .inline-alert {
+  border-radius: 0 8px 8px 0;
+  border-left-width: 3px;
+  background: var(--surface-soft);
+}

@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
   notify: vi.fn(),
 }));
 
+vi.mock("vue-router", () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
 vi.mock("../../shared/api", () => ({
   get: (...args: unknown[]) => mocks.apiGet(...args),
   post: (...args: unknown[]) => mocks.apiPost(...args),

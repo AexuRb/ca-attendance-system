@@ -2,6 +2,7 @@ package com.ca.attendance.user;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.auth.TokenService;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import org.apache.poi.ss.usermodel.Row;
@@ -28,6 +29,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -42,6 +44,9 @@ class UserTransactionIntegrationTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired
+    private TokenService tokens;
+
     private long adminId;
 
     @DynamicPropertySource
@@ -55,6 +60,7 @@ class UserTransactionIntegrationTest {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_delete_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_create_user_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_reset_password_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS ignore_reset_password_update");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_import_users_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_update_profile_log");
         jdbc.update("DELETE FROM operation_logs");
@@ -88,6 +94,7 @@ class UserTransactionIntegrationTest {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_delete_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_create_user_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_reset_password_log");
+        jdbc.execute("DROP TRIGGER IF EXISTS ignore_reset_password_update");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_import_users_log");
         jdbc.execute("DROP TRIGGER IF EXISTS fail_update_profile_log");
     }
@@ -171,6 +178,7 @@ class UserTransactionIntegrationTest {
     void resetPasswordRollsBackHashWhenAuditLogFails() {
         long targetId = insertMember("tx-reset-target", "密码事务成员");
         String originalHash = passwordHash(targetId);
+        String token = tokens.issue(targetId, "tx-reset-target", "密码事务成员", Role.MEMBER);
         jdbc.execute("""
                 CREATE TRIGGER fail_reset_password_log
                 BEFORE INSERT ON operation_logs
@@ -186,6 +194,41 @@ class UserTransactionIntegrationTest {
         ));
 
         assertEquals(originalHash, passwordHash(targetId));
+        assertEquals(0, actionCount("RESET_PASSWORD"));
+        assertDoesNotThrow(() -> tokens.require(token));
+    }
+
+    @Test
+    void resetPasswordRevokesSessionsAfterTheTransactionCommits() {
+        long targetId = insertMember("tx-reset-success", "密码提交成员");
+        String token = tokens.issue(targetId, "tx-reset-success", "密码提交成员", Role.MEMBER);
+
+        users.resetPassword(
+                targetId,
+                new UserService.ResetPasswordRequest("new-password", "密码提交测试")
+        );
+
+        assertThrows(ApiException.class, () -> tokens.require(token));
+        assertEquals(1, actionCount("RESET_PASSWORD"));
+    }
+
+    @Test
+    void resetPasswordRejectsAnIgnoredDatabaseWriteWithoutLoggingSuccess() {
+        long targetId = insertMember("tx-reset-ignored", "密码零行成员");
+        jdbc.execute("""
+                CREATE TRIGGER ignore_reset_password_update
+                BEFORE UPDATE OF password_hash ON users
+                WHEN OLD.id = %d
+                BEGIN
+                  SELECT RAISE(IGNORE);
+                END
+                """.formatted(targetId));
+
+        assertThrows(ApiException.class, () -> users.resetPassword(
+                targetId,
+                new UserService.ResetPasswordRequest("new-password", "密码零行测试")
+        ));
+
         assertEquals(0, actionCount("RESET_PASSWORD"));
     }
 

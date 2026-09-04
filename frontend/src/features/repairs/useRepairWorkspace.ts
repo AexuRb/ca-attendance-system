@@ -221,7 +221,6 @@ export function parseRepairWorkspaceQuery(
 export function serializeRepairWorkspaceQuery(state: RepairWorkspaceRouteState) {
   const query: Record<string, string> = { status: state.status };
   if (state.page > 1) query.page = String(state.page);
-  if (state.keyword.trim()) query.keyword = state.keyword.trim();
   if (state.from) query.from = state.from;
   if (state.to) query.to = state.to;
   return query;

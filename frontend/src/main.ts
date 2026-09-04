@@ -1,35 +1,23 @@
 import { createApp } from "vue";
 import App from "./App.vue";
 import { router } from "./app/router";
+import { initializeAppearance } from "./appearance/appearanceStore";
 import { useSession } from "./app/session";
 import { setUnauthorizedHandler } from "./shared/api";
-import "./styles/tokens.css";
-import "./styles/base.css";
-import "./styles/service-status.css";
-import "./styles/components.css";
-import "./styles/layouts.css";
-import "./styles/kiosk.css";
-import "./styles/admin-shell.css";
-import "./styles/today.css";
-import "./styles/schedule.css";
-import "./styles/settings.css";
-import "./styles/admin-details.css";
-import "./styles/admin-interactions.css";
-import "./styles/kiosk-theme.css";
-import "./styles/admin-theme.css";
-import "./styles/admin-detail-polish.css";
-import "./styles/training-workspace.css";
-import "./styles/repair-workspace.css";
-import "./styles/auth.css";
 
-setUnauthorizedHandler(() => {
-  const session = useSession();
-  session.expireSession();
-  const current = router.currentRoute.value;
-  if (current.name === "login") return;
-  const query: Record<string, string> = { reason: "expired" };
-  if (current.meta.auth) query.next = current.fullPath;
-  void router.replace({ name: "login", query });
-});
+async function start() {
+  await initializeAppearance();
+  setUnauthorizedHandler(() => {
+    const session = useSession();
+    session.expireSession();
+    const current = router.currentRoute.value;
+    if (current.name === "login") return;
+    const query: Record<string, string> = { reason: "expired" };
+    if (current.meta.auth) query.next = current.fullPath;
+    void router.replace({ name: "login", query });
+  });
 
-createApp(App).use(router).mount("#app");
+  createApp(App).use(router).mount("#app");
+}
+
+void start();

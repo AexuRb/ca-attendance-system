@@ -35,7 +35,10 @@ public class AuthInterceptor implements HandlerInterceptor {
                     ? "签到台仅限主机本地使用"
                     : "该操作仅限主机本地执行");
         }
-        if (path.equals("/api/auth/login") || path.equals("/api/health") || path.equals("/api/access/context")) {
+        if (path.equals("/api/auth/login")
+                || path.equals("/api/health")
+                || path.equals("/api/access/context")
+                || path.equals("/api/public/appearance")) {
             return true;
         }
         if (!remote && (path.startsWith("/api/public/") || path.startsWith("/api/setup/")

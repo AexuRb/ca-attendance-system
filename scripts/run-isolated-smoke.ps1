@@ -4,6 +4,7 @@ param(
     [int]$RemotePort = 18081,
     [string]$AdminStudentNo = $env:CA_TEST_ADMIN_STUDENT_NO,
     [string]$AdminPassword = $env:CA_TEST_ADMIN_PASSWORD,
+    [switch]$IncludeRemoteAccess,
     [switch]$IncludeUi
 )
 
@@ -38,6 +39,39 @@ $previousPort = $env:APP_PORT
 $previousRemotePort = $env:APP_REMOTE_PORT
 $backendProcess = $null
 $backendProcessId = 0
+
+function Invoke-IsolatedRequest {
+    param(
+        [int]$TargetPort,
+        [string]$Method,
+        [string]$Path,
+        $Body = $null,
+        [string]$Token = $null
+    )
+
+    $parameters = @{
+        Uri = "http://127.0.0.1:$TargetPort$Path"
+        Method = $Method
+        SkipHttpErrorCheck = $true
+        TimeoutSec = 5
+        Headers = @{}
+    }
+    if ($Token) {
+        $parameters.Headers.Authorization = "Bearer $Token"
+    }
+    if ($null -ne $Body) {
+        $parameters.ContentType = "application/json; charset=utf-8"
+        $parameters.Body = $Body | ConvertTo-Json -Depth 10
+    }
+    Invoke-WebRequest @parameters
+}
+
+function Assert-IsolatedStatus {
+    param($Response, [int]$Expected, [string]$Label)
+    if ([int]$Response.StatusCode -ne $Expected) {
+        throw "$Label 期望状态 $Expected，实际 $($Response.StatusCode)：$($Response.Content)"
+    }
+}
 
 try {
     $env:APP_ROOT = $smokeRoot
@@ -82,6 +116,90 @@ try {
         -Method Post `
         -ContentType "application/json; charset=utf-8" `
         -Body $setupBody | Out-Null
+
+    if ($IncludeRemoteAccess) {
+        $localFailures = @(
+            1..7 | ForEach-Object {
+                (Invoke-IsolatedRequest $Port POST "/api/auth/login" @{
+                    studentNo = $AdminStudentNo
+                    password = "invalid-password"
+                }).StatusCode
+            }
+        )
+        if (@($localFailures | Where-Object { $_ -ne 401 }).Count) {
+            throw "本机登录失败不应触发限流：$($localFailures -join ',')"
+        }
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $Port POST "/api/auth/login" @{
+                studentNo = $AdminStudentNo
+                password = $AdminPassword
+            }) 200 "本机连续失败后的正确登录"
+
+        $localHealth = (Invoke-IsolatedRequest $Port GET "/api/health").Content | ConvertFrom-Json
+        $remoteHealth = (Invoke-IsolatedRequest $RemotePort GET "/api/health").Content | ConvertFrom-Json
+        if (-not $localHealth.databaseType -or $remoteHealth.PSObject.Properties.Name -contains "databaseType") {
+            throw "远程健康检查信息脱敏不符合预期"
+        }
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $RemotePort GET "/api/public/attendance/lookup?query=$AdminStudentNo") `
+            403 "远程签到台访问"
+
+        $remoteLogin = Invoke-IsolatedRequest $RemotePort POST "/api/auth/login" @{
+            studentNo = $AdminStudentNo
+            password = $AdminPassword
+        }
+        Assert-IsolatedStatus $remoteLogin 200 "远程管理员登录"
+        $remoteToken = ($remoteLogin.Content | ConvertFrom-Json).token
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $RemotePort GET "/api/auth/me" -Token $remoteToken) `
+            200 "远程后台接口"
+
+        $accountFailures = @(
+            1..5 | ForEach-Object {
+                (Invoke-IsolatedRequest $RemotePort POST "/api/auth/login" @{
+                    studentNo = $AdminStudentNo
+                    password = "invalid-password"
+                }).StatusCode
+            }
+        )
+        if (@($accountFailures | Where-Object { $_ -ne 401 }).Count) {
+            throw "远程账号失败序列不符合预期：$($accountFailures -join ',')"
+        }
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $RemotePort POST "/api/auth/login" @{
+                studentNo = $AdminStudentNo
+                password = $AdminPassword
+            }) 429 "远程账号锁定"
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $Port POST "/api/auth/login" @{
+                studentNo = $AdminStudentNo
+                password = $AdminPassword
+            }) 200 "本机登录恢复远程账号锁"
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $RemotePort POST "/api/auth/login" @{
+                studentNo = $AdminStudentNo
+                password = $AdminPassword
+            }) 200 "远程账号恢复"
+
+        1..25 | ForEach-Object {
+            Assert-IsolatedStatus `
+                (Invoke-IsolatedRequest $RemotePort POST "/api/auth/login" @{
+                    studentNo = "unknown-$_"
+                    password = "invalid-password"
+                }) 401 "远程全局限流计数 $_"
+        }
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $RemotePort POST "/api/auth/login" @{
+                studentNo = $AdminStudentNo
+                password = $AdminPassword
+            }) 429 "远程全局锁定"
+        Assert-IsolatedStatus `
+            (Invoke-IsolatedRequest $Port POST "/api/auth/login" @{
+                studentNo = $AdminStudentNo
+                password = $AdminPassword
+            }) 200 "远程全局锁定期间的本机登录"
+        Write-Host "REMOTE_ACCESS_ACCEPTANCE_OK local=unlimited account=5 global=30 kiosk=blocked health=sanitized"
+    }
 
     & (Join-Path $PSScriptRoot "full-smoke-test.ps1") `
         -BaseUrl $baseUrl `

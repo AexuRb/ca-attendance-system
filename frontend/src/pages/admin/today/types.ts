@@ -24,12 +24,12 @@ export interface TodayScheduleData {
   slots?: TodayScheduleSlot[];
 }
 
-export interface TodayAttendanceRecord {
-  id: number;
-  studentNo?: string;
-  name: string;
-  checkInTime?: string;
-  checkOutTime?: string;
-  durationMinutes?: number;
-  effectiveStatus: string;
+export type TodayQuickActionTone = "blue" | "amber" | "red" | "green";
+
+export interface TodayQuickAction {
+  id: string;
+  command: string;
+  label: string;
+  detail: string;
+  tone: TodayQuickActionTone;
 }

@@ -1,0 +1,111 @@
+/* Profile is a personal dossier with a fixed contact column. */
+:root[data-appearance="editorial"] .profile-page .profile-summary {
+  grid-template-columns: auto minmax(220px, 1.4fr) repeat(3, minmax(112px, 0.5fr));
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 22px 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-summary h2 {
+  font-family: var(--font-editorial);
+  font-size: 28px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-avatar {
+  background: var(--ink-900);
+  color: #fffaf2;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-stat {
+  border-left: 1px solid var(--line-strong);
+  padding-left: 18px;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-stat strong {
+  font-family: var(--font-editorial);
+  font-size: 29px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-workspace {
+  grid-template-columns: minmax(300px, 0.72fr) minmax(540px, 1.28fr);
+  align-items: start;
+  gap: 30px;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-contact-panel,
+:root[data-appearance="editorial"] .profile-page .profile-record-panel {
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-contact-panel {
+  padding-inline: 4px;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-record-toolbar {
+  border-bottom-color: var(--line-strong);
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-record-panel {
+  container: profile-records / inline-size;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-record-filter .button {
+  white-space: nowrap;
+}
+
+@container profile-records (max-width: 700px) {
+  :root[data-appearance="editorial"] .profile-page .profile-record-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  :root[data-appearance="editorial"] .profile-page .profile-record-filter {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  }
+
+}
+
+@container profile-records (max-width: 440px) {
+  :root[data-appearance="editorial"] .profile-page .profile-record-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-record-scroll {
+  max-height: 560px;
+}
+:root[data-appearance="editorial"] .profile-page {
+  container: profile-page / inline-size;
+}
+@container profile-page (max-width: 900px) {
+  :root[data-appearance="editorial"] .profile-page .profile-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container profile-page (max-width: 760px) {
+  :root[data-appearance="editorial"] .profile-page .profile-summary {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  :root[data-appearance="editorial"] .profile-page .profile-summary > div:not(.profile-stat) {
+    grid-column: 2 / -1;
+  }
+  :root[data-appearance="editorial"] .profile-page .profile-stat {
+    grid-column: span 2;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding: 14px 0 0;
+  }
+}

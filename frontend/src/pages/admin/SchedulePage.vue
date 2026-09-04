@@ -65,8 +65,10 @@
       :slots="slots"
       :periods="periods"
       :weekdays="weekdays"
+      :preferred-weekday="preferredWeekday"
       @edit="openFixed"
       @archive="deleteFixed"
+      @weekday-change="setPreferredWeekday"
     />
 
     <ModalDialog
@@ -78,7 +80,7 @@
       <div class="form-grid two">
         <label class="field">
           <span>星期</span>
-          <select v-model.number="fixedForm.weekday">
+          <select v-model.number="fixedForm.weekday" name="scheduleWeekday">
             <option
               v-for="day in weekdays"
               :key="day.value"
@@ -91,7 +93,7 @@
         </label>
         <label class="field">
           <span>值班时段</span>
-          <select v-model="fixedForm.period">
+          <select v-model="fixedForm.period" name="schedulePeriod">
             <option
               v-for="period in periods"
               :key="periodKey(period)"
@@ -103,11 +105,11 @@
         </label>
         <label class="field">
           <span>标题</span>
-          <input v-model="fixedForm.title" />
+          <input v-model="fixedForm.title" name="scheduleTitle" autocomplete="off" />
         </label>
         <label class="field">
           <span>地点</span>
-          <input v-model="fixedForm.location" />
+          <input v-model="fixedForm.location" name="scheduleLocation" autocomplete="off" />
         </label>
         <div class="field span-2">
           <span>排班人员</span>
@@ -120,7 +122,7 @@
         <div class="field span-2 schedule-visibility-field">
           <span>签到台展示</span>
           <label class="period-enabled-toggle schedule-visibility-toggle">
-            <input v-model="fixedForm.enabled" type="checkbox" />
+            <input v-model="fixedForm.enabled" name="scheduleVisible" type="checkbox" />
             <span>{{ fixedForm.enabled ? "显示" : "隐藏" }}</span>
           </label>
           <small>
@@ -129,7 +131,7 @@
         </div>
         <label class="field span-2">
           <span>备注</span>
-          <textarea v-model="fixedForm.note" rows="2" />
+          <textarea v-model="fixedForm.note" name="scheduleNote" rows="2" />
         </label>
       </div>
       <template #footer>
@@ -165,7 +167,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
 import { Download, Plus, RefreshCw, Upload } from "@lucide/vue";
 import PageHeader from "../../shared/ui/PageHeader.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
@@ -175,190 +176,30 @@ import ActionMenu from "../../shared/ui/ActionMenu.vue";
 import FixedScheduleBoard from "./schedule/FixedScheduleBoard.vue";
 import ScheduleImportDialog from "./schedule/ScheduleImportDialog.vue";
 import ScheduleAssigneePicker from "../../features/schedule/ScheduleAssigneePicker.vue";
-import { del, downloadBlob, get, post, put } from "../../shared/api";
-import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { useLatestRequest } from "../../shared/composables/useLatestRequest";
-import { usePendingActions } from "../../shared/composables/usePendingActions";
-import {
-  normalizeDutyWeekdays,
-  type DutyWeekdaySetting,
-} from "../../features/settings/dutyWeekdays";
-import type { DutyPeriod } from "../../features/settings/dutyPeriods";
-import type { ScheduleAssigneeOption } from "../../features/schedule/scheduleAssignees";
-import { schedulePayload } from "../../features/schedule/scheduleEditor";
-import type {
-  ScheduleEditorForm,
-  ScheduleSlot,
-} from "../../features/schedule/scheduleTypes";
+import { useScheduleWorkspace } from "../../features/schedule/useScheduleWorkspace";
 
-const task = useAsyncTask();
-const request = useLatestRequest();
-const actions = usePendingActions();
-const { loading, error: loadError } = request;
-const editorOpen = ref(false);
-const importOpen = ref(false);
-const deleteTarget = ref<ScheduleSlot | null>(null);
-const slots = ref<ScheduleSlot[]>([]);
-const periods = ref<DutyPeriod[]>([]);
-const dutyWeekdays = ref<DutyWeekdaySetting[]>([]);
-const assigneeCandidates = ref<ScheduleAssigneeOption[]>([]);
-
-const fallbackWeekdays = [1, 2, 3, 4, 5, 6, 7].map((value, index) => ({
-  value,
-  label: `星期${"一二三四五六日"[index]}`,
-  short: `周${"一二三四五六日"[index]}`,
-  enabled: true,
-}));
-
-const weekdays = computed(() =>
-  dutyWeekdays.value.length
-    ? dutyWeekdays.value.map((day) => ({
-        value: day.weekday,
-        label: day.weekday_name,
-        short: `周${"一二三四五六日"[day.weekday - 1]}`,
-        enabled: day.enabled,
-      }))
-    : fallbackWeekdays,
-);
-
-const fixedForm = reactive<ScheduleEditorForm>({
-  id: null,
-  weekday: 1,
-  period: "",
-  title: "部长值班",
-  location: "协会办公室",
-  assignees: [] as ScheduleAssigneeOption[],
-  enabled: true,
-  note: "",
-});
-
-onMounted(loadBase);
-
-async function loadBase() {
-  const result = await request.run((signal) =>
-    Promise.all([
-      get<ScheduleSlot[]>("/api/schedules", { signal }),
-      get<DutyPeriod[]>("/api/settings/duty-periods", { signal }),
-      get<DutyWeekdaySetting[]>("/api/settings/weekdays", { signal }),
-      get<ScheduleAssigneeOption[]>("/api/schedules/assignee-candidates", { signal }),
-    ]),
-    "排班数据加载失败",
-  );
-  if (!result) return;
-  const [scheduleSlots, dutyPeriods, weekdaySettings, managerCandidates] =
-    result;
-  slots.value = scheduleSlots;
-  periods.value = dutyPeriods.filter((period) => period.enabled !== false);
-  dutyWeekdays.value = normalizeDutyWeekdays(weekdaySettings);
-  assigneeCandidates.value = managerCandidates;
-  if (
-    !periods.value.some(
-      (period) => periodKey(period) === fixedForm.period,
-    )
-  ) {
-    fixedForm.period = periods.value[0] ? periodKey(periods.value[0]) : "";
-  }
-}
-
-function openFixed(
-  item: ScheduleSlot | null,
-  weekday = weekdays.value.find((day) => day.enabled)?.value || 1,
-  period?: string,
-) {
-  Object.assign(
-    fixedForm,
-    item
-      ? {
-          id: item.id,
-          weekday: item.weekday,
-          period: periodKey(item),
-          title: item.title,
-          location: item.location || "",
-          assignees: item.assignees
-            .filter(
-              (
-                assignee,
-              ): assignee is typeof assignee & { studentNo: string } =>
-                Boolean(assignee.studentNo),
-            )
-            .map(
-              (assignee) =>
-                assigneeCandidates.value.find(
-                  (candidate) => candidate.studentNo === assignee.studentNo,
-                ) || {
-                  studentNo: assignee.studentNo,
-                  name: assignee.name,
-                },
-            ),
-          enabled: item.enabled !== false,
-          note: item.note || "",
-        }
-      : {
-          id: null,
-          weekday,
-          period: period || (periods.value[0] ? periodKey(periods.value[0]) : ""),
-          title: "部长值班",
-          location: "协会办公室",
-          assignees: [],
-          enabled: true,
-          note: "",
-        },
-  );
-  editorOpen.value = true;
-}
-
-async function downloadImportTemplate() {
-  await actions.run("template", async () => {
-    const blob = await task.run(
-      () => get<Blob>("/api/schedules/import-template"),
-      "排班导入模板已下载",
-    );
-    if (blob) downloadBlob(blob, "部长排班导入模板.xlsx");
-  });
-}
-
-async function saveFixed() {
-  await actions.run("save", async () => {
-    const payload = schedulePayload(fixedForm);
-    const saved = fixedForm.id
-      ? await task.run(
-          () => put(`/api/schedules/${fixedForm.id}`, payload),
-          "排班已更新",
-        )
-      : await task.run(() => post("/api/schedules", payload), "排班已新增");
-    if (saved === undefined) return;
-    editorOpen.value = false;
-    await loadBase();
-  });
-}
-
-function closeEditor() {
-  if (!actions.isPending("save")) editorOpen.value = false;
-}
-
-function deleteFixed(item: ScheduleSlot) {
-  deleteTarget.value = item;
-}
-
-async function confirmDeleteFixed() {
-  const target = deleteTarget.value;
-  if (!target) return;
-  await actions.run("archive", async () => {
-    const archived = await task.run(
-      () => del(`/api/schedules/${target.id}`),
-      "排班已归档",
-    );
-    if (archived === undefined) return;
-    deleteTarget.value = null;
-    await loadBase();
-  });
-}
-
-function periodKey(value: Pick<DutyPeriod, "startTime" | "endTime">) {
-  return `${shortTime(value.startTime)}-${shortTime(value.endTime)}`;
-}
-
-function shortTime(value?: string) {
-  return value?.slice(0, 5) || "";
-}
+const {
+  actions,
+  assigneeCandidates,
+  closeEditor,
+  confirmDeleteFixed,
+  deleteFixed,
+  deleteTarget,
+  downloadImportTemplate,
+  editorOpen,
+  fixedForm,
+  importOpen,
+  loadBase,
+  loadError,
+  loading,
+  openFixed,
+  periodKey,
+  periods,
+  preferredWeekday,
+  saveFixed,
+  setPreferredWeekday,
+  slots,
+  shortTime,
+  weekdays,
+} = useScheduleWorkspace();
 </script>

@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 
 import static com.ca.attendance.common.JdbcTime.databaseDate;
 import static com.ca.attendance.common.JdbcTime.databaseTime;
+import static com.ca.attendance.common.JdbcWriteChecks.requireOne;
 
 @Service
 public class TrainingService {
@@ -108,7 +109,7 @@ public class TrainingService {
         requireManageTrainings(current);
         TrainingSessionItem before = findSession(id).orElseThrow(() -> ApiException.notFound("培训不存在"));
         SessionValues values = sessionValues(request, before);
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE training_sessions
                 SET title = ?, training_date = ?, start_time = ?, end_time = ?, location = ?,
                     speaker = ?, description = ?, status = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
@@ -125,6 +126,7 @@ public class TrainingService {
                 current.id(),
                 id
         );
+        requireOne(updated, "培训状态已经变化，请刷新后重试");
         TrainingSessionItem after = findSession(id).orElseThrow();
         logs.log("UPDATE_TRAINING", "training_sessions", id, before, after, "修改培训");
         return after;
@@ -135,11 +137,12 @@ public class TrainingService {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
         TrainingSessionItem before = findSession(id).orElseThrow(() -> ApiException.notFound("培训不存在"));
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE training_sessions
                 SET status = 'ARCHIVED', updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, current.id(), id);
+        requireOne(updated, "培训状态已经变化，请刷新后重试");
         logs.log("ARCHIVE_TRAINING", "training_sessions", id, before, Map.of("status", "ARCHIVED"), "归档培训");
     }
 
@@ -184,8 +187,9 @@ public class TrainingService {
                 .orElseThrow(() -> ApiException.notFound("参与记录不存在"));
         TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
         ParticipantValues values = participantValues(request, "MANUAL", defaultDurationHours(session), before.durationHours());
+        int updated;
         try {
-            jdbc.update("""
+            updated = jdbc.update("""
                     UPDATE training_participants
                     SET user_id = ?, student_no_snapshot = ?, name_snapshot = ?, attendance_status = 'PRESENT',
                         duration_hours = ?, remark = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
@@ -203,6 +207,7 @@ public class TrainingService {
         } catch (DuplicateKeyException ex) {
             throw ApiException.badRequest("该学号已在本场培训名单中");
         }
+        requireOne(updated, "培训参与记录状态已经变化，请刷新后重试");
         TrainingParticipantItem after = findParticipant(sessionId, participantId).orElseThrow();
         logs.log("UPDATE_TRAINING_PARTICIPANT", "training_participants", participantId, before, after, "修改培训参与记录");
         return after;
@@ -214,7 +219,12 @@ public class TrainingService {
         requireManageTrainings(current);
         TrainingParticipantItem before = findParticipant(sessionId, participantId)
                 .orElseThrow(() -> ApiException.notFound("参与记录不存在"));
-        jdbc.update("DELETE FROM training_participants WHERE id = ? AND session_id = ?", participantId, sessionId);
+        int deleted = jdbc.update(
+                "DELETE FROM training_participants WHERE id = ? AND session_id = ?",
+                participantId,
+                sessionId
+        );
+        requireOne(deleted, "培训参与记录状态已经变化，请刷新后重试");
         logs.log("DELETE_TRAINING_PARTICIPANT", "training_participants", participantId, before, Map.of("deleted", true), "删除培训参与记录");
     }
 

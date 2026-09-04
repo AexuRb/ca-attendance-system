@@ -185,23 +185,34 @@ class AttendanceFlowIntegrationTest {
 
     @Test
     void publicSubmissionPrunesReceiptsOlderThanThirtyDays() {
+        LocalDateTime now = LocalDateTime.now(FLOW_CLOCK);
         jdbc.update("""
                 INSERT INTO public_attendance_submissions (
                   request_id, student_no, record_id, action, name, submitted_at,
                   review_status, message, created_at
                 ) VALUES
                   ('attendance-old-receipt', 'attendance-flow-member', 800001,
-                   'CHECK_IN', '流程测试成员', datetime('now', '-31 days'),
-                   'PENDING', '过期回执', datetime('now', '-31 days')),
+                   'CHECK_IN', '流程测试成员', ?,
+                   'PENDING', '过期回执', ?),
+                  ('attendance-boundary-receipt', 'attendance-flow-member', 800002,
+                   'CHECK_IN', '流程测试成员', ?,
+                   'PENDING', '边界回执', ?),
                   ('attendance-recent-receipt', 'attendance-flow-member', 800002,
-                   'CHECK_IN', '流程测试成员', datetime('now', '-29 days'),
-                   'PENDING', '保留回执', datetime('now', '-29 days'))
-                """);
+                   'CHECK_IN', '流程测试成员', ?,
+                   'PENDING', '保留回执', ?)
+                """,
+                Timestamp.valueOf(now.minusDays(31)),
+                Timestamp.valueOf(now.minusDays(31)),
+                Timestamp.valueOf(now.minusDays(30)),
+                Timestamp.valueOf(now.minusDays(30)),
+                Timestamp.valueOf(now.minusDays(29)),
+                Timestamp.valueOf(now.minusDays(29)));
 
         AttendanceService.PublicLookupResponse lookup = attendance.lookupByInput("attendance-flow-member");
         attendance.submitPublicSelection(lookup.memberToken(), "attendance-retention-check");
 
         assertEquals(0, submissionCount("attendance-old-receipt"));
+        assertEquals(1, submissionCount("attendance-boundary-receipt"));
         assertEquals(1, submissionCount("attendance-recent-receipt"));
         assertEquals(1, submissionCount("attendance-retention-check"));
     }

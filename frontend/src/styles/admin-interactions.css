@@ -114,7 +114,7 @@
   border-radius: 50%;
   background: var(--admin-blue-soft, var(--blue-100));
   color: var(--admin-blue-deep, var(--blue-700));
-  font: 750 10px var(--font-mono);
+  font: 750 12px var(--font-mono);
 }
 
 .member-advanced-filters {
@@ -142,7 +142,7 @@
 .active-filter-row > span {
   margin-right: 2px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -156,7 +156,7 @@
   padding: 0 8px;
   background: #f7fafb;
   color: var(--ink-700, var(--ink-800));
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
 

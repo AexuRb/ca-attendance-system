@@ -9,6 +9,7 @@ import com.ca.attendance.common.ExcelCellTextReader;
 import com.ca.attendance.common.ExcelImportPolicy;
 import com.ca.attendance.common.PaginationPolicy;
 import com.ca.attendance.common.Role;
+import com.ca.attendance.common.TransactionCommitActions;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.maintenance.BackupService;
 import org.apache.poi.ss.usermodel.Row;
@@ -31,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.Set;
+
+import static com.ca.attendance.common.JdbcWriteChecks.requireOne;
 
 @Service
 public class UserService {
@@ -90,7 +93,7 @@ public class UserService {
         String grade = UserInputPolicy.grade(request.grade());
         String qq = UserInputPolicy.qq(request.qq());
         try {
-            jdbc.update("""
+            int inserted = jdbc.update("""
                     INSERT INTO users (
                       student_no, name, password_hash, role, status, phone, major, grade, qq,
                       must_change_password, created_by, updated_by
@@ -108,6 +111,7 @@ public class UserService {
                     current.id(),
                     current.id()
             );
+            requireOne(inserted, "成员创建失败，请重试");
         } catch (DuplicateKeyException ex) {
             throw ApiException.badRequest("学号已存在");
         }
@@ -188,7 +192,7 @@ public class UserService {
         String grade = UserInputPolicy.grade(request.grade() == null ? before.grade() : request.grade());
         String qq = UserInputPolicy.qq(request.qq() == null ? before.qq() : request.qq());
         String reason = UserInputPolicy.reason(request.reason());
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE users
                 SET name = ?, role = ?, status = ?, phone = ?, major = ?, grade = ?, qq = ?,
                     disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, datetime('now', 'localtime')) ELSE NULL END,
@@ -209,7 +213,8 @@ public class UserService {
                 current.id(),
                 id
         );
-        tokens.revokeUser(id);
+        requireOne(updated, "成员信息已经变化，请刷新后重试");
+        TransactionCommitActions.runAfterCommit(() -> tokens.revokeUser(id));
         UserSummary after = users.findSummaryById(id).orElseThrow();
         logs.log("UPDATE_USER", "users", id, before, after, reason == null ? "修改成员信息" : reason);
         return after;
@@ -230,12 +235,13 @@ public class UserService {
             password = UserInputPolicy.password(password);
         }
         String reason = UserInputPolicy.reason(request.reason());
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE users
                 SET password_hash = ?, must_change_password = 1, updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, passwordEncoder.encode(password), current.id(), id);
-        tokens.revokeUser(id);
+        requireOne(updated, "成员密码状态已经变化，请刷新后重试");
+        TransactionCommitActions.runAfterCommit(() -> tokens.revokeUser(id));
         logs.log("RESET_PASSWORD", "users", id, Map.of("studentNo", target.studentNo()), Map.of("mustChangePassword", true),
                 reason == null ? "重置密码" : reason);
     }
@@ -266,7 +272,7 @@ public class UserService {
         }
         logs.log("DELETE_USER", "users", id, target, Map.of("deleted", true),
                 normalizedReason + "；删除前自动备份：" + safetyBackup.filename());
-        tokens.revokeUser(id);
+        TransactionCommitActions.runAfterCommit(() -> tokens.revokeUser(id));
     }
 
     private void rejectDeletionWithHistory(long id) {
@@ -366,7 +372,8 @@ public class UserService {
                 Map.of("ids", seenIds, "targetStatus", targetStatus),
                 result,
                 bulkStatusReason(reason, safetyBackup));
-        changes.forEach(target -> tokens.revokeUser(target.id()));
+        List<Long> changedUserIds = changes.stream().map(UserSummary::id).toList();
+        TransactionCommitActions.runAfterCommit(() -> changedUserIds.forEach(tokens::revokeUser));
         return result;
     }
 
@@ -434,7 +441,7 @@ public class UserService {
                     addImportIssue(issues, "第 " + (i + 1) + " 行：会长不能通过导入修改管理员账号");
                     continue;
                 }
-                jdbc.update("""
+                int affected = jdbc.update("""
                         UPDATE users
                         SET name = ?, phone = COALESCE(?, phone), major = COALESCE(?, major),
                             grade = COALESCE(?, grade), qq = COALESCE(?, qq),
@@ -449,10 +456,11 @@ public class UserService {
                         current.id(),
                         studentNo
                 );
+                requireOne(affected, "成员导入更新失败，请重试");
                 updated++;
             } else {
                 String password = UserInputPolicy.defaultPassword(studentNo);
-                jdbc.update("""
+                int affected = jdbc.update("""
                         INSERT INTO users (
                           student_no, name, password_hash, role, status, phone, major, grade, qq,
                           must_change_password, created_by, updated_by
@@ -469,6 +477,7 @@ public class UserService {
                         current.id(),
                         current.id()
                 );
+                requireOne(affected, "成员导入创建失败，请重试");
                 created++;
             }
         }

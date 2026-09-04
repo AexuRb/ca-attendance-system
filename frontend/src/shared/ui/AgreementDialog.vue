@@ -49,7 +49,7 @@
               v-else
               ref="frame"
               title="维修协议内容"
-              :srcdoc="html"
+              :srcdoc="previewHtml"
               sandbox="allow-same-origin allow-modals"
             />
           </main>
@@ -59,9 +59,10 @@
   </Teleport>
 </template>
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { Printer, RefreshCw, TriangleAlert, X } from "@lucide/vue";
 import LoadingBlock from "./LoadingBlock.vue";
+import { sanitizeAgreementPreviewHtml } from "./agreementPreview";
 import { useDialogFocus } from "./useDialogFocus";
 
 const props = defineProps<{
@@ -74,6 +75,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: []; retry: [] }>();
 const dialog = ref<HTMLElement | null>(null);
 const frame = ref<HTMLIFrameElement | null>(null);
+const previewHtml = computed(() => sanitizeAgreementPreviewHtml(props.html));
 
 useDialogFocus({
   root: dialog,

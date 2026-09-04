@@ -1,0 +1,438 @@
+:root[data-appearance="editorial"] .admin-layout:is([data-page="reviews"], [data-page="attendance"], [data-page="schedule"], [data-page="members"], [data-page="profile"]) .admin-route-frame {
+  width: min(100%, 1280px);
+}
+:root[data-appearance="editorial"] .admin-layout:is([data-page="reviews"], [data-page="attendance"], [data-page="schedule"], [data-page="members"], [data-page="profile"]) .page-header {
+  margin-bottom: 28px;
+  border-bottom: 2px solid var(--ink-900);
+  padding-bottom: 18px;
+}
+
+:root[data-appearance="editorial"] .admin-layout:is([data-page="reviews"], [data-page="attendance"], [data-page="schedule"], [data-page="members"], [data-page="profile"]) .page-heading h1 {
+  font-family: var(--font-editorial);
+  font-size: clamp(32px, 3.2vw, 42px);
+  font-weight: 400;
+}
+
+/* Reviews become one continuous approval manuscript. */
+:root[data-appearance="editorial"] .reviews-page {
+  width: min(100%, 1180px);
+}
+
+:root[data-appearance="editorial"] .reviews-page > .filter-bar {
+  min-height: 52px;
+  margin-bottom: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 0 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .reviews-page .filter-summary {
+  color: var(--ink-700);
+  font-size: 15px;
+}
+
+:root[data-appearance="editorial"] .reviews-page .filter-summary > svg {
+  color: var(--primary);
+}
+
+:root[data-appearance="editorial"] .reviews-page .filter-summary small {
+  margin-top: 3px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-list {
+  display: block;
+  border-top: 0;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-row {
+  display: grid;
+  grid-template-columns: 52px minmax(170px, 0.62fr) minmax(430px, 1.38fr) 42px;
+  align-items: center;
+  gap: 18px;
+  min-height: 108px;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 18px 4px;
+  background: transparent;
+  box-shadow: none;
+  transition: background 180ms ease;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-row:hover {
+  background: var(--surface-soft);
+  transform: none;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-row .avatar {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--primary-active);
+  font-family: var(--font-editorial);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-person strong {
+  font-family: var(--font-editorial);
+  font-size: 22px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-person span {
+  margin-top: 5px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-state-actions {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-state-action {
+  min-height: 62px;
+  border-color: var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-state-action.is-actionable:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: #fff8f4;
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-state-action__copy small,
+:root[data-appearance="editorial"] .reviews-page .review-state-action__status {
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-state-action__copy strong {
+  font-size: 16px;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-reject {
+  width: 40px;
+  height: 40px;
+}
+
+/* Attendance is presented as a ruled duty ledger. */
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] .filter-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 0.72fr)) minmax(230px, 1.4fr) minmax(140px, 0.7fr) auto;
+  align-items: end;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 0 0 22px;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] .table-shell {
+  min-height: 440px;
+  overflow: auto;
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] thead {
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] th {
+  border-bottom-color: var(--line-strong);
+  color: var(--ink-600);
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] tbody tr,
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] tbody tr + tr {
+  border-top: 0;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] tbody tr:hover {
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] td {
+  border-bottom: 1px solid var(--line);
+  padding-block: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] td:first-child strong {
+  font-family: var(--font-editorial);
+  font-size: 19px;
+  font-weight: 400;
+}
+
+/* Schedule keeps the weekly index above a paper timeline and margin notes. */
+:root[data-appearance="editorial"] .schedule-focus-board {
+  gap: 18px;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-days {
+  grid-auto-columns: minmax(142px, 1fr);
+  gap: 0;
+  overflow-x: auto;
+  border-top: 2px solid var(--ink-900);
+  border-bottom: 1px solid var(--line-strong);
+  padding: 0;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day {
+  min-height: 86px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  padding: 16px 14px;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day:last-child {
+  border-right: 0;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day:hover {
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day.active {
+  background: var(--surface-card);
+  color: var(--primary-active);
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day strong {
+  font-family: var(--font-editorial);
+  font-size: 18px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day small {
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day b {
+  color: var(--primary-active);
+  font-family: var(--font-editorial);
+  font-size: 28px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-workspace {
+  grid-template-columns: minmax(0, 1fr) 276px;
+  gap: 28px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-main {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-header {
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  padding-inline: 4px;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-header h2 {
+  font-family: var(--font-editorial);
+  font-size: 25px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-header p,
+:root[data-appearance="editorial"] .schedule-focus-day-state {
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-timeline {
+  padding: 24px 4px;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-panel {
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 17px 4px;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-panel h3 {
+  font-family: var(--font-editorial);
+  font-size: 19px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .schedule-slot-card {
+  border-color: var(--line-strong);
+  border-left: 3px solid var(--primary);
+  border-radius: 5px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .schedule-assignee-item {
+  min-height: 44px;
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+
+/* Members become a compact directory index. */
+:root[data-appearance="editorial"] .members-page .member-filter-shell {
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 16px 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .members-page .selection-toolbar {
+  border: 0;
+  border-left: 3px solid var(--primary);
+  border-radius: 0;
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .members-page .member-table {
+  overflow: auto;
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .members-page .member-table thead {
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .members-page .member-table tbody tr,
+:root[data-appearance="editorial"] .members-page .member-table tbody tr.is-selected {
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .members-page .member-table tbody tr:hover {
+  background: var(--surface-soft);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+:root[data-appearance="editorial"] .members-page .member-table td {
+  border-bottom: 1px solid var(--line);
+  padding-block: 16px;
+}
+
+:root[data-appearance="editorial"] .members-page .member-identity strong {
+  font-family: var(--font-editorial);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .members-page .avatar.small {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--primary-active);
+}
+
+
+@media (max-width: 1160px) {
+  :root[data-appearance="editorial"] .reviews-page .review-row {
+    grid-template-columns: 52px minmax(160px, 0.55fr) minmax(360px, 1.45fr) 42px;
+    gap: 14px;
+  }
+
+  :root[data-appearance="editorial"] .admin-layout[data-page="attendance"] .filter-bar {
+    grid-template-columns: repeat(2, minmax(150px, 1fr)) minmax(220px, 1.6fr);
+  }
+
+  :root[data-appearance="editorial"] .admin-layout[data-page="attendance"] .filter-bar > :nth-last-child(-n + 2) {
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 980px) {
+  :root[data-appearance="editorial"] .reviews-page .review-row {
+    grid-template-columns: 48px minmax(0, 1fr) 42px;
+  }
+
+  :root[data-appearance="editorial"] .reviews-page .review-state-actions {
+    grid-column: 2 / 3;
+  }
+
+  :root[data-appearance="editorial"] .schedule-focus-workspace,
+  :root[data-appearance="editorial"] .profile-page .profile-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="editorial"] .schedule-focus-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  :root[data-appearance="editorial"] .reviews-page .review-row {
+    grid-template-columns: 44px minmax(0, 1fr) 40px;
+  }
+
+  :root[data-appearance="editorial"] .reviews-page .review-state-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="editorial"] .admin-layout[data-page="attendance"] .filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="editorial"] .admin-layout[data-page="attendance"] .filter-bar > :nth-last-child(-n + 2) {
+    grid-row: auto;
+  }
+
+  :root[data-appearance="editorial"] .profile-page .profile-summary {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  :root[data-appearance="editorial"] .profile-page .profile-stat {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+    padding: 14px 0 0;
+  }
+
+  :root[data-appearance="editorial"] .schedule-focus-summary {
+    grid-template-columns: 1fr;
+  }
+}

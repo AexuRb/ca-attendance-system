@@ -2,6 +2,7 @@ package com.ca.attendance.repair;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -102,6 +103,47 @@ class RepairTransactionIntegrationTest {
         ));
 
         assertEquals("事务维修修改前", ownerName(repair.id()));
+    }
+
+    @Test
+    void updateRejectsAnIgnoredDatabaseWriteWithoutLoggingSuccess() {
+        RepairCaseItem repair = repairs.create(repairRequest("事务维修零行更新"));
+        jdbc.execute("""
+                CREATE TRIGGER ignore_repair_update
+                BEFORE UPDATE ON repair_cases
+                WHEN OLD.id = %d
+                BEGIN
+                  SELECT RAISE(IGNORE);
+                END
+                """.formatted(repair.id()));
+
+        assertThrows(ApiException.class, () -> repairs.update(
+                repair.id(),
+                repairRequest("事务维修不应成功")
+        ));
+
+        assertEquals("事务维修零行更新", ownerName(repair.id()));
+        assertEquals(0, actionCount("UPDATE_REPAIR_CASE"));
+    }
+
+    @Test
+    void purgeRejectsAnIgnoredDeleteWithoutLoggingSuccess() {
+        RepairCaseItem repair = repairs.create(repairRequest("事务维修零行永久删除"));
+        repairs.moveToRecycleBin(repair.id());
+        jdbc.update("DELETE FROM operation_logs");
+        jdbc.execute("""
+                CREATE TRIGGER ignore_repair_purge
+                BEFORE DELETE ON repair_cases
+                WHEN OLD.id = %d
+                BEGIN
+                  SELECT RAISE(IGNORE);
+                END
+                """.formatted(repair.id()));
+
+        assertThrows(ApiException.class, () -> repairs.purge(repair.id(), repair.caseNo()));
+
+        assertEquals(1, deletedRepairCount(repair.id()));
+        assertEquals(0, actionCount("PURGE_REPAIR_CASE"));
     }
 
     @Test
@@ -265,6 +307,24 @@ class RepairTransactionIntegrationTest {
 
     private void dropAuditTrigger() {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_repair_audit");
+        jdbc.execute("DROP TRIGGER IF EXISTS ignore_repair_update");
+        jdbc.execute("DROP TRIGGER IF EXISTS ignore_repair_purge");
+    }
+
+    private int actionCount(String actionType) {
+        return jdbc.queryForObject(
+                "SELECT COUNT(*) FROM operation_logs WHERE action_type = ?",
+                Integer.class,
+                actionType
+        );
+    }
+
+    private int deletedRepairCount(long id) {
+        return jdbc.queryForObject(
+                "SELECT COUNT(*) FROM repair_cases WHERE id = ? AND deleted_at IS NOT NULL",
+                Integer.class,
+                id
+        );
     }
 
     private int repairCount(String ownerName) {

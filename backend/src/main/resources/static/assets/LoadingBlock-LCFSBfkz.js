@@ -1,0 +1,1 @@
+import{M as e,O as t,T as n,V as r,at as i,j as a,nt as o}from"./api-DUPpChTn.js";import{t as s}from"./loader-circle-Dk3kZ6Qj.js";var c={class:`loading-block`,role:`status`},l=e({__name:`LoadingBlock`,props:{label:{}},setup(e){return(l,u)=>(r(),t(`div`,c,[a(o(s),{class:`spin`}),n(`span`,null,i(e.label||`正在加载`),1)]))}});export{l as t};

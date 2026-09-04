@@ -8,20 +8,23 @@
         </button></template
       ></PageHeader
     >
-    <form class="filter-bar" @submit.prevent="load(1)">
+    <form class="filter-bar" @submit.prevent="applyFilters">
       <label
         ><span>开始日期</span
-        ><input v-model="filters.from" type="date" /></label
+        ><input v-model="filters.from" name="attendanceFrom" type="date" /></label
       ><label
-        ><span>结束日期</span><input v-model="filters.to" type="date" /></label
+        ><span>结束日期</span><input v-model="filters.to" name="attendanceTo" type="date" /></label
       ><label class="filter-grow"
         ><span>成员</span
         ><input
           v-model.trim="filters.keyword"
+          name="attendanceKeyword"
+          type="search"
+          autocomplete="off"
           placeholder="学号或姓名" /></label
       ><label
         ><span>状态</span
-        ><select v-model="filters.status">
+        ><select v-model="filters.status" name="attendanceStatus">
           <option value="">全部</option>
           <option value="VALID">有效</option>
           <option value="INCOMPLETE">未签退</option>
@@ -120,7 +123,7 @@
         <button
           class="button secondary small"
           :disabled="page <= 1 || listLoading"
-          @click="load(page - 1)"
+          @click="setPage(page - 1)"
         >
           <ChevronLeft />上一页
         </button>
@@ -128,7 +131,7 @@
         <button
           class="button secondary small"
           :disabled="page >= totalPages || listLoading"
-          @click="load(page + 1)"
+          @click="setPage(page + 1)"
         >
           下一页<ChevronRight />
         </button>
@@ -155,21 +158,22 @@
           ><span>签到时间</span
           ><input
             v-model="form.checkInTime"
+            name="attendanceCheckInTime"
             type="datetime-local"
             required /></label
         ><label class="field"
           ><span>签退时间</span
-          ><input v-model="form.checkOutTime" type="datetime-local" /></label
+          ><input v-model="form.checkOutTime" name="attendanceCheckOutTime" type="datetime-local" /></label
         ><label v-if="editing && canReviewStatus" class="field"
           ><span>签到状态</span
-          ><select v-model="form.checkInStatus">
+          ><select v-model="form.checkInStatus" name="attendanceCheckInStatus">
             <option value="APPROVED">已通过</option>
             <option value="AUTO_APPROVED">自动通过</option>
             <option value="REJECTED">已驳回</option>
           </select></label
         ><label v-if="editing && canReviewStatus" class="field"
           ><span>签退状态</span
-          ><select v-model="form.checkOutStatus">
+          ><select v-model="form.checkOutStatus" name="attendanceCheckOutStatus">
             <option value="APPROVED">已通过</option>
             <option value="AUTO_APPROVED">自动通过</option>
             <option value="REJECTED">已驳回</option>
@@ -177,13 +181,13 @@
           </select></label
         ><label class="field span-2"
           ><span>操作原因</span
-          ><textarea v-model="form.reason" rows="3" required />
+          ><textarea v-model="form.reason" name="attendanceReason" rows="3" required />
         </label>
         <label
           v-if="editing && canReviewStatus"
           class="attendance-reevaluate span-2"
         >
-          <input v-model="form.recomputeSnapshot" type="checkbox" />
+          <input v-model="form.recomputeSnapshot" name="attendanceRecomputeSnapshot" type="checkbox" />
           <span>
             <strong>按当前值班设置重新评估</strong>
             <small>关闭时保留该记录产生时的值班日与时段规则</small>
@@ -220,8 +224,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { useRoute } from "vue-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -237,192 +239,38 @@ import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AccountPicker from "../../features/accounts/AccountPicker.vue";
-import { del, get, post, put } from "../../shared/api";
-import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { useLatestRequest } from "../../shared/composables/useLatestRequest";
-import { usePendingActions } from "../../shared/composables/usePendingActions";
-import { dateRangeError } from "../../shared/validation/dateRange";
-import { useSession } from "../../app/session";
-import {
-  attendancePageQuery,
-  attendanceActionAccess,
-  localDateTimeInput,
-  manualCheckoutStatus,
-  totalAttendancePages,
-  type AttendanceActionAccess,
-  type AttendanceRecordItem,
-  type AttendanceRecordPage,
-} from "../../features/attendance/attendanceRecords";
-import type { AccountCandidate } from "../../features/accounts/accountCandidates";
-const { user } = useSession();
-const route = useRoute();
-const records = ref<AttendanceRecordItem[]>([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = 20;
-const task = useAsyncTask();
-const listRequest = useLatestRequest();
-const actions = usePendingActions();
-const { loading: listLoading, error: listError } = listRequest;
-const editorOpen = ref(false);
-const editing = ref<AttendanceRecordItem | null>(null);
-const deleteTarget = ref<AttendanceRecordItem | null>(null);
-const manualCandidates = ref<AccountCandidate[]>([]);
-const selectedMember = ref<AccountCandidate | null>(null);
-const filters = reactive({ from: "", to: "", keyword: "", status: "" });
-const filterError = computed(() => dateRangeError(filters.from, filters.to));
-const displayError = computed(() => filterError.value || listError.value);
-const form = reactive({
-  studentNo: "",
-  checkInTime: "",
-  checkOutTime: "",
-  checkInStatus: "APPROVED",
-  checkOutStatus: "APPROVED",
-  recomputeSnapshot: false,
-  reason: "",
-});
-const canCreate = computed(() =>
-  ["PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
-);
-const canReviewStatus = canCreate;
-watch(
-  () => form.checkOutTime,
-  (value) => {
-    form.checkOutStatus = manualCheckoutStatus(form.checkOutStatus, value);
-  },
-);
-const totalPages = computed(() =>
-  totalAttendancePages(total.value, pageSize),
-);
-onMounted(async () => {
-  const now = new Date();
-  filters.to = localDate(now);
-  const start = new Date(now);
-  start.setDate(1);
-  filters.from = localDate(start);
-  filters.status =
-    typeof route.query.status === "string" ? route.query.status : "";
-  await Promise.all([load(), canCreate.value ? loadManualCandidates() : undefined]);
-});
-async function load(target = page.value) {
-  if (filterError.value) return;
-  const query = attendancePageQuery(filters, target, pageSize);
-  const value = await listRequest.run(
-    (signal) =>
-      get<AttendanceRecordPage>(`/api/attendance/page?${query}`, { signal }),
-    "值班记录加载失败",
-  );
-  if (!value) return;
-  records.value = value.items;
-  total.value = value.total;
-  page.value = value.page;
-}
-function openCreate() {
-  editing.value = null;
-  selectedMember.value = null;
-  Object.assign(form, {
-    studentNo: "",
-    checkInTime: localDateTimeInput(new Date()),
-    checkOutTime: "",
-    checkInStatus: "APPROVED",
-    checkOutStatus: "APPROVED",
-    recomputeSnapshot: false,
-    reason: "",
-  });
-  editorOpen.value = true;
-}
-function openEdit(item: AttendanceRecordItem) {
-  if (!actionAccess(item).allowed) return;
-  editing.value = item;
-  Object.assign(form, {
-    studentNo: item.studentNo,
-    checkInTime: toInput(item.checkInTime),
-    checkOutTime: toInput(item.checkOutTime),
-    checkInStatus: item.checkInStatus,
-    checkOutStatus: item.checkOutStatus,
-    recomputeSnapshot: false,
-    reason: "",
-  });
-  editorOpen.value = true;
-}
-async function save() {
-  await actions.run("save", async () => {
-    const current = editing.value;
-    const payload = {
-      ...form,
-      studentNo: current
-        ? form.studentNo
-        : selectedMember.value?.studentNo || "",
-      checkOutTime: form.checkOutTime || null,
-    };
-    const result = current
-      ? await task.run(
-          () => put(`/api/attendance/${current.id}/manual`, payload),
-          "记录已更新",
-        )
-      : await task.run(
-          () => post("/api/attendance/manual", payload),
-          "记录已补录",
-        );
-    if (result === undefined) return;
-    editorOpen.value = false;
-    await load();
-  });
-}
-function askDelete(item: AttendanceRecordItem) {
-  if (!actionAccess(item).allowed) return;
-  deleteTarget.value = item;
-}
-async function remove(reason: string) {
-  const target = deleteTarget.value;
-  if (!target) return;
-  await actions.run("delete", async () => {
-    const removed = await task.run(
-      () =>
-        del(
-          `/api/attendance/${target.id}?reason=${encodeURIComponent(reason)}`,
-        ),
-      "记录已删除",
-    );
-    if (removed === undefined) return;
-    deleteTarget.value = null;
-    await load();
-  });
-}
-const statusLabels: Record<string, string> = {
-  VALID: "有效",
-  INCOMPLETE: "未签退",
-  PENDING: "待审核",
-  INVALID: "无效",
-};
-const statusLabel = (v: string) => statusLabels[v] || v;
-const statusTone = (v: string) =>
-  v === "VALID"
-    ? "success"
-    : v === "INVALID"
-      ? "danger"
-      : v === "PENDING"
-        ? "warning"
-        : "info";
-const dateTime = (v?: string) => v?.replace("T", " ").slice(0, 16) || "—";
-const toInput = (v?: string) => v?.slice(0, 16) || "";
-function actionAccess(item: AttendanceRecordItem): AttendanceActionAccess {
-  return attendanceActionAccess(
-    user.value?.role,
-    item.userRole,
-    item.dutyDate,
-  );
-}
-async function loadManualCandidates() {
-  const value = await task.run(() =>
-    get<AccountCandidate[]>("/api/attendance/manual-candidates"),
-  );
-  if (value) manualCandidates.value = value;
-}
-function closeEditor() {
-  if (!actions.isPending("save")) editorOpen.value = false;
-}
-function localDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+import { useAttendanceRecordsWorkspace } from "../../features/attendance/useAttendanceRecordsWorkspace";
+
+const {
+  actionAccess,
+  actions,
+  applyFilters,
+  askDelete,
+  canCreate,
+  canReviewStatus,
+  closeEditor,
+  dateTime,
+  deleteTarget,
+  displayError,
+  editing,
+  editorOpen,
+  filters,
+  form,
+  listError,
+  listLoading,
+  load,
+  manualCandidates,
+  openCreate,
+  openEdit,
+  page,
+  records,
+  remove,
+  save,
+  selectedMember,
+  setPage,
+  statusLabel,
+  statusTone,
+  total,
+  totalPages,
+} = useAttendanceRecordsWorkspace();
 </script>

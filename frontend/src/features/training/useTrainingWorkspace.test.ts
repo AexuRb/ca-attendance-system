@@ -38,7 +38,6 @@ describe("training workspace route state", () => {
     expect(serializeTrainingWorkspaceQuery(state)).toEqual({
       sessionId: "42",
       sessionPage: "3",
-      keyword: "系统维护",
       from: "2026-03-01",
       to: "2026-06-30",
     });
@@ -66,10 +65,8 @@ describe("training workspace route state", () => {
     expect(workspace.filters.keyword).toBe("场次条件");
     expect(participantKeywords).toEqual(["名单条件", "新名单条件"]);
     expect(workspace.participants.page).toBe(1);
-    expect(workspace.currentQuery()).toMatchObject({
-      keyword: "场次条件",
-      participantKeyword: "新名单条件",
-    });
+    expect(workspace.currentQuery()).not.toHaveProperty("keyword");
+    expect(workspace.currentQuery()).not.toHaveProperty("participantKeyword");
   });
 });
 

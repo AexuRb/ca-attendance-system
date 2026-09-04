@@ -1,0 +1,340 @@
+/* Kiosk: a schedule strip above one full-width attendance focus. */
+:root[data-appearance="spatial"] .kiosk-signal-app {
+  min-height: 100vh;
+  overflow: auto;
+  padding: 0;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-shell {
+  width: 100%;
+  min-height: 100vh;
+  grid-template-rows: 78px auto minmax(520px, 1fr) 72px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-shell::before,
+:root[data-appearance="spatial"] .kiosk-focus-shell::after,
+:root[data-appearance="spatial"] .kiosk-focus-court::before {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-header {
+  min-height: 78px;
+  border: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 0 clamp(22px, 4vw, 62px);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: saturate(180%) blur(24px);
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-brand-mark {
+  width: 50px;
+  height: 50px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ink-950);
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-brand-mark img {
+  width: 42px;
+  height: 42px;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-brand strong {
+  color: var(--ink-950);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-brand > div > span {
+  margin-top: 3px;
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-service {
+  border-color: var(--line);
+  border-radius: 999px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-band {
+  min-height: 116px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 18px clamp(22px, 4vw, 62px) 16px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-band::before,
+:root[data-appearance="spatial"] .kiosk-signal-band::after {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-caption h2 {
+  color: var(--ink-950);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-caption span {
+  color: var(--ink-500);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-track {
+  grid-auto-columns: minmax(250px, 1fr);
+  gap: 8px;
+  margin-top: 13px;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-shift {
+  min-height: 56px;
+  border-color: var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-shift.current {
+  border-color: var(--primary);
+  background: var(--blue-50);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-shift time,
+:root[data-appearance="spatial"] .kiosk-signal-shift strong,
+:root[data-appearance="spatial"] .kiosk-signal-shift > span {
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-stage {
+  min-height: 520px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: clamp(52px, 8vh, 96px) clamp(22px, 5vw, 76px);
+  background: var(--surface-soft);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-court {
+  width: min(920px, 100%);
+  min-height: 340px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-state {
+  width: min(820px, 100%);
+  margin-inline: auto;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-input-state {
+  text-align: center;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-input-state h1,
+:root[data-appearance="spatial"] .kiosk-focus-state h2 {
+  color: var(--ink-950);
+  font-size: clamp(44px, 6vw, 68px);
+  font-weight: 600;
+  line-height: 1.08;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-form {
+  width: min(720px, 100%);
+  margin-inline: auto;
+  border-color: var(--line-strong);
+  border-radius: 999px;
+  padding: 5px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-form:focus-within {
+  border-color: var(--primary-focus);
+  box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-query-row {
+  min-height: 72px;
+  grid-template-columns: 42px minmax(0, 1fr) 120px;
+  border-radius: 999px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-query-row input {
+  height: 62px;
+  background: transparent;
+  font-size: clamp(20px, 3vw, 29px);
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-query-row button,
+:root[data-appearance="spatial"] .kiosk-focus-primary {
+  min-height: 54px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-primary:active {
+  transform: scale(0.96);
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-secondary,
+:root[data-appearance="spatial"] .kiosk-focus-back {
+  min-height: 44px;
+  border-radius: 999px;
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-member-ticket,
+:root[data-appearance="spatial"] .kiosk-focus-choice-list > button {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-person-mark,
+:root[data-appearance="spatial"] .kiosk-focus-avatar {
+  background: var(--blue-100);
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .kiosk-focus-hint,
+:root[data-appearance="spatial"] .kiosk-focus-confirm-note,
+:root[data-appearance="spatial"] .kiosk-signal-success-copy > span {
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-week {
+  min-height: 72px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 9px clamp(22px, 4vw, 62px);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-week-title,
+:root[data-appearance="spatial"] .kiosk-signal-week-days article,
+:root[data-appearance="spatial"] .kiosk-signal-week-days article strong,
+:root[data-appearance="spatial"] .kiosk-signal-admin {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-week-days article {
+  border-radius: 8px;
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-week-days article.today {
+  background: var(--blue-100);
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .kiosk-signal-admin {
+  min-height: 42px;
+  border-radius: 999px;
+  color: var(--primary);
+}
+
+@media (max-width: 800px) {
+  :root[data-appearance="spatial"] .auth-signal-layout {
+    grid-template-rows: 74px minmax(0, 1fr);
+    overflow: visible;
+  }
+
+  :root[data-appearance="spatial"] .auth-signal-header {
+    min-height: 74px;
+    padding: 0 20px;
+  }
+
+  :root[data-appearance="spatial"] .auth-form-panel {
+    padding: 36px 18px 54px;
+  }
+
+  :root[data-appearance="spatial"] .auth-form-shell {
+    padding: 30px 24px;
+  }
+
+  :root[data-appearance="spatial"] .auth-signal-footer {
+    display: none;
+  }
+
+  :root[data-appearance="spatial"] .kiosk-focus-court {
+    width: min(100%, 720px);
+  }
+}
+
+@media (max-width: 560px) {
+  :root[data-appearance="spatial"] .auth-brand-lockup div > span,
+  :root[data-appearance="spatial"] .auth-signal-context,
+  :root[data-appearance="spatial"] .kiosk-focus-time > span,
+  :root[data-appearance="spatial"] .kiosk-focus-brand > div > span,
+  :root[data-appearance="spatial"] .kiosk-signal-week-title {
+    display: none;
+  }
+
+  :root[data-appearance="spatial"] .auth-brand-mark {
+    width: 50px;
+    height: 50px;
+  }
+
+  :root[data-appearance="spatial"] .auth-brand-mark img {
+    width: 42px;
+    height: 42px;
+  }
+
+  :root[data-appearance="spatial"] .auth-brand-lockup strong {
+    font-size: 17px;
+  }
+
+  :root[data-appearance="spatial"] .auth-form-options {
+    align-items: flex-start;
+  }
+
+  :root[data-appearance="spatial"] .kiosk-focus-stage {
+    padding: 46px 18px;
+  }
+
+  :root[data-appearance="spatial"] .kiosk-focus-input-state h1,
+  :root[data-appearance="spatial"] .kiosk-focus-state h2 {
+    font-size: 40px;
+  }
+
+  :root[data-appearance="spatial"] .kiosk-focus-query-row {
+    grid-template-columns: 36px minmax(0, 1fr) 58px;
+    padding-left: 10px;
+  }
+
+  :root[data-appearance="spatial"] .kiosk-focus-query-row button {
+    min-width: 54px;
+    padding-inline: 0;
+  }
+
+  :root[data-appearance="spatial"] .kiosk-focus-query-row button span {
+    display: none;
+  }
+
+  :root[data-appearance="spatial"] .kiosk-signal-week {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}

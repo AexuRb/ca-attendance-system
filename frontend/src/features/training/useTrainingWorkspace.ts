@@ -420,10 +420,6 @@ export function serializeTrainingWorkspaceQuery(
   if (state.participantPage > 1) {
     query.participantPage = String(state.participantPage);
   }
-  if (state.participantKeyword.trim()) {
-    query.participantKeyword = state.participantKeyword.trim();
-  }
-  if (state.keyword.trim()) query.keyword = state.keyword.trim();
   if (state.from) query.from = state.from;
   if (state.to) query.to = state.to;
   return query;

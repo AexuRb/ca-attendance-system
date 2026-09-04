@@ -20,6 +20,7 @@
       <span>操作原因</span>
       <textarea
         v-model.trim="reason"
+        name="bulkStatusReason"
         rows="3"
         placeholder="用于安全备份和操作日志"
         autofocus

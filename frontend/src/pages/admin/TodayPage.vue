@@ -1,94 +1,74 @@
 <template>
-  <div class="page-stack today-page">
-    <PageHeader
-      title="今日"
-      :meta="todayLabel"
-    />
-    <LoadingBlock v-if="loading && !dashboard" />
-    <div v-else-if="error && !dashboard" class="inline-alert danger" role="alert">
+  <div class="today-command-page">
+    <div v-if="error" class="inline-alert danger today-load-error" role="alert">
       <span>{{ error }}</span>
-      <button
-        class="button secondary small"
-        type="button"
-        data-action="retry-today"
-        @click="refresh"
-      >
-        重试
-      </button>
+      <button class="button secondary small" type="button" data-action="retry-today" @click="refresh">重试</button>
     </div>
-    <template v-else>
-      <div v-if="error" class="inline-alert danger" role="alert">
-        <span>{{ error }}</span>
-        <button class="button secondary small" type="button" data-action="retry-today" @click="refresh">
-          重试
-        </button>
-      </div>
-      <TodayPriority :dashboard="dashboard || {}" />
-      <div class="today-grid">
-        <TodayRecords
-          :records="records.slice(0, 8)"
-          :record-count="dashboard?.todayRecordCount || records.length"
-          :valid-hours="dashboard?.todayValidHours || 0"
-        />
-        <TodaySchedule
-          :schedule="schedule"
-          :can-schedule="canSchedule"
-          :weekday-label="weekdayLabel"
-        />
-      </div>
-    </template>
+    <TodayCommandCenter
+      v-model="commandInput"
+      :date-label="todayLabel"
+      :role-name="currentRoleLabel"
+      :role="currentRole"
+      :quick-actions="quickActions"
+      :error-message="commandError"
+      :loading="loading && !dashboard"
+      @execute="executeCommand"
+      @clear-error="commandError = ''"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
-import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
-import TodayPriority from "./today/TodayPriority.vue";
-import TodayRecords from "./today/TodayRecords.vue";
-import TodaySchedule from "./today/TodaySchedule.vue";
+import { useRouter } from "vue-router";
+import TodayCommandCenter from "./today/TodayCommandCenter.vue";
 import { get } from "../../shared/api";
-import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { roleLabel } from "../../app/adminNavigation";
 import { useSession } from "../../app/session";
-import type {
-  TodayAttendanceRecord,
-  TodayDashboardData,
-  TodayScheduleData,
-} from "./today/types";
+import { resolveCommand } from "../../features/command-center/commandParser";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
+import { notify } from "../../shared/composables/useToast";
+import type { Role } from "../../shared/types";
+import { buildTodayQuickActions } from "./today/todayQuickActions";
+import type { TodayDashboardData, TodayScheduleData } from "./today/types";
 
 const { user } = useSession();
+const router = useRouter();
 const request = useLatestRequest();
 const { loading, error } = request;
 const dashboard = ref<TodayDashboardData | null>(null);
 const schedule = ref<TodayScheduleData | null>(null);
-const records = ref<TodayAttendanceRecord[]>([]);
+const commandInput = ref("");
+const commandError = ref("");
+const currentDate = ref(new Date());
 let timer = 0;
 
-const currentDate = ref(new Date());
 const today = computed(() => localDate(currentDate.value));
 const todayLabel = computed(() =>
-  new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  }).format(currentDate.value),
+  new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric" }).format(currentDate.value),
 );
-const weekdayLabel = computed(() =>
-  new Intl.DateTimeFormat("zh-CN", {
-    weekday: "long",
-  }).format(currentDate.value),
+const currentRole = computed<Role>(() => user.value?.role || "MINISTER");
+const currentRoleLabel = computed(() => roleLabel(currentRole.value));
+const canSchedule = computed(() =>
+  user.value?.role === "PRESIDENT" || user.value?.role === "ADMIN",
 );
-const canSchedule = computed(
-  () => user.value?.role === "PRESIDENT" || user.value?.role === "ADMIN",
+const missingScheduleCount = computed(() =>
+  canSchedule.value
+    ? schedule.value?.slots?.filter((slot) => !slot.assignees.length).length || 0
+    : 0,
 );
+const quickActions = computed(() => buildTodayQuickActions(
+  dashboard.value,
+  missingScheduleCount.value,
+  canSchedule.value,
+  currentRole.value,
+));
 
 onMounted(() => {
   refresh();
   timer = window.setInterval(refresh, 60_000);
   window.addEventListener("focus", refresh);
 });
-
 onBeforeUnmount(() => {
   window.clearInterval(timer);
   window.removeEventListener("focus", refresh);
@@ -104,20 +84,32 @@ async function load() {
   const result = await request.run(
     (signal) =>
       Promise.all([
-        get<TodayDashboardData>(`/api/stats/dashboard?date=${queryDate}`, { signal }),
+        get<TodayDashboardData>("/api/stats/dashboard?date=" + queryDate, { signal }),
         get<TodayScheduleData>("/api/public/schedules/today", { signal }),
-        get<TodayAttendanceRecord[]>(
-          `/api/attendance?from=${queryDate}&to=${queryDate}`,
-          { signal },
-        ),
       ]),
     "今日数据加载失败",
   );
   if (!result) return;
-  [dashboard.value, schedule.value, records.value] = result;
+  [dashboard.value, schedule.value] = result;
+}
+
+async function executeCommand(value: string) {
+  const resolution = resolveCommand(value, currentRole.value, currentDate.value);
+  if (resolution.kind !== "resolved") {
+    commandError.value = resolution.message;
+    return;
+  }
+  commandInput.value = resolution.canonical;
+  commandError.value = "";
+  await router.push(resolution.target);
+  notify(resolution.feedback, "success");
 }
 
 function localDate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
 }
 </script>

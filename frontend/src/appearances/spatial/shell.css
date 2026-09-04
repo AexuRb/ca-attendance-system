@@ -1,0 +1,444 @@
+:root[data-appearance="spatial"] .admin-layout {
+  --spatial-navigation-width: 286px;
+  grid-template-columns: var(--spatial-navigation-width) minmax(0, 1fr);
+  background: var(--canvas);
+}
+
+:root[data-appearance="spatial"] .admin-navigation {
+  position: fixed;
+  z-index: 51;
+  inset: 0 auto 0 0;
+  display: flex;
+  width: var(--spatial-navigation-width);
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  background: rgba(250, 250, 252, 0.96);
+  backdrop-filter: saturate(180%) blur(24px);
+  transition: width 260ms var(--admin-ease), transform 280ms var(--admin-ease);
+}
+
+:root[data-appearance="spatial"] .admin-primary-rail {
+  position: relative;
+  z-index: auto;
+  inset: auto;
+  display: grid;
+  width: 100%;
+  min-height: 126px;
+  grid-template-columns: 48px minmax(0, 1fr) 42px;
+  grid-template-rows: 50px 52px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  border-right: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 13px 14px 11px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--ink-950);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .primary-brand-mark {
+  width: 46px;
+  height: 46px;
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 2px;
+  background: transparent;
+  filter: brightness(0);
+}
+
+:root[data-appearance="spatial"] .primary-nav {
+  display: flex;
+  width: 100%;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+}
+
+:root[data-appearance="spatial"] .primary-nav a {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 50px;
+  grid-template-columns: 1fr;
+  place-items: center;
+  justify-content: center;
+  gap: 0;
+  border-radius: 999px;
+  padding: 0;
+  color: var(--ink-600);
+}
+
+:root[data-appearance="spatial"] .primary-nav a span {
+  display: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .primary-nav a:hover {
+  background: var(--surface-soft);
+  color: var(--ink-950);
+}
+
+:root[data-appearance="spatial"] .primary-nav a.active {
+  background: var(--ink-950);
+  color: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .primary-nav a.active::before,
+:root[data-appearance="spatial"] .primary-nav a.active::after {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .primary-kiosk-link {
+  width: 42px;
+  min-height: 42px;
+  grid-column: 3;
+  grid-row: 1;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .primary-kiosk-link:hover {
+  background: var(--blue-100);
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .primary-avatar {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .admin-section-sidebar {
+  position: relative;
+  z-index: auto;
+  inset: auto;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  border-right: 0;
+  background: transparent;
+  backdrop-filter: none;
+  transition: opacity 180ms ease;
+}
+
+:root[data-appearance="spatial"] .section-brand-copy {
+  min-height: 92px;
+  border-bottom: 1px solid var(--line);
+  padding: 21px 48px 17px 22px;
+}
+
+:root[data-appearance="spatial"] .section-brand-copy small {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .section-brand-copy strong {
+  margin-top: 6px;
+  color: var(--ink-950);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .section-collapse {
+  top: 23px;
+  right: 13px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+:root[data-appearance="spatial"] .section-collapse:hover {
+  border-color: var(--line);
+  background: #fff;
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .section-navigation {
+  padding: 17px 12px;
+}
+
+:root[data-appearance="spatial"] .section-navigation > p {
+  margin: 0;
+  padding: 0 12px 9px;
+  color: var(--ink-500);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .section-navigation a {
+  min-height: 48px;
+  grid-template-columns: 21px minmax(0, 1fr) 16px;
+  margin: 2px 0;
+  border-radius: 8px;
+  padding: 0 13px;
+  color: var(--ink-700);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .section-navigation a:hover {
+  background: #e9e9ed;
+  color: var(--ink-950);
+}
+
+:root[data-appearance="spatial"] .section-navigation a.router-link-active {
+  background: var(--blue-100);
+  color: var(--primary);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .section-navigation a.router-link-active > svg:last-child {
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .section-sidebar-foot {
+  border-top-color: var(--line);
+  padding: 12px;
+  background: rgba(245, 245, 247, 0.9);
+}
+
+:root[data-appearance="spatial"] .section-user {
+  min-height: 58px;
+  border-radius: 8px;
+  padding: 9px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .section-user .avatar {
+  background: var(--ink-950);
+  color: #fff;
+}
+
+:root[data-appearance="spatial"] .section-user strong {
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .section-user div > span {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .admin-stage {
+  grid-column: 2;
+}
+
+:root[data-appearance="spatial"] .admin-topbar {
+  height: 58px;
+  min-height: 58px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 0 clamp(22px, 3vw, 44px);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: saturate(180%) blur(24px);
+}
+
+:root[data-appearance="spatial"] .topbar-breadcrumbs {
+  gap: 8px;
+  color: var(--ink-500);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .topbar-breadcrumbs strong {
+  color: var(--ink-950);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .topbar-tools {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .topbar-credit-button {
+  min-height: 38px;
+  border-color: var(--line);
+  border-radius: 999px;
+  padding-inline: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--primary);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .topbar-credit-button:hover {
+  border-color: var(--blue-300);
+  background: var(--blue-50);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .admin-content {
+  min-height: calc(100vh - 58px);
+  padding: 42px clamp(26px, 4vw, 68px) 72px;
+  background: var(--canvas);
+  background-image: none;
+}
+
+:root[data-appearance="spatial"] .admin-content::before {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .admin-route-frame {
+  width: min(100%, 1380px);
+  margin-inline: auto;
+}
+
+:root[data-appearance="spatial"] .page-stack {
+  gap: 26px;
+}
+
+:root[data-appearance="spatial"] .page-header {
+  min-height: 82px;
+  align-items: flex-end;
+  border: 0;
+  padding: 0 0 10px;
+}
+
+:root[data-appearance="spatial"] .page-header h1,
+:root[data-appearance="spatial"] .page-header h2 {
+  color: var(--ink-950);
+  font-size: clamp(32px, 3vw, 44px);
+  font-weight: 600;
+  line-height: 1.12;
+}
+
+:root[data-appearance="spatial"] .page-header .eyebrow {
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .filter-bar {
+  gap: 12px;
+  border-color: var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .filter-bar label > span {
+  color: var(--ink-600);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .filter-bar input,
+:root[data-appearance="spatial"] .filter-bar select,
+:root[data-appearance="spatial"] .field input,
+:root[data-appearance="spatial"] .field select,
+:root[data-appearance="spatial"] .field textarea {
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+:root[data-appearance="spatial"] .page-tabs,
+:root[data-appearance="spatial"] .segmented {
+  border-color: var(--line-strong);
+  border-radius: 999px;
+  background: #e9e9ed;
+}
+
+:root[data-appearance="spatial"] .page-tabs button,
+:root[data-appearance="spatial"] .segmented button,
+:root[data-appearance="spatial"] .page-tabs button.active,
+:root[data-appearance="spatial"] .segmented button.active {
+  border-radius: 999px;
+}
+
+:root[data-appearance="spatial"] .page-tabs button.active,
+:root[data-appearance="spatial"] .segmented button.active {
+  background: #fff;
+  color: var(--ink-950);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .table-shell {
+  overflow: hidden;
+}
+
+:root[data-appearance="spatial"] th {
+  background: var(--surface-soft);
+  color: var(--ink-600);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] td {
+  border-color: var(--line-soft);
+}
+
+:root[data-appearance="spatial"] tbody tr {
+  transition: background 150ms ease;
+}
+
+:root[data-appearance="spatial"] tbody tr:hover {
+  background: var(--blue-50);
+}
+
+
+
+:root[data-appearance="spatial"] .section-collapsed.admin-layout {
+  --spatial-navigation-width: 76px;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .admin-navigation {
+  width: 76px;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .admin-primary-rail {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 8px 12px;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .primary-brand-mark {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .primary-nav {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+  margin-top: 22px;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .primary-nav a {
+  min-height: 54px;
+  grid-template-columns: 1fr;
+  grid-template-rows: 21px auto;
+  gap: 3px;
+  border-radius: 8px;
+  padding: 5px 2px;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .primary-nav a span {
+  display: block;
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .primary-kiosk-link {
+  width: 100%;
+  margin-top: auto;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .primary-avatar {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  margin-top: 10px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--primary);
+  font-size: 14px;
+}
+
+:root[data-appearance="spatial"] .section-collapsed .admin-section-sidebar {
+  display: none;
+}

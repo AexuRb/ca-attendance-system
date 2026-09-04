@@ -1,0 +1,196 @@
+/* Reviews: a continuous approval manuscript. */
+:root[data-appearance="editorial"] .admin-layout[data-page="reviews"] .reviews-page {
+  width: min(100%, 1120px);
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-list {
+  border-top: 2px solid var(--ink-900);
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-row {
+  grid-template-columns: 220px minmax(0, 1fr) auto;
+  gap: 26px;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  padding: 24px 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-row:hover {
+  background: linear-gradient(90deg, transparent, rgba(255, 254, 250, 0.8), transparent);
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-row .avatar {
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--blue-800);
+}
+
+:root[data-appearance="editorial"] .reviews-page .review-person strong {
+  font-family: var(--font-editorial);
+  font-size: 20px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .review-state-actions .button {
+  min-width: 112px;
+}
+
+/* Attendance: ledger with strong horizontal rhythm. */
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] .table-shell {
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] tbody tr {
+  background: var(--surface);
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] tbody tr + tr {
+  border-top: 7px solid var(--canvas);
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="attendance"] td {
+  padding-block: 18px;
+}
+
+/* Schedule: week planner on paper. */
+:root[data-appearance="editorial"] .schedule-focus-workspace {
+  border-top: 2px solid var(--ink-900);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-days {
+  gap: 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day {
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day:last-child {
+  border-right: 0;
+}
+
+:root[data-appearance="editorial"] .schedule-focus-day.active {
+  background: var(--blue-100);
+  color: var(--blue-800);
+}
+
+:root[data-appearance="editorial"] .schedule-focus-panel {
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .schedule-slot-card {
+  border-color: var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+/* Members: directory rows with editorial identity emphasis. */
+:root[data-appearance="editorial"] .members-page .selection-toolbar {
+  border-left: 3px solid var(--blue-600);
+  border-radius: 0;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .members-page .member-table {
+  overflow: visible;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .members-page .member-table tbody tr {
+  background: var(--surface);
+}
+
+:root[data-appearance="editorial"] .members-page .member-table tbody tr:hover {
+  box-shadow: inset 3px 0 0 var(--blue-600);
+}
+
+:root[data-appearance="editorial"] .members-page .member-identity strong {
+  font-family: var(--font-editorial);
+  font-size: 18px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .members-page .avatar.small {
+  background: var(--surface-soft);
+  color: var(--blue-800);
+}
+
+/* Profile: a two-column personal dossier. */
+:root[data-appearance="editorial"] .profile-page .profile-summary {
+  border-top: 2px solid var(--ink-900);
+  border-right: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-left: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-avatar {
+  background: var(--ink-900);
+  color: #fffaf2;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-stat strong {
+  font-family: var(--font-editorial);
+  font-size: 26px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-workspace {
+  grid-template-columns: minmax(300px, 0.78fr) minmax(480px, 1.22fr);
+  gap: 28px;
+}
+
+:root[data-appearance="editorial"] .profile-page .profile-contact-panel,
+:root[data-appearance="editorial"] .profile-page .profile-record-panel {
+  border-top: 2px solid var(--ink-900);
+  border-radius: 0;
+}
+
+
+
+@media (max-width: 1100px) {
+  :root[data-appearance="editorial"] .profile-page .profile-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="editorial"] .reviews-page .review-row {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  :root[data-appearance="editorial"] .reviews-page .review-state-actions {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 760px) {
+  :root[data-appearance="editorial"] .reviews-page .review-row {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="editorial"] .reviews-page .review-state-actions {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  :root[data-appearance="editorial"] .command-welcome-detail h1 {
+    font-size: 40px;
+  }
+}

@@ -283,7 +283,11 @@ function Get-EnabledWeekdayDate {
     $current = [int]$today.DayOfWeek
     if ($current -eq 0) { $current = 7 }
     $delta = $Weekday - $current
-    return $today.Date.AddDays($delta)
+    $candidate = $today.Date.AddDays($delta)
+    if ($candidate -ge $today.Date) {
+        $candidate = $candidate.AddDays(-7)
+    }
+    return $candidate
 }
 
 function Remember-Backup {

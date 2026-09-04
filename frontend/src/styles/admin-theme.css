@@ -44,7 +44,7 @@
 }
 
 .refined-admin-layout .primary-nav a span {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .primary-nav a.active {
@@ -105,7 +105,7 @@
 
 .refined-admin-layout .section-brand-copy small,
 .refined-admin-layout .section-navigation > p {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .section-collapse {
@@ -141,7 +141,7 @@
 }
 
 .refined-admin-layout .section-user div > span {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .refined-topbar {
@@ -161,7 +161,7 @@
 .refined-admin-layout .topbar-tools {
   gap: 12px;
   color: var(--ink-500);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .refined-admin-layout .topbar-credit-button {
@@ -196,7 +196,7 @@
 
 .refined-admin-layout .service-status.compact span,
 .refined-admin-layout .local-clock {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout small,
@@ -205,7 +205,7 @@
 .refined-admin-layout .export-steps button span,
 .refined-admin-layout .period-enabled-toggle span,
 .refined-admin-layout .log-time span {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout .admin-content {
@@ -442,7 +442,7 @@
   min-height: 24px;
   border-radius: 4px;
   padding-inline: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Work surfaces and data tables */
@@ -497,7 +497,7 @@
   border-bottom-color: var(--admin-line);
   background: #f4f7f9;
   color: #586f7d;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .refined-admin-layout td {

@@ -3,7 +3,7 @@
     <p class="confirm-copy">{{ message }}</p>
     <label v-if="requireReason" class="field">
       <span>操作原因</span>
-      <textarea v-model="reason" rows="3" placeholder="请说明原因" autofocus />
+      <textarea v-model="reason" name="confirmReason" rows="3" placeholder="请说明原因" autofocus />
     </label>
     <template #footer>
       <button

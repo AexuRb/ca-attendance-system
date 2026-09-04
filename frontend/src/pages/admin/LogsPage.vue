@@ -1,5 +1,5 @@
 <template>
-  <div class="page-stack">
+  <div class="page-stack logs-page">
     <PageHeader
       title="操作日志"
       ><template #actions
@@ -10,22 +10,32 @@
         </button></template
       ></PageHeader
     >
-    <form class="filter-bar" @submit.prevent="load(1)">
+    <form class="filter-bar" @submit.prevent="applyFilters">
       <label class="filter-grow"
         ><span>关键词</span
         ><input
           v-model.trim="filters.keyword"
+          name="logKeyword"
+          type="search"
+          autocomplete="off"
           placeholder="操作人、对象或原因" /></label
       ><label
         ><span>操作类型</span
-        ><input
-          v-model.trim="filters.actionType"
-          placeholder="例如 UPDATE" /></label
+        ><select v-model="filters.actionType" name="logActionType">
+          <option value="">全部操作</option>
+          <option
+            v-for="option in auditActionOptions"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select></label
       ><label
         ><span>开始日期</span
-        ><input v-model="filters.from" type="date" /></label
+        ><input v-model="filters.from" name="logFrom" type="date" /></label
       ><label
-        ><span>结束日期</span><input v-model="filters.to" type="date" /></label
+        ><span>结束日期</span><input v-model="filters.to" name="logTo" type="date" /></label
       ><button class="button secondary" type="submit"><Search />查询</button>
     </form>
     <div v-if="displayError" class="inline-alert danger" role="alert">
@@ -83,14 +93,14 @@
         <button
           class="button secondary small"
           :disabled="page <= 1 || listLoading"
-          @click="load(page - 1)"
+          @click="setPage(page - 1)"
         >
           <ChevronLeft />上一页</button
         ><span>第 {{ page }} / {{ totalPages }} 页</span
         ><button
           class="button secondary small"
           :disabled="page >= totalPages || listLoading"
-          @click="load(page + 1)"
+          @click="setPage(page + 1)"
         >
           下一页<ChevronRight />
         </button>
@@ -101,7 +111,7 @@
       title="操作详情"
       size="lg"
       @close="detail = null"
-      ><div v-if="detail" class="log-detail">
+      ><div v-if="detail" class="log-detail audit-detail-surface">
         <dl>
           <div>
             <dt>操作人</dt>
@@ -113,7 +123,7 @@
           </div>
           <div>
             <dt>操作类型</dt>
-            <dd>{{ auditActionLabel(detail.actionType) }}</dd>
+            <dd>{{ actionLabel(detail.actionType) }}</dd>
           </div>
           <div>
             <dt>对象</dt>
@@ -132,8 +142,8 @@
           </div>
           <div v-for="row in detailRows" :key="row.key" role="row">
             <strong role="cell">{{ row.label }}</strong>
-            <span role="cell">{{ row.before }}</span>
-            <span role="cell" class="after-value">{{ row.after }}</span>
+            <span role="cell" data-label="修改前">{{ row.before }}</span>
+            <span role="cell" class="after-value" data-label="修改后">{{ row.after }}</span>
           </div>
         </div>
         <EmptyState v-else title="这次操作没有可比较的字段" />
@@ -170,7 +180,6 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
 import {
   ChevronLeft,
   ChevronRight,
@@ -185,105 +194,11 @@ import EmptyState from "../../shared/ui/EmptyState.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
-import { del, get, downloadBlob } from "../../shared/api";
-import { useAsyncTask } from "../../shared/composables/useAsyncTask";
-import { useLatestRequest } from "../../shared/composables/useLatestRequest";
-import { usePendingActions } from "../../shared/composables/usePendingActions";
-import { dateRangeError } from "../../shared/validation/dateRange";
-import type {
-  OperationLog,
-  OperationLogPage,
-} from "../../features/audit/logTypes";
-import {
-  auditActionLabel,
-  auditTargetLabel,
-  buildAuditDiff,
-} from "../../features/audit/logDisplay";
-const task = useAsyncTask();
-const listRequest = useLatestRequest();
-const actions = usePendingActions();
-const { loading: listLoading, error: listError } = listRequest;
-const items = ref<OperationLog[]>([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = 20;
-const detail = ref<OperationLog | null>(null);
-const clearOpen = ref(false);
-const filters = reactive({ keyword: "", actionType: "", from: "", to: "" });
-const filterError = computed(() => dateRangeError(filters.from, filters.to));
-const displayError = computed(() => filterError.value || listError.value);
-const totalPages = computed(() =>
-  Math.max(1, Math.ceil(total.value / pageSize)),
-);
-const detailRows = computed(() =>
-  detail.value
-    ? buildAuditDiff(detail.value.beforeData, detail.value.afterData)
-    : [],
-);
-onMounted(() => load());
-async function load(target = page.value) {
-  if (filterError.value) return;
-  const p = params({ ...filters, page: target, pageSize });
-  const value = await listRequest.run(
-    (signal) => get<OperationLogPage>(`/api/logs?${p}`, { signal }),
-    "操作日志加载失败",
-  );
-  if (value) {
-    items.value = value.items;
-    total.value = value.total;
-    page.value = value.page;
-  }
-}
-async function exportLogs() {
-  if (filterError.value) return;
-  const snapshot = { ...filters };
-  await actions.run("export", async () => {
-    const blob = await task.run(() =>
-      get<Blob>(`/api/logs/export?${params(snapshot)}`),
-    );
-    if (blob) downloadBlob(blob, "操作日志.xlsx");
-  });
-}
-async function clearLogs() {
-  await actions.run("clear", async () => {
-    const cleared = await task.run(
-      () => del("/api/logs"),
-      "日志已清空，安全备份已创建",
-    );
-    if (cleared === undefined) return;
-    clearOpen.value = false;
-    await load(1);
-  });
-}
-function params(
-  value: Record<string, string | number | null | undefined>,
-) {
-  const p = new URLSearchParams();
-  Object.entries(value).forEach(
-    ([k, v]) => v !== "" && v != null && p.set(k, String(v)),
-  );
-  return p;
-}
-const date = (v: string) => v?.slice(0, 10);
-const time = (v: string) => v?.slice(11, 16);
-const actionLabel = auditActionLabel;
-const actionTone = (
-  v: string,
-): "neutral" | "info" | "success" | "danger" =>
-  v?.includes("DELETE")
-    ? "danger"
-    : v?.includes("CREATE")
-      ? "success"
-      : v?.includes("UPDATE")
-        ? "info"
-        : "neutral";
-const targetLabel = auditTargetLabel;
-function pretty(v?: string) {
-  if (!v) return "无";
-  try {
-    return JSON.stringify(JSON.parse(v), null, 2);
-  } catch {
-    return v;
-  }
-}
+import { useAuditLogWorkspace } from "../../features/audit/useAuditLogWorkspace";
+
+const {
+  actionLabel, actionTone, actions, applyFilters, auditActionOptions, clearLogs, clearOpen,
+  date, detail, detailRows, displayError, exportLogs, filterError, filters, items, listError, listLoading,
+  load, page, pretty, setPage, targetLabel, time, total, totalPages,
+} = useAuditLogWorkspace();
 </script>

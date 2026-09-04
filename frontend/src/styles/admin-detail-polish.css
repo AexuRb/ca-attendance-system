@@ -102,7 +102,7 @@
   .refined-admin-layout .training-participant-table td::before {
     color: var(--ink-500);
     content: attr(data-label);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
   }
 

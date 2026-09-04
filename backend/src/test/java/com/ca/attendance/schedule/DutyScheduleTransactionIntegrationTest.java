@@ -2,6 +2,7 @@ package com.ca.attendance.schedule;
 
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
+import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.settings.DutyPeriodService;
 import org.apache.poi.ss.usermodel.Row;
@@ -116,6 +117,24 @@ class DutyScheduleTransactionIntegrationTest {
     }
 
     @Test
+    void archiveRejectsAnIgnoredDatabaseWriteWithoutLoggingSuccess() {
+        DutyScheduleSlotItem slot = schedules.create(request("排班零行归档", "9910000001"));
+        jdbc.execute("""
+                CREATE TRIGGER ignore_schedule_archive
+                BEFORE UPDATE ON duty_schedule_slots
+                WHEN OLD.id = %d AND NEW.status = 'ARCHIVED'
+                BEGIN
+                  SELECT RAISE(IGNORE);
+                END
+                """.formatted(slot.id()));
+
+        assertThrows(ApiException.class, () -> schedules.archive(slot.id()));
+
+        assertEquals("ACTIVE", slotStatus(slot.id()));
+        assertEquals(0, actionCount("ARCHIVE_DUTY_SCHEDULE"));
+    }
+
+    @Test
     void importRollsBackReplacementWhenAuditLogFails() throws Exception {
         DutyScheduleSlotItem slot = schedules.create(request("排班导入", "9910000001"));
         failAudit("IMPORT_DUTY_SCHEDULES");
@@ -194,6 +213,7 @@ class DutyScheduleTransactionIntegrationTest {
 
     private void dropAuditTrigger() {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_schedule_audit");
+        jdbc.execute("DROP TRIGGER IF EXISTS ignore_schedule_archive");
     }
 
     private int activeSlotCount() {

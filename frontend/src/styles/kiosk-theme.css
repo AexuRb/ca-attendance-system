@@ -52,7 +52,7 @@
 
 .kiosk-focus-brand > div > span {
   margin-top: 3px;
-  font: 700 9px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .kiosk-focus-header-actions {
@@ -60,7 +60,7 @@
 }
 
 .kiosk-focus-service {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .kiosk-focus-service i {
@@ -82,7 +82,7 @@
 
 .kiosk-focus-time > span {
   color: var(--ink-500);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .kiosk-focus-clock {
@@ -140,7 +140,7 @@
 .kiosk-focus-eyebrow {
   margin: 0;
   color: var(--blue-700);
-  font: 700 10px/1.2 var(--font-mono);
+  font: 700 12px/1.2 var(--font-mono);
 }
 
 .kiosk-focus-state h1 {
@@ -237,7 +237,7 @@
   gap: 8px;
   margin: -20px 0 0;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .kiosk-focus-hint i {
@@ -320,7 +320,7 @@
 .kiosk-focus-member-ticket span {
   margin-top: 5px;
   color: var(--ink-500);
-  font: 600 10px var(--font-mono);
+  font: 600 12px var(--font-mono);
 }
 
 .kiosk-focus-member-ticket em {
@@ -328,7 +328,7 @@
   padding: 5px 8px;
   background: var(--green-100);
   color: var(--green-700);
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   font-weight: 720;
 }
@@ -358,7 +358,7 @@
 
 .kiosk-focus-confirm-note {
   max-width: 620px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -635,7 +635,7 @@
 
 .kiosk-signal-caption span {
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .kiosk-signal-track {
@@ -714,7 +714,7 @@
 
 .kiosk-signal-shift > span {
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -821,7 +821,7 @@
 .kiosk-signal-shell .kiosk-focus-eyebrow {
   margin: 0;
   color: var(--blue-700);
-  font: 700 9px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .kiosk-signal-shell .kiosk-focus-state h1 {
@@ -835,7 +835,7 @@
 
 .kiosk-signal-terminal-head time {
   color: var(--ink-500);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .kiosk-focus-step-status {
@@ -843,7 +843,7 @@
   border-left: 2px solid var(--amber-500);
   padding: 2px 0 2px 10px;
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -945,7 +945,7 @@
   gap: 9px;
   margin-top: 12px;
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   animation: kiosk-meta-enter 0.56s 0.24s var(--ease-out) both;
 }
 
@@ -989,7 +989,7 @@
 }
 
 .kiosk-signal-shell .kiosk-focus-choice-list small {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .kiosk-signal-shell .kiosk-focus-member-ticket {
@@ -1048,7 +1048,7 @@
   gap: 8px;
   margin-top: 12px;
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .kiosk-signal-shell .kiosk-focus-confirm-note i {
@@ -1166,7 +1166,7 @@
   align-content: center;
   border-radius: 5px;
   color: var(--ink-600);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .kiosk-signal-week-days article strong {
@@ -1195,7 +1195,7 @@
   padding: 0 13px;
   background: white;
   color: var(--ink-600);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   transition:
     transform 0.42s cubic-bezier(0.32, 0.72, 0, 1),

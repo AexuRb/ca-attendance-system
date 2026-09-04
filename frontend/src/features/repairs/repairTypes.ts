@@ -27,6 +27,7 @@ export interface RepairCase {
   handlerName?: string;
   remark?: string;
   deletedByName?: string;
+  deletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }

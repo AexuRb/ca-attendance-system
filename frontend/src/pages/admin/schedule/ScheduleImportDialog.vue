@@ -5,6 +5,7 @@
         <span>Excel 文件</span>
         <input
           ref="fileInput"
+          name="scheduleImportFile"
           type="file"
           accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           @change="selectFile"

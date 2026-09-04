@@ -73,7 +73,7 @@
   display: block;
   margin-top: 3px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .training-month-summary {
@@ -88,13 +88,13 @@
 
 .training-month-summary dt {
   color: var(--ink-500);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .training-month-summary dd {
   margin: 4px 0 0;
   color: var(--ink-850);
-  font: 800 11px var(--font-mono);
+  font: 800 12px var(--font-mono);
 }
 
 .training-ribbon-feedback,
@@ -107,7 +107,7 @@
   margin: 0;
   padding: 20px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -221,7 +221,7 @@
 
 .training-ribbon-event > span strong {
   color: var(--ink-850);
-  font-size: 11px;
+  font-size: 12px;
   transition:
     color 0.38s var(--ease-out),
     transform 0.38s var(--ease-out);
@@ -229,7 +229,7 @@
 
 .training-ribbon-event > span small {
   margin-top: 4px;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .training-ribbon-event:not(:disabled):hover time {
@@ -266,7 +266,7 @@
   padding: 7px 14px;
   border-top: 1px solid var(--admin-line);
   color: var(--ink-500);
-  font: 700 9px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .training-ribbon-pagination > div {
@@ -316,7 +316,7 @@
 
 .training-session-heading time {
   color: #91c8dc;
-  font: 800 10px var(--font-mono);
+  font: 800 12px var(--font-mono);
 }
 
 .training-session-heading h2 {
@@ -333,7 +333,7 @@
   margin: 10px 0 0;
   overflow: hidden;
   color: #aecbd8;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.55;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -360,7 +360,7 @@
   align-items: center;
   gap: 6px;
   color: #90b6c6;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .training-session-facts dt svg {
@@ -373,7 +373,7 @@
   margin: 0;
   overflow: hidden;
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 750;
   text-align: right;
   text-overflow: ellipsis;
@@ -485,7 +485,7 @@
   padding: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .training-participant-search input:focus {
@@ -502,7 +502,7 @@
   margin: 0;
   padding: 24px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -535,7 +535,7 @@
   border-top: 1px solid var(--admin-line-soft);
   background: #f8fbfc;
   color: var(--ink-500);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .training-participant-rows {
@@ -549,7 +549,7 @@
   min-height: 60px;
   border-bottom: 1px solid var(--admin-line-soft);
   background: #fff;
-  font-size: 11px;
+  font-size: 12px;
   transition:
     background 0.34s var(--ease-out),
     transform 0.4s var(--ease-out);
@@ -575,7 +575,7 @@
   border-radius: 50%;
   background: var(--surface-blue);
   color: var(--blue-700);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -593,25 +593,25 @@
 }
 
 .training-participant-identity strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .training-participant-identity span,
 .training-participant-remark-empty {
   color: var(--ink-500);
-  font: 600 9px var(--font-mono);
+  font: 600 12px var(--font-mono);
 }
 
 .training-participant-duration {
   color: var(--blue-700);
-  font: 800 11px var(--font-mono);
+  font: 800 12px var(--font-mono);
   white-space: nowrap;
 }
 
 .training-participant-remark {
   min-width: 0;
   color: var(--ink-600);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .training-participant-remark summary {
@@ -646,7 +646,7 @@
   padding: 7px 12px;
   background: #fff;
   color: var(--ink-500);
-  font: 700 9px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .training-stage-swap-enter-active,
@@ -698,7 +698,7 @@
 
 .training-import-file span {
   color: var(--ink-500);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
 }
 
 .training-import-error {

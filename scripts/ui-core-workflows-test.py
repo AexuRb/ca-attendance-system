@@ -457,10 +457,8 @@ def main() -> None:
             wait_until="networkidle",
         )
         expect(page.get_by_role("heading", name="系统设置")).to_be_visible()
-        expect(page.get_by_text("停用", exact=True)).to_be_visible()
-        expect(
-            page.locator(".period-editor input[type='time']").first
-        ).to_have_value("16:00")
+        expect(page.locator(".duty-period-tab.disabled").first).to_contain_text("停用")
+        expect(page.get_by_label("开始时间")).to_have_value("16:00")
         assert_no_page_overflow(page, "desktop settings")
         page.screenshot(
             path=str(screenshot_dir / "settings-desktop.png"),

@@ -10,7 +10,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class DatabaseMigrator {
-    private static final int CURRENT_VERSION = 10;
+    private static final int CURRENT_VERSION = 11;
     private final DataSource dataSource;
 
     public DatabaseMigrator(DataSource dataSource) {
@@ -61,6 +61,10 @@ public class DatabaseMigrator {
             }
             if (version < 10) {
                 migrateToVersionTen(connection);
+                version = 10;
+            }
+            if (version < 11) {
+                migrateToVersionEleven(connection);
             }
             verifyIntegrity(connection);
         }
@@ -104,6 +108,10 @@ public class DatabaseMigrator {
 
     private void migrateToVersionTen(Connection connection) throws SQLException {
         migrate(connection, "db/sqlite/V10__normalize_training_participants.sql", 10);
+    }
+
+    private void migrateToVersionEleven(Connection connection) throws SQLException {
+        migrate(connection, "db/sqlite/V11__global_ui_appearance.sql", 11);
     }
 
     private void migrate(Connection connection, String resource, int version) throws SQLException {

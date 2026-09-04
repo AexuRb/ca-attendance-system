@@ -2,6 +2,7 @@ package com.ca.attendance.auth;
 
 import com.ca.attendance.access.RemoteAccessPolicy;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.TransactionCommitActions;
 import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserInputPolicy;
 import com.ca.attendance.user.UserSummary;
@@ -9,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -78,6 +80,7 @@ public class AuthService {
         return users.findSummaryById(AuthContext.current().id()).orElseThrow(() -> ApiException.unauthorized("账号不存在"));
     }
 
+    @Transactional
     public void changePassword(String oldPassword, String newPassword) {
         AuthUser current = AuthContext.current();
         UserRepository.UserLoginRow user = users.findLoginByStudentNo(current.studentNo())
@@ -86,9 +89,17 @@ public class AuthService {
             throw ApiException.badRequest("原密码错误");
         }
         String validatedPassword = UserInputPolicy.password(newPassword);
-        jdbc.update("UPDATE users SET password_hash = ?, must_change_password = 0, updated_by = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
-                passwordEncoder.encode(validatedPassword), current.id(), current.id());
-        tokenService.revokeUser(current.id());
+        int updated = jdbc.update(
+                "UPDATE users SET password_hash = ?, must_change_password = 0, updated_by = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
+                passwordEncoder.encode(validatedPassword),
+                current.id(),
+                current.id()
+        );
+        if (updated != 1) {
+            throw ApiException.unauthorized("账号状态已经变化，请重新登录");
+        }
+        authenticationEvents.recordPasswordChange(user);
+        TransactionCommitActions.runAfterCommit(() -> tokenService.revokeUser(current.id()));
     }
 
     public void logout(String token) {

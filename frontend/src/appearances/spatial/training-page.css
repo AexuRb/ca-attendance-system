@@ -1,0 +1,383 @@
+:root[data-appearance="spatial"] .training-page {
+  width: min(100%, 1380px);
+  gap: 20px;
+  container: training-page / inline-size;
+}
+
+:root[data-appearance="spatial"] .training-page > .filter-bar {
+  grid-template-columns: minmax(280px, 1fr) repeat(2, minmax(160px, 0.4fr)) auto;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .training-page > .filter-bar label > span {
+  color: var(--ink-700);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-page > .filter-bar input {
+  min-height: 42px;
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+:root[data-appearance="spatial"] .training-month-shell {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .training-month-ribbon {
+  border-radius: 0;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .training-month-header {
+  min-height: 78px;
+  border-bottom-color: var(--line);
+  padding: 12px 18px;
+  background: var(--surface-pearl);
+}
+
+:root[data-appearance="spatial"] .training-month-switcher h2 {
+  color: var(--ink-950);
+  font-family: var(--font-sans);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .training-month-switcher span,
+:root[data-appearance="spatial"] .training-month-summary dt {
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-month-switcher .icon-button {
+  width: 36px;
+  height: 36px;
+  border-color: var(--line-strong);
+  border-radius: 50%;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .training-month-switcher .icon-button:not(:disabled):hover {
+  background: var(--blue-50);
+  box-shadow: none;
+  color: var(--blue-700);
+  transform: scale(1.04);
+}
+
+:root[data-appearance="spatial"] .training-month-summary {
+  gap: 28px;
+}
+
+:root[data-appearance="spatial"] .training-month-summary dd {
+  color: var(--ink-950);
+  font-family: var(--font-sans);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-viewport {
+  padding: 16px 18px 18px;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-track {
+  --training-event-width: 176px;
+  gap: 10px;
+  padding-top: 0;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-track::before {
+  display: none;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event {
+  min-height: 102px;
+  place-items: stretch;
+  grid-template-columns: 1fr;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 13px;
+  background: #fff;
+  text-align: left;
+  transition: border-color 160ms ease, background 160ms ease, transform 180ms ease;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event time {
+  display: flex;
+  width: auto;
+  height: auto;
+  align-items: baseline;
+  gap: 6px;
+  place-content: initial;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event time strong {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event time small {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event > span {
+  margin-top: 10px;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event > span strong {
+  color: var(--ink-950);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event > span small {
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event:not(:disabled):hover,
+:root[data-appearance="spatial"] .training-ribbon-event.active {
+  border-color: var(--blue-500);
+  background: var(--blue-50);
+  transform: translateY(-2px);
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event:not(:disabled):hover time,
+:root[data-appearance="spatial"] .training-ribbon-event.active time {
+  background: transparent;
+  box-shadow: none;
+  color: var(--blue-700);
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-event.active > span strong {
+  color: var(--blue-800);
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .training-ribbon-pagination {
+  border-top-color: var(--line);
+  background: var(--surface-pearl);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-time-stage {
+  height: auto;
+  min-height: 650px;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(440px, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .training-session-overview {
+  min-height: 178px;
+  grid-template-columns: minmax(240px, 0.9fr) minmax(520px, 1.65fr) auto;
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: 28px;
+  border-bottom: 1px solid var(--line);
+  padding: 22px 24px;
+  background: var(--surface-pearl);
+  color: var(--ink-950);
+}
+
+:root[data-appearance="spatial"] .training-session-heading time {
+  color: var(--blue-700);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-session-heading h2 {
+  margin-top: 8px;
+  color: var(--ink-950);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .training-session-heading p {
+  color: var(--ink-600);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-session-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  align-self: center;
+  gap: 0 18px;
+  margin: 0;
+}
+
+:root[data-appearance="spatial"] .training-session-facts div {
+  min-height: 58px;
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  border-top: 0;
+  border-left: 1px solid var(--line);
+  padding: 6px 0 6px 16px;
+}
+
+:root[data-appearance="spatial"] .training-session-facts dt {
+  color: var(--ink-500);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-session-facts dd {
+  color: var(--ink-950);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+:root[data-appearance="spatial"] .training-session-overview-actions {
+  width: 156px;
+  grid-template-columns: 1fr 40px;
+}
+
+:root[data-appearance="spatial"] .training-session-overview-actions .training-overview-edit,
+:root[data-appearance="spatial"] .training-session-overview-actions .icon-button {
+  min-height: 40px;
+  border-color: var(--blue-200);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .training-session-overview-actions .training-overview-edit:hover,
+:root[data-appearance="spatial"] .training-session-overview-actions .icon-button:hover {
+  border-color: var(--blue-500);
+  background: var(--blue-50);
+  color: var(--blue-800);
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .training-participant-section {
+  min-height: 440px;
+  background: #fff;
+}
+
+:root[data-appearance="spatial"] .training-participant-toolbar {
+  min-height: 68px;
+  border-bottom: 1px solid var(--line-soft);
+  padding-inline: 20px;
+}
+
+:root[data-appearance="spatial"] .training-participant-toolbar h2 {
+  font-size: 19px;
+  font-weight: 600;
+}
+
+:root[data-appearance="spatial"] .training-participant-search {
+  border-color: var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface-pearl);
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] .training-participant-search:focus-within {
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px var(--blue-100);
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .training-participant-search input,
+:root[data-appearance="spatial"] .training-participant-row {
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-participant-columns {
+  border-top-color: var(--line-soft);
+  background: var(--surface-pearl);
+  font-size: 13px;
+}
+
+:root[data-appearance="spatial"] .training-participant-row {
+  min-height: 66px;
+  border-bottom-color: var(--line-soft);
+}
+
+:root[data-appearance="spatial"] .training-participant-row:hover {
+  background: var(--blue-50);
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .training-participant-avatar {
+  border-color: var(--blue-200);
+  background: var(--blue-50);
+  color: var(--blue-700);
+}
+
+:root[data-appearance="spatial"] .training-participant-identity strong,
+:root[data-appearance="spatial"] .training-participant-duration {
+  font-size: 14px;
+}
+
+@container training-page (max-width: 1180px) {
+  :root[data-appearance="spatial"] .training-session-overview {
+    grid-template-columns: minmax(220px, 0.8fr) minmax(420px, 1.5fr);
+  }
+
+  :root[data-appearance="spatial"] .training-session-overview-actions {
+    width: 100%;
+    grid-column: 1 / -1;
+  }
+}
+
+@container training-page (max-width: 820px) {
+  :root[data-appearance="spatial"] .training-page > .filter-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :root[data-appearance="spatial"] .training-session-overview {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  :root[data-appearance="spatial"] .training-session-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container training-page (max-width: 620px) {
+  :root[data-appearance="spatial"] .training-page > .filter-bar {
+    grid-template-columns: 1fr;
+  }
+
+  :root[data-appearance="spatial"] .training-month-switcher {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  :root[data-appearance="spatial"] .training-ribbon-track {
+    --training-event-width: 160px;
+  }
+
+  :root[data-appearance="spatial"] .training-session-overview {
+    padding: 20px 16px;
+  }
+
+  :root[data-appearance="spatial"] .training-session-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+}

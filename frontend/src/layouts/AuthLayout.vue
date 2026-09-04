@@ -1,5 +1,5 @@
 <template>
-  <main class="auth-layout auth-signal-layout">
+  <main class="auth-layout auth-signal-layout" :data-auth-page="String(route.name || 'auth')">
     <header class="auth-signal-header">
       <div class="auth-brand-lockup">
         <span class="auth-brand-mark">
@@ -26,3 +26,9 @@
     </footer>
   </main>
 </template>
+
+<script setup lang="ts">
+import { useRoute } from "vue-router";
+
+const route = useRoute();
+</script>

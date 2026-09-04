@@ -1,17 +1,38 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-appearance="classic">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/brand/ca-logo-black.png" />
     <meta name="theme-color" content="#eef6fa" />
     <title>计算机协会本地管理系统</title>
-    <script type="module" crossorigin src="/assets/index--m3-ACEA.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/api-CCJzWAmw.js">
-    <link rel="modulepreload" crossorigin href="/assets/devtools-EWN81iOl-it30oy-V.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BrU-uuxV.css">
+    <style>
+      #app > .app-boot {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        gap: 14px;
+        align-content: center;
+        color: #24445b;
+        background: #f5f5f7;
+        font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+        font-size: 15px;
+      }
+      #app > .app-boot img {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-D5xu6zlW.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/api-DUPpChTn.js">
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <div class="app-boot" role="status">
+        <img src="/brand/ca-logo-black.png" alt="" />
+        <span>正在启动</span>
+      </div>
+    </div>
   </body>
 </html>

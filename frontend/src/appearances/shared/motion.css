@@ -1,0 +1,62 @@
+/* One transition per route; avoid stacking legacy page entry animations. */
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .admin-layout .admin-route-frame,
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) .page-stack {
+  animation: none;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.route-enter-active, .route-leave-active, .admin-view-enter-active, .admin-view-leave-active) {
+  transition: opacity var(--motion-fast) ease, transform var(--motion-panel) var(--ease-out);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.route-enter-from, .admin-view-enter-from) {
+  opacity: 0;
+  transform: var(--motion-page-from);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.route-leave-to, .admin-view-leave-to) {
+  opacity: 0;
+  transform: none;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.modal-enter-active, .modal-leave-active, .modal-fade-enter-active, .modal-fade-leave-active, .repair-drawer-enter-active, .repair-drawer-leave-active) {
+  transition: opacity var(--motion-fast) ease;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.modal-enter-active, .modal-leave-active) .modal-shell {
+  transition: opacity var(--motion-fast) ease, transform var(--motion-panel) var(--ease-out);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.modal-enter-from, .modal-leave-to) .modal-shell {
+  transform: var(--motion-overlay-from);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.repair-drawer-enter-active, .repair-drawer-leave-active) .repair-detail-drawer,
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.data-center-drawer-enter-active, .data-center-drawer-leave-active) {
+  transition: opacity var(--motion-fast) ease, transform var(--motion-panel) var(--ease-out);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.toast-enter-active, .toast-leave-active, .menu-pop-enter-active, .menu-pop-leave-active) {
+  transition: opacity var(--motion-fast) ease, transform var(--motion-fast) var(--ease-out);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.toast-enter-from, .toast-leave-to) {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.button, .icon-button, .toast-dismiss) {
+  transition: background-color var(--motion-fast) ease, border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease, transform var(--motion-fast) ease;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.section-navigation a, .primary-nav a, .page-tabs button) {
+  transition: background-color var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+:root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(input, select, textarea) {
+  transition: border-color var(--motion-fast) ease, background-color var(--motion-fast) ease;
+}
+/* Reduce all motion, including legacy keyframes and staggered entrance delays. */
+@media (prefers-reduced-motion: reduce) {
+  :root:is([data-appearance="editorial"], [data-appearance="spatial"]) *,
+  :root:is([data-appearance="editorial"], [data-appearance="spatial"]) *::before,
+  :root:is([data-appearance="editorial"], [data-appearance="spatial"]) *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  :root:is([data-appearance="editorial"], [data-appearance="spatial"]) :is(.button, .icon-button):active:not(:disabled) {
+    transform: none;
+  }
+}

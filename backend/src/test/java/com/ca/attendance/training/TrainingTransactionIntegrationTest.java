@@ -134,6 +134,24 @@ class TrainingTransactionIntegrationTest {
     }
 
     @Test
+    void archiveRejectsAnIgnoredDatabaseWriteWithoutLoggingSuccess() {
+        TrainingSessionItem session = trainings.create(sessionRequest("事务培训零行归档"));
+        jdbc.execute("""
+                CREATE TRIGGER ignore_training_archive
+                BEFORE UPDATE ON training_sessions
+                WHEN OLD.id = %d AND NEW.status = 'ARCHIVED'
+                BEGIN
+                  SELECT RAISE(IGNORE);
+                END
+                """.formatted(session.id()));
+
+        assertThrows(ApiException.class, () -> trainings.archive(session.id()));
+
+        assertEquals("PLANNED", sessionStatus(session.id()));
+        assertEquals(0, actionCount("ARCHIVE_TRAINING"));
+    }
+
+    @Test
     void participantCreateRollsBackWhenAuditLogFails() {
         TrainingSessionItem session = trainings.create(sessionRequest("事务培训参与新增"));
         failAudit("CREATE_TRAINING_PARTICIPANT");
@@ -408,6 +426,7 @@ class TrainingTransactionIntegrationTest {
 
     private void dropAuditTrigger() {
         jdbc.execute("DROP TRIGGER IF EXISTS fail_training_audit");
+        jdbc.execute("DROP TRIGGER IF EXISTS ignore_training_archive");
     }
 
     private int sessionCount(String title) {

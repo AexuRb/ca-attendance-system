@@ -1,0 +1,156 @@
+:root[data-appearance="spatial"] :is(.admin-layout, .auth-layout, .kiosk-signal-app) * {
+  box-shadow: none;
+}
+
+:root[data-appearance="spatial"] ::selection {
+  background: #d6ebff;
+  color: var(--ink-950);
+}
+
+:root[data-appearance="spatial"] input,
+:root[data-appearance="spatial"] select,
+:root[data-appearance="spatial"] textarea {
+  min-height: 44px;
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 10px 14px;
+}
+
+:root[data-appearance="spatial"] input::placeholder,
+:root[data-appearance="spatial"] textarea::placeholder {
+  color: var(--ink-400);
+}
+
+:root[data-appearance="spatial"] input:focus,
+:root[data-appearance="spatial"] select:focus,
+:root[data-appearance="spatial"] textarea:focus {
+  border-color: var(--primary-focus);
+  outline: 3px solid rgba(0, 113, 227, 0.18);
+  outline-offset: 0;
+}
+
+:root[data-appearance="spatial"] button:focus-visible,
+:root[data-appearance="spatial"] a:focus-visible,
+:root[data-appearance="spatial"] [tabindex]:focus-visible {
+  outline: 3px solid rgba(0, 113, 227, 0.34);
+  outline-offset: 2px;
+}
+
+:root[data-appearance="spatial"] .button,
+:root[data-appearance="spatial"] .button.small {
+  min-height: 44px;
+  border-radius: 999px;
+  padding-inline: 22px;
+  font-weight: 600;
+  transform: none;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 130ms ease;
+}
+
+:root[data-appearance="spatial"] .button:hover:not(:disabled) {
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .button:active:not(:disabled),
+:root[data-appearance="spatial"] .icon-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+:root[data-appearance="spatial"] .button.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #ffffff;
+}
+
+:root[data-appearance="spatial"] .button.primary:hover:not(:disabled) {
+  border-color: var(--primary-focus);
+  background: var(--primary-focus);
+}
+
+:root[data-appearance="spatial"] .button.secondary {
+  border-color: var(--primary);
+  background: transparent;
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .button.secondary:hover:not(:disabled) {
+  border-color: var(--primary-focus);
+  background: var(--surface-blue);
+  color: var(--primary-focus);
+}
+
+:root[data-appearance="spatial"] .button.text {
+  color: var(--primary);
+}
+
+:root[data-appearance="spatial"] .button.text:hover:not(:disabled) {
+  background: var(--surface-blue);
+}
+
+:root[data-appearance="spatial"] .icon-button {
+  width: 44px;
+  min-height: 44px;
+  border-color: var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface-pearl);
+  color: var(--ink-700);
+  transform: none;
+}
+
+:root[data-appearance="spatial"] .icon-button:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--surface-blue);
+  color: var(--primary);
+  transform: none;
+}
+
+:root[data-appearance="spatial"] :is(.search-field, .search-input) input,
+:root[data-appearance="spatial"] input[type="search"] {
+  border-radius: 999px;
+  padding-inline: 18px;
+}
+
+:root[data-appearance="spatial"] .panel,
+:root[data-appearance="spatial"] .table-shell,
+:root[data-appearance="spatial"] .filter-bar {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+:root[data-appearance="spatial"] .page-tabs,
+:root[data-appearance="spatial"] .segmented {
+  border-color: var(--line-strong);
+  border-radius: 8px;
+  background: #e9e9ed;
+}
+
+:root[data-appearance="spatial"] .page-tabs button,
+:root[data-appearance="spatial"] .segmented button {
+  border-radius: 6px;
+}
+
+:root[data-appearance="spatial"] .page-tabs button.active,
+:root[data-appearance="spatial"] .segmented button.active {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink-950);
+}
+
+:root[data-appearance="spatial"] .section-navigation a.router-link-active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+:root[data-appearance="spatial"] .status-badge,
+:root[data-appearance="spatial"] .badge {
+  border-radius: 999px;
+}
+
+:root[data-appearance="spatial"] .inline-alert {
+  border-radius: 8px;
+}

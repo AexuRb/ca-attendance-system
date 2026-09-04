@@ -1,0 +1,339 @@
+:root[data-appearance="editorial"] .admin-layout[data-page="repairs"] .admin-route-frame {
+  width: min(100%, 1280px);
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="repairs"] .page-stack {
+  gap: 22px;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="repairs"] .page-header {
+  margin-bottom: 4px;
+  border-bottom-width: 2px;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="repairs"] .page-heading h1 {
+  font-family: var(--font-editorial);
+  font-size: clamp(34px, 3.2vw, 44px);
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .repair-filter-shell {
+  overflow: visible;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .repair-search-row {
+  grid-template-columns: 20px minmax(240px, 1fr) auto auto;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 4px;
+}
+
+:root[data-appearance="editorial"] .repair-search-row > svg {
+  width: 18px;
+  height: 18px;
+  color: var(--primary);
+}
+
+:root[data-appearance="editorial"] .repair-search-row input {
+  min-height: 42px;
+  color: var(--ink-900);
+  font-family: var(--font-editorial);
+  font-size: 17px;
+}
+
+:root[data-appearance="editorial"] .repair-search-row input::placeholder {
+  color: var(--ink-400);
+}
+
+:root[data-appearance="editorial"] .repair-date-filters {
+  gap: 16px;
+  border-top-color: var(--line);
+  padding: 16px 4px;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .repair-date-filters label > span {
+  color: var(--ink-700);
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .repair-status-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .repair-status-tabs button {
+  min-width: 0;
+  min-height: 78px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  padding: 14px 20px 16px;
+  background: transparent;
+}
+
+:root[data-appearance="editorial"] .repair-status-tabs button:last-child {
+  border-right: 0;
+}
+
+:root[data-appearance="editorial"] .repair-status-tabs button::after {
+  right: 20px;
+  left: 20px;
+  height: 3px;
+  background: var(--primary);
+}
+
+:root[data-appearance="editorial"] .repair-status-tabs button:hover {
+  background: var(--surface-soft);
+  color: var(--ink-900);
+}
+
+:root[data-appearance="editorial"] .repair-status-tabs button.active {
+  background: transparent;
+  color: var(--primary-active);
+}
+
+:root[data-appearance="editorial"] .repair-status-copy strong {
+  font-family: var(--font-editorial);
+  font-size: 19px;
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .repair-status-tabs b {
+  min-width: 42px;
+  color: inherit;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+:root[data-appearance="editorial"] .repair-workspace {
+  gap: 16px;
+  min-height: 420px;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-table {
+  overflow: auto;
+  border: 0;
+  border-top: 2px solid var(--ink-900);
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-table table {
+  min-width: 1060px;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-table th {
+  height: 48px;
+  border-bottom-color: var(--line-strong);
+  background: var(--surface-soft);
+  color: var(--ink-700);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-table th:last-child,
+:root[data-appearance="editorial"] .repair-ledger-row td:last-child {
+  position: sticky;
+  z-index: 1;
+  right: 0;
+  background: var(--surface);
+  box-shadow: -1px 0 var(--line);
+}
+
+:root[data-appearance="editorial"] .repair-ledger-table th:last-child {
+  z-index: 3;
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row {
+  animation-duration: 360ms;
+  transition: background 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row:hover {
+  background: #fbf1ec;
+  box-shadow: inset 3px 0 var(--primary);
+  transform: none;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row:hover td:last-child,
+:root[data-appearance="editorial"] .repair-ledger-row:focus-within td:last-child {
+  background: #fbf1ec;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row:focus-visible,
+:root[data-appearance="editorial"] .repair-ledger-row:focus-within {
+  background: #fbf1ec;
+  box-shadow: inset 3px 0 var(--primary);
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row.is-long-running {
+  box-shadow: inset 3px 0 var(--amber-500);
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row td {
+  height: 82px;
+  border-bottom-color: var(--line);
+  color: var(--ink-700);
+  font-size: 14px;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row td > strong {
+  color: var(--ink-950);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row td > small,
+:root[data-appearance="editorial"] .repair-ledger-row time,
+:root[data-appearance="editorial"] .repair-ledger-phone small {
+  color: var(--ink-600);
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-row .case-no {
+  color: var(--primary-active);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-status {
+  color: var(--primary-active);
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-status::before {
+  width: 3px;
+  height: 18px;
+  border-radius: 0;
+  background: currentColor;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-status[data-status="COMPLETED"]::before,
+:root[data-appearance="editorial"] .repair-ledger-status[data-status="CANCELED"]::before {
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-actions .icon-button {
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+:root[data-appearance="editorial"] .repair-ledger-actions .repair-ledger-open {
+  border-color: var(--line-strong);
+  color: var(--primary-active);
+}
+
+:root[data-appearance="editorial"] .repair-workspace-pagination {
+  border-top: 1px solid var(--line-strong);
+  padding-top: 14px;
+}
+
+:root[data-appearance="editorial"] .repair-detail-drawer {
+  border-left: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--surface);
+  box-shadow: -24px 0 60px rgba(40, 33, 27, 0.15);
+}
+
+:root[data-appearance="editorial"] .repair-detail-header {
+  border-top: 5px solid var(--primary);
+  border-bottom: 2px solid var(--ink-900);
+  background: var(--surface-soft);
+}
+
+:root[data-appearance="editorial"] .repair-detail-header h2,
+:root[data-appearance="editorial"] .repair-detail-lead h3 {
+  font-family: var(--font-editorial);
+  font-weight: 400;
+}
+
+:root[data-appearance="editorial"] .repair-detail-lead h3 {
+  font-size: 26px;
+}
+
+:root[data-appearance="editorial"] .repair-detail-facts > div,
+:root[data-appearance="editorial"] .repair-detail-section {
+  border-color: var(--line);
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  :root[data-appearance="editorial"] .repair-ledger-table {
+    overflow: visible;
+    border-top: 0;
+    border-bottom: 0;
+  }
+
+  :root[data-appearance="editorial"] .repair-ledger-table table {
+    min-width: 0;
+  }
+
+  :root[data-appearance="editorial"] .repair-ledger-row {
+    border: 0;
+    border-top: 2px solid var(--ink-900);
+    border-bottom: 1px solid var(--line-strong);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  :root[data-appearance="editorial"] .repair-ledger-row td {
+    height: auto;
+    border: 0;
+    padding: 0;
+  }
+
+  :root[data-appearance="editorial"] .repair-ledger-row td:last-child {
+    position: static;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 620px) {
+  :root[data-appearance="editorial"] .repair-search-row {
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+  }
+
+  :root[data-appearance="editorial"] .repair-filter-toggle {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+
+  :root[data-appearance="editorial"] .repair-status-tabs button {
+    min-height: 64px;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 4px;
+    padding-inline: 10px;
+    text-align: center;
+  }
+
+  :root[data-appearance="editorial"] .repair-status-copy strong {
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  :root[data-appearance="editorial"] .repair-status-tabs b {
+    font-size: 17px;
+  }
+}

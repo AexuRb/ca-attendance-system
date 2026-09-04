@@ -22,7 +22,7 @@ class DatabaseMigratorStartupTest {
 
         try {
             JdbcTemplate jdbc = new JdbcTemplate(dataSource);
-            assertThat(jdbc.queryForObject("PRAGMA user_version", Integer.class)).isEqualTo(10);
+            assertThat(jdbc.queryForObject("PRAGMA user_version", Integer.class)).isEqualTo(11);
             assertThat(jdbc.queryForObject(
                     "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'public_attendance_submissions'",
                     Integer.class

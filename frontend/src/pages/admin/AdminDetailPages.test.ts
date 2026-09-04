@@ -155,7 +155,7 @@ describe("SettingsPage details", () => {
     });
     await flushPromises();
 
-    const saveWeekdays = wrapper.findAll(".setting-section")[0].get(".button.primary");
+    const saveWeekdays = wrapper.get("#settings-weekdays").get(".button.primary");
     await saveWeekdays.trigger("click");
     await saveWeekdays.trigger("click");
     expect(apiPut).toHaveBeenCalledTimes(1);
@@ -190,7 +190,7 @@ describe("SettingsPage details", () => {
       "true",
     );
     await wrapper
-      .findAll(".setting-section")[0]
+      .get("#settings-weekdays")
       .get(".button.primary")
       .trigger("click");
     await flushPromises();

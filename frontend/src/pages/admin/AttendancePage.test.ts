@@ -22,6 +22,7 @@ vi.mock("../../shared/composables/useToast", () => ({
 
 vi.mock("vue-router", () => ({
   useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
 vi.mock("../../app/session", () => ({

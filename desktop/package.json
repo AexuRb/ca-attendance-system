@@ -1,11 +1,12 @@
 {
   "name": "ca-attendance-desktop",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "private": true,
   "description": "计算机协会本地离线管理系统桌面端",
   "author": "AexuRb",
   "main": "main.cjs",
   "scripts": {
+    "postinstall": "node node_modules/electron/install.js",
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
     "pack": "electron-builder --dir --win --x64",

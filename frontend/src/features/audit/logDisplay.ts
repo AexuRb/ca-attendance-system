@@ -31,6 +31,7 @@ const actionLabels: Record<string, string> = {
   UPDATE_DUTY_WEEKDAYS: "调整值班星期",
   UPDATE_DUTY_PERIODS: "调整值班时间段",
   UPDATE_ATTENDANCE_POLICY: "调整有效时长规则",
+  UPDATE_UI_APPEARANCE: "切换全局界面",
   REVIEW_ATTENDANCE: "审核值班记录",
   BULK_REVIEW_ATTENDANCE: "批量审核值班记录",
   MANUAL_CREATE_ATTENDANCE: "补录值班记录",
@@ -62,6 +63,10 @@ const actionLabels: Record<string, string> = {
   LOCAL_LOGIN_LOCKED: "本机登录锁定",
   SEED_DEMO_DATA: "初始化演示数据",
 };
+
+export const auditActionOptions = Object.entries(actionLabels).map(
+  ([value, label]) => ({ value, label }),
+);
 
 const targetLabels: Record<string, string> = {
   users: "成员账号",

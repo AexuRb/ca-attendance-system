@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 import static com.ca.attendance.common.JdbcTime.localDateTime;
 import static com.ca.attendance.common.JdbcTime.localTime;
 import static com.ca.attendance.common.JdbcTime.databaseTime;
+import static com.ca.attendance.common.JdbcWriteChecks.requireOne;
 
 @Service
 public class DutyScheduleService {
@@ -158,7 +159,7 @@ public class DutyScheduleService {
         requireManage(current);
         DutyScheduleSlotItem before = find(id).orElseThrow(() -> ApiException.notFound("排班不存在"));
         SlotValues values = slotValues(request, before);
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE duty_schedule_slots
                 SET weekday = ?, start_time = ?, end_time = ?, title = ?, location = ?, note = ?,
                     enabled = ?, updated_by = ?, updated_at = datetime('now', 'localtime')
@@ -174,6 +175,7 @@ public class DutyScheduleService {
                 current.id(),
                 id
         );
+        requireOne(updated, "排班状态已经变化，请刷新后重试");
         replaceAssignees(id, values.assignees());
         DutyScheduleSlotItem after = find(id).orElseThrow();
         logs.log("UPDATE_DUTY_SCHEDULE", "duty_schedule_slots", id, before, after, "修改排班");
@@ -185,11 +187,12 @@ public class DutyScheduleService {
         AuthUser current = AuthContext.current();
         requireManage(current);
         DutyScheduleSlotItem before = find(id).orElseThrow(() -> ApiException.notFound("排班不存在"));
-        jdbc.update("""
+        int updated = jdbc.update("""
                 UPDATE duty_schedule_slots
                 SET status = 'ARCHIVED', updated_by = ?, updated_at = datetime('now', 'localtime')
                 WHERE id = ?
                 """, current.id(), id);
+        requireOne(updated, "排班状态已经变化，请刷新后重试");
         logs.log("ARCHIVE_DUTY_SCHEDULE", "duty_schedule_slots", id, before, Map.of("status", "ARCHIVED"), "归档排班");
     }
 
@@ -263,7 +266,7 @@ public class DutyScheduleService {
         jdbc.update("DELETE FROM duty_schedule_assignees WHERE slot_id = ?", slotId);
         int order = 0;
         for (AssigneeValues assignee : assignees) {
-            jdbc.update("""
+            int inserted = jdbc.update("""
                     INSERT INTO duty_schedule_assignees (
                       slot_id, user_id, student_no_snapshot, name_snapshot, sort_order
                     )
@@ -275,6 +278,7 @@ public class DutyScheduleService {
                     assignee.name(),
                     order++
             );
+            requireOne(inserted, "排班人员写入失败，请重试");
         }
     }
 

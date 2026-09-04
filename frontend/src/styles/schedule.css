@@ -94,7 +94,7 @@
 .schedule-focus-day b::after {
   margin-left: 2px;
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   content: "人";
 }
@@ -145,7 +145,7 @@
   padding: 4px 7px;
   background: var(--surface-soft);
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -474,7 +474,7 @@
 
 .schedule-assignee-search > span {
   color: var(--blue-700);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -500,7 +500,7 @@
 
 .schedule-assignee-selected small {
   color: var(--ink-500);
-  font: 10px var(--font-mono);
+  font: 12px var(--font-mono);
 }
 
 .schedule-assignee-selected svg {
@@ -557,7 +557,7 @@
 .schedule-assignee-options small {
   margin-top: 2px;
   color: var(--ink-500);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .schedule-assignee-options > button > svg {
@@ -634,7 +634,7 @@
 
 .schedule-import-summary span {
   color: var(--ink-500);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .schedule-import-summary strong {

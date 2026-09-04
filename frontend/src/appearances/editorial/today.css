@@ -1,0 +1,190 @@
+/* Today: chapter index and editorial command desk. */
+:root[data-appearance="editorial"] .admin-layout[data-page="today"] .admin-content {
+  padding: 0;
+}
+
+:root[data-appearance="editorial"] .admin-layout[data-page="today"] .admin-route-frame {
+  width: 100%;
+  max-width: none;
+}
+
+:root[data-appearance="editorial"] .today-command-page {
+  min-height: calc(100vh - 66px);
+  container: command-page / inline-size;
+}
+
+:root[data-appearance="editorial"] .command-workspace {
+  width: min(100%, 1240px);
+  min-height: calc(100vh - 66px);
+  display: grid;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(460px, 1.22fr);
+  align-items: center;
+  gap: clamp(42px, 7vw, 92px);
+  padding: clamp(48px, 7vh, 86px) clamp(30px, 5vw, 68px);
+  background: var(--canvas);
+}
+
+:root[data-appearance="editorial"] .command-workspace-messages {
+  min-height: 0;
+  padding: 0;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+:root[data-appearance="editorial"] .command-welcome {
+  width: 100%;
+  text-align: left;
+}
+
+:root[data-appearance="editorial"] .command-welcome-mark {
+  width: 88px;
+  height: 88px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .command-welcome-mark img {
+  width: 88px;
+  height: 88px;
+}
+
+:root[data-appearance="editorial"] .command-welcome-context {
+  margin-top: 24px;
+  justify-content: flex-start;
+  color: var(--primary-active);
+  font: 500 14px var(--font-sans);
+}
+
+:root[data-appearance="editorial"] .command-welcome-detail h1 {
+  max-width: 8em;
+  margin: 14px 0 12px;
+  color: var(--ink-950);
+  font-family: var(--font-editorial);
+  font-size: clamp(42px, 5vw, 62px);
+  font-weight: 400;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+:root[data-appearance="editorial"] .command-welcome-hint,
+:root[data-appearance="editorial"] .command-local-note {
+  color: var(--ink-500);
+  font-size: 14px;
+}
+
+:root[data-appearance="editorial"] .command-welcome-actions {
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 30px;
+  border-top: 2px solid var(--ink-900);
+}
+
+:root[data-appearance="editorial"] .command-welcome-action {
+  min-height: 72px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 10px 6px;
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-appearance="editorial"] .command-welcome-action:hover {
+  background: var(--surface-soft);
+  transform: translateX(4px);
+}
+
+:root[data-appearance="editorial"] .command-welcome-action-icon {
+  border-radius: 6px;
+  background: var(--blue-100);
+  color: var(--primary-active);
+}
+
+:root[data-appearance="editorial"] .command-welcome-action-copy strong {
+  font-size: 15px;
+}
+
+:root[data-appearance="editorial"] .command-welcome-action-copy small {
+  font-size: 13px;
+}
+
+:root[data-appearance="editorial"] .command-composer-zone {
+  position: relative;
+  bottom: auto;
+  align-self: center;
+  margin: 0;
+  padding: 0;
+}
+
+:root[data-appearance="editorial"] .command-composer-zone::after {
+  display: none;
+}
+
+:root[data-appearance="editorial"] .command-console-shell {
+  width: 100%;
+}
+
+:root[data-appearance="editorial"] .command-composer-bezel {
+  border: 1px solid #39342f;
+  border-radius: 8px;
+  padding: 5px;
+  background: #1e1c19;
+  box-shadow: 0 20px 48px rgba(39, 31, 24, 0.14);
+}
+
+:root[data-appearance="editorial"] .command-composer {
+  border-radius: 5px;
+  background: #292621;
+}
+
+:root[data-appearance="editorial"] .command-composer textarea {
+  color: #fffaf2;
+  font-size: 18px;
+}
+
+:root[data-appearance="editorial"] .command-composer-mode,
+:root[data-appearance="editorial"] .command-composer textarea::placeholder {
+  color: #aaa197;
+}
+
+:root[data-appearance="editorial"] .command-composer-send {
+  background: #d27a60;
+  color: #fff;
+}
+
+:root[data-appearance="editorial"] .command-suggestion-panel {
+  border-color: #3e3933;
+  border-radius: 6px 6px 0 0;
+  background: #24211d;
+  color: #fffaf2;
+}
+
+:root[data-appearance="editorial"] .command-suggestion-option {
+  color: #eee7dd;
+}
+
+:root[data-appearance="editorial"] .command-suggestion-option.active {
+  background: #34302b;
+}
+
+:root[data-appearance="editorial"] .command-selection-rail {
+  background: #d27a60;
+}
+
+@container command-page (max-width: 1040px) {
+  :root[data-appearance="editorial"] .command-workspace {
+    grid-template-columns: 1fr;
+    gap: 34px;
+    padding-top: 46px;
+  }
+
+  :root[data-appearance="editorial"] .command-workspace-messages,
+  :root[data-appearance="editorial"] .command-composer-zone {
+    width: min(760px, 100%);
+    margin-inline: auto;
+  }
+}
