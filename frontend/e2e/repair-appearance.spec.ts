@@ -75,7 +75,7 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     await expect(page.locator(".repair-status-tabs b")).toHaveText(["8", "1,264", "37"]);
     await expect(page.locator(".repair-ledger-row")).toHaveCount(8);
     expect(await hasDocumentOverflow(page)).toBe(false);
-    expect(await page.locator(".repair-ledger-row td:last-child").first().evaluate((element) => getComputedStyle(element).position)).toBe("static");
+    expect(await page.locator(".repair-ledger-row td:last-child").first().evaluate((element) => getComputedStyle(element).position)).toBe("sticky");
 
     await page.locator(".repair-ledger-row").first().click();
     await expect(page.locator(".repair-detail-drawer")).toBeVisible();

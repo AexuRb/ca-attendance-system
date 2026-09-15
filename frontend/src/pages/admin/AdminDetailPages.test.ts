@@ -18,13 +18,14 @@ vi.mock("../../shared/api", () => ({
 }));
 
 vi.mock("vue-router", () => ({
+  RouterLink: { template: '<a><slot /></a>' },
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ replace: routerReplace }),
   onBeforeRouteLeave: vi.fn(),
 }));
 
 vi.mock("../../app/session", () => ({
-  useSession: () => ({ user: { value: { role: "ADMIN" } } }),
+  useSession: () => ({ user: { value: { role: "ADMIN" } }, state: { access: { kioskAvailable: true } }, logout: vi.fn() }),
 }));
 
 afterEach(() => {
@@ -87,7 +88,7 @@ describe("TrainingPage details", () => {
       "导入",
     );
 
-    const more = wrapper.get('button[aria-haspopup="menu"]');
+    const more = wrapper.get('.training-session-overview button[aria-haspopup="menu"]');
     expect(more.attributes("aria-label")).toContain("更多操作");
     expect(more.get("svg").attributes("aria-hidden")).toBe("true");
     expect(wrapper.get(".training-overview-edit").text()).toContain("编辑培训");

@@ -1,10 +1,12 @@
 <template>
-  <div class="today-command-page">
+  <RefinedWorkspaceShell class="daily-workspace today-workspace" title="今日概览" section-key="today">
+    <template #heading><small>{{ todayLabel }} · {{ currentRoleLabel }}工作区</small><h1>今天要处理什么？</h1></template>
     <div v-if="error" class="inline-alert danger today-load-error" role="alert">
       <span>{{ error }}</span>
       <button class="button secondary small" type="button" data-action="retry-today" @click="refresh">重试</button>
     </div>
     <TodayCommandCenter
+      refined
       v-model="commandInput"
       :date-label="todayLabel"
       :role-name="currentRoleLabel"
@@ -15,11 +17,16 @@
       @execute="executeCommand"
       @clear-error="commandError = ''"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, provide, ref } from "vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/attendance/presentation.css";
+provide(memberPresentationKey, true);
 import { useRouter } from "vue-router";
 import TodayCommandCenter from "./today/TodayCommandCenter.vue";
 import { get } from "../../shared/api";

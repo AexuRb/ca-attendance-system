@@ -21,11 +21,12 @@ vi.mock("../../shared/api", () => ({
 }));
 vi.mock("../../shared/composables/useToast", () => ({ notify: mocks.notify }));
 vi.mock("vue-router", () => ({
+  RouterLink: { template: "<a><slot /></a>" },
   useRouter: () => ({ replace: mocks.replace }),
 }));
 vi.mock("../../app/session", () => ({
   useSession: () => ({
-    state: { user: { id: 1 } },
+    state: { user: { id: 1 }, access: { kioskAvailable: true } },
     user: {
       value: {
         id: 1,
@@ -89,3 +90,5 @@ describe("ProfilePage request states", () => {
     wrapper.unmount();
   });
 });
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

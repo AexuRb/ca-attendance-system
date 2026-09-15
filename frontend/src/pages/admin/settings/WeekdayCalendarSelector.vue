@@ -1,5 +1,11 @@
 <template>
-  <div class="weekday-calendar-selector">
+  <div v-if="compact" class="sw-days" aria-label="允许值班的星期">
+    <button v-for="day in days" :key="day.weekday" type="button" :aria-label="dayAriaLabel(day)" :aria-pressed="day.enabled" :data-weekday="day.weekday" @click="emit('toggle', day.weekday)">
+      <span class="sw-day-check" aria-hidden="true">{{ day.enabled ? '✓' : '' }}</span><span>{{ shortDay(day) }}</span>
+    </button>
+    <span class="sw-day-count" aria-live="polite">已开放 {{ enabledCount }} 天</span>
+  </div>
+  <div v-else class="weekday-calendar-selector">
     <div class="weekday-calendar-grid" aria-label="允许值班的星期">
       <button
         v-for="day in days"
@@ -37,6 +43,7 @@ import { computed } from "vue";
 import type { DutyWeekdaySetting } from "../../../features/settings/dutyWeekdays";
 
 const props = defineProps<{
+  compact?: boolean;
   days: DutyWeekdaySetting[];
 }>();
 
@@ -56,7 +63,7 @@ function englishDay(weekday: number) {
 }
 
 function shortDay(day: DutyWeekdaySetting) {
-  return day.weekday_name?.replace("星期", "周") || chineseDays[day.weekday];
+  return chineseDays[day.weekday] || day.weekday_name?.replace("星期", "周");
 }
 
 function dayAriaLabel(day: DutyWeekdaySetting) {

@@ -127,15 +127,15 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
       "data-appearance",
       appearance.toLowerCase(),
     );
-    await expect(page.locator(".logs-page")).toBeVisible();
-    await expect(page.locator(".timeline-list article")).toHaveCount(20);
+    await expect(page.locator(".logs-presentation")).toBeVisible();
+    await expect(page.locator(".audit-records article")).toHaveCount(20);
     await expect(page.getByText("共 21 条日志", { exact: true })).toBeVisible();
-    await expect(page.locator(".logs-page .timeline-list")).toHaveCSS("box-shadow", "none");
-    await expect(page.locator(".logs-page .log-main p").first()).toHaveCSS(
-      "font-size", appearance === "EDITORIAL" ? "16px" : "17px",
+    await expect(page.locator(".logs-presentation .audit-records")).toHaveCSS("box-shadow", "none");
+    await expect(page.locator(".logs-presentation .audit-reason").first()).toHaveCSS(
+      "font-size", "12px",
     );
-    await expect(page.locator(".logs-page .status-badge").first()).toHaveCSS("font-size", "14px");
-    await expect(page.locator(".logs-page .page-actions")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(page.locator(".logs-presentation .status-badge").first()).toHaveCSS("font-size", "11px");
+    await expect(page.locator(".logs-presentation .mw-tools")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 
     for (const viewport of [
       { width: 1440, height: 900 },
@@ -144,11 +144,11 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
       { width: 390, height: 844 },
     ]) {
       await page.setViewportSize(viewport);
-      await expect(page.locator(".timeline-list article")).toHaveCount(20);
+      await expect(page.locator(".audit-records article")).toHaveCount(20);
       await expectNoDocumentOverflow(page, viewport.width);
     }
 
-    const firstLog = page.locator(".timeline-list article").first();
+    const firstLog = page.locator(".audit-records article").first();
     await firstLog.getByRole("button", { name: "查看变更详情" }).click();
     const detailDialog = page.getByRole("dialog", { name: "操作详情" });
     await expect(detailDialog.locator(".audit-detail-surface")).toBeVisible();
@@ -161,7 +161,7 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     await expect(rawDetails.locator("pre").first()).toContainText("fixture-long-raw-");
     await expectNoDocumentOverflow(page, 390);
     expect(await detailDialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
-    await detailDialog.locator(".modal-footer").getByRole("button", { name: "关闭" }).click();
+    await detailDialog.locator(".mw-modal-foot").getByRole("button", { name: "关闭" }).click();
 
     const filterValues = {
       keyword: "虚构筛选",
@@ -188,7 +188,7 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
       page: "1",
       pageSize: "20",
     });
-    await expect(page.locator(".timeline-list article")).toHaveCount(20);
+    await expect(page.locator(".audit-records article")).toHaveCount(20);
 
     const nextPageRequestPromise = page.waitForRequest(
       (request) => {
@@ -203,7 +203,7 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
       page: "2",
       pageSize: "20",
     });
-    await expect(page.locator(".timeline-list article")).toHaveCount(1);
+    await expect(page.locator(".audit-records article")).toHaveCount(1);
 
     await page.getByRole("button", { name: "清空日志", exact: true }).click();
     const clearDialog = page.getByRole("dialog", { name: "清空操作日志" });
@@ -222,6 +222,6 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     expect(deleteResponse.status()).toBe(204);
     expect(state.deleteRequests).toBe(1);
     await expect(page.getByText("暂无操作日志", { exact: true })).toBeVisible();
-    await expect(page.locator(".timeline-list")).toHaveCount(0);
+    await expect(page.locator(".audit-records")).toHaveCount(0);
   });
 }

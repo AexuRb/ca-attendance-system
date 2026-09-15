@@ -167,11 +167,13 @@ async function submit() {
     studentNo: form.account,
     name: form.name,
   });
-  const nextErrors: InputErrors = { ...memberErrors };
-  if (nextErrors.studentNo) {
-    nextErrors.account = nextErrors.studentNo;
-    delete nextErrors.studentNo;
-  }
+  // Rename the account key without moving it behind the name field.
+  const nextErrors: InputErrors = Object.fromEntries(
+    Object.entries(memberErrors).map(([key, message]) => [
+      key === "studentNo" ? "account" : key,
+      message,
+    ]),
+  );
   const passwordError = validatePassword(form.password);
   if (passwordError) nextErrors.password = passwordError;
   if (form.password !== confirmation.value) {

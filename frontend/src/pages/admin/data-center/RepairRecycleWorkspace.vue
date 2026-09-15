@@ -96,12 +96,14 @@
               <td>{{ item.deletedByName || "—" }}</td>
               <td class="align-right row-actions">
                 <button
-                  class="button secondary"
+                  class="icon-button"
+                  title="恢复维修事务"
+                  :aria-label="`恢复维修事务：${item.caseNo}`"
                   type="button"
                   :disabled="isRestorePending(item.id)"
                   @click="$emit('restore', item)"
                 >
-                  <ArchiveRestore aria-hidden="true" />恢复
+                  <ArchiveRestore aria-hidden="true" />
                 </button>
                 <button
                   v-if="canPurge"

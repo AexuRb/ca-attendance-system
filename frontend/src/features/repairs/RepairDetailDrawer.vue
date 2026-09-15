@@ -3,7 +3,7 @@
     <Transition name="repair-drawer">
       <div
         v-if="open && item"
-        class="repair-drawer-backdrop"
+        class="repair-drawer-backdrop" :class="{'affairs-detail mw-scope': refined}"
         @mousedown.self="$emit('close')"
       >
         <aside
@@ -147,7 +147,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, inject } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+const refined = inject(memberPresentationKey, false);
 import {
   CalendarClock,
   CircleCheck,

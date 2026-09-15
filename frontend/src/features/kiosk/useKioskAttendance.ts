@@ -46,6 +46,7 @@ export function useKioskAttendance() {
   let submissionAttempt: SubmissionAttempt | null = null;
   let pendingLookupQuery: string | null = null;
   let disposed = false;
+  let interactionVersion = 0;
 
   const scheduleCount = computed(
     () =>
@@ -68,6 +69,7 @@ export function useKioskAttendance() {
   });
   onBeforeUnmount(() => {
     disposed = true;
+    interactionVersion += 1;
     clearTimers();
   });
 
@@ -131,6 +133,7 @@ export function useKioskAttendance() {
 
   async function performLookup(lookupQuery: string, selectedToken: string) {
     if (!lookupQuery || busy.value) return;
+    const version = interactionVersion;
     window.clearTimeout(lookupRetryTimer);
     pendingLookupQuery = lookupQuery;
     selectingMemberToken.value = selectedToken;
@@ -140,7 +143,7 @@ export function useKioskAttendance() {
       const result = await get<AttendanceLookupResult>(
         `/api/public/attendance/lookup?query=${encodeURIComponent(lookupQuery)}`,
       );
-      if (disposed) return;
+      if (disposed || version !== interactionVersion) return;
       online.value = true;
       pendingLookupQuery = null;
       if (result.matches?.length) {
@@ -155,7 +158,7 @@ export function useKioskAttendance() {
         error.value = `${message}。请检查学号，或联系管理员确认账号是否停用。`;
       }
     } catch (cause) {
-      if (disposed) return;
+      if (disposed || version !== interactionVersion) return;
       const message = cause instanceof Error ? cause.message : "查询失败";
       if (isNetworkError(cause)) {
         online.value = false;
@@ -171,7 +174,7 @@ export function useKioskAttendance() {
         error.value = message;
       }
     } finally {
-      if (!disposed) {
+      if (!disposed && version === interactionVersion) {
         busy.value = false;
         selectingMemberToken.value = "";
       }
@@ -184,6 +187,7 @@ export function useKioskAttendance() {
 
   async function submitAttendance() {
     if (!lookupResult.value?.memberToken || busy.value) return;
+    const version = interactionVersion;
     busy.value = true;
     error.value = "";
     submissionAttempt = ensureSubmissionAttempt(
@@ -198,6 +202,7 @@ export function useKioskAttendance() {
           requestId: submissionAttempt.requestId,
         },
       );
+      if (disposed || version !== interactionVersion) return;
       submissionAttempt = null;
       online.value = true;
       successName.value = result.name;
@@ -212,6 +217,7 @@ export function useKioskAttendance() {
       step.value = "success";
       resetTimer = window.setTimeout(reset, RESET_DELAY);
     } catch (cause) {
+      if (disposed || version !== interactionVersion) return;
       const networkError = isNetworkError(cause);
       online.value = !networkError;
       const message = cause instanceof Error ? cause.message : "提交失败";
@@ -220,7 +226,7 @@ export function useKioskAttendance() {
         : message;
       step.value = "confirm";
     } finally {
-      busy.value = false;
+      if (!disposed && version === interactionVersion) busy.value = false;
     }
   }
 
@@ -231,6 +237,9 @@ export function useKioskAttendance() {
   }
 
   function reset() {
+    // Reset the interaction, not a write that may already have reached the server.
+    interactionVersion += 1;
+    busy.value = false;
     window.clearTimeout(resetTimer);
     window.clearTimeout(lookupRetryTimer);
     pendingLookupQuery = null;

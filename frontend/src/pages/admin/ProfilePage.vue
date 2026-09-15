@@ -1,26 +1,22 @@
 <template>
-  <div class="page-stack profile-page">
-    <PageHeader
-      title="个人资料"
-    >
-      <template #actions>
+  <RefinedWorkspaceShell class="support-workspace profile-presentation" title="个人资料" description="查看个人信息与时长记录" section-key="people" filter-label="筛选个人资料">
+    <template #tools>
         <button class="button secondary" @click="passwordOpen = true">
           <KeyRound />修改密码
         </button>
       </template>
-    </PageHeader>
     <div v-if="pageError" class="inline-alert danger" role="alert">
       <span>{{ pageError }}</span>
       <button class="button secondary small" type="button" @click="retryFailedLoad">重试</button>
     </div>
 
     <div class="profile-summary">
-      <span class="avatar profile-avatar">{{ user?.name?.slice(0, 1) }}</span>
+      <div class="profile-identity"><span class="avatar profile-avatar">{{ user?.name?.slice(0, 1) }}</span>
       <div>
         <h2>{{ user?.name }}</h2>
         <p>{{ user?.studentNo }} · {{ roleLabel(user?.role) }}</p>
       </div>
-      <div class="profile-stat">
+      </div><div class="profile-totals"><div class="profile-stat">
         <strong>{{ number(attendanceHours) }}</strong>
         <span>值班小时</span>
       </div>
@@ -32,7 +28,7 @@
         <strong>{{ number(totalHours) }}</strong>
         <span>合计小时</span>
       </div>
-    </div>
+    </div></div>
 
     <div class="profile-workspace">
       <section class="panel profile-contact-panel">
@@ -201,7 +197,7 @@
       @close="passwordOpen = false"
       @changed="passwordChanged"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
@@ -212,7 +208,12 @@ import {
   Save,
   Search,
 } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { provide } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/workspaces/presentation.css";
+provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";

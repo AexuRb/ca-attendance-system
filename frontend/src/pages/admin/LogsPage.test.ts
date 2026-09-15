@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("vue-router", () => ({
+  RouterLink: { template: "<a><slot /></a>" },
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
@@ -86,8 +87,8 @@ describe("LogsPage request states", () => {
     mocks.del.mockRejectedValue(new Error("清空失败"));
     const wrapper = mount(LogsPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    await wrapper.get(".page-actions .button.danger").trigger("click");
-    await wrapper.get(".modal-footer .button.danger").trigger("click");
+    await wrapper.get(".mw-tools .button.danger").trigger("click");
+    await wrapper.get(".mw-modal-foot .button.danger").trigger("click");
     await flushPromises();
 
     expect(wrapper.text()).toContain("清空操作日志");
@@ -113,3 +114,5 @@ describe("LogsPage request states", () => {
     wrapper.unmount();
   });
 });
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

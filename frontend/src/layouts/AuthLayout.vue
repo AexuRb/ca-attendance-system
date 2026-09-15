@@ -1,9 +1,9 @@
 <template>
-  <main class="auth-layout auth-signal-layout" :data-auth-page="String(route.name || 'auth')">
+  <main class="public-presentation public-auth" :data-auth-page="String(route.name || 'auth')">
     <header class="auth-signal-header">
       <div class="auth-brand-lockup">
         <span class="auth-brand-mark">
-          <img src="/brand/ca-logo-white.png" alt="计算机协会会徽" />
+          <img src="/brand/ca-logo-black.png" alt="计算机协会会徽" />
         </span>
         <div>
           <strong>计算机协会</strong>
@@ -21,8 +21,7 @@
     </section>
 
     <footer class="auth-signal-footer">
-      <span>COMPUTER ASSOCIATION</span>
-      <span>SQLITE · OFFLINE</span>
+      <span>计算机协会 · 本机运行</span>
     </footer>
   </main>
 </template>
@@ -32,3 +31,5 @@ import { useRoute } from "vue-router";
 
 const route = useRoute();
 </script>
+
+<style src="../features/public/presentation.css"></style>

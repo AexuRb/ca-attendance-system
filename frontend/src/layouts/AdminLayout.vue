@@ -1,7 +1,8 @@
 <template>
+  <RouterView v-if="['members', 'settings', 'data', 'today', 'attendance', 'reviews', 'repairs', 'trainings', 'schedules', 'stats', 'profile', 'logs'].includes(String(route.name))" />
   <div
-    v-if="user && activeSection"
-    class="admin-layout refined-admin-layout"
+    v-else-if="user && activeSection"
+    class="admin-layout refined-admin-layout s2-foundation"
     :data-page="String(route.name || 'admin')"
     :class="{
       'nav-open': navOpen,
@@ -13,7 +14,16 @@
       href="#admin-main-content"
       @click.prevent="focusMainContent"
     >跳到主要内容</a>
-    <div class="admin-navigation">
+    <div
+      ref="navigation"
+      class="admin-navigation"
+      :inert="compactNavigation && !navOpen ? true : undefined"
+      :aria-hidden="compactNavigation && !navOpen ? 'true' : undefined"
+      :role="navigationModalOpen ? 'dialog' : undefined"
+      :aria-modal="navigationModalOpen ? 'true' : undefined"
+      :aria-label="navigationModalOpen ? '后台导航' : undefined"
+      tabindex="-1"
+    >
       <PrimaryRail
         :sections="visibleSections"
         :active-section-key="activeSection.key"
@@ -40,7 +50,7 @@
       @click="navOpen = false"
     ></button>
 
-    <div class="admin-stage">
+    <div class="admin-stage" :inert="navigationModalOpen ? true : undefined">
       <AdminTopbar
         :current-section="activeSection.label"
         :current-title="currentTitle"
@@ -83,12 +93,22 @@ import { useSession } from "../app/session";
 import { navigationForRole, roleLabel } from "../app/adminNavigation";
 import { safeStorageGet, safeStorageSet } from "../shared/storage";
 import type { Role } from "../shared/types";
+import { useDialogFocus } from "../shared/ui/useDialogFocus";
 
 const sidebarStorageKey = "ca-admin-section-sidebar-collapsed";
 const { user, logout } = useSession();
 const route = useRoute();
 const router = useRouter();
 const navOpen = ref(false);
+const navigation = ref<HTMLElement | null>(null);
+const navigationMedia = window.matchMedia?.("(max-width: 900px)");
+const compactNavigation = ref(navigationMedia?.matches ?? false);
+const navigationModalOpen = computed(() => compactNavigation.value && navOpen.value);
+useDialogFocus({
+  root: navigation,
+  open: () => navigationModalOpen.value,
+  close: () => { navOpen.value = false; },
+});
 const mainContent = ref<HTMLElement | null>(null);
 const creditsOpen = ref(false);
 const sidebarCollapsed = ref(
@@ -112,8 +132,13 @@ const activeItem = computed(() =>
 );
 const currentTitle = computed(() => activeItem.value?.label || "后台");
 const sidebarInteractive = computed(
-  () => !sidebarCollapsed.value || navOpen.value,
+  () => compactNavigation.value ? navOpen.value : !sidebarCollapsed.value,
 );
+
+function syncNavigationMode(event: MediaQueryListEvent) {
+  compactNavigation.value = event.matches;
+  navOpen.value = false;
+}
 
 watch(
   () => route.name,
@@ -123,11 +148,15 @@ watch(
 );
 
 onMounted(() => {
+  navigationMedia?.addEventListener("change", syncNavigationMode);
   updateClock();
   timer = window.setInterval(updateClock, 30_000);
 });
 
-onBeforeUnmount(() => window.clearInterval(timer));
+onBeforeUnmount(() => {
+  window.clearInterval(timer);
+  navigationMedia?.removeEventListener("change", syncNavigationMode);
+});
 
 function collapseSidebar() {
   sidebarCollapsed.value = true;

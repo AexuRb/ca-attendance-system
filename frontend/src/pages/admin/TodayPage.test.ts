@@ -18,7 +18,7 @@ vi.mock("vue-router", () => ({
 }));
 vi.mock("../../shared/composables/useToast", () => ({ notify: mocks.notify }));
 vi.mock("../../app/session", () => ({
-  useSession: () => ({ user: { value: { role: "ADMIN" } } }),
+  useSession: () => ({ user: { value: { role: "ADMIN" } }, state: { access: { kioskAvailable: true } }, logout: vi.fn() }),
 }));
 
 afterEach(() => {
@@ -112,7 +112,7 @@ describe("TodayPage request states", () => {
     await flushPromises();
 
     expect(wrapper.get(".command-workspace").classes()).toContain("is-engaged");
-    expect(wrapper.get(".command-welcome").classes()).toContain("is-compact");
+    expect(wrapper.find(".daily-command").exists()).toBe(true);
     expect(wrapper.find(".command-welcome h1").exists()).toBe(false);
     expect(wrapper.get(".command-composer-mode").text())
       .toBe("可以执行，也可继续补充范围");
@@ -122,7 +122,7 @@ describe("TodayPage request states", () => {
     await input.setValue("");
     await flushPromises();
     expect(wrapper.get(".command-workspace").classes()).not.toContain("is-engaged");
-    expect(wrapper.get(".command-welcome h1").text()).toBe("今天要处理什么？");
+    expect(wrapper.get(".mw-heading h1").text()).toBe("今天要处理什么？");
     wrapper.unmount();
   });
 
@@ -180,3 +180,5 @@ describe("TodayPage request states", () => {
     wrapper.unmount();
   });
 });
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

@@ -1,1 +1,0 @@
-var e=`/brand/ca-logo-white.png`;export{e as t};

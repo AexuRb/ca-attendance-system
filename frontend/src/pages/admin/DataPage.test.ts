@@ -24,13 +24,19 @@ vi.mock("../../shared/api", () => ({
   downloadBlob: (...args: unknown[]) => mocks.download(...args),
 }));
 vi.mock("../../shared/composables/useToast", () => ({ notify: mocks.notify }));
+vi.mock("../../shared/composables/useServiceHealth", () => ({
+  useServiceHealth: () => ({ online: { value: true } }),
+}));
 vi.mock("../../app/session", () => ({
   useSession: () => ({
+    state: { access: { kioskAvailable: true } },
+    logout: vi.fn(),
     user: { value: { role: "ADMIN" } },
     expireSession: mocks.expire,
   }),
 }));
 vi.mock("vue-router", () => ({
+  RouterLink: { template: '<a><slot /></a>' },
   useRoute: () => ({ query: mocks.routeQuery }),
   useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
 }));
@@ -100,7 +106,7 @@ describe("DataPage request states", () => {
     await wrapper.findAll(".page-tabs button")[1].trigger("click");
     await flushPromises();
     await wrapper.get('button[title="删除备份"]').trigger("click");
-    await wrapper.get(".modal-footer .button.danger").trigger("click");
+    await wrapper.get('[role="dialog"] footer .button.danger').trigger("click");
     await flushPromises();
 
     expect(wrapper.text()).toContain("永久删除备份 backup.zip");

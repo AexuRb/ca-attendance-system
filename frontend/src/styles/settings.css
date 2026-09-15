@@ -280,7 +280,7 @@
 }
 
 /* Duty time workspace */
-.refined-admin-layout .settings-page {
+.refined-admin-layout .settings-page:not(.system-workspace) {
   container-name: settings-page;
   container-type: inline-size;
 }

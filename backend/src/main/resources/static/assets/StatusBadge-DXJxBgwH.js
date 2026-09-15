@@ -1,0 +1,1 @@
+import{F as e,W as t,ot as n,z as r}from"./api-u-msTCAA.js";var i=[`data-tone`],a=r({__name:`StatusBadge`,props:{label:{},tone:{}},setup(r){return(a,o)=>(t(),e(`span`,{class:`status-badge`,"data-tone":r.tone},n(r.label),9,i))}});export{a as t};

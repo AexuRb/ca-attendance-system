@@ -100,32 +100,32 @@
 }
 
 /* Members: directory rows with editorial identity emphasis. */
-:root[data-appearance="editorial"] .members-page .selection-toolbar {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .selection-toolbar {
   border-left: 3px solid var(--blue-600);
   border-radius: 0;
   background: var(--surface-soft);
 }
 
-:root[data-appearance="editorial"] .members-page .member-table {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table {
   overflow: visible;
   background: transparent;
 }
 
-:root[data-appearance="editorial"] .members-page .member-table tbody tr {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table tbody tr {
   background: var(--surface);
 }
 
-:root[data-appearance="editorial"] .members-page .member-table tbody tr:hover {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table tbody tr:hover {
   box-shadow: inset 3px 0 0 var(--blue-600);
 }
 
-:root[data-appearance="editorial"] .members-page .member-identity strong {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-identity strong {
   font-family: var(--font-editorial);
   font-size: 18px;
   font-weight: 400;
 }
 
-:root[data-appearance="editorial"] .members-page .avatar.small {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .avatar.small {
   background: var(--surface-soft);
   color: var(--blue-800);
 }

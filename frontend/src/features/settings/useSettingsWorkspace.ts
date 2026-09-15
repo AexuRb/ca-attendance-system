@@ -66,7 +66,8 @@ export function useSettingsWorkspace() {
     if (!["appearance", "weekdays", "policy", "periods"].includes(section)) return;
     await nextTick();
     const target = document.getElementById(`settings-${section}`);
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target?.scrollIntoView({ behavior: reducedMotion ? "instant" : "smooth", block: "start" });
     const heading = target?.querySelector<HTMLElement>("h2");
     heading?.setAttribute("tabindex", "-1");
     heading?.focus({ preventScroll: true });

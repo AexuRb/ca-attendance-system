@@ -500,6 +500,37 @@
   min-height: 500px;
 }
 
+:root[data-appearance="classic"] .profile-record-panel {
+  container: classic-profile-records / inline-size;
+}
+
+@container classic-profile-records (max-width: 640px) {
+  :root[data-appearance="classic"] .refined-admin-layout .profile-record-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  :root[data-appearance="classic"] .refined-admin-layout .profile-record-toolbar .page-tabs button,
+  :root[data-appearance="classic"] .refined-admin-layout .profile-record-filter .button {
+    white-space: nowrap;
+  }
+
+  :root[data-appearance="classic"] .refined-admin-layout .profile-record-filter {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  }
+
+  :root[data-appearance="classic"] .refined-admin-layout .profile-record-filter input {
+    min-width: 0;
+  }
+}
+
+@container classic-profile-records (max-width: 440px) {
+  :root[data-appearance="classic"] .refined-admin-layout .profile-record-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .refined-admin-layout .profile-record-heading {
   align-items: center;
 }

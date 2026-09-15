@@ -1,0 +1,50 @@
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) { font-family: var(--font-sans); }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(label,input,select,textarea,button,td,th,.member-name,.topbar-breadcrumbs,.section-navigation) { font-family: var(--font-sans); }
+html:root[data-appearance] .s2-foundation :is(td,.member-name) { font-size: 14px; line-height: 1.6; }
+html:root[data-appearance] .s2-foundation .member-name { font-weight: 550; }
+html:root[data-appearance] .s2-foundation .page-header { border-top: 0; border-bottom: 1px solid var(--foundation-line); padding-top: 8px; padding-bottom: 18px; }
+html:root[data-appearance] .s2-foundation .page-header h1 { font-size: 28px; line-height: 1.4; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(.button,.icon-button) {
+  border-radius: var(--foundation-radius); font-weight: 500; box-shadow: 0 1px 2px #20354b08;
+  transition: background-color var(--foundation-speed), border-color var(--foundation-speed), color var(--foundation-speed), transform var(--foundation-speed) var(--foundation-ease);
+}
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) .button { min-height: 38px; font-size: 13px; padding-inline: 14px; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) .button.small { min-height: 34px; padding-inline: 11px; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) .button.primary { background: var(--foundation-accent); border-color: var(--foundation-accent); color: white; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) .button.secondary { background: var(--foundation-paper); border-color: var(--foundation-line); color: var(--foundation-ink); }
+html:root[data-appearance] .modal-shell .button.danger { box-shadow: none; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) .icon-button { width: 36px; height: 36px; min-width: 36px; padding: 8px; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(.button,.icon-button):hover:not(:disabled) { transform: none; filter: brightness(.98); }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(.button,.icon-button):active:not(:disabled) { transform: translateY(1px); filter: brightness(.95); }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(.button,.icon-button):disabled { cursor: default; transform: none; filter: none; opacity: .52; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea) { border-radius: var(--foundation-radius); border-color: var(--foundation-line); color: var(--foundation-ink); box-shadow: none; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(button,a,input,select,textarea):focus-visible { outline: 2px solid var(--foundation-accent); outline-offset: 2px; box-shadow: none; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(input,select,textarea):focus-visible { outline-offset: 0; border-color: transparent; }
+html:root[data-appearance] :is(.s2-foundation,.modal-shell) [aria-invalid=true] { border-color: var(--red-700); }
+html:root[data-appearance] .modal-shell { border: 1px solid var(--foundation-line); border-radius: calc(var(--foundation-radius) + 6px); background: var(--foundation-paper); box-shadow: 0 24px 80px #1b30412b,0 3px 10px #1b304112; }
+html:root[data-appearance] .modal-shell .modal-header { padding: 22px 24px; border-bottom: 1px solid var(--foundation-line); background: var(--foundation-soft); }
+html:root[data-appearance] .modal-shell .modal-header h2 { font-size: 20px; line-height: 1.4; font-weight: 550; color: var(--foundation-ink); }
+html:root[data-appearance] .modal-shell .modal-body { padding: 24px; }
+html:root[data-appearance] .modal-shell .modal-footer { padding: 16px 24px; border-top: 1px solid var(--foundation-line); background: var(--foundation-soft); gap: 10px; }
+html:root[data-appearance="editorial"] .modal-shell .modal-header h2 { font-family: Georgia,"Noto Serif CJK SC","Songti SC",serif; }
+html:root[data-appearance="editorial"] .modal-shell .modal-header { background: #faf9f5; }
+html:root[data-appearance="spatial"] .modal-shell .modal-header { background: #fff; }
+@media(min-width:701px) {
+  html:root[data-appearance="editorial"] .modal-shell { display: grid; grid-template-columns: 160px minmax(0,1fr); grid-template-rows: minmax(0,1fr) auto; }
+  html:root[data-appearance="editorial"] .modal-shell .modal-header { grid-column: 1; grid-row: 1; align-items: start; flex-direction: column-reverse; justify-content: flex-end; gap: 20px; padding: 24px 18px; border-bottom: 0; border-right: 1px solid var(--foundation-line); }
+  html:root[data-appearance="editorial"] .modal-shell .modal-body { grid-column: 2; grid-row: 1; min-width: 0; }
+  html:root[data-appearance="editorial"] .modal-shell .modal-footer { grid-column: 1/-1; grid-row: 2; }
+}
+html:root[data-appearance] .s2-foundation :is(.admin-view-enter-active,.admin-view-leave-active) { transition: opacity var(--foundation-speed) var(--foundation-ease),transform var(--foundation-speed) var(--foundation-ease); }
+html:root[data-appearance] .s2-foundation .admin-view-enter-from { opacity: 0; transform: translateY(3px); }
+html:root[data-appearance] .s2-foundation .admin-view-leave-to { opacity: 0; transform: none; }
+@media(max-width:600px) {
+  html:root[data-appearance] .modal-shell .modal-header { padding: 18px; }
+  html:root[data-appearance] .modal-shell .modal-body { padding: 18px; }
+  html:root[data-appearance] .modal-shell .modal-footer { padding: 14px 18px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root[data-appearance] :is(.s2-foundation,.modal-shell) *,
+  html:root[data-appearance] :is(.modal-enter-active,.modal-leave-active) { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  html:root[data-appearance] :is(.s2-foundation,.modal-shell) :is(.button,.icon-button):active { transform: none; }
+}

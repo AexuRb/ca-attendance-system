@@ -1,8 +1,5 @@
 <template>
-  <div class="page-stack settings-page">
-    <PageHeader
-      title="系统设置"
-    />
+  <RefinedWorkspaceShell class="settings-page system-workspace settings-workspace" title="系统设置" description="设置外观、开放日期与有效时长规则" section-key="system">
     <div v-if="loadError" class="inline-alert danger" role="alert">
       <span>{{ loadError }}</span>
       <button class="button secondary small" type="button" data-action="retry-settings" @click="loadSettings">
@@ -18,20 +15,20 @@
       :error="appearanceError"
       @save="saveAppearance"
     />
-    <section id="settings-weekdays" class="panel setting-section">
-      <div class="section-heading">
+    <section id="settings-weekdays" class="sw-section sw-weekdays">
+      <div class="sw-heading">
         <div>
-          <p class="eyebrow">WEEKDAYS</p>
           <h2>值班星期</h2>
-          <span>未开放日期仍可签到签退，计时结果由审核和下方规则共同决定。</span>
+          <span>未开放日仍可签到签退，计时遵循审核与下方规则。</span>
         </div>
         <button class="button primary small" :disabled="actions.isPending('weekdays')" @click="saveWeekdays">
           <Save />{{ actions.isPending('weekdays') ? "正在保存" : "保存星期" }}
         </button>
       </div>
-      <WeekdayCalendarSelector :days="weekdays" @toggle="toggleWeekday" />
+      <WeekdayCalendarSelector compact :days="weekdays" @toggle="toggleWeekday" />
     </section>
     <DutyTimeWorkspace
+      refined
       v-model:periods="periods"
       v-model:policy="attendancePolicy"
       :can-edit-policy="canEditAttendancePolicy"
@@ -52,11 +49,16 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 <script setup lang="ts">
 import { Save } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { provide } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/settings/presentation.css";
+provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import DutyTimeWorkspace from "./settings/DutyTimeWorkspace.vue";

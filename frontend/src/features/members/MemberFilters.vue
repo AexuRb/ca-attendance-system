@@ -1,6 +1,6 @@
 <template>
-  <form class="member-filter-shell" @submit.prevent="$emit('submit')">
-    <div class="member-filter-main">
+  <form :class="inline ? 'mw-filter' : 'member-filter-shell'" @submit.prevent="$emit('submit')">
+    <div :class="inline ? 'mw-filter-main' : 'member-filter-main'">
       <label class="member-search-field">
         <span>搜索成员</span>
         <input
@@ -13,6 +13,7 @@
         />
       </label>
       <button
+        v-if="!inline"
         class="button secondary member-filter-toggle"
         type="button"
         :aria-expanded="filtersOpen"
@@ -30,9 +31,9 @@
 
     <Transition name="filter-expand">
       <div
-        v-if="filtersOpen"
+        v-if="inline || filtersOpen"
         id="member-advanced-filters"
-        class="member-advanced-filters"
+        :class="inline ? 'mw-filter-options' : 'member-advanced-filters'"
       >
         <label>
           <span>角色</span>
@@ -114,6 +115,7 @@ const props = defineProps<{
   status: string;
   grade: string;
   grades: string[];
+  inline?: boolean;
 }>();
 
 const emit = defineEmits<{

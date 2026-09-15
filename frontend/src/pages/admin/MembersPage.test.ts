@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
   notify: vi.fn(),
 }));
 
-vi.mock("vue-router", () => ({
+vi.mock("vue-router", async (importOriginal) => ({
+  ...await importOriginal<typeof import("vue-router")>(),
+  RouterLink: { template: '<a><slot /></a>' },
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
@@ -28,6 +30,8 @@ vi.mock("../../shared/composables/useToast", () => ({ notify: mocks.notify }));
 
 vi.mock("../../app/session", () => ({
   useSession: () => ({
+    state: { access: { kioskAvailable: true } },
+    logout: vi.fn(),
     user: {
       value: {
         id: 1,
@@ -98,7 +102,7 @@ describe("MembersPage deletion", () => {
     expect(wrapper.text()).toContain("仅可永久删除从未参与业务的空白账号");
 
     await wrapper.get(".confirm-copy + .field textarea").setValue("清理测试账号");
-    await wrapper.get(".modal-footer .button.danger").trigger("click");
+    await wrapper.get("[role=dialog] footer .button.danger").trigger("click");
     await flushPromises();
 
     expect(mocks.apiDelete).toHaveBeenCalledWith("/api/users/2", {
@@ -121,7 +125,7 @@ describe("MembersPage deletion", () => {
     wrapper.findComponent(MemberRowActions).vm.$emit("delete");
     await wrapper.vm.$nextTick();
     await wrapper.get(".confirm-copy + .field textarea").setValue("清理空白账号");
-    await wrapper.get(".modal-footer .button.danger").trigger("click");
+    await wrapper.get("[role=dialog] footer .button.danger").trigger("click");
     await flushPromises();
 
     expect(wrapper.find(".confirm-copy").exists()).toBe(false);
@@ -149,7 +153,7 @@ describe("MembersPage request ordering", () => {
     await flushPromises();
 
     await wrapper.get('input[name="memberKeyword"]').setValue("新成员");
-    await wrapper.get("form.member-filter-shell").trigger("submit");
+    await wrapper.get("form.mw-filter").trigger("submit");
     newResult.resolve({
       items: [{ ...linkedMember, id: 3, name: "新成员" }],
       total: 1,
@@ -181,14 +185,14 @@ describe("MembersPage import", () => {
     });
     await flushPromises();
 
-    await wrapper.get(".page-actions .button.secondary").trigger("click");
+    await wrapper.get(".mw-tools .mw-button:not(.primary)").trigger("click");
     const input = wrapper.get('input[type="file"]');
     Object.defineProperty(input.element, "files", {
       value: [new File(["test"], "members.xlsx")],
       configurable: true,
     });
     await input.trigger("change");
-    await wrapper.get(".modal-footer .button.primary").trigger("click");
+    await wrapper.get("[role=dialog] footer .button.primary").trigger("click");
     await flushPromises();
 
     expect(wrapper.text()).toContain("第 3 行：姓名不能超过 64 个字符");

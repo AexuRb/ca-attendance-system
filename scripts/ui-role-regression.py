@@ -15,15 +15,15 @@ def login(page, base_url: str, account: str, password: str) -> None:
 
 
 def logout(page) -> None:
-    page.get_by_role("button", name="退出登录").click()
+    page.locator(".mw-signout:visible").click()
     expect(page.get_by_role("heading", name="登录后台")).to_be_visible(timeout=15_000)
 
 
 def open_profile(page) -> None:
-    people_group = page.locator('.primary-nav a[title="人员"]')
+    people_group = page.locator('nav a:visible:text-is("人员")')
     expect(people_group).to_be_visible(timeout=15_000)
     people_group.click()
-    profile_tab = page.locator(".section-navigation a", has_text="个人资料")
+    profile_tab = page.locator('nav a[href="#/admin/profile"]:visible').first
     expect(profile_tab).to_be_visible(timeout=10_000)
     profile_tab.click()
     expect(page.get_by_role("heading", name="个人资料")).to_be_visible(timeout=15_000)
@@ -68,35 +68,35 @@ def main() -> None:
         page.on("pageerror", lambda error: console_errors.append(str(error)))
 
         login(page, args.base_url, args.admin_account, args.admin_password)
-        expect(page.locator(".section-user", has_text="管理员")).to_be_visible(timeout=15_000)
+        expect(page.locator(".mw-workbar", has_text="管理员")).to_be_visible(timeout=15_000)
         open_profile(page)
         admin_layout = profile_layout(page)
         page.screenshot(path=screenshot_dir / "admin-profile.png", full_page=True)
         logout(page)
 
         login(page, args.base_url, args.president_account, args.president_password)
-        expect(page.locator(".section-user", has_text="会长")).to_be_visible(timeout=15_000)
-        expect(page.locator('.primary-nav a[title="人员"]')).to_be_visible()
-        expect(page.locator('.primary-nav a[title="值班"]')).to_be_visible()
-        expect(page.locator('.primary-nav a[title="事务"]')).to_be_visible()
-        expect(page.locator('.primary-nav a[title="系统"]')).to_be_visible()
+        expect(page.locator(".mw-workbar", has_text="会长")).to_be_visible(timeout=15_000)
+        expect(page.locator('nav a:visible:text-is("人员")')).to_be_visible()
+        expect(page.locator('nav a:visible:text-is("值班")')).to_be_visible()
+        expect(page.locator('nav a:visible:text-is("事务")')).to_be_visible()
+        expect(page.locator('nav a:visible:text-is("系统")')).to_be_visible()
         page.goto(f"{args.base_url}/#/admin/data", wait_until="networkidle")
         expect(page.get_by_role("heading", name="数据与备份")).to_be_visible(timeout=15_000)
-        if page.locator(".section-navigation a", has_text="操作日志").count():
+        if page.locator(".mw-subnav a", has_text="操作日志").count():
             raise AssertionError("会长仍能看到操作日志入口")
-        if page.get_by_role("button", name="维修回收站").count():
+        if page.get_by_role("tab", name="维修回收站").count():
             raise AssertionError("会长仍能看到维修回收站")
-        page.get_by_role("button", name="本机备份").click()
+        page.get_by_role("tab", name="本机备份").click()
         if page.get_by_text("恢复备份", exact=True).count():
             raise AssertionError("会长仍能看到恢复备份入口")
         page.goto(f"{args.base_url}/#/admin/logs", wait_until="networkidle")
-        expect(page.get_by_role("heading", name="今日", exact=True)).to_be_visible(timeout=15_000)
+        expect(page.get_by_role("heading", name="今天要处理什么？", exact=True)).to_be_visible(timeout=15_000)
         page.screenshot(path=screenshot_dir / "president-today.png", full_page=True)
         logout(page)
 
         login(page, args.base_url, args.minister_account, args.minister_password)
-        expect(page.locator(".section-user", has_text="部长")).to_be_visible(timeout=15_000)
-        expect(page.get_by_role("heading", name="今日", exact=True)).to_be_visible(timeout=15_000)
+        expect(page.locator(".mw-workbar", has_text="部长")).to_be_visible(timeout=15_000)
+        expect(page.get_by_role("heading", name="今天要处理什么？", exact=True)).to_be_visible(timeout=15_000)
         page.wait_for_timeout(700)
         if page.get_by_text("排班待补充", exact=True).count():
             raise AssertionError("部长今日页面仍显示排班待补充")
@@ -105,7 +105,7 @@ def main() -> None:
         forbidden_routes = ["schedules", "members", "trainings", "data", "settings", "logs"]
         for route in forbidden_routes:
             page.goto(f"{args.base_url}/#/admin/{route}", wait_until="networkidle")
-            expect(page.get_by_role("heading", name="今日", exact=True)).to_be_visible(timeout=15_000)
+            expect(page.get_by_role("heading", name="今天要处理什么？", exact=True)).to_be_visible(timeout=15_000)
         page.goto(f"{args.base_url}/#/admin/attendance", wait_until="networkidle")
         expect(page.get_by_role("heading", name="值班记录")).to_be_visible(timeout=15_000)
         page.get_by_label("开始日期").fill((date.today() - timedelta(days=8)).isoformat())
@@ -124,7 +124,7 @@ def main() -> None:
         logout(page)
 
         login(page, args.base_url, args.member_account, args.member_password)
-        expect(page.locator(".section-user", has_text="成员")).to_be_visible(timeout=15_000)
+        expect(page.locator(".mw-workbar", has_text="成员")).to_be_visible(timeout=15_000)
         expect(page.get_by_role("heading", name="个人资料")).to_be_visible(timeout=15_000)
         page.wait_for_timeout(700)
         member_layout = profile_layout(page)

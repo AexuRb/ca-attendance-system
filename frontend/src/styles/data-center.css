@@ -1,4 +1,4 @@
-.data-center-page {
+.data-center-page:not(.system-workspace) {
   --data-line: #d6e4eb;
   --data-line-soft: #e8eff3;
   --data-ink: #153244;

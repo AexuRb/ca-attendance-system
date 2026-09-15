@@ -1,8 +1,6 @@
 <template>
-  <div class="page-stack training-page">
-    <PageHeader
-      title="培训记录"
-      ><template #actions
+  <RefinedWorkspaceShell class="affairs-workspace training-presentation" title="培训记录" description="管理培训安排与参与记录" section-key="work" filter-label="筛选培训记录">
+    <template #tools
         ><button
           :ref="captureExportButton"
           class="button secondary"
@@ -12,10 +10,8 @@
           <Download />{{ isPending('export-summary') ? "正在导出" : "导出统计" }}</button
         ><button class="button primary" @click="openSession()">
           <Plus />新建培训
-        </button></template
-      ></PageHeader
-    >
-    <form class="filter-bar" @submit.prevent="applyFilters">
+        </button></template>
+    <template #filters><form class="filter-bar" @submit.prevent="applyFilters">
       <label class="filter-grow"
         ><span>关键词</span
         ><input
@@ -30,7 +26,7 @@
       ><label
         ><span>结束日期</span><input v-model="filters.to" name="trainingTo" type="date" /></label
       ><button class="button secondary" type="submit"><Search />查询</button>
-    </form>
+    </form></template>
     <div v-if="filterError" class="inline-alert danger" role="alert">
       {{ filterError }}
     </div>
@@ -138,7 +134,7 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
@@ -147,7 +143,12 @@ import {
   Plus,
   Search,
 } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import { provide } from "vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/repairs/presentation.css";
+provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import TrainingParticipantList from "../../features/training/TrainingParticipantList.vue";

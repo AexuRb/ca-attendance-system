@@ -1,8 +1,6 @@
 <template>
-  <div class="page-stack">
-    <PageHeader
-      title="维修事务"
-      ><template #actions
+  <RefinedWorkspaceShell class="affairs-workspace repair-presentation" title="维修事务" description="从受理到完成，保留每次处理记录" section-key="work" filter-label="筛选维修事务">
+    <template #tools
         ><button
           :ref="captureExportButton"
           v-if="canExport"
@@ -13,10 +11,8 @@
           <Download />{{ isPending('export-repairs') ? "正在导出" : "导出" }}</button
         ><button v-if="canManage" class="button primary" @click="openEditor()">
           <Plus />新建维修
-        </button></template
-      ></PageHeader
-    >
-    <form class="repair-filter-shell" @submit.prevent="load">
+        </button></template>
+    <template #filters><form class="repair-filter-shell" @submit.prevent="load">
       <div class="repair-search-row">
         <Search aria-hidden="true" />
         <label>
@@ -47,7 +43,7 @@
           <button class="button secondary small" type="submit">应用筛选</button>
         </div>
       </Transition>
-    </form>
+    </form></template>
     <div v-if="filterError" class="inline-alert danger" role="alert">
       {{ filterError }}
     </div>
@@ -156,7 +152,7 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 <script setup lang="ts">
 import {
@@ -167,7 +163,12 @@ import {
   Search,
   SlidersHorizontal,
 } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import { provide } from "vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/repairs/presentation.css";
+provide(memberPresentationKey, true);
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AgreementDialog from "../../shared/ui/AgreementDialog.vue";
 import RepairEditorDialog from "../../features/repairs/RepairEditorDialog.vue";

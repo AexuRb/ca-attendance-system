@@ -1,14 +1,9 @@
 <template>
-  <div class="page-stack stats-page">
-    <PageHeader
-      title="值班统计"
-      ><template #actions
-        ><button :ref="captureExportButton" class="button primary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportExcel">
+  <RefinedWorkspaceShell class="support-workspace stats-presentation" title="值班统计" description="按日期查看值班与培训时长" section-key="duty" filter-label="筛选值班统计">
+    <template #tools><button :ref="captureExportButton" class="button primary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportExcel">
           <Download />导出 Excel
-        </button></template
-      ></PageHeader
-    >
-    <form class="filter-bar stats-filter" @submit.prevent="loadCustom">
+        </button></template>
+    <template #filters><form class="filter-bar stats-filter" @submit.prevent="loadCustom">
       <div class="segmented">
         <button
           v-for="option in presets"
@@ -23,7 +18,7 @@
       <label><span>开始日期</span><input v-model="from" name="statsFrom" type="date" /></label
       ><label><span>结束日期</span><input v-model="to" name="statsTo" type="date" /></label
       ><button class="button secondary" type="submit"><BarChart3 />统计</button>
-    </form>
+    </form></template>
     <div v-if="displayError" class="inline-alert danger" role="alert">
       <span>{{ displayError }}</span>
       <button
@@ -41,7 +36,7 @@
         <span>统计成员</span><strong>{{ rows.length }}</strong
         ><small>人</small>
       </article>
-      <article class="stats-metric-hours">
+      <article class="workspace-metric-hours">
         <span>总有效时长</span><strong>{{ totalHours }}</strong
         ><small>小时</small>
       </article>
@@ -101,12 +96,17 @@
         </table>
       </div>
     </section>
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
 import { BarChart3, Download } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { provide } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/workspaces/presentation.css";
+provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import WeeklyStatsTable from "../../features/stats/WeeklyStatsTable.vue";

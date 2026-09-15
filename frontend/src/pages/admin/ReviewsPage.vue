@@ -1,23 +1,10 @@
 <template>
-  <div class="page-stack reviews-page">
-    <PageHeader
-      title="签到审核"
-    >
-      <template #actions
-        ><button
-          class="button secondary"
-          :disabled="actions.isPending('bulk') || !pendingItemCount"
-          @click="bulkConfirmOpen = true"
-        >
-          <CheckCheck />全部通过
-        </button></template
-      >
-    </PageHeader>
-    <div class="filter-bar">
+  <RefinedWorkspaceShell class="daily-workspace review-workspace" title="签到审核" description="核对记录后通过签到与签退申请" section-key="today">
+<aside class="daily-review-summary">
       <span class="filter-summary">
         <ListChecks />
         <span>
-          {{ pendingItemCount }} 项待审核
+          <strong class="daily-review-count">{{ pendingItemCount }}</strong> 项待审核
           <small v-if="queueTruncated">
             当前显示最近 {{ records.length }} 条，共 {{ pendingRecordCount }} 条记录
           </small>
@@ -26,7 +13,14 @@
       <button class="icon-button" title="刷新" aria-label="刷新" :disabled="loading" @click="load">
         <RefreshCw :class="{ spin: loading }" />
       </button>
-    </div>
+    <button
+          class="button secondary"
+          :disabled="actions.isPending('bulk') || !pendingItemCount"
+          @click="bulkConfirmOpen = true"
+        >
+          <CheckCheck />全部通过
+        </button></aside>
+
     <div v-if="loadError" class="inline-alert danger" role="alert">
       <span>{{ loadError }}</span>
       <button class="button secondary small" type="button" data-action="retry-reviews" @click="load">
@@ -138,12 +132,17 @@
         </button>
       </template>
     </ModalDialog>
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
 import { CheckCheck, ListChecks, RefreshCw, X } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import { provide } from "vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/attendance/presentation.css";
+provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";

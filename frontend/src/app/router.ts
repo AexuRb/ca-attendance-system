@@ -6,6 +6,8 @@ import {
   type RouteRecordRaw,
 } from "vue-router";
 import { useSession } from "./session";
+import { notify } from "../shared/composables/useToast";
+import { cancelScrollRestoration, restoreScrollPosition } from "./scrollRestoration";
 import type { AccessContext, Role, UserSession } from "../shared/types";
 
 const routes: RouteRecordRaw[] = [
@@ -115,10 +117,21 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHashHistory(),
   routes,
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to, from, savedPosition) => {
+    if (savedPosition) return restoreScrollPosition(savedPosition);
+    // Query-only changes (filters and data tabs) keep the current working position.
+    if (to.path === from.path) return false;
+    return { top: 0, behavior: "instant" };
+  },
+});
+
+router.onError(() => {
+  // Keep the current workspace and its input intact; never reload automatically.
+  notify("页面未能打开，请重新选择页面；若仍失败，请重新加载应用。", "danger");
 });
 
 router.beforeEach(async (to) => {
+  cancelScrollRestoration();
   const session = useSession();
   await session.bootstrap();
   return resolveRouteAccess(to, session.state);

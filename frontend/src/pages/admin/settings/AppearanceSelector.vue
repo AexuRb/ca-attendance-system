@@ -1,8 +1,7 @@
 <template>
-  <section id="settings-appearance" class="panel setting-section appearance-setting-section">
-    <div class="section-heading appearance-heading">
+  <section id="settings-appearance" class="sw-section sw-appearance appearance-setting-section">
+    <div class="sw-heading appearance-heading">
       <div>
-        <p class="eyebrow">APPEARANCE</p>
         <h2>界面外观</h2>
         <span>全局应用于后台、登录与签到台。</span>
       </div>
@@ -32,12 +31,12 @@
         @keydown.left.prevent="moveSelection(index, -1)"
         @keydown.right.prevent="moveSelection(index, 1)"
       >
-        <span class="appearance-preview" aria-hidden="true">
-          <i class="appearance-preview-rail"></i>
-          <i class="appearance-preview-nav"></i>
-          <i class="appearance-preview-stage">
-            <b></b><b></b><b></b>
-          </i>
+        <span class="sw-preview" aria-hidden="true" :data-theme="option.domValue">
+          <i class="sw-preview-nav"><b></b><b></b><b></b></i>
+          <i class="sw-preview-side"><b></b><b></b><b></b></i>
+          <i class="sw-preview-title">成员名册</i>
+          <i class="sw-preview-tools"><b></b><b></b></i>
+          <i class="sw-preview-lines"><b></b><b></b><b></b><b></b></i>
         </span>
         <span class="appearance-choice-copy">
           <strong>{{ option.label }}</strong>
@@ -84,9 +83,9 @@ const emit = defineEmits<{
 }>();
 
 const options = [
-  { id: "CLASSIC" as const, domValue: "classic", label: "经典", detail: "淡蓝工作台" },
-  { id: "EDITORIAL" as const, domValue: "editorial", label: "编辑式", detail: "暖色档案感" },
-  { id: "SPATIAL" as const, domValue: "spatial", label: "空间式", detail: "系统化聚焦" },
+  { id: "CLASSIC" as const, domValue: "classic", label: "经典", detail: "清晰 · 紧凑" },
+  { id: "EDITORIAL" as const, domValue: "editorial", label: "编辑式", detail: "温暖 · 柔和" },
+  { id: "SPATIAL" as const, domValue: "spatial", label: "空间式", detail: "轻盈 · 通透" },
 ];
 const optionRefs = ref<(HTMLButtonElement | null)[]>([]);
 const confirmOpen = ref(false);

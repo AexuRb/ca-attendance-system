@@ -309,7 +309,7 @@
 }
 
 /* Members become a compact directory index. */
-:root[data-appearance="editorial"] .members-page .member-filter-shell {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-filter-shell {
   border: 0;
   border-top: 1px solid var(--line-strong);
   border-bottom: 1px solid var(--line-strong);
@@ -319,7 +319,7 @@
   box-shadow: none;
 }
 
-:root[data-appearance="editorial"] .members-page .selection-toolbar {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .selection-toolbar {
   border: 0;
   border-left: 3px solid var(--primary);
   border-radius: 0;
@@ -327,7 +327,7 @@
   box-shadow: none;
 }
 
-:root[data-appearance="editorial"] .members-page .member-table {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table {
   overflow: auto;
   border: 0;
   border-top: 2px solid var(--ink-900);
@@ -337,33 +337,33 @@
   box-shadow: none;
 }
 
-:root[data-appearance="editorial"] .members-page .member-table thead {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table thead {
   background: var(--surface-soft);
 }
 
-:root[data-appearance="editorial"] .members-page .member-table tbody tr,
-:root[data-appearance="editorial"] .members-page .member-table tbody tr.is-selected {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table tbody tr,
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table tbody tr.is-selected {
   background: transparent;
   box-shadow: none;
 }
 
-:root[data-appearance="editorial"] .members-page .member-table tbody tr:hover {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table tbody tr:hover {
   background: var(--surface-soft);
   box-shadow: inset 3px 0 0 var(--primary);
 }
 
-:root[data-appearance="editorial"] .members-page .member-table td {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-table td {
   border-bottom: 1px solid var(--line);
   padding-block: 16px;
 }
 
-:root[data-appearance="editorial"] .members-page .member-identity strong {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .member-identity strong {
   font-family: var(--font-editorial);
   font-size: 20px;
   font-weight: 400;
 }
 
-:root[data-appearance="editorial"] .members-page .avatar.small {
+:root[data-appearance="editorial"] .members-page:not(.member-workspace) .avatar.small {
   border: 1px solid var(--line-strong);
   background: var(--surface);
   color: var(--primary-active);

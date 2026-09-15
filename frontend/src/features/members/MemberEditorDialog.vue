@@ -124,11 +124,22 @@
       </button>
     </template>
   </ModalDialog>
+  <ConfirmDialog
+    :open="unsaved.confirmOpen.value"
+    title="放弃未保存修改"
+    message="成员资料尚未保存，确定放弃修改吗？"
+    confirm-label="放弃修改"
+    :pending="busy"
+    @cancel="unsaved.cancel"
+    @confirm="unsaved.discard"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
+import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import {
   focusFirstInvalid,
   validateMemberInput,
@@ -166,7 +177,7 @@ const emit = defineEmits<{
 }>();
 
 function close() {
-  if (!props.busy) emit("close");
+  if (!props.busy) unsaved.request(() => emit("close"));
 }
 
 const form = reactive({
@@ -181,6 +192,10 @@ const form = reactive({
   reason: "",
 });
 const formElement = ref<HTMLFormElement | null>(null);
+const baseline = ref("");
+const unsaved = useUnsavedChanges(
+  () => props.open && JSON.stringify(form) !== baseline.value,
+);
 const errors = reactive<InputErrors>({});
 const availableGradeChoices = computed(() =>
   form.grade && !props.gradeChoices.includes(form.grade)
@@ -190,6 +205,7 @@ const availableGradeChoices = computed(() =>
 watch(
   () => [props.open, props.member] as const,
   ([open, member]) => {
+    unsaved.cancel();
     if (!open) return;
     Object.assign(form, {
       studentNo: member?.studentNo || "",
@@ -202,6 +218,7 @@ watch(
       qq: member?.qq || "",
       reason: member ? "更新成员资料" : "",
     });
+    baseline.value = JSON.stringify(form);
     Object.keys(errors).forEach((key) => delete errors[key]);
   },
   { immediate: true },

@@ -1,3 +1,24 @@
 # 开发状态
 
-截至 2026-09-04，当前交付版本为 3.2.0，包含 Classic/Editorial/Spatial 三套全局界面、首页命令台、系统设置与数据备份工作区重构，以及远程限流和事务一致性修复。三主题共用业务状态、权限与接口，Classic 为默认与故障回退；外观配置通过 V11 迁移加入现有数据库，不清空业务数据。用户已授权发布并要求沿用刚完成的工作，本轮仅更新版本与发布文档，通过 `scripts/build-desktop.ps1 -SkipDependencyInstall -SkipTests` 重新封包，未重复本地测试或修复已知裁切。`release-artifacts/` 中安装 EXE、便携 ZIP 和 SHA256SUMS 已生成，校验值一致，EXE/ASAR/内置 JAR 版本均为 3.2.0，便携包未夹带运行数据，安装包未签名；旧 v3.1.0 保留，发布流程使用 main 与新标签 v3.2.0，说明见 `docs/releases/v3.2.0.md`。沿用的验证包括前端 88 文件 315 项单元测试、双 TypeScript 检查、后端 62 文件 314 项测试、桌面 26 项测试与此前三主题 Playwright 验收；真实打包 EXE 使用临时数据目录验证初始化、维修/培训创建与刷新留存、协议 iframe、Excel 下载、公共页、重启数据和主题保留，五组桌面稳定性场景通过，正式数据库未动。`scripts/test-packaged-desktop.cjs` 增加内部容器边界断言后仍明确失败：Classic 个人资料查询按钮在 125% 下越界约 27px，Spatial 个人资料时长项在 150% 下越界约 97px，均未修复；不能将整页宽度检查通过表述为完整视觉验收通过。下一步按用户指示修复 `frontend/src/styles/admin-details.css` 的个人记录布局和 `frontend/src/appearances/spatial/work-pages.css` 的摘要最小列宽/断点，再定向回归。桌面依赖安装报告 1 中危、1 高危，完整 npm audit 查询超时，具体包及运行时影响仍待核清，不据 omit=dev 结果认定内嵌 Electron 安全。未实测 Win11、安装向导、SmartScreen、断网安装、打印和全量权限/备份恢复；详细证据与边界保留在 `docs/桌面端稳定性测试记录.md` 第 7 节及 `docs/多主题前端验收记录.md`。测试进程已退出，源码后端及 Vite 未恢复；成功测试的临时数据已清理，早期两个空临时目录因清理命令被拒绝而保留。tasks、plan.md、运行数据和发行二进制继续由 Git 忽略，截图只保留在本地 tasks；后续不自动扩展功能。
+更新：2026-09-15。
+
+## 当前任务：3.3.0发行交付
+
+- 用户已明确授权打包发布，包括本轮提交、推送与Release。三套布局及各批视觉已确认，不重开设计。只保留学院，不增加专业。
+- 版本统一3.3.0；安装版、便携版和SHA256SUMS已生成并本地核验。实际远端状态以[Release](https://github.com/AexuRb/ca-attendance-system/releases/tag/v3.3.0)和[CI](https://github.com/AexuRb/ca-attendance-system/actions)为准，不用本地文件存在代替上传成功。
+- 本地前端测试/typecheck/build、后端package及依赖上界、桌面测试、脚本测试/语法检查、完整桌面npm审计和前端生产审计通过。真实权限回归、API/核心UI冒烟、性能基线通过。数量从本轮日志/CI报告读取；不沿用历史XML计数。
+- 成品win-unpacked以isPackaged=true/3.3.0启动，内置Java/JAR、空库初始化、窗口重启、签到快捷键和退出通过；桌面稳定性五类场景通过。运行数据均隔离，未改已安装程序。
+- 本轮发现发布脚本沿用旧布局选择器，已更新成员/考勤/日志性能定位、角色导航、数据中心tab与弹窗定位，业务断言保留。桌面构建依赖xmldom/fast-uri/js-yaml兼容升级后审计清零。
+- 安装向导、跨版本安装覆盖、实际托盘点击、多显示器、物理断网及3000新账号吞吐未完整实测，已在[3.3.0发布说明](docs/releases/v3.3.0.md)披露。安装包未签名，主库与备份未加密。
+
+## 后续
+
+- 发布后核对Release资产、版本、大小与校验值；若CI或上传失败先解决，不将候选产物称为已发布。
+- 根据实际安装反馈处理问题；未覆盖的原生/硬件场景保留为后续验收，不将H称为全部组合完成。
+- 4177继续作为本地虚构数据预览，与发行包和真实数据库验收区分。
+
+## 证据
+
+- 本轮本地日志：tasks/release-3.3.0/（不提交）。smoke-verified、role-ui-complete、performance-verified为各自最终通过结果，前次选择器失败日志保留。
+- [发布前状态](tasks/release-3.3.0/DEV_STATE.before.md)、[阶段汇总](docs/verification/多主题前端验收记录.md)。
+- [导入HTTP](tasks/import-fields-20260915/review.md)、[桌面源码细节](tasks/desktop-details-20260915/review.md)。

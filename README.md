@@ -40,8 +40,8 @@
 
 Release 提供两种无需额外环境的离线包：
 
-- `CA-Attendance-System-Setup-3.2.0.exe`：安装版，默认安装到 `C:\CAAttendance\app`。
-- `CA-Attendance-System-Portable-3.2.0.zip`：便携版，解压后运行根目录的 `启动管理系统.bat`。
+- `CA-Attendance-System-Setup-3.3.0.exe`：安装版，默认安装到 `C:\CAAttendance\app`。
+- `CA-Attendance-System-Portable-3.3.0.zip`：便携版，解压后运行根目录的 `启动管理系统.bat`。
 
 首次启动会自动创建 SQLite 数据库，并要求现场创建首位管理员，不预置公开账号或密码。应用运行期间也可以在同一台电脑的浏览器访问 `http://127.0.0.1:8080`。点击桌面窗口右上角关闭按钮后，系统会继续在 Windows 托盘运行；需要停止本机服务时，从托盘菜单选择“完全退出”。
 
@@ -83,7 +83,7 @@ cd ..\backend
 mvn package
 ```
 
-运行源码版可双击根目录 `start.bat`。构建完整 Windows 发行包：
+运行源码版前按 [后端说明](backend/README.md) 设置唯一的临时 `APP_ROOT`；`start.bat` 默认使用项目根目录存储数据。构建完整 Windows 发行包：
 
 ```powershell
 .\scripts\build-desktop.ps1
@@ -99,27 +99,23 @@ mvn package
 backend/        Spring Boot 后端、SQLite 迁移和集成测试
 database/       SQLite 结构说明和可读架构副本
 desktop/        Electron 主进程、预加载桥接和打包配置
-docs/           Excel 模板及项目补充文档
+docs/           业务与视觉规范、文档索引和成员导入模板
+docs/verification/  测试方法、历史结果与未覆盖项
+docs/archive/       历史审查报告
+docs/releases/      各版本发布说明
 frontend/       Vue TypeScript 前端、业务页面和统一设计系统
 scripts/        构建、业务冒烟和浏览器界面测试
 ```
 
 ## 文档
 
-- [系统使用说明.md](系统使用说明.md)：角色权限和日常操作
-- [本地运行说明.md](本地运行说明.md)：安装、迁移、备份、源码构建和故障排查
-- [计算机协会本地管理系统需求说明书.md](计算机协会本地管理系统需求说明书.md)：完整需求、权限矩阵和验收标准
-- [docs/角色权限矩阵.md](docs/角色权限矩阵.md)：前端页面、业务操作和后端接口权限基线
-- [docs/签到与时长状态矩阵.md](docs/签到与时长状态矩阵.md)：签到状态、限制开关、审核与时长计算基线
-- [docs/业务模块验收矩阵.md](docs/业务模块验收矩阵.md)：排班、培训、维修、批量导入和自定义导出基线
-- [docs/数据安全演练记录.md](docs/数据安全演练记录.md)：SQLite 备份恢复演练、异常保护和人工恢复清单
-- [docs/后台页面视觉验收.md](docs/后台页面视觉验收.md)：后台详情页面的响应式、长内容和可访问性验收记录
-- [docs/大数据量与性能测试记录.md](docs/大数据量与性能测试记录.md)：可重复的大数据量基线、瓶颈与优化结果
-- [docs/桌面端稳定性测试记录.md](docs/桌面端稳定性测试记录.md)：启动、托盘、单实例、进程退出和目录迁移验收
-- [docs/换届交接清单.md](docs/换届交接清单.md)：账号、数据、备份、远程隧道和新负责人交接步骤
-- [docs/发布检查表.md](docs/发布检查表.md)：版本发布、隐私检查、构建、上传和回滚门禁
-- [CHANGELOG.md](CHANGELOG.md)：各版本面向使用者的主要变化
-- [database/README.md](database/README.md)：SQLite 数据库与版本迁移
+- [文档索引](docs/README.md)：按使用、开发、业务规则、验收和发布查找资料。
+- [系统使用说明](系统使用说明.md) 与 [本地运行说明](本地运行说明.md)：日常操作、安装、迁移和排障。
+- [需求说明书](计算机协会本地管理系统需求说明书.md)：业务需求基线。
+- [开发状态](DEV_STATE.md)：当前已确认状态与待办；历史验收不等于本轮验证。
+- [CHANGELOG](CHANGELOG.md)：版本变化。
+
+3.3.0更新三套独立布局及交互，修复导航、签到异步反馈与导入事务问题。安装包未签名；安装向导、实际托盘点击和多显示器验收边界见发布说明。Windows 10/11 x64 是支持目标，不代表两种系统均已完成实测。
 
 ## 数据与安全
 

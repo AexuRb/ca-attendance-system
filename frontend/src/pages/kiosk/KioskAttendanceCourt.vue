@@ -20,7 +20,7 @@
             :aria-busy="busy"
             @submit.prevent="$emit('lookup')"
           >
-            <label class="sr-only" for="member-query">学号或姓名</label>
+          <label class="kiosk-query-label" for="member-query">学号或姓名</label>
             <div class="kiosk-focus-query-row">
               <ScanLine aria-hidden="true" />
               <input

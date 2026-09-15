@@ -1,0 +1,141 @@
+/* S2 foundation: business pages keep their own layout until their rollout batch. */
+:root[data-appearance] {
+  --foundation-ink: #25303c;
+  --foundation-muted: #586778;
+  --foundation-line: #dce3ea;
+  --foundation-paper: #fff;
+  --foundation-soft: #f5f7fa;
+  --foundation-accent: #346da6;
+  --foundation-radius: 8px;
+  --foundation-speed: 140ms;
+  --foundation-ease: cubic-bezier(.2,.7,.2,1);
+}
+:root[data-appearance="editorial"] {
+  --foundation-ink: #39372f;
+  --foundation-muted: #70695f;
+  --foundation-line: #e3dcd1;
+  --foundation-paper: #fdfbf7;
+  --foundation-soft: #f3efe7;
+  --foundation-accent: #a96043;
+  --foundation-speed: 200ms;
+}
+:root[data-appearance="spatial"] {
+  --foundation-ink: #243447;
+  --foundation-muted: #586e84;
+  --foundation-line: #dce5ee;
+  --foundation-paper: #fcfdff;
+  --foundation-soft: #f1f6fb;
+  --foundation-accent: #087bc9;
+  --foundation-radius: 12px;
+  --foundation-speed: 180ms;
+}
+:root[data-appearance] .admin-layout.s2-foundation {
+  padding: 20px;
+  gap: 16px;
+  align-items: start;
+  color: var(--foundation-ink);
+  background: radial-gradient(ellipse at 20% 0%, #e1ebf5 0, transparent 55%), #f2f4f7;
+  transition: none;
+}
+:root[data-appearance="editorial"] .admin-layout.s2-foundation {
+  background: radial-gradient(ellipse at 10% 0%, #ecdfc7, transparent 55%), #f5f1e8;
+}
+:root[data-appearance="spatial"] .admin-layout.s2-foundation {
+  background: radial-gradient(ellipse at 0 0, #cbdff1, transparent 58%), radial-gradient(ellipse at 90% 85%, #e3dfed, transparent 60%), #edf2f6;
+}
+:root[data-appearance] .admin-layout.s2-foundation :is(.admin-primary-rail,.admin-section-sidebar,.admin-stage) {
+  position: relative;
+  inset: auto;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  transform: none;
+}
+:root[data-appearance] .admin-layout.s2-foundation :is(.admin-primary-rail,.admin-section-sidebar) {
+  border: 1px solid var(--foundation-line);
+  border-radius: var(--foundation-radius);
+  background: var(--foundation-paper);
+  color: var(--foundation-ink);
+  box-shadow: 0 1px 3px #24374c06;
+}
+:root[data-appearance] .admin-layout.s2-foundation .admin-primary-rail { padding: 14px 8px; }
+:root[data-appearance] .admin-layout.s2-foundation .primary-brand-mark { width: 42px; height: 42px; filter: brightness(0); opacity: .72; }
+:root[data-appearance] .admin-layout.s2-foundation .primary-nav { margin: 18px 0; gap: 6px; }
+:root[data-appearance] .admin-layout.s2-foundation .primary-nav a {
+  min-height: 48px; color: var(--foundation-muted); border: 1px solid transparent;
+  border-radius: 6px; transform: none; box-shadow: none;
+  transition: background-color var(--foundation-speed), color var(--foundation-speed), border-color var(--foundation-speed);
+}
+:root[data-appearance] .admin-layout.s2-foundation .primary-nav a span { display: block; font-size: 12px; font-weight: 500; }
+:root[data-appearance] .admin-layout.s2-foundation .primary-nav a.active { color: var(--foundation-accent); background: var(--foundation-soft); border-color: var(--foundation-line); }
+:root[data-appearance] .admin-layout.s2-foundation .primary-nav a:hover { background: var(--foundation-soft); }
+:root[data-appearance] .admin-layout.s2-foundation :is(.primary-avatar,.primary-kiosk-link) { color: var(--foundation-muted); background: var(--foundation-soft); box-shadow: none; width: 36px; height: 36px; margin: 6px 0; }
+:root[data-appearance] .admin-layout.s2-foundation .admin-section-sidebar { padding: 20px 14px; overflow: visible; }
+:root[data-appearance] .admin-layout.s2-foundation .section-brand-copy { position: relative; min-height: 0; padding: 0 24px 18px 0; margin: 0; border: 0; }
+:root[data-appearance] .admin-layout.s2-foundation .section-brand-copy small { font-size: 10px; letter-spacing: .07em; color: var(--foundation-muted); }
+:root[data-appearance] .admin-layout.s2-foundation .section-brand-copy strong { font-size: 15px; color: var(--foundation-ink); }
+:root[data-appearance] .admin-layout.s2-foundation .section-navigation { margin: 12px 0; padding: 0; }
+:root[data-appearance] .admin-layout.s2-foundation .section-collapse { top: 0; right: 0; width: 28px; height: 28px; }
+:root[data-appearance] .admin-layout.s2-foundation .primary-nav a.active::after,
+:root[data-appearance] .admin-layout.s2-foundation .primary-nav a.active::before { display: none; }
+:root[data-appearance] .admin-layout.s2-foundation .primary-avatar { display: grid; }
+:root[data-appearance] .admin-layout.s2-foundation .section-navigation a { min-height: 40px; padding: 9px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--foundation-muted); }
+:root[data-appearance] .admin-layout.s2-foundation .section-navigation a.router-link-active { background: var(--foundation-soft); color: var(--foundation-accent); box-shadow: inset 2px 0 var(--foundation-accent); }
+:root[data-appearance] .admin-layout.s2-foundation .section-sidebar-foot { margin-top: 28px; padding: 14px 0 0; border-top: 1px solid var(--foundation-line); }
+:root[data-appearance] .admin-layout.s2-foundation .section-user { gap: 8px; padding: 0; }
+:root[data-appearance] .admin-layout.s2-foundation .section-user strong { font-size: 12px; overflow-wrap: anywhere; }
+:root[data-appearance] .admin-layout.s2-foundation .section-user .avatar { width: 30px; height: 30px; flex-shrink: 0; background: var(--foundation-soft); color: var(--foundation-muted); }
+:root[data-appearance] .admin-layout.s2-foundation .admin-stage { grid-column: auto; padding: 0; }
+:root[data-appearance] .admin-layout.s2-foundation .admin-topbar { position: relative; inset: auto; min-height: 56px; height: auto; padding: 12px 18px; border: 1px solid var(--foundation-line); border-radius: var(--foundation-radius); background: var(--foundation-paper); box-shadow: none; }
+:root[data-appearance] .admin-layout.s2-foundation .admin-content { padding: 18px 0 0; min-width: 0; }
+:root[data-appearance] .admin-layout.s2-foundation .topbar-breadcrumbs { font-size: 12px; color: var(--foundation-muted); }
+:root[data-appearance] .admin-layout.s2-foundation .local-clock { font-size: 12px; font-variant-numeric: tabular-nums; }
+:root[data-appearance] .admin-layout.s2-foundation .admin-route-frame { animation: none; }
+
+@media(min-width:901px) {
+  :root[data-appearance] .admin-layout.s2-foundation .admin-navigation { display: contents; position: static; width: auto; transform: none; }
+  :root[data-appearance="classic"] .admin-layout.s2-foundation { grid-template-columns: 68px 190px minmax(0,1fr); }
+  :root[data-appearance="classic"] .admin-layout.s2-foundation .admin-primary-rail { grid-column: 1; min-height: calc(100dvh - 40px); }
+  :root[data-appearance="classic"] .admin-layout.s2-foundation .admin-section-sidebar { grid-column: 2; min-height: calc(100dvh - 40px); }
+  :root[data-appearance="classic"] .admin-layout.s2-foundation .admin-stage { grid-column: 3; }
+  :root[data-appearance="classic"] .admin-layout.s2-foundation.section-collapsed { grid-template-columns: 68px minmax(0,1fr); }
+  :root[data-appearance="classic"] .admin-layout.s2-foundation.section-collapsed .admin-stage { grid-column: 2; }
+  :root[data-appearance] .admin-layout.s2-foundation.section-collapsed .admin-section-sidebar { display: none; }
+  :root[data-appearance="editorial"] .admin-layout.s2-foundation { grid-template-columns: 218px minmax(0,1fr); grid-template-rows: auto 1fr; padding: 28px; gap: 24px; }
+  :root[data-appearance="editorial"] .admin-layout.s2-foundation .admin-primary-rail { grid-column: 1/-1; }
+  :root[data-appearance="editorial"] .admin-layout.s2-foundation .admin-section-sidebar { grid-column: 1; grid-row: 2; }
+  :root[data-appearance="editorial"] .admin-layout.s2-foundation .admin-stage { grid-column: 2; grid-row: 2; }
+  :root[data-appearance="editorial"] .admin-layout.s2-foundation.section-collapsed { grid-template-columns: minmax(0,1fr); }
+  :root[data-appearance="editorial"] .admin-layout.s2-foundation.section-collapsed .admin-stage { grid-column: 1; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation { grid-template-columns: minmax(0,1fr); grid-template-rows: auto auto 1fr; padding: 24px 36px; gap: 0; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .admin-primary-rail { grid-column: 1; grid-row: 1; width: min(100%,1100px); justify-self: center; margin-bottom: 24px; border-radius: 20px; background: #ffffffb8; backdrop-filter: blur(16px); }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .admin-section-sidebar { grid-column: 1; grid-row: 2; display: flex; flex-direction: row; align-items: center; gap: 20px; padding: 12px 20px; border-radius: 16px 16px 0 0; border-bottom: 0; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation.section-collapsed .admin-section-sidebar { display: none; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .section-brand-copy { padding: 0 32px 0 0; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .section-brand-copy small { display: none; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .section-navigation { display: flex; gap: 8px; margin: 0; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .section-navigation p { display: none; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .section-navigation a { display: flex; gap: 6px; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .section-navigation a>svg:last-child { display: none; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .section-sidebar-foot { margin: 0 0 0 auto; padding: 0; border: 0; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .admin-stage { grid-column: 1; grid-row: 3; border: 1px solid var(--foundation-line); background: var(--foundation-paper); border-radius: 0 0 16px 16px; box-shadow: 0 12px 32px #344c6810; }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .admin-topbar { border: 0; border-bottom: 1px solid var(--foundation-line); border-radius: 0; background: var(--foundation-soft); }
+  :root[data-appearance="spatial"] .admin-layout.s2-foundation .admin-content { padding: 24px; }
+  :root:is([data-appearance="editorial"],[data-appearance="spatial"]) .admin-layout.s2-foundation .admin-primary-rail { display: flex; flex-direction: row; padding: 12px 20px; gap: 20px; min-height: 72px; }
+  :root:is([data-appearance="editorial"],[data-appearance="spatial"]) .admin-layout.s2-foundation .primary-nav { display: flex; justify-content: center; width: auto; flex: 1; margin: 0; }
+  :root:is([data-appearance="editorial"],[data-appearance="spatial"]) .admin-layout.s2-foundation .primary-nav a { display: flex; gap: 8px; min-height: 40px; padding: 8px 14px; }
+}
+/* Keep the established modal navigation and its keyboard focus behavior on narrow screens. */
+@media(max-width:900px) {
+  :root[data-appearance] .admin-layout.s2-foundation { display: block; padding: 12px; }
+  :root[data-appearance] .admin-layout.s2-foundation .admin-navigation { position: fixed; inset: 0 auto 0 0; width: min(320px,calc(100vw - 40px)); display: grid; grid-template-columns: 68px minmax(0,1fr); gap: 0; z-index: 80; transform: translateX(-110%); background: var(--foundation-paper); }
+  :root[data-appearance] .admin-layout.s2-foundation.nav-open .admin-navigation { transform: none; }
+  :root[data-appearance] .admin-layout.s2-foundation .admin-primary-rail { grid-column: 1; display: flex; flex-direction: column; border-radius: 0; height: 100dvh; overflow-y: auto; }
+  :root[data-appearance] .admin-layout.s2-foundation .admin-section-sidebar { grid-column: 2; display: flex; flex-direction: column; border-radius: 0; height: 100dvh; overflow-y: auto; }
+  :root[data-appearance] .admin-layout.s2-foundation .section-sidebar-foot { margin-top: auto; }
+  :root[data-appearance] .admin-layout.s2-foundation .primary-nav { display: grid; width: 100%; }
+  :root[data-appearance] .admin-layout.s2-foundation .primary-nav a { display: grid; }
+  :root[data-appearance] .admin-layout.s2-foundation .admin-stage { width: 100%; }
+  :root[data-appearance] .admin-layout.s2-foundation .admin-topbar { padding: 10px 12px; }
+  :root[data-appearance] .admin-layout.s2-foundation .admin-content { padding: 14px 0 0; }
+}

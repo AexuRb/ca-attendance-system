@@ -1,9 +1,6 @@
 <template>
-  <div class="page-stack">
-    <PageHeader
-      title="排班管理"
-    >
-      <template #actions>
+  <RefinedWorkspaceShell class="support-workspace schedule-presentation" title="排班管理" description="按星期安排固定值班时段" section-key="duty" filter-label="筛选排班管理">
+    <template #tools>
         <button
           class="button primary"
           :disabled="loading || actions.isPending('save') || !periods.length"
@@ -40,7 +37,6 @@
           <RefreshCw aria-hidden="true" />
         </button>
       </template>
-    </PageHeader>
 
     <div v-if="loadError && slots.length" class="inline-alert danger" role="alert">
       <span>{{ loadError }}</span>
@@ -163,12 +159,17 @@
       @cancel="deleteTarget = null"
       @confirm="confirmDeleteFixed"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
 import { Download, Plus, RefreshCw, Upload } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { provide } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/workspaces/presentation.css";
+provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";

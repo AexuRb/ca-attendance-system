@@ -283,8 +283,8 @@
     transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.auth-signal-layout .input-with-icon input {
-  padding-left: 42px;
+.auth-signal-layout .auth-form .input-with-icon input {
+  padding-inline: 42px;
 }
 
 .auth-signal-layout .input-with-icon input:focus,

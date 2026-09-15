@@ -16,6 +16,7 @@ vi.mock("../../shared/api", () => ({
 }));
 
 vi.mock("vue-router", () => ({
+  RouterLink: { template: "<a><slot /></a>" },
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ replace: vi.fn() }),
   onBeforeRouteLeave: vi.fn(),
@@ -39,7 +40,7 @@ describe("TrainingPage interactions", () => {
     const wrapper = mount(TrainingPage, { attachTo: document.body });
     await flushPromises();
 
-    await wrapper.get(".page-header .button.primary").trigger("click");
+    await wrapper.get(".mw-tools .button.primary").trigger("click");
     const title = document.body.querySelector<HTMLInputElement>('[name="training-title"]')!;
     title.value = "离线维修基础培训";
     title.dispatchEvent(new Event("input", { bubbles: true }));
@@ -53,11 +54,11 @@ describe("TrainingPage interactions", () => {
     resolveSave({ id: 8, title: "离线维修基础培训", trainingDate: new Date().toISOString().slice(0, 10) });
     await flushPromises();
 
-    await wrapper.get(".page-header .button.primary").trigger("click");
+    await wrapper.get(".mw-tools .button.primary").trigger("click");
     const dirtyTitle = document.body.querySelector<HTMLInputElement>('[name="training-title"]')!;
     dirtyTitle.value = "尚未保存";
     dirtyTitle.dispatchEvent(new Event("input", { bubbles: true }));
-    const cancel = Array.from(document.body.querySelectorAll<HTMLButtonElement>(".modal-footer .button.secondary"))
+    const cancel = Array.from(document.body.querySelectorAll<HTMLButtonElement>(".mw-modal-foot .button.secondary"))
       .find((button) => button.textContent?.includes("取消"))!;
     cancel.click();
     await wrapper.vm.$nextTick();
@@ -84,12 +85,14 @@ describe("TrainingPage interactions", () => {
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "开始日期不能晚于结束日期",
     );
-    expect(wrapper.get(".page-header .button.secondary").attributes("disabled"))
+    expect(wrapper.get(".mw-tools .button.secondary").attributes("disabled"))
       .toBeDefined();
     expect(apiGet).not.toHaveBeenCalled();
 
-    await wrapper.get(".page-header .button.secondary").trigger("click");
+    await wrapper.get(".mw-tools .button.secondary").trigger("click");
     expect(apiGet).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 });
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

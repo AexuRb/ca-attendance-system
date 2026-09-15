@@ -2,9 +2,9 @@
   <section
     ref="root"
     class="command-workspace"
-    :class="[`is-${view.state}`, { 'is-engaged': engaged }]"
+    :class="[`is-${view.state}`, { 'is-engaged': engaged, 'daily-command': refined }]"
   >
-    <div class="command-workspace-messages">
+    <div v-if="!refined" class="command-workspace-messages">
       <CommandWelcome
         :date-label="dateLabel"
         :role-name="roleName"
@@ -16,6 +16,7 @@
       <CommandFeedback :message="errorMessage" />
     </div>
     <div class="command-composer-zone">
+      <label v-if="refined" class="daily-command-label" for="daily-command-input">命令与功能搜索 <kbd>/</kbd></label>
       <div class="command-console-shell" :class="{ 'has-suggestions': panelOpen }">
         <CommandSuggestionPanel
           :open="panelOpen"
@@ -27,6 +28,7 @@
           @select="selectNode"
         />
         <CommandComposer
+          :input-id="refined ? 'daily-command-input' : undefined"
           ref="composer"
           :model-value="modelValue"
           :mode="view.mode"
@@ -43,8 +45,10 @@
           @composition="composing = $event"
         />
       </div>
-      <p class="command-local-note">所有数据与操作均保留在本机</p>
+      <CommandFeedback v-if="refined" :message="errorMessage" />
+      <p v-else class="command-local-note">所有数据与操作均保留在本机</p>
     </div>
+    <div v-if="refined" class="daily-shortcuts"><small>常用入口</small><div v-if="loading" role="status">正在加载今日状态…</div><TodayQuickActions v-else :items="quickActions" @execute="executeQuickAction" /></div>
   </section>
 </template>
 
@@ -57,6 +61,7 @@ import CommandComposer from "./CommandComposer.vue";
 import CommandFeedback from "./CommandFeedback.vue";
 import CommandSuggestionPanel from "./CommandSuggestionPanel.vue";
 import CommandWelcome from "./CommandWelcome.vue";
+import TodayQuickActions from "./TodayQuickActions.vue";
 import type { TodayQuickAction } from "./types";
 import { useCommandSession } from "./useCommandSession";
 
@@ -68,6 +73,7 @@ const props = defineProps<{
   quickActions: TodayQuickAction[];
   errorMessage?: string;
   loading?: boolean;
+  refined?: boolean;
 }>();
 const emit = defineEmits<{
   "update:modelValue": [value: string];

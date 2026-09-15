@@ -25,13 +25,14 @@ vi.mock("../../shared/api", () => ({
 
 vi.mock("../../app/session", () => ({
   useSession: () => ({
-    user: ref({ id: 1, name: "管理员", role: "ADMIN" }),
+    user: ref({ id: 1, name: "管理员", role: "ADMIN" }), state: { access: { kioskAvailable: true } }, logout: vi.fn(),
   }),
 }));
 
 vi.mock("vue-router", () => ({
-  useRoute: () => ({ query: {} }),
-  useRouter: () => ({ replace: routerReplace, push: routerPush }),
+  RouterLink: { template: "<a><slot /></a>" },
+  useRoute: () => ({ name: "repairs", query: {} }),
+  useRouter: () => ({ replace: routerReplace, push: routerPush, afterEach: () => () => {}, onError: () => () => {} }),
   onBeforeRouteLeave: vi.fn(),
 }));
 
@@ -170,11 +171,11 @@ describe("RepairsPage workspace", () => {
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "开始日期不能晚于结束日期",
     );
-    expect(wrapper.get(".page-header .button.secondary").attributes("disabled"))
+    expect(wrapper.get(".mw-tools .button.secondary").attributes("disabled"))
       .toBeDefined();
     expect(apiRequest).not.toHaveBeenCalled();
 
-    await wrapper.get(".page-header .button.secondary").trigger("click");
+    await wrapper.get(".mw-tools .button.secondary").trigger("click");
     expect(apiRequest).not.toHaveBeenCalled();
     wrapper.unmount();
   });
@@ -236,3 +237,5 @@ function statusOffset(status: RepairStatus) {
   if (status === "CANCELED") return 20_000;
   return 1;
 }
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

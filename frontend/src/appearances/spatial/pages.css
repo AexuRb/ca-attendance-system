@@ -111,22 +111,22 @@
 }
 
 /* Members: directory table with contact identity emphasis. */
-:root[data-appearance="spatial"] .members-page .selection-toolbar {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .selection-toolbar {
   border: 1px solid #b8daf7;
   border-radius: 8px;
   background: var(--blue-50);
 }
 
-:root[data-appearance="spatial"] .members-page .member-table tbody tr:hover {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-table tbody tr:hover {
   background: var(--blue-50);
 }
 
-:root[data-appearance="spatial"] .members-page .member-identity strong {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-identity strong {
   font-size: 17px;
   font-weight: 600;
 }
 
-:root[data-appearance="spatial"] .members-page .avatar.small {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .avatar.small {
   background: var(--blue-100);
   color: var(--blue-700);
 }

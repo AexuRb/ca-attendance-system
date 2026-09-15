@@ -1,16 +1,17 @@
 <template>
   <div class="repair-ledger-region">
-    <div v-if="items.length" class="repair-ledger-table table-shell">
-      <table>
+    <div v-if="items.length" class="repair-ledger-table mw-table-scroll" tabindex="0" aria-label="维修台账，可横向滚动">
+      <table class="mw-table">
         <thead>
+          <tr v-if="spatial" class="mw-column-groups"><th colspan="2" scope="colgroup">维修内容</th><th colspan="3" scope="colgroup">联系与受理</th><th colspan="2" scope="colgroup">状态与操作</th></tr>
           <tr>
-            <th>维修编号</th>
+            <th>{{ editorial ? "维修档案" : "维修编号" }}</th>
             <th>设备与故障</th>
-            <th>联系人</th>
-            <th>负责人</th>
-            <th>{{ timeLabel }}</th>
-            <th>状态</th>
-            <th class="align-right">操作</th>
+            <th>{{ editorial ? "联系与处理" : "联系人" }}</th>
+            <th v-if="!editorial">负责人</th>
+            <th v-if="!editorial">{{ timeLabel }}</th>
+            <th v-if="!editorial">状态</th>
+            <th class="align-right mw-actions-column">{{ editorial ? "状态与操作" : "操作" }}</th>
           </tr>
         </thead>
         <tbody>
@@ -26,7 +27,7 @@
           >
             <td data-label="维修编号">
               <strong class="case-no">{{ item.caseNo }}</strong>
-              <small>{{ repairAgreementLabel(item.agreementType) }}</small>
+              <small>{{ repairAgreementLabel(item.agreementType) }}</small><div v-if="editorial" class="affairs-record-time"><small>{{ timeLabel }}</small><time :datetime="displayTime(item)">{{ repairDateTime(displayTime(item)) }}</time><small>{{ repairAgeLabel(item) }}</small></div>
             </td>
             <td data-label="设备与故障">
               <strong>{{ repairDeviceName(item) }}</strong>
@@ -48,18 +49,19 @@
                   <Eye v-else aria-hidden="true" />
                 </button>
               </span>
+              <div v-if="editorial" class="affairs-record-handler"><small>负责人</small>{{ item.handlerName || "待分配" }}</div>
             </td>
-            <td data-label="负责人">{{ item.handlerName || "待分配" }}</td>
-            <td :data-label="timeLabel">
+            <td v-if="!editorial" data-label="负责人">{{ item.handlerName || "待分配" }}</td>
+            <td v-if="!editorial" :data-label="timeLabel">
               <time :datetime="displayTime(item)">{{ repairDateTime(displayTime(item)) }}</time>
               <small>{{ repairAgeLabel(item) }}</small>
             </td>
-            <td data-label="状态">
+            <td v-if="!editorial" data-label="状态">
               <span class="repair-ledger-status" :data-status="item.status">
                 {{ statusLabel(item.status) }}
               </span>
             </td>
-            <td class="repair-ledger-actions align-right" data-label="操作">
+            <td class="repair-ledger-actions align-right mw-actions-column" data-label="操作"><span v-if="editorial" class="repair-ledger-status affairs-record-status" :data-status="item.status">{{ statusLabel(item.status) }}</span>
               <button
                 class="icon-button ghost repair-ledger-open"
                 type="button"
@@ -123,6 +125,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useAppearance } from "../../appearance/appearanceStore";
+const { state: appearance } = useAppearance();
+const editorial = computed(() => appearance.active === "EDITORIAL");
+const spatial = computed(() => appearance.active === "SPATIAL");
 import {
   Archive,
   Eye,

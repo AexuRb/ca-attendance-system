@@ -29,6 +29,40 @@ function accountControls() {
 }
 
 describe("MemberEditorDialog", () => {
+  it("preserves a dirty draft on cancel and only closes after discard", async () => {
+    const wrapper = mount(MemberEditorDialog, {
+      attachTo: document.body,
+      global: { stubs: { Teleport: true } },
+      props: { open: true, member: null, operatorRole: "ADMIN", gradeChoices: [] },
+    });
+    await wrapper.get('input[name="name"]').setValue("虚构成员");
+    await wrapper.get('[aria-label="关闭"]').trigger("click");
+    expect(wrapper.emitted("close")).toBeUndefined();
+    const confirmation = wrapper.findAll('[role="dialog"]').at(-1)!;
+    expect(confirmation.text()).toContain("放弃未保存修改");
+    await confirmation.findAll("button").find(button => button.text() === "取消")!.trigger("click");
+    expect(wrapper.emitted("close")).toBeUndefined();
+    expect((wrapper.get('input[name="name"]').element as HTMLInputElement).value).toBe("虚构成员");
+    await wrapper.get('[aria-label="关闭"]').trigger("click");
+    await wrapper.findAll("button").find(button => button.text() === "放弃修改")!.trigger("click");
+    expect(wrapper.emitted("close")).toHaveLength(1);
+    wrapper.unmount();
+  });
+
+  it("closes without confirmation after reverting edits to the initial values", async () => {
+    const wrapper = mount(MemberEditorDialog, {
+      attachTo: document.body,
+      global: { stubs: { Teleport: true } },
+      props: { open: true, member: admin, operatorRole: "ADMIN", gradeChoices: [] },
+    });
+    await wrapper.get('input[name="name"]').setValue("临时修改");
+    await wrapper.get('input[name="name"]').setValue(admin.name);
+    await wrapper.get('[aria-label="关闭"]').trigger("click");
+    expect(wrapper.emitted("close")).toHaveLength(1);
+    expect(wrapper.text()).not.toContain("成员资料尚未保存");
+    wrapper.unmount();
+  });
+
   it("shows field errors and does not submit an invalid new member", async () => {
     const wrapper = mount(MemberEditorDialog, {
       attachTo: document.body,

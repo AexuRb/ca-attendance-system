@@ -282,7 +282,7 @@ def login(page, base_url: str, account: str, password: str) -> None:
     page.locator("input[name='username']").fill(account)
     page.locator("input[name='password']").fill(password)
     page.locator(".auth-form button[type='submit']").click()
-    expect(page.locator(".refined-admin-layout")).to_be_visible(timeout=15_000)
+    expect(page.locator(".mw-main")).to_be_visible(timeout=15_000)
 
 
 def main() -> None:
@@ -540,7 +540,7 @@ def main() -> None:
         expect(
             page.get_by_role("textbox", name="选择维修负责人")
         ).to_be_visible()
-        modal_box = page.locator(".modal-shell").bounding_box()
+        modal_box = page.get_by_role("dialog").bounding_box()
         if (
             modal_box is None
             or modal_box["y"] >= 844

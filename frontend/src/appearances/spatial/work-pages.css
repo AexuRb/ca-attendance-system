@@ -300,7 +300,7 @@
 }
 
 /* Members use a calm directory surface with an expandable search dock. */
-:root[data-appearance="spatial"] .members-page .member-filter-shell {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-filter-shell {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 14px;
@@ -308,20 +308,20 @@
   box-shadow: none;
 }
 
-:root[data-appearance="spatial"] .members-page .member-search-field input {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-search-field input {
   min-height: 44px;
   border-radius: 999px;
   padding-inline: 18px;
 }
 
-:root[data-appearance="spatial"] .members-page .selection-toolbar {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .selection-toolbar {
   border: 1px solid #b8daf7;
   border-radius: 8px;
   background: #f2f8ff;
   box-shadow: none;
 }
 
-:root[data-appearance="spatial"] .members-page .member-table {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-table {
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -329,31 +329,35 @@
   box-shadow: none;
 }
 
-:root[data-appearance="spatial"] .members-page .member-table thead {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-table thead {
   background: var(--canvas-parchment);
 }
 
-:root[data-appearance="spatial"] .members-page .member-table tbody tr:hover,
-:root[data-appearance="spatial"] .members-page .member-table tbody tr.is-selected {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-table tbody tr:hover,
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-table tbody tr.is-selected {
   background: #f5f9ff;
 }
 
-:root[data-appearance="spatial"] .members-page .member-table td {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-table td {
   border-bottom-color: var(--divider-soft);
   padding-block: 15px;
 }
 
-:root[data-appearance="spatial"] .members-page .member-identity strong {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .member-identity strong {
   font-size: 17px;
   font-weight: 600;
 }
 
-:root[data-appearance="spatial"] .members-page .avatar.small {
+:root[data-appearance="spatial"] .members-page:not(.member-workspace) .avatar.small {
   background: var(--blue-100);
   color: var(--primary);
 }
 
 /* Profile moves editable details into a horizontal settings surface. */
+:root[data-appearance="spatial"] .profile-page {
+  container: spatial-profile / inline-size;
+}
+
 :root[data-appearance="spatial"] .profile-page .profile-summary {
   grid-template-columns: auto minmax(220px, 1.3fr) repeat(3, minmax(120px, 0.5fr));
   overflow: hidden;
@@ -483,11 +487,21 @@
     grid-template-columns: 1fr;
   }
 
+}
+
+@container spatial-profile (max-width: 760px) {
   :root[data-appearance="spatial"] .profile-page .profile-summary {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  :root[data-appearance="spatial"] .profile-page .profile-summary > div:not(.profile-stat) {
+    grid-column: 2 / -1;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   :root[data-appearance="spatial"] .profile-page .profile-stat {
+    grid-column: span 2;
     border-top: 1px solid var(--line);
     border-left: 0;
     padding: 14px 0 0;

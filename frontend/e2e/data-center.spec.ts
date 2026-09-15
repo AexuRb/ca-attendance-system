@@ -128,7 +128,8 @@ test("switches drawer behavior without clipping the desktop backup table", async
   await page.getByRole("tab", { name: "本机备份" }).click();
   await page.getByRole("button", { name: /^查看备份详情/ }).first().click();
   await expect(page.locator("#data-backup-details")).toHaveAttribute("role", "complementary");
-  await expect(page.locator(".data-backup-table th").last()).toBeHidden();
+  // Common record actions remain available while the existing details panel is open.
+  await expect(page.locator(".bw-table th").last()).toBeVisible();
   const tableFits = await page.locator(".data-backup-list-pane").evaluate((element) =>
     element.scrollWidth <= element.clientWidth,
   );

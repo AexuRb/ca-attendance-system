@@ -182,6 +182,55 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 for (const appearance of appearances) {
+  test(`member presentation: ${appearance} preserves records, bulk requests and focus`, async ({ page }) => {
+    await installMocks(page, { appearance, longMembers: true });
+    let submitted: unknown;
+    await page.route('**/api/users/bulk-status', async route => {
+      submitted = route.request().postDataJSON();
+      await json(route, { updated: 39, unchanged: 0, skipped: 0 });
+    });
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await page.goto('/#/admin/members');
+    await expect(page.locator('.mw-table tbody tr')).toHaveCount(40);
+    await expect(page.locator('input[name="memberSelection-1"]')).toBeDisabled();
+    await page.getByRole('checkbox', { name: '选择本页可管理成员' }).check();
+    await expect(page.getByText('已选 39 人', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '批量停用', exact: true }).click();
+    const bulk = page.getByRole('dialog', { name: '批量停用账号' });
+    await bulk.getByLabel('操作原因').fill('虚构成员批量验收');
+    await bulk.getByRole('button', { name: '确认停用', exact: true }).click();
+    await expect(bulk).toBeHidden();
+    expect(submitted).toEqual({ ids: Array.from({ length: 39 }, (_, i) => i + 2), status: 'DISABLED', reason: '虚构成员批量验收' });
+    await page.getByRole('button', { name: '新增成员', exact: true }).click();
+    const editor = page.getByRole('dialog', { name: '新增成员', exact: true });
+    for (const name of ['studentNo', 'name', 'role', 'status', 'phone', 'major', 'grade', 'qq']) {
+      await expect(editor.locator(`[name="${name}"]`)).toBeVisible();
+    }
+    await editor.getByRole('button', { name: '新增成员', exact: true }).click();
+    await expect(editor.locator('[name="studentNo"]')).toBeFocused();
+    await expect(editor.locator('[name="studentNo"]')).toHaveAttribute('aria-invalid', 'true');
+    await page.keyboard.press('Escape');
+    await expect(editor).toBeHidden();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.evaluate(() => { document.documentElement.style.zoom = '1.5'; });
+    await expectNoHorizontalOverflow(page);
+    await page.getByRole('button', { name: '新增成员', exact: true }).click();
+    await expect(editor).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(editor).toBeHidden();
+    await page.evaluate(() => { document.documentElement.style.zoom = ''; });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expectNoHorizontalOverflow(page);
+    await expect(page.locator('.mw-table tbody tr')).toHaveCount(40);
+    const skip = page.getByRole('link', { name: '跳到主要内容', exact: true });
+    await skip.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#admin-main-content')).toBeFocused();
+    await expect(page).toHaveURL(/#\/admin\/members$/);
+  });
+}
+
+for (const appearance of appearances) {
   for (const role of Object.keys(routesByRole) as Role[]) {
     test(`${appearance} keeps ${role} routes consistent`, async ({ page }) => {
       test.setTimeout(180_000);
@@ -412,3 +461,94 @@ test("edited settings still require confirmation before leaving", async ({ page 
   await confirmation.getByRole("button", { name: "放弃修改", exact: true }).click();
   await expect(page).toHaveURL(/#\/admin\/data(?:\?|$)/);
 });
+
+for (const appearance of appearances) {
+  test(`review regression: ${appearance} icon padding`, async ({ page }) => {
+    await installMocks(page, { appearance, initialized: false });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/#/setup');
+    await expect(page.getByRole('heading', { name: '初始化本机' })).toBeVisible();
+    await expect.poll(() => page.locator('.input-with-icon').evaluateAll(fields => fields.every(field => {
+      const input = field.querySelector('input'), icon = field.querySelector(':scope > svg');
+      if (!input || !icon) return true;
+      const style = getComputedStyle(input);
+      return input.getBoundingClientRect().left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft) >= icon.getBoundingClientRect().right + 6;
+    }))).toBe(true);
+  });
+
+  test(`review regression: ${appearance} navigation focus`, async ({ page }) => {
+    await installMocks(page, { appearance });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/#/admin/profile');
+    await expect(page.locator('.profile-page')).toBeVisible();
+    const opener = page.getByRole('button', { name: '打开导航', exact: true });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Tab');
+    await expect(opener).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.nav-open')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest('.admin-navigation')))).toBe(true);
+    for (let i = 0; i < 15; i++) {
+      await page.keyboard.press('Tab');
+      expect(await page.evaluate(() => Boolean(document.activeElement?.closest('.admin-navigation')))).toBe(true);
+    }
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.nav-open')).toHaveCount(0);
+    await expect(opener).toBeFocused();
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.getByRole('link', { name: '成员名册', exact: true })).toBeVisible();
+  });
+
+  test(`review regression: ${appearance} member draft`, async ({ page }) => {
+    await installMocks(page, { appearance });
+    let saves = 0;
+    await page.route('**/api/users', async route => {
+      expect(route.request().method()).toBe('POST');
+      const payload = route.request().postDataJSON();
+      expect(payload.name).toBe('虚构回归成员');
+      saves++;
+      await json(route, { id: 42, ...payload });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/#/admin/members');
+    const opener = page.locator('main').getByRole('button', { name: '新增成员', exact: true });
+    await opener.click();
+    const editor = page.getByRole('dialog', { name: '新增成员', exact: true });
+    const confirmation = page.getByRole('dialog', { name: '放弃未保存修改' });
+    await editor.locator('input[name=name]').fill('虚构回归成员');
+    await page.keyboard.press('Escape');
+    await expect(confirmation).toBeVisible();
+    await confirmation.getByRole('button', { name: '取消', exact: true }).click();
+    await expect(confirmation).toBeHidden();
+    await expect(editor.locator('input[name=name]')).toHaveValue('虚构回归成员');
+    await editor.locator('input[name=studentNo]').fill('202609070001');
+    await editor.getByRole('button', { name: '新增成员', exact: true }).click();
+    await expect(editor).toBeHidden();
+    expect(saves).toBe(1);
+    await opener.click();
+    await editor.locator('input[name=name]').fill('准备放弃的虚构成员');
+    await editor.getByRole('button', { name: '关闭', exact: true }).click();
+    await confirmation.getByRole('button', { name: '放弃修改', exact: true }).click();
+    await expect(editor).toBeHidden();
+    await opener.click();
+    await expect(editor.locator('input[name=name]')).toHaveValue('');
+    await page.keyboard.press('Escape');
+    await expect(editor).toBeHidden();
+    await expect(confirmation).toBeHidden();
+  });
+}
+
+for (const [appearance, width] of [['CLASSIC', 1152], ['SPATIAL', 960]] as const) {
+  test(`review regression: ${appearance} profile bounds`, async ({ page }) => {
+    await installMocks(page, { appearance });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/#/admin/profile');
+    await expect(page.locator('.profile-page')).toBeVisible();
+    await expect.poll(() => page.evaluate(() => {
+      const panel = document.querySelector('.profile-record-panel')!.getBoundingClientRect();
+      const button = document.querySelector('.profile-record-filter .button')!.getBoundingClientRect();
+      const summary = document.querySelector('.profile-summary')!.getBoundingClientRect();
+      return Math.max(button.right - panel.right, ...[...document.querySelectorAll('.profile-stat')].map(item => item.getBoundingClientRect().right - summary.right));
+    })).toBeLessThanOrEqual(0);
+  });
+}

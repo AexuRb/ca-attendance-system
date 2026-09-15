@@ -27,6 +27,8 @@ plan.md
 *.sqlite3-journal
 
 # Build output and dependencies
+node_modules/
+test-results/
 backend/target/
 frontend/node_modules/
 frontend/dist/

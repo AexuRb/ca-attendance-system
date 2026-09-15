@@ -410,8 +410,8 @@ def benchmark_api(
 
 def browser_benchmark_cases(large_training_route: str) -> tuple[tuple[str, str, str], ...]:
     return (
-        ("members", "/#/admin/members", ".member-table tbody tr"),
-        ("attendance", "/#/admin/attendance", ".table-shell tbody tr"),
+        ("members", "/#/admin/members", ".mw-table tbody tr"),
+        ("attendance", "/#/admin/attendance", ".attendance-table tbody tr"),
         ("trainings", "/#/admin/trainings", ".training-ribbon-event"),
         (
             "training_large_roster",
@@ -424,7 +424,7 @@ def browser_benchmark_cases(large_training_route: str) -> tuple[tuple[str, str, 
             "/#/admin/repairs?status=COMPLETED&page=1",
             ".repair-ledger-row",
         ),
-        ("logs", "/#/admin/logs", ".timeline-list article"),
+        ("logs", "/#/admin/logs", ".audit-records article"),
     )
 
 

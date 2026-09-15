@@ -21,12 +21,13 @@ vi.mock("../../shared/composables/useToast", () => ({
 }));
 
 vi.mock("vue-router", () => ({
+  RouterLink: { template: "<a><slot /></a>" },
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
 vi.mock("../../app/session", () => ({
-  useSession: () => ({ user: { value: { role: "ADMIN" } } }),
+  useSession: () => ({ user: { value: { role: "ADMIN" } }, state: { access: { kioskAvailable: true } }, logout: vi.fn() }),
 }));
 
 afterEach(() => {
@@ -91,7 +92,7 @@ describe("AttendancePage manual editing", () => {
     await flushPromises();
 
     const saveButton = document.body.querySelector<HTMLButtonElement>(
-      ".modal-footer .button.primary",
+      ".mw-modal-foot .button.primary",
     );
     expect(saveButton?.disabled).toBe(false);
     saveButton?.click();
@@ -144,7 +145,7 @@ describe("AttendancePage manual editing", () => {
     }
     await flushPromises();
     const saveButton = document.body.querySelector<HTMLButtonElement>(
-      ".modal-footer .button.primary",
+      ".mw-modal-foot .button.primary",
     );
     saveButton?.click();
     saveButton?.click();
@@ -165,7 +166,7 @@ describe("AttendancePage manual editing", () => {
     const dates = wrapper.findAll('input[type="date"]');
     await dates[0].setValue("2026-08-22");
     await dates[1].setValue("2026-08-21");
-    await wrapper.get("form.filter-bar").trigger("submit");
+    await wrapper.get("form.daily-filter").trigger("submit");
 
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "开始日期不能晚于结束日期",
@@ -174,3 +175,5 @@ describe("AttendancePage manual editing", () => {
     wrapper.unmount();
   });
 });
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

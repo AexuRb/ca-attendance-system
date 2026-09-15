@@ -150,6 +150,23 @@ class UserTransactionIntegrationTest {
     }
 
     @Test
+    void duplicateStudentNumberReturnsBusinessErrorWithoutChangingMemberOrAudit() {
+        String studentNo = "9900000001";
+        users.create(new UserService.CreateUserRequest(studentNo, "原始联调成员", "MEMBER", null, null, null, null));
+        for (String status : List.of("ACTIVE", "DISABLED")) {
+            jdbc.update("UPDATE users SET status = ? WHERE student_no = ?", status, studentNo);
+            ApiException error = assertThrows(ApiException.class, () -> users.create(
+                    new UserService.CreateUserRequest(studentNo, "重复联调成员", "MEMBER", null, null, null, null)));
+            assertEquals(400, error.status().value());
+            assertEquals("学号已存在", error.getMessage());
+            assertEquals(1, userCount(studentNo));
+            assertEquals("原始联调成员", jdbc.queryForObject("SELECT name FROM users WHERE student_no = ?", String.class, studentNo));
+            assertEquals(status, jdbc.queryForObject("SELECT status FROM users WHERE student_no = ?", String.class, studentNo));
+            assertEquals(1, actionCount("CREATE_USER"));
+        }
+    }
+
+    @Test
     void createRollsBackMemberWhenAuditLogFails() {
         jdbc.execute("""
                 CREATE TRIGGER fail_create_user_log
@@ -289,6 +306,71 @@ class UserTransactionIntegrationTest {
     }
 
     @Test
+    void importValidatesLaterRowsBeforeAttemptingAnyWrite() throws Exception {
+        jdbc.execute("""
+                CREATE TRIGGER fail_import_users_log
+                BEFORE INSERT ON users
+                WHEN NEW.student_no = '9900000071'
+                BEGIN
+                  SELECT RAISE(ABORT, 'write attempted before validation completed');
+                END
+                """);
+        ApiException error = assertThrows(ApiException.class, () -> users.importMembers(memberImportFile(List.of(
+                new String[]{"9900000071", "合法虚构成员"},
+                new String[]{"invalid", "后续无效成员"}
+        ))));
+        assertTrue(error.getMessage().contains("第 3 行"));
+        assertEquals(0, userCount("9900000071"));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void presidentMixedRoleImportLeavesAllProfilesUnchanged() throws Exception {
+        long memberId = insertMember("tx-mixed-import-member", "原成员");
+        long protectedId = insertAdmin("tx-mixed-import-admin", "原管理员");
+        long presidentId = insertPresident("tx-mixed-import-president", "虚构会长");
+        AuthContext.set(new AuthUser(presidentId, "tx-mixed-import-president", "虚构会长",
+                Role.PRESIDENT, Instant.now().plusSeconds(3600)));
+        ApiException error = assertThrows(ApiException.class, () -> users.importMembers(memberImportFile(List.of(
+                new String[]{"tx-mixed-import-member", "修改成员"},
+                new String[]{"9900000072", "新成员"},
+                new String[]{"tx-mixed-import-admin", "修改管理员"}
+        ))));
+        assertTrue(error.getMessage().contains("管理员"));
+        assertEquals("原成员", name(memberId));
+        assertEquals("原管理员", name(protectedId));
+        assertEquals(0, userCount("9900000072"));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void mixedRoleBulkDisableSkipsProtectedAccountsAndRevokesOnlyChangedSessions() {
+        long memberId = insertMember("tx-mixed-member", "虚构成员");
+        long ministerId = insertMember("tx-mixed-minister", "虚构部长");
+        jdbc.update("UPDATE users SET role = 'MINISTER' WHERE id = ?", ministerId);
+        long presidentId = insertPresident("tx-mixed-president", "虚构会长");
+        String memberToken = tokens.issue(memberId, "tx-mixed-member", "虚构成员", Role.MEMBER);
+        String adminToken = tokens.issue(adminId, "tx-admin", "管理员", Role.ADMIN);
+        String presidentToken = tokens.issue(presidentId, "tx-mixed-president", "虚构会长", Role.PRESIDENT);
+        AuthContext.set(new AuthUser(presidentId, "tx-mixed-president", "虚构会长",
+                Role.PRESIDENT, Instant.now().plusSeconds(3600)));
+        var result = users.bulkStatus(new UserService.BulkStatusRequest(
+                List.of(memberId, ministerId, adminId, presidentId, memberId, Long.MAX_VALUE),
+                null, null, null, null, "DISABLED", "混合角色验证"));
+        assertEquals(2, result.updated());
+        assertEquals(3, result.skipped());
+        assertEquals(0, result.unchanged());
+        assertEquals("DISABLED", status(memberId));
+        assertEquals("DISABLED", status(ministerId));
+        assertEquals("ACTIVE", status(adminId));
+        assertEquals("ACTIVE", status(presidentId));
+        assertThrows(ApiException.class, () -> tokens.require(memberToken));
+        assertDoesNotThrow(() -> tokens.require(adminToken));
+        assertDoesNotThrow(() -> tokens.require(presidentToken));
+        assertEquals(1, actionCount("BULK_UPDATE_USER_STATUS"));
+    }
+
+    @Test
     void updateProfileRollsBackFieldsWhenAuditLogFails() {
         jdbc.update("UPDATE users SET phone = 'original-phone', major = '原学院', qq = '10000' WHERE id = ?", adminId);
         jdbc.execute("""
@@ -367,6 +449,49 @@ class UserTransactionIntegrationTest {
 
         assertTrue(exception.getMessage().contains("超过 3000 行"));
         assertEquals(0, userCount("9900000095"));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void importAcceptsTheLastAllowedRow() throws Exception {
+        long memberId = insertMember("tx-limit-existing", "边界原成员");
+        var result = users.importMembers(memberImportFileAtRow(3000, "tx-limit-existing", "边界更新成员"));
+        assertEquals(1, result.updated());
+        assertEquals("边界更新成员", name(memberId));
+        assertEquals(1, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void importCapsErrorsAndPreservesExistingMember() throws Exception {
+        long memberId = insertMember("tx-error-limit", "错误上限原成员");
+        List<String[]> rows = new java.util.ArrayList<>();
+        rows.add(new String[]{"tx-error-limit", "不应写入"});
+        for (int index = 0; index < 25; index++) {
+            rows.add(new String[]{"bad-" + index, "虚构无效成员"});
+        }
+        ApiException error = assertThrows(ApiException.class, () -> users.importMembers(memberImportFile(rows)));
+        assertEquals(20, error.getMessage().split("第 ", -1).length - 1);
+        assertEquals("错误上限原成员", name(memberId));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void importAuditFailureRollsBackBothUpdatesAndInserts() throws Exception {
+        long memberId = insertMember("tx-import-update-rollback", "回滚原成员");
+        jdbc.execute("""
+                CREATE TRIGGER fail_import_users_log
+                BEFORE INSERT ON operation_logs
+                WHEN NEW.action_type = 'IMPORT_USERS'
+                BEGIN
+                  SELECT RAISE(ABORT, 'forced mixed import audit failure');
+                END
+                """);
+        assertThrows(DataAccessException.class, () -> users.importMembers(memberImportFile(List.of(
+                new String[]{"tx-import-update-rollback", "回滚修改成员"},
+                new String[]{"9900000073", "回滚新增成员"}
+        ))));
+        assertEquals("回滚原成员", name(memberId));
+        assertEquals(0, userCount("9900000073"));
         assertEquals(0, actionCount("IMPORT_USERS"));
     }
 

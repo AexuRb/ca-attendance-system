@@ -62,8 +62,8 @@ test("switches appearance in place and preserves the active theme on failure", a
   await page.goto("/#/admin/settings?section=weekdays");
 
   await expect(page.locator("html")).toHaveAttribute("data-appearance", "classic");
-  const classicStyle = await page.locator(".admin-layout").evaluate(el => ({
-    background: getComputedStyle(el).backgroundColor,
+  const classicStyle = await page.locator(".mw-canvas").evaluate(el => ({
+    background: getComputedStyle(el).backgroundImage,
     font: getComputedStyle(el).fontFamily,
   }));
   await page.locator(".appearance-choice.is-editorial").click();
@@ -89,8 +89,8 @@ test("switches appearance in place and preserves the active theme on failure", a
   await page.getByRole("button", { name: "应用界面" }).click();
   await page.getByRole("button", { name: "确认应用" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-appearance", "classic");
-  expect(await page.locator(".admin-layout").evaluate(el => ({
-    background: getComputedStyle(el).backgroundColor,
+  expect(await page.locator(".mw-canvas").evaluate(el => ({
+    background: getComputedStyle(el).backgroundImage,
     font: getComputedStyle(el).fontFamily,
   }))).toEqual(classicStyle);
 });

@@ -1,6 +1,6 @@
 <template>
-  <main class="kiosk-signal-app">
-    <section class="kiosk-focus-shell kiosk-signal-shell">
+  <main class="public-presentation public-kiosk">
+    <section class="public-kiosk-shell">
       <KioskHeader :online="online" :now="currentDate" />
       <KioskSchedulePanel
         :today-schedule="todaySchedule"
@@ -34,6 +34,8 @@
     </section>
   </main>
 </template>
+
+<style src="../../features/public/presentation.css"></style>
 
 <script setup lang="ts">
 import { computed } from "vue";

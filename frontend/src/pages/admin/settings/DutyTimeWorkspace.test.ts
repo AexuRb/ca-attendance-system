@@ -24,6 +24,15 @@ function mountWorkspace() {
 }
 
 describe("DutyTimeWorkspace", () => {
+  it("keeps one visible time-period navigation target in both presentations", async () => {
+    const wrapper = mountWorkspace();
+    for (const refined of [false, true]) {
+      await wrapper.setProps({ refined });
+      expect(wrapper.findAll('#settings-periods')).toHaveLength(1);
+      expect(wrapper.get('#settings-periods').text()).toContain('值班时间段');
+    }
+    wrapper.unmount();
+  });
   it("shows clearly different rule and period states", () => {
     const wrapper = mountWorkspace();
     const rules = wrapper.findAll(".duty-policy-option");

@@ -67,12 +67,12 @@ describe("ReviewsPage bulk approval", () => {
     expect(wrapper.text()).toContain("602 项待审核");
     expect(wrapper.text()).toContain("共 601 条记录");
 
-    await wrapper.get(".page-actions .button").trigger("click");
+    await wrapper.get(".daily-review-summary .button").trigger("click");
     await wrapper.vm.$nextTick();
     expect(wrapper.get(".confirm-copy").text()).toContain("全部 602 项待审核");
     expect(wrapper.get(".confirm-copy").text()).toContain("601 条记录");
 
-    await wrapper.get(".modal-footer .button.primary").trigger("click");
+    await wrapper.get(".mw-modal-foot .button.primary").trigger("click");
     await flushPromises();
 
     expect(mocks.apiPost).toHaveBeenCalledWith(
@@ -122,8 +122,8 @@ describe("ReviewsPage bulk approval", () => {
     });
     await flushPromises();
 
-    await wrapper.get(".page-actions .button").trigger("click");
-    await wrapper.get(".modal-footer .button.primary").trigger("click");
+    await wrapper.get(".daily-review-summary .button").trigger("click");
+    await wrapper.get(".mw-modal-foot .button.primary").trigger("click");
     await flushPromises();
 
     expect(wrapper.text()).toContain("通过全部待审核记录");
@@ -132,3 +132,7 @@ describe("ReviewsPage bulk approval", () => {
     wrapper.unmount();
   });
 });
+
+vi.mock("vue-router", () => ({ RouterLink: { template: "<a><slot /></a>" }, useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

@@ -1,6 +1,7 @@
 <template>
-  <RouterView v-slot="{ Component }">
-    <Transition name="route" mode="out-in">
+  <RouterView v-slot="{ Component, route }">
+    <component v-if="route.meta.auth" :is="Component" />
+    <Transition v-else name="route" mode="out-in">
       <component :is="Component" />
     </Transition>
   </RouterView>

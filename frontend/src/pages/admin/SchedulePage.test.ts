@@ -6,6 +6,7 @@ import SchedulePage from "./SchedulePage.vue";
 const apiGet = vi.fn();
 
 vi.mock("vue-router", () => ({
+  RouterLink: { template: "<a><slot /></a>" },
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
@@ -41,3 +42,5 @@ describe("SchedulePage request states", () => {
     wrapper.unmount();
   });
 });
+
+vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

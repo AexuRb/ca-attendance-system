@@ -1,162 +1,37 @@
 <template>
-  <section class="data-workspace data-backup-workspace">
-    <div class="data-frame data-backup-overview">
-      <section class="data-backup-health">
-        <div class="data-health-state">
-          <i aria-hidden="true" />{{ backups.length ? "备份状态正常" : "尚无恢复点" }}
-        </div>
-        <div class="data-latest-backup">
-          <strong>{{ latestTime }}</strong>
-          <span>{{ latestDay }}</span>
-        </div>
-        <div class="data-backup-metrics">
-          <div><span>本机备份</span><b>{{ backupCount }} 份</b></div>
-          <div><span>占用空间</span><b>{{ bytes(totalSize) }}</b></div>
-        </div>
-      </section>
-
-      <section class="data-backup-timeline">
-        <header>
-          <h2>恢复节点</h2>
-          <span>最近 {{ timelineItems.length }} 个完整备份</span>
-        </header>
-        <div v-if="timelineItems.length" class="data-timeline-track">
-          <button
-            v-for="item in timelineItems"
-            :key="item.filename"
-            type="button"
-            :class="{ active: selected?.filename === item.filename }"
-            :aria-label="`查看 ${shortDate(item.createdAt)} ${shortTime(item.createdAt)} 的备份详情`"
-            aria-controls="data-backup-details"
-            :aria-expanded="selected?.filename === item.filename"
-            @click="selectBackup(item)"
-          >
-            <time>{{ shortDate(item.createdAt) }}</time>
-            <i aria-hidden="true" />
-            <b>{{ shortTime(item.createdAt) }}</b>
-            <span>{{ bytes(item.size) }}</span>
-          </button>
-        </div>
-        <EmptyState v-else title="创建首个备份后，这里会形成恢复时间轴" />
-      </section>
-
-      <aside class="data-backup-action">
-        <ShieldCheck aria-hidden="true" />
-        <div>
-          <span>最近完整备份</span>
-          <strong>
-            <time v-if="latest" :datetime="latest.createdAt">{{ latestRelative }}</time>
-            <span v-else>{{ latestRelative }}</span>
-          </strong>
-        </div>
-        <button
-          class="button primary"
-          type="button"
-          :disabled="createPending"
-          @click="$emit('request-create')"
-        >
-          <DatabaseBackup aria-hidden="true" />立即备份
-        </button>
-      </aside>
-    </div>
-
-    <div
-      class="data-frame data-backup-table-frame"
-      :class="{ 'drawer-open': Boolean(selected) }"
-    >
-      <header class="data-table-toolbar">
-        <div>
-          <h2>备份档案</h2>
-          <span>共 {{ backups.length }} 份</span>
-        </div>
-        <label class="data-search-field">
-          <Search aria-hidden="true" />
-          <input
-            v-model.trim="query"
-            name="backup-search"
-            aria-label="搜索备份"
-            autocomplete="off"
-            placeholder="搜索日期或文件名…"
-          />
+  <section class="bw-workspace">
+    <aside class="bw-overview">
+      <span class="bw-eyebrow"><ShieldCheck aria-hidden="true" />最近完整备份</span>
+      <strong class="bw-latest">{{ latest ? shortDate(latest.createdAt) + '，' + latestTime : '尚未创建' }}</strong>
+      <span class="bw-age"><time v-if="latest" :datetime="latest.createdAt">{{ latestRelative }}</time><span v-else>等待创建首个备份</span></span>
+      <span class="bw-caption">{{ latestDay }}</span>
+      <div class="bw-metrics"><span>本机备份 <b>{{ backupCount }} 份</b></span><span>占用空间 <b>{{ bytes(totalSize) }}</b></span></div>
+      <div class="bw-tools">
+        <label v-if="canRestore" class="button secondary bw-file-button"><Upload aria-hidden="true" />从文件恢复
+          <input type="file" name="backup-restore-file" aria-label="选择需要恢复的备份文件" accept=".zip" @change="$emit('pick-restore', $event)" />
         </label>
-        <label v-if="canRestore" class="button secondary file-button">
-          <Upload aria-hidden="true" />从文件恢复
-          <input
-            type="file"
-            name="backup-restore-file"
-            aria-label="选择需要恢复的备份文件"
-            accept=".zip"
-            @change="$emit('pick-restore', $event)"
-          />
-        </label>
-      </header>
-
-      <p v-if="restoreFileError" class="form-error data-restore-error" role="alert">
-        {{ restoreFileError }}
-      </p>
-
-      <div class="data-backup-body">
+        <button class="button primary" type="button" :disabled="createPending" @click="$emit('request-create')"><DatabaseBackup aria-hidden="true" />{{ createPending ? '正在备份' : '立即备份' }}</button>
+      </div>
+      <p v-if="restoreFileError" class="form-error" role="alert">{{ restoreFileError }}</p>
+    </aside>
+    <div class="bw-records" :class="{ 'drawer-open': Boolean(selected) }">
+      <header class="bw-record-head"><div><h2>备份档案</h2><span>共 {{ backups.length }} 份</span></div><label class="bw-search"><Search aria-hidden="true" /><input v-model.trim="query" name="backup-search" aria-label="搜索备份" autocomplete="off" placeholder="搜索日期或文件名…" /></label></header>
+      <div class="bw-body">
         <div class="data-backup-list-pane">
           <LoadingBlock v-if="loading" label="正在加载备份" />
           <EmptyState v-else-if="!filteredBackups.length" :title="emptyTitle" />
-          <div v-else class="table-shell data-backup-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>备份文件</th>
-                  <th>创建时间</th>
-                  <th>大小</th>
-                  <th class="align-right">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="item in filteredBackups"
-                  :key="item.filename"
-                  :class="{ selected: selected?.filename === item.filename }"
-                >
-                  <td>
-                    <button
-                      class="data-backup-file"
-                      type="button"
-                      :aria-label="`查看备份详情：${item.filename}`"
-                      aria-controls="data-backup-details"
-                      :aria-expanded="selected?.filename === item.filename"
-                      @click="selectBackup(item)"
-                    >
-                      <FileArchive aria-hidden="true" />
-                      <span><strong>{{ item.filename }}</strong><small>完整业务数据</small></span>
-                    </button>
-                  </td>
-                  <td>{{ dateTime(item.createdAt) }}</td>
-                  <td>{{ bytes(item.size) }}</td>
-                  <td class="align-right row-actions">
-                    <button
-                      class="icon-button"
-                      type="button"
-                      title="下载备份"
-                      :aria-label="`下载备份：${item.filename}`"
-                      @click="$emit('download', item)"
-                    >
-                      <Download aria-hidden="true" />
-                    </button>
-                    <button
-                      v-if="canDelete"
-                      class="icon-button danger-ghost"
-                      type="button"
-                      title="删除备份"
-                      :aria-label="`删除备份：${item.filename}`"
-                      @click="$emit('request-delete', item)"
-                    >
-                      <Trash2 aria-hidden="true" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
+          <div v-else class="bw-table-scroll" tabindex="0" aria-label="备份记录，可横向滚动">
+            <table class="bw-table">
+              <thead><tr><th class="bw-date">创建时间</th><th>备份文件</th><th class="bw-size">大小</th><th class="bw-actions">操作</th></tr></thead>
+              <tbody><tr v-for="item in filteredBackups" :key="item.filename" :class="{ selected: selected?.filename === item.filename }">
+                <td class="bw-date">{{ dateTime(item.createdAt) }}</td>
+                <td><button class="bw-filename" type="button" :aria-label="`查看备份详情：${item.filename}`" aria-controls="data-backup-details" :aria-expanded="selected?.filename === item.filename" @click="selectBackup(item)"><FileArchive aria-hidden="true" /><span><strong>{{ item.filename }}</strong><small>完整业务数据</small></span></button><small class="bw-inline-meta"><span class="bw-inline-date">{{ dateTime(item.createdAt) }} · </span>{{ bytes(item.size) }}</small></td>
+                <td class="bw-size">{{ bytes(item.size) }}</td>
+                <td class="bw-actions"><div><button class="icon-button" type="button" title="下载备份" :aria-label="`下载备份：${item.filename}`" @click="$emit('download', item)"><Download aria-hidden="true" /></button><button v-if="canDelete" class="icon-button danger-ghost" type="button" title="删除备份" :aria-label="`删除备份：${item.filename}`" @click="$emit('request-delete', item)"><Trash2 aria-hidden="true" /></button></div></td>
+              </tr></tbody>
             </table>
           </div>
         </div>
-
         <DataCenterDrawer
           :open="Boolean(selected)"
           eyebrow="备份详情"
@@ -189,11 +64,7 @@
             </div>
           </template>
         </DataCenterDrawer>
-      </div>
-    </div>
-  </section>
-</template>
-
+      </div></div></section></template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
@@ -234,7 +105,7 @@ const query = ref("");
 const selected = ref<BackupItem | null>(null);
 const relativeTimeNow = ref(Date.now());
 let relativeTimeTimer: number | undefined;
-const timelineItems = computed(() => props.backups.slice(0, 6).reverse());
+
 const filteredBackups = computed(() => {
   const term = query.value.toLowerCase();
   if (!term) return props.backups;

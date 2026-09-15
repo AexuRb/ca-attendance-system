@@ -5,6 +5,7 @@
   >
     <div class="command-composer">
       <textarea
+        :id="inputId"
         ref="textarea"
         name="adminCommand"
         :value="modelValue"
@@ -63,6 +64,7 @@ const props = defineProps<{
   open: boolean;
   disabled: boolean;
   activeDescendant?: string;
+  inputId?: string;
 }>();
 const emit = defineEmits<{
   "update:modelValue": [value: string];

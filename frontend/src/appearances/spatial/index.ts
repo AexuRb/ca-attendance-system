@@ -17,3 +17,6 @@ import "./components.css";
 import "./typography.css";
 import "../shared/feedback.css";
 import "../shared/motion.css";
+
+import "../shared/foundation.css";
+import "../shared/foundation-controls.css";

@@ -23,6 +23,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.sqlite.SQLiteErrorCode;
+import org.sqlite.SQLiteException;
 
 import java.io.InputStream;
 import java.sql.Statement;
@@ -114,6 +116,13 @@ public class UserService {
             requireOne(inserted, "成员创建失败，请重试");
         } catch (DuplicateKeyException ex) {
             throw ApiException.badRequest("学号已存在");
+        } catch (DataAccessException ex) {
+            // SQLite unique violations may not be translated to DuplicateKeyException.
+            if (ex.getMostSpecificCause() instanceof SQLiteException sqlite
+                    && sqlite.getResultCode() == SQLiteErrorCode.SQLITE_CONSTRAINT_UNIQUE) {
+                throw ApiException.badRequest("学号已存在");
+            }
+            throw ex;
         }
         UserSummary created = users.findActiveByStudentNo(studentNo).orElseThrow();
         logs.log("CREATE_USER", "users", created.id(), null, created, "新增成员");
@@ -395,6 +404,7 @@ public class UserService {
         int skipped = 0;
         List<String> issues = new ArrayList<>();
         Set<String> seenStudentNos = new LinkedHashSet<>();
+        List<ValidatedImportMember> validated = new ArrayList<>();
 
         for (int i = startRow; i <= sheet.getLastRowNum(); i++) {
             Row row = sheet.getRow(i);
@@ -435,12 +445,26 @@ public class UserService {
                 continue;
             }
 
-            if (existing) {
-                if (userRole(studentNo) == Role.ADMIN && current.role() != Role.ADMIN) {
-                    skipped++;
-                    addImportIssue(issues, "第 " + (i + 1) + " 行：会长不能通过导入修改管理员账号");
-                    continue;
-                }
+            if (existing && userRole(studentNo) == Role.ADMIN && current.role() != Role.ADMIN) {
+                skipped++;
+                addImportIssue(issues, "第 " + (i + 1) + " 行：会长不能通过导入修改管理员账号");
+                continue;
+            }
+            validated.add(new ValidatedImportMember(studentNo, name, phone, college, grade, qq, existing));
+        }
+
+        if (!issues.isEmpty()) {
+            return new ImportResult(0, 0, skipped, issues);
+        }
+
+        for (ValidatedImportMember member : validated) {
+            String studentNo = member.studentNo();
+            String name = member.name();
+            String phone = member.phone();
+            String college = member.college();
+            String grade = member.grade();
+            String qq = member.qq();
+            if (member.existing()) {
                 int affected = jdbc.update("""
                         UPDATE users
                         SET name = ?, phone = COALESCE(?, phone), major = COALESCE(?, major),
@@ -697,6 +721,10 @@ public class UserService {
     }
 
     public record ImportResult(int created, int updated, int skipped, List<String> errors) {
+    }
+
+    private record ValidatedImportMember(String studentNo, String name, String phone, String college,
+                                        String grade, String qq, boolean existing) {
     }
 
     private record ImportCandidate(String studentNo, String name, String phone, String major, String grade, String qq) {

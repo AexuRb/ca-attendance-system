@@ -1,6 +1,5 @@
 <template>
-  <div class="page-stack data-center-page">
-    <PageHeader title="数据与备份" />
+  <RefinedWorkspaceShell class="data-center-page system-workspace" :class="{ 'backup-workspace': tab === 'backups', 'data-finish-workspace': tab !== 'backups' }" title="数据与备份" description="本机数据的导出、恢复与维护" section-key="system">
 
     <div class="data-center-tabs page-tabs" role="tablist" aria-label="数据中心功能">
       <button
@@ -156,12 +155,17 @@
       @cancel="restoreTarget = null"
       @confirm="restoreBackup"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
 import { ArchiveRestore, DatabaseBackup, FileSpreadsheet } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { provide } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/settings/presentation.css";
+provide(memberPresentationKey, true);
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import RestoreBackupDialog from "../../features/maintenance/RestoreBackupDialog.vue";
 import DataExportWorkspace from "./data-center/DataExportWorkspace.vue";
@@ -211,3 +215,5 @@ const {
   purgeRepair,
 } = useDataCenterWorkspace();
 </script>
+
+<style src="../../features/maintenance/presentation.css"></style>

@@ -1,0 +1,189 @@
+/* Business state stays shared; only the presentation of affairs pages differs. */
+html:root[data-appearance] .affairs-workspace .mw-results { min-width:0; }
+html:root[data-appearance] .affairs-workspace :is(.repair-filter-shell,.filter-bar) { display:grid; grid-template-columns:minmax(180px,2fr) repeat(2,minmax(130px,1fr)) auto; gap:12px; padding:0; border:0; border-radius:0; background:none; box-shadow:none; }
+html:root[data-appearance] .affairs-workspace .repair-filter-shell { display:block; }
+html:root[data-appearance] .affairs-workspace :is(.repair-search-row,.repair-date-filters) { display:flex; align-items:end; gap:10px; padding:0; background:none; border:0; }
+html:root[data-appearance] .affairs-workspace .repair-search-row>svg { display:none; }
+html:root[data-appearance] .affairs-workspace .repair-search-row label { flex:1; min-width:0; }
+html:root[data-appearance] .affairs-workspace .repair-date-filters { margin-top:12px; }
+html:root[data-appearance] .affairs-workspace .repair-date-filters label { flex:1; min-width:0; }
+html:root[data-appearance] .affairs-workspace label>span:not(.sr-only) { display:block; font:12px/1.6 var(--mw-font); color:var(--mw-muted); margin-bottom:6px; }
+html:root[data-appearance] .affairs-workspace :is(.repair-workspace,.repair-ledger-region,.repair-ledger-table) { border:0; border-radius:0; box-shadow:none; background:var(--mw-paper); min-width:0; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-table { overflow:auto; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-table table { width:100%; min-width:1080px; border-collapse:collapse; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-row { display:table-row; cursor:pointer; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-row :is(th,td) { display:table-cell; position:static; width:auto; font:13px/1.65 var(--mw-font); padding:15px 16px; color:var(--mw-ink); background:transparent; border:0; border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .affairs-workspace .repair-ledger-row td::before { content:none; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-row strong { font:500 14px/1.6 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .affairs-workspace .repair-ledger-row small { display:block; color:var(--mw-muted); font:12px/1.65 var(--mw-font); }
+html:root[data-appearance] .affairs-workspace .repair-ledger-row:hover { background:var(--mw-soft); }
+html:root[data-appearance] .affairs-workspace .repair-ledger-phone { display:flex; gap:6px; align-items:center; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-actions { white-space:nowrap; min-width:165px; text-align:right; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-secondary-action { display:inline-flex; opacity:1; visibility:visible; }
+html:root[data-appearance] .affairs-workspace .repair-ledger-status { display:inline-block; font:12px/1.5 var(--mw-font); color:var(--mw-accent); background:var(--mw-soft); border:0; border-radius:5px; padding:3px 7px; }
+html:root[data-appearance] .affairs-workspace .affairs-record-status { display:table; margin:0 0 10px auto; }
+html:root[data-appearance] .affairs-record-time,html:root[data-appearance] .affairs-record-handler { margin-top:10px; }
+html:root[data-appearance] .affairs-workspace :is(.repair-status-tabs,.repair-workspace-pagination) { padding:16px 24px; margin:0; border:0; border-bottom:1px solid var(--mw-line); background:var(--mw-paper); }
+html:root[data-appearance] .affairs-workspace .repair-status-tabs { display:flex; gap:8px; }
+html:root[data-appearance] .affairs-workspace .repair-status-tabs button { min-height:36px; padding:7px 14px; border:1px solid transparent; border-radius:7px; background:none; color:var(--mw-muted); font:500 13px/1.5 var(--mw-font); }
+html:root[data-appearance] .affairs-workspace .repair-status-tabs button[aria-selected=true] { background:var(--mw-soft); border-color:var(--mw-line); color:var(--mw-accent); box-shadow:0 1px 2px #24364809; }
+html:root[data-appearance] .affairs-workspace .repair-status-tabs button::after { content:none; }
+html:root[data-appearance] .affairs-workspace .repair-workspace-pagination { display:flex; align-items:center; justify-content:space-between; }
+/* Training: a continuous session index and work surface, with all summaries retained. */
+html:root[data-appearance] .training-presentation .mw-results { display:grid; grid-template-columns:minmax(0,1fr); }
+html:root[data-appearance] .training-presentation :is(.training-month-shell,.training-month-ribbon,.training-time-stage,.training-session-overview,.training-participant-section) { min-width:0; margin:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
+html:root[data-appearance] .training-presentation .training-month-ribbon { display:grid; grid-template-columns:220px minmax(0,1fr); align-items:center; gap:22px; padding:20px 24px; background:var(--mw-soft); border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .training-presentation .training-month-header { display:block; padding:0; }
+html:root[data-appearance] .training-presentation .training-month-switcher { display:flex; align-items:center; gap:10px; }
+html:root[data-appearance] .training-presentation .training-month-switcher h2 { margin:0; font:500 14px/1.7 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .training-presentation .training-month-switcher span { font:12px/1.6 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-month-summary { display:flex; flex-wrap:wrap; gap:12px; margin:12px 0 0; }
+html:root[data-appearance] .training-presentation .training-month-summary div { display:block; padding:0; border:0; }
+html:root[data-appearance] .training-presentation .training-month-summary dt { font:11px/1.6 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-month-summary dd { margin:0; font:500 13px/1.6 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .training-presentation .training-ribbon-viewport { min-width:0; overflow:auto; padding:2px; }
+html:root[data-appearance] .training-presentation .training-ribbon-track { display:flex; gap:12px; width:max-content; min-width:100%; padding:0; border:0; }
+html:root[data-appearance] .training-presentation .training-ribbon-track::before { content:none; }
+html:root[data-appearance] .training-presentation .training-ribbon-event { display:flex; align-items:center; flex:1 0 240px; gap:18px; padding:12px 16px; width:auto; max-width:360px; min-height:72px; background:var(--mw-control); color:var(--mw-ink); border:1px solid var(--mw-line); border-radius:8px; box-shadow:0 1px 2px #24364807; }
+html:root[data-appearance] .training-presentation .training-ribbon-event::before,html:root[data-appearance] .training-presentation .training-ribbon-event::after { content:none; }
+html:root[data-appearance] .training-presentation .training-ribbon-event.active { border-color:var(--mw-accent); background:var(--mw-paper); box-shadow:inset 3px 0 var(--mw-accent); }
+html:root[data-appearance] .training-presentation .training-ribbon-event time strong { font:300 26px/1.2 var(--mw-font); }
+html:root[data-appearance] .training-presentation .training-ribbon-event>span strong { font:500 13px/1.65 var(--mw-font); }
+html:root[data-appearance] .training-presentation .training-ribbon-event small { font:11px/1.6 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-time-stage { display:block; }
+html:root[data-appearance] .training-presentation .training-session-overview { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px 24px; padding:24px; border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .training-presentation .training-session-heading { min-width:0; }
+html:root[data-appearance] .training-presentation .training-session-heading h2 { margin:6px 0 10px; font:500 23px/1.5 var(--mw-font); color:var(--mw-ink); overflow-wrap:anywhere; }
+html:root[data-appearance] .training-presentation .training-session-heading :is(time,p) { font:12px/1.8 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-session-facts { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:18px 32px; margin:0; padding:0; border:0; }
+html:root[data-appearance] .training-presentation .training-session-facts div { padding:0; border:0; }
+html:root[data-appearance] .training-presentation .training-session-facts dt { display:flex; align-items:center; gap:5px; font:11px/1.6 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-session-facts dt svg { width:13px; height:13px; }
+html:root[data-appearance] .training-presentation .training-session-facts dd { margin:4px 0 0; font:13px/1.7 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .training-presentation .training-session-overview-actions { grid-column:2; grid-row:1; display:flex; align-items:center; align-self:center; gap:8px; padding:0; }
+html:root[data-appearance] .training-presentation .training-participant-toolbar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:20px 24px 12px; }
+html:root[data-appearance] .training-presentation .training-participant-toolbar h2 { font:500 15px/1.6 var(--mw-font); color:var(--mw-ink); margin:0; }
+html:root[data-appearance] .training-presentation .training-participant-search { display:flex; align-items:center; gap:10px; margin:0; padding:0 24px 18px; border:0; background:none; }
+html:root[data-appearance] .training-presentation .training-participant-search label { flex:1; min-width:0; }
+html:root[data-appearance] .training-presentation .training-participant-search>svg { display:none; }
+html:root[data-appearance] .training-presentation :is(.training-participant-columns,.training-participant-row) { display:grid; grid-template-columns:30px minmax(120px,1.5fr) minmax(70px,.7fr) minmax(110px,1fr) 80px; gap:16px; align-items:center; padding:14px 24px; margin:0; border:0; border-bottom:1px solid var(--mw-line); border-radius:0; background:var(--mw-paper); box-shadow:none; }
+html:root[data-appearance] .training-presentation .training-participant-columns { font:12px/1.7 var(--mw-font); color:var(--mw-muted); background:var(--mw-soft); }
+html:root[data-appearance] .training-presentation .training-participant-rows { display:block; }
+html:root[data-appearance] .training-presentation .training-participant-identity strong { font:500 14px/1.6 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .training-presentation .training-participant-identity span { font:12px/1.6 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-participant-duration { font:500 13px/1.6 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .training-presentation .training-participant-avatar { width:30px; height:30px; background:var(--mw-soft); color:var(--mw-muted); border:1px solid var(--mw-line); border-radius:50%; font:12px/1.5 var(--mw-font); }
+html:root[data-appearance] .training-presentation :is(.training-participant-pagination,.training-ribbon-pagination) { padding:14px 24px; margin:0; background:var(--mw-paper); border:0; }
+/* Editorial chapters and combined repair columns. */
+html:root[data-appearance=editorial] .affairs-workspace .filter-bar { grid-template-columns:repeat(2,minmax(0,1fr)) auto; }
+html:root[data-appearance=editorial] .affairs-workspace .filter-bar>label:first-child { grid-column:1/-1; }
+html:root[data-appearance=editorial] .affairs-workspace .repair-ledger-table table { min-width:880px; }
+html:root[data-appearance=editorial] .training-presentation .training-time-stage { display:grid; grid-template-columns:235px minmax(0,1fr); gap:24px; padding-top:24px; }
+html:root[data-appearance=editorial] .training-presentation .training-session-overview { display:flex; flex-direction:column; padding:0 12px 0 0; border:0; }
+html:root[data-appearance=editorial] .training-presentation .training-session-facts { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+html:root[data-appearance=editorial] .training-presentation .training-session-heading h2 { font-family:'Noto Serif SC',serif; font-size:22px; }
+html:root[data-appearance=editorial] .training-presentation .training-session-overview-actions { align-self:start; }
+/* Spatial: repair filters beside the ledger; training index beside the session. */
+html:root[data-appearance=spatial] .repair-presentation .repair-search-row,html:root[data-appearance=spatial] .repair-presentation .repair-date-filters { flex-direction:column; align-items:stretch; }
+html:root[data-appearance=spatial] .training-presentation .mw-query { grid-column:1/-1; grid-row:3; border-right:0; border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance=spatial] .training-presentation .mw-tools { grid-column:2; grid-row:2; align-self:center; border:0; background:none; }
+html:root[data-appearance=spatial] .training-presentation .mw-heading { grid-column:1; }
+html:root[data-appearance=spatial] .training-presentation .mw-surface { grid-template-columns:minmax(0,1fr) auto; }
+html:root[data-appearance=spatial] .training-presentation .mw-results { grid-column:1/-1; grid-row:4; grid-template-columns:250px minmax(0,1fr); }
+html:root[data-appearance=spatial] .training-presentation .training-month-shell { background:var(--mw-soft); border-right:1px solid var(--mw-line); }
+html:root[data-appearance=spatial] .training-presentation .training-month-ribbon { display:flex; flex-direction:column; align-items:stretch; padding:22px 18px; border:0; }
+html:root[data-appearance=spatial] .training-presentation .training-ribbon-track { display:flex; flex-direction:column; width:100%; }
+html:root[data-appearance=spatial] .training-presentation .training-ribbon-event { flex:auto; width:100%; max-width:none; padding:12px; gap:12px; }
+html:root[data-appearance=spatial] .training-presentation .training-session-overview { display:flex; flex-direction:column; }
+html:root[data-appearance=spatial] .training-presentation .training-session-overview-actions { align-self:start; }
+@media(max-width:1000px) {
+ html:root[data-appearance] .training-presentation .training-time-stage { display:block; padding:0; }
+ html:root[data-appearance] .training-presentation .training-session-overview { padding:20px; }
+ html:root[data-appearance] .training-presentation .training-participant-row,html:root[data-appearance] .training-presentation .training-participant-columns { gap:10px; padding-inline:16px; }
+}
+@media(max-width:700px) {
+ html:root[data-appearance] .affairs-workspace .filter-bar { grid-template-columns:1fr 1fr; }
+ html:root[data-appearance] .affairs-workspace .filter-bar>label:first-child { grid-column:1/-1; }
+ html:root[data-appearance] .affairs-workspace .repair-search-row { flex-wrap:wrap; }
+ html:root[data-appearance] .affairs-workspace .repair-search-row label { flex-basis:100%; }
+ html:root[data-appearance] .affairs-workspace .repair-date-filters { flex-wrap:wrap; }
+ html:root[data-appearance] .affairs-workspace .repair-status-tabs { padding:12px; gap:4px; }
+ html:root[data-appearance] .affairs-workspace .repair-status-tabs button { padding:7px 8px; }
+ html:root[data-appearance] .affairs-workspace .repair-ledger-row .mw-actions-column { position:sticky; right:0; background:var(--mw-paper); }
+ html:root[data-appearance] .training-presentation :is(.mw-surface,.mw-results) { display:block; }
+ html:root[data-appearance] .training-presentation .training-month-ribbon { display:block; padding:18px; }
+ html:root[data-appearance] .training-presentation .training-ribbon-viewport { margin-top:16px; }
+ html:root[data-appearance] .training-presentation .training-ribbon-track { flex-direction:row; }
+ html:root[data-appearance] .training-presentation .training-ribbon-event { flex:0 0 220px; }
+ html:root[data-appearance] .training-presentation .training-session-overview { display:flex; flex-direction:column; padding:20px; }
+ html:root[data-appearance] .training-presentation .training-session-overview-actions { align-self:start; }
+ html:root[data-appearance] .training-presentation .training-participant-columns { display:none; }
+ html:root[data-appearance] .training-presentation .training-participant-row { grid-template-columns:30px minmax(0,1fr) 80px; gap:8px 12px; }
+ html:root[data-appearance] .training-presentation .training-participant-duration { grid-column:2; grid-row:2; }
+ html:root[data-appearance] .training-presentation .training-participant-row-actions { grid-column:3; grid-row:1/3; }
+ html:root[data-appearance] .training-presentation :is(.training-participant-remark,.training-participant-remark-empty) { grid-column:2/-1; }
+}
+/* Scoped finishing for the retained ledger, disclosure and editor components. */
+html:root[data-appearance] .affairs-workspace .repair-status-tabs button { display:flex; align-items:center; gap:10px; }
+html:root[data-appearance] .affairs-workspace .repair-status-tabs :is(strong,b) { font:500 13px/1.5 var(--mw-font); }
+html:root[data-appearance] .affairs-workspace .repair-status-tabs b { color:var(--mw-muted); font-size:11px; }
+html:root[data-appearance] :is(.affairs-workspace,.affairs-detail) .repair-phone-toggle { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; padding:6px; border:1px solid var(--mw-line); border-radius:6px; color:var(--mw-muted); background:var(--mw-control); }
+html:root[data-appearance] :is(.affairs-workspace,.affairs-detail) .repair-phone-toggle svg { width:14px; height:14px; }
+html:root[data-appearance] .training-presentation .training-time-stage { height:auto; min-height:0; overflow:visible; }
+html:root[data-appearance] .training-presentation .training-participant-section { overflow:visible; }
+html:root[data-appearance] .training-presentation .training-participant-rows { overflow:visible; }
+html:root[data-appearance] .training-presentation .training-session-heading { text-align:left; align-self:stretch; }
+html:root[data-appearance] .training-presentation .training-session-facts { justify-content:flex-start; align-self:stretch; }
+html:root[data-appearance] .training-presentation .training-ribbon-event time { display:flex; flex-direction:column; flex:0 0 36px; align-items:flex-start; justify-content:center; width:36px; height:auto; padding:0; border:0; border-radius:0; background:none; box-shadow:none; color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-ribbon-event.active time { background:none; box-shadow:none; color:var(--mw-accent); }
+html:root[data-appearance] .training-presentation .training-ribbon-event>span { text-align:left; }
+html:root[data-appearance] .training-presentation .training-month-summary { background:none; border:0; }
+html:root[data-appearance] .training-presentation .training-month-shell { padding:0; }
+html:root[data-appearance] .training-presentation .training-session-facts div { display:block; }
+html:root[data-appearance] .training-presentation .training-participant-row { animation:none; }
+html:root[data-appearance] .training-presentation .training-session-overview { animation:none; }
+html:root[data-appearance] .mw-modal #repair-editor-form .repair-editor-steps { display:flex; gap:12px; padding:0 0 20px; margin:0 0 22px; border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .mw-modal .repair-editor-steps button { flex:1; display:flex; gap:10px; align-items:center; padding:10px 12px; border:1px solid var(--mw-line); border-radius:7px; background:var(--mw-soft); color:var(--mw-muted); font:13px/1.6 var(--mw-font); }
+html:root[data-appearance] .mw-modal .repair-editor-steps button.active { color:var(--mw-accent); border-color:var(--mw-accent); background:var(--mw-control); }
+html:root[data-appearance] .mw-modal .repair-editor-steps button strong { font:500 13px/1.6 var(--mw-font); }
+html:root[data-appearance] .affairs-detail { padding:24px; background:#192b3b35; backdrop-filter:blur(6px); }
+html:root[data-appearance] .affairs-detail .repair-detail-drawer { width:min(680px,100%); max-height:calc(100dvh - 48px); border:1px solid var(--mw-line); border-radius:16px; background:var(--mw-paper); color:var(--mw-ink); box-shadow:0 24px 70px #14263824; overflow:hidden; }
+html:root[data-appearance] .affairs-detail :is(.repair-detail-header,.repair-detail-body,.repair-detail-actions) { padding:22px 26px; background:var(--mw-paper); border-color:var(--mw-line); }
+html:root[data-appearance] .affairs-detail .eyebrow { display:none; }
+html:root[data-appearance] .affairs-detail h2 { font:500 22px/1.5 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .affairs-detail h3 { font:500 16px/1.6 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .affairs-detail .repair-detail-facts { display:grid; grid-template-columns:1fr 1fr; gap:20px; border-color:var(--mw-line); }
+html:root[data-appearance=editorial] .affairs-detail .repair-detail-drawer { border-radius:9px; }
+html:root[data-appearance=editorial] .affairs-detail .repair-detail-facts { grid-template-columns:1fr; }
+html:root[data-appearance=editorial] .affairs-detail .repair-detail-facts>div { display:grid; grid-template-columns:100px minmax(0,1fr); gap:16px; }
+html:root[data-appearance=editorial] .mw-modal #training-session-editor { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 26px; }
+html:root[data-appearance=editorial] .mw-modal #training-session-editor .field { display:grid; grid-template-columns:75px minmax(0,1fr); align-items:center; gap:8px; }
+html:root[data-appearance=editorial] .mw-modal #training-session-editor .field-error { grid-column:2; }
+html:root[data-appearance=spatial] .mw-modal #training-session-editor { padding:18px; background:var(--mw-soft); border:1px solid var(--mw-line); border-radius:12px; }
+@media(max-width:700px) {
+ html:root[data-appearance] .affairs-detail { padding:12px; }
+ html:root[data-appearance] .affairs-detail .repair-detail-drawer { max-height:calc(100dvh - 24px); }
+ html:root[data-appearance] .affairs-detail :is(.repair-detail-header,.repair-detail-body,.repair-detail-actions) { padding:18px; }
+ html:root[data-appearance] .affairs-detail .repair-detail-facts { grid-template-columns:1fr; }
+ html:root[data-appearance] .mw-modal #training-session-editor { display:block; padding:0; border:0; background:none; }
+ html:root[data-appearance] .mw-modal #training-session-editor .field { display:block; margin-bottom:16px; }
+}
+@media(min-width:1101px) {
+ html:root[data-appearance] .affairs-workspace .repair-ledger-row td.mw-actions-column { position:static; box-shadow:none; }
+ html:root[data-appearance] .affairs-workspace .repair-ledger-table th.mw-actions-column { position:static; box-shadow:none; }
+}
+html:root[data-appearance] .training-presentation .training-participant-section { display:block; min-height:0; }
+html:root[data-appearance] .training-presentation .training-participant-actions { display:flex; flex-wrap:wrap; gap:8px; }
+html:root[data-appearance] .training-presentation .training-participant-actions .button { width:auto; min-width:0; white-space:nowrap; }
+html:root[data-appearance] .affairs-detail .repair-detail-drawer { height:auto; grid-template-rows:auto minmax(0,1fr) auto; }
+html:root[data-appearance] .affairs-detail .repair-detail-body { overflow:auto; }
+@media(max-width:1100px) {
+ html:root[data-appearance] .affairs-workspace .repair-ledger-row td.mw-actions-column,html:root[data-appearance] .affairs-workspace .repair-ledger-table th.mw-actions-column { position:sticky; right:0; background:var(--mw-paper); }
+}
+@media(max-width:700px) {
+ html:root[data-appearance] .training-presentation .training-participant-toolbar { align-items:flex-start; }
+ html:root[data-appearance] .training-presentation .training-participant-actions { width:100%; }
+}
+@media(min-width:701px) {
+ html:root[data-appearance] .mw-modal:has(#training-session-editor) { width:min(860px,100%); }
+}

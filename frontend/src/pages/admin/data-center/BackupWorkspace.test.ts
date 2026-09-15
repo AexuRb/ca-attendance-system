@@ -36,9 +36,9 @@ describe("BackupWorkspace", () => {
       global: { stubs: { Teleport: true } },
     });
 
-    expect(wrapper.get(".data-backup-action time").text()).toBe("1 分钟前");
+    expect(wrapper.get(".bw-age time").text()).toBe("1 分钟前");
     await vi.advanceTimersByTimeAsync(60_000);
-    expect(wrapper.get(".data-backup-action time").text()).toBe("2 分钟前");
+    expect(wrapper.get(".bw-age time").text()).toBe("2 分钟前");
     wrapper.unmount();
   });
 });

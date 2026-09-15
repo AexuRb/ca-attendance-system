@@ -1,16 +1,11 @@
 <template>
-  <div class="page-stack logs-page">
-    <PageHeader
-      title="操作日志"
-      ><template #actions
-        ><button class="button secondary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportLogs">
+  <RefinedWorkspaceShell class="support-workspace logs-presentation" title="操作日志" description="追溯系统内的重要操作" section-key="system" filter-label="筛选操作日志">
+    <template #tools><button class="button secondary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportLogs">
           <Download />导出日志</button
         ><button class="button danger" :disabled="actions.isPending('clear')" @click="clearOpen = true">
           <Trash2 />清空日志
-        </button></template
-      ></PageHeader
-    >
-    <form class="filter-bar" @submit.prevent="applyFilters">
+        </button></template>
+    <template #filters><form class="filter-bar" @submit.prevent="applyFilters">
       <label class="filter-grow"
         ><span>关键词</span
         ><input
@@ -37,7 +32,7 @@
       ><label
         ><span>结束日期</span><input v-model="filters.to" name="logTo" type="date" /></label
       ><button class="button secondary" type="submit"><Search />查询</button>
-    </form>
+    </form></template>
     <div v-if="displayError" class="inline-alert danger" role="alert">
       <span>{{ displayError }}</span>
       <button
@@ -54,28 +49,16 @@
       v-else-if="!items.length && !listError"
       title="暂无操作日志"
     />
-    <div v-else class="timeline-list">
+    <div v-else class="audit-records"><div class="audit-record-head" aria-hidden="true"><span>时间</span><span>操作人 / 对象</span><span>操作类型</span><span>操作说明</span><span>详情</span></div>
       <article v-for="item in items" :key="item.id">
-        <span class="timeline-mark"></span>
+
         <div class="log-time">
           <strong>{{ time(item.createdAt) }}</strong
           ><span>{{ date(item.createdAt) }}</span>
         </div>
-        <div class="log-main">
-          <div>
-            <StatusBadge
-              :label="actionLabel(item.actionType)"
-              :tone="actionTone(item.actionType)"
-            /><strong
-              >{{ item.operatorName || "系统" }} ·
-              {{ targetLabel(item) }}</strong
-            >
-          </div>
-          <p>{{ item.reason || "未填写操作原因" }}</p>
-          <small v-if="item.operatorStudentNo">{{
-            item.operatorStudentNo
-          }}</small>
-        </div>
+        <div class="audit-identity"><strong>{{ item.operatorName || "系统" }}</strong><span>{{ targetLabel(item) }}</span><small v-if="item.operatorStudentNo">{{ item.operatorStudentNo }}</small></div>
+        <StatusBadge :label="actionLabel(item.actionType)" :tone="actionTone(item.actionType)" />
+        <p class="audit-reason">{{ item.reason || "未填写操作原因" }}</p>
         <button
           class="icon-button"
           title="查看变更详情"
@@ -177,7 +160,7 @@
       @cancel="clearOpen = false"
       @confirm="clearLogs"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 <script setup lang="ts">
 import {
@@ -188,7 +171,12 @@ import {
   Search,
   Trash2,
 } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { provide } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+import "../../features/workspaces/presentation.css";
+provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";

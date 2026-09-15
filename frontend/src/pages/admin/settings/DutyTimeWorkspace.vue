@@ -1,11 +1,12 @@
 <template>
-  <section class="duty-time-workspace setting-section">
+  <section class="duty-time-workspace setting-section" :class="{ 'sw-duty': refined }">
     <aside class="duty-time-side">
-      <section id="settings-policy" class="duty-policy-panel">
-        <div class="duty-section-heading">
+      <section id="settings-policy" class="duty-policy-panel" :class="{ 'sw-section sw-policy': refined }">
+        <div class="duty-section-heading" :class="{ 'sw-heading': refined }">
           <div>
-            <p class="eyebrow">ATTENDANCE POLICY</p>
+            <p v-if="!refined" class="eyebrow">ATTENDANCE POLICY</p>
             <h2>有效时长规则</h2>
+            <span v-if="refined">时长认定遵循现有审核规则。</span>
           </div>
           <button
             v-if="canEditPolicy"
@@ -83,11 +84,12 @@
         </div>
       </section>
 
-      <section class="duty-period-panel">
-        <div class="duty-section-heading">
+      <section :id="refined ? 'settings-periods' : undefined" class="duty-period-panel" :class="{ 'sw-section sw-periods': refined }">
+        <div class="duty-section-heading" :class="{ 'sw-heading': refined }">
           <div>
-            <p class="eyebrow">PERIOD EDITOR</p>
-            <h2>编辑时间段</h2>
+            <p v-if="!refined" class="eyebrow">PERIOD EDITOR</p>
+            <h2>{{ refined ? '值班时间段' : '编辑时间段' }}</h2>
+            <span v-if="refined">选择时段后编辑起止时间。</span>
           </div>
           <button class="button secondary small" type="button" @click="addPeriod">
             <Plus aria-hidden="true" />新增时段
@@ -226,7 +228,7 @@
       </section>
     </aside>
 
-    <section id="settings-periods" class="duty-time-calendar">
+    <section v-if="!refined" id="settings-periods" class="duty-time-calendar">
       <div class="duty-section-heading">
         <div>
           <p class="eyebrow">DAILY TIMELINE</p>
@@ -331,6 +333,7 @@ import { layoutDutyPeriodLanes } from "../../../features/settings/dutyPeriodLayo
 import type { AttendancePolicy } from "../../../features/settings/attendancePolicy";
 
 const props = defineProps<{
+  refined?: boolean;
   periods: DutyPeriod[];
   policy: AttendancePolicy;
   canEditPolicy: boolean;

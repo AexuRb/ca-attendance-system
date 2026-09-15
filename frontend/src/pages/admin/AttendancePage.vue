@@ -1,14 +1,10 @@
 <template>
-  <div class="page-stack">
-    <PageHeader
-      title="值班记录"
-      ><template #actions
+  <RefinedWorkspaceShell class="daily-workspace attendance-workspace" title="值班记录" description="查看签到、签退与有效时长" section-key="duty" filter-label="筛选值班记录">
+    <template #tools
         ><button v-if="canCreate" class="button primary" @click="openCreate">
           <Plus />补录记录
-        </button></template
-      ></PageHeader
-    >
-    <form class="filter-bar" @submit.prevent="applyFilters">
+        </button></template>
+    <template #filters><form class="mw-filter daily-filter" @submit.prevent="applyFilters">
       <label
         ><span>开始日期</span
         ><input v-model="filters.from" name="attendanceFrom" type="date" /></label
@@ -32,7 +28,7 @@
           <option value="INVALID">无效</option>
         </select></label
       ><button class="button secondary" type="submit"><Search />查询</button>
-    </form>
+    </form></template>
     <div v-if="displayError" class="inline-alert danger" role="alert">
       <span>{{ displayError }}</span>
       <button
@@ -47,38 +43,41 @@
     </div>
     <LoadingBlock v-if="listLoading && !records.length" />
     <EmptyState v-else-if="!records.length && !listError" title="没有符合条件的记录" />
-    <div v-else class="table-shell">
-      <table>
+    <div v-else class="mw-table-scroll" tabindex="0" aria-label="值班记录，可横向滚动">
+      <table class="mw-table attendance-table">
         <thead>
+          <tr v-if="spatial" class="mw-column-groups"><th colspan="2" scope="colgroup">成员与日期</th><th colspan="2" scope="colgroup">签到与签退</th><th colspan="3" scope="colgroup">认定与操作</th></tr>
           <tr>
-            <th>成员</th>
-            <th>日期</th>
-            <th>签到</th>
-            <th>签退</th>
-            <th>有效时长</th>
-            <th>状态</th>
-            <th class="align-right">操作</th>
+            <th>{{ editorial ? "成员与日期" : "成员" }}</th>
+            <th v-if="!editorial">日期</th>
+            <th>{{ editorial ? "签到 / 签退" : "签到" }}</th>
+            <th v-if="!editorial">签退</th>
+            <th>{{ editorial ? "认定结果" : "有效时长" }}</th>
+            <th v-if="!editorial">状态</th>
+            <th class="align-right mw-actions-column">操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in records" :key="item.id">
-            <td>
+            <td class="daily-person">
               <strong>{{ item.name }}</strong
-              ><small>{{ item.studentNo }}</small>
+              ><small>{{ item.studentNo }}</small><small v-if="editorial">日期 {{ item.dutyDate }}</small>
             </td>
-            <td>{{ item.dutyDate }}</td>
-            <td>{{ dateTime(item.checkInTime) }}</td>
-            <td>{{ dateTime(item.checkOutTime) }}</td>
-            <td>
+            <td v-if="!editorial">{{ item.dutyDate }}</td>
+            <td><div class="daily-times"><span><small v-if="editorial">签到</small>{{ dateTime(item.checkInTime) }}</span><span v-if="editorial"><small>签退</small>{{ dateTime(item.checkOutTime) }}</span></div></td>
+            <td v-if="!editorial">{{ dateTime(item.checkOutTime) }}</td>
+            <td class="daily-outcome">
+              <small v-if="editorial">有效时长</small>
               {{ item.durationMinutes ? `${item.durationMinutes} 分钟` : "—" }}
+              <StatusBadge v-if="editorial" :label="statusLabel(item.effectiveStatus)" :tone="statusTone(item.effectiveStatus)" />
             </td>
-            <td>
+            <td v-if="!editorial">
               <StatusBadge
                 :label="statusLabel(item.effectiveStatus)"
                 :tone="statusTone(item.effectiveStatus)"
               />
             </td>
-            <td class="align-right row-actions">
+            <td class="align-right row-actions mw-actions-column">
               <button
                 class="icon-button"
                 :title="
@@ -220,7 +219,7 @@
       @cancel="deleteTarget = null"
       @confirm="remove"
     />
-  </div>
+  </RefinedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
@@ -232,7 +231,16 @@ import {
   Search,
   Trash2,
 } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import { computed, provide } from "vue";
+import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import { useAppearance } from "../../appearance/appearanceStore";
+import "../../features/members/presentation.css";
+import "../../features/attendance/presentation.css";
+provide(memberPresentationKey, true);
+const { state: appearance } = useAppearance();
+const editorial = computed(() => appearance.active === "EDITORIAL");
+const spatial = computed(() => appearance.active === "SPATIAL");
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";

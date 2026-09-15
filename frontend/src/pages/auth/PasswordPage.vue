@@ -2,7 +2,6 @@
   <AuthLayout>
     <form ref="formElement" class="auth-form" novalidate @submit.prevent="submit">
       <div class="auth-heading">
-        <p class="eyebrow">ACCOUNT SECURITY</p>
         <h2>设置新密码</h2>
         <p>首次登录需要更换初始密码，完成后会重新登录。</p>
       </div>

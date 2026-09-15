@@ -6,7 +6,7 @@
       </span>
       <div>
         <strong>计算机协会值班签到台</strong>
-        <span>LOCAL DUTY KIOSK</span>
+        <span>值班签到台</span>
       </div>
     </div>
 
@@ -30,7 +30,7 @@ import { computed } from "vue";
 import ServiceStatus from "../../shared/ui/ServiceStatus.vue";
 
 const props = defineProps<{ online: boolean; now: Date }>();
-const logoPath = "/brand/ca-logo-white.png";
+const logoPath = "/brand/ca-logo-black.png";
 
 const clock = computed(() =>
   new Intl.DateTimeFormat("zh-CN", {

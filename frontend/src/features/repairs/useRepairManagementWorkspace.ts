@@ -85,6 +85,9 @@ export function useRepairManagementWorkspace() {
     () => editorOpen.value && editorSnapshot() !== editorBaseline.value,
   );
   let agreementRequestVersion = 0;
+  let leavingPage = false;
+  const stopNavigationEnd = router.afterEach(() => { leavingPage = false; });
+  const stopNavigationError = router.onError(() => { leavingPage = false; });
 
   onMounted(async () => {
     await Promise.all([workspace.initialize(), loadHandlerCandidates()]);
@@ -99,7 +102,11 @@ export function useRepairManagementWorkspace() {
       else notify(`未找到维修事务 ${initialKeyword}`, "warning");
     }
   });
-  onBeforeUnmount(workspace.dispose);
+  onBeforeUnmount(() => {
+    stopNavigationEnd();
+    stopNavigationError();
+    workspace.dispose();
+  });
   watch(
     () => route.query,
     async (query) => {
@@ -110,11 +117,12 @@ export function useRepairManagementWorkspace() {
   onBeforeRouteLeave(
     () =>
       new Promise<boolean>((resolve) => {
-        unsaved.request(() => resolve(true), () => resolve(false));
+        unsaved.request(() => { leavingPage = true; resolve(true); }, () => resolve(false));
       }),
   );
 
   async function updateRouteQuery(query: Record<string, string>, mode: "push" | "replace") {
+    if (leavingPage || route.name !== "repairs") return;
     if (sameQuery(route.query, query)) return;
     await router[mode]({ query });
   }

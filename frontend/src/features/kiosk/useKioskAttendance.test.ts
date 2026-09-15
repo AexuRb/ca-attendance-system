@@ -2,7 +2,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, h, type Ref } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, get } from "../../shared/api";
+import { ApiError, get, post } from "../../shared/api";
 import { useKioskAttendance } from "./useKioskAttendance";
 
 vi.mock("../../shared/api", async (importOriginal) => {
@@ -18,6 +18,7 @@ afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.mocked(get).mockReset();
+  vi.mocked(post).mockReset();
   document.body.innerHTML = "";
 });
 
@@ -128,6 +129,78 @@ describe("useKioskAttendance lookup recovery", () => {
     vi.mocked(get).mockImplementation(async (path) =>
       (path.endsWith("/week") ? [] : { slots: [] }) as never,
     );
+  });
+
+  it("ignores a late selection response after returning to input", async () => {
+    let resolveLookup!: (value: never) => void;
+    vi.mocked(get).mockImplementation((path) => path.includes('/attendance/lookup')
+      ? new Promise(resolve => { resolveLookup = resolve; })
+      : Promise.resolve((path.endsWith('/week') ? [] : { slots: [] }) as never));
+    const mounted = mountKioskState();
+    mounted.state.step.value = 'choose';
+    const pending = mounted.state.selectMember('sel_member');
+    mounted.state.reset();
+    mounted.state.query.value = '下一位';
+    resolveLookup({ exists: true, memberToken: 'sel_member', name: '测试成员', action: 'CHECK_IN' } as never);
+    await pending;
+    expect(mounted.state.step.value).toBe('input');
+    expect(mounted.state.query.value).toBe('下一位');
+    mounted.wrapper.unmount();
+  });
+
+  it.each(['success', 'failure'])("ignores late submission %s after reset", async (outcome) => {
+    let resolvePost!: (value: never) => void;
+    let rejectPost!: (error: Error) => void;
+    vi.mocked(post).mockImplementation(() => new Promise((resolve, reject) => { resolvePost = resolve; rejectPost = reject; }));
+    const mounted = mountKioskState();
+    mounted.state.lookupResult.value = { exists: true, memberToken: 'sel_member', name: '测试成员', action: 'CHECK_IN', message: '' };
+    mounted.state.step.value = 'confirm';
+    const pending = mounted.state.submitAttendance();
+    mounted.state.reset();
+    mounted.state.query.value = '下一位';
+    if (outcome === 'success') resolvePost({ name: '测试成员', action: 'CHECK_IN', submittedAt: new Date().toISOString() } as never);
+    else rejectPost(new ApiError('连接中断', 0, true));
+    await pending;
+    expect(mounted.state.step.value).toBe('input');
+    expect(mounted.state.error.value).toBe('');
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(mounted.state.query.value).toBe('下一位');
+    mounted.wrapper.unmount();
+  });
+
+  it("does not clear the next lookup's pending state when a cancelled lookup finishes", async () => {
+    const resolvers: Array<(value: never) => void> = [];
+    vi.mocked(get).mockImplementation((path) => path.includes('/attendance/lookup')
+      ? new Promise(resolve => { resolvers.push(resolve); })
+      : Promise.resolve((path.endsWith('/week') ? [] : { slots: [] }) as never));
+    const mounted = mountKioskState();
+    const first = mounted.state.selectMember('sel_first');
+    mounted.state.reset();
+    const second = mounted.state.selectMember('sel_second');
+    resolvers[0]!({ exists: true, memberToken: 'sel_first', name: '上一位', action: 'CHECK_IN' } as never);
+    await first;
+    expect(mounted.state.busy.value).toBe(true);
+    expect(mounted.state.lookupResult.value).toBeNull();
+    resolvers[1]!({ exists: true, memberToken: 'sel_second', name: '下一位', action: 'CHECK_IN' } as never);
+    await second;
+    expect(mounted.state.lookupResult.value?.name).toBe('下一位');
+    expect(mounted.state.busy.value).toBe(false);
+    mounted.wrapper.unmount();
+  });
+
+  it("does not start a success reset timer after unmount", async () => {
+    let resolvePost!: (value: never) => void;
+    vi.mocked(post).mockImplementation(() => new Promise(resolve => { resolvePost = resolve; }));
+    const mounted = mountKioskState();
+    await flushPromises();
+    mounted.state.lookupResult.value = { exists: true, memberToken: 'sel_member', name: '测试成员', action: 'CHECK_IN', message: '' };
+    mounted.state.step.value = 'confirm';
+    const pending = mounted.state.submitAttendance();
+    mounted.wrapper.unmount();
+    resolvePost({ name: '测试成员', action: 'CHECK_IN', submittedAt: new Date().toISOString() } as never);
+    await pending;
+    expect(vi.getTimerCount()).toBe(0);
+    expect(mounted.state.step.value).toBe('confirm');
   });
 
   it("retries the selected member after a network interruption", async () => {

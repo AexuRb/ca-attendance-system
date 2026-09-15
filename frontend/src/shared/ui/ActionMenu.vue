@@ -25,7 +25,7 @@
       <div
         v-if="open"
         ref="menu"
-        class="action-menu-popover"
+        :class="memberPresentation ? 'mw-menu mw-scope' : 'action-menu-popover'"
         :style="menuStyle"
         role="menu"
         @click="onMenuClick"
@@ -38,7 +38,9 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, type CSSProperties } from "vue";
+import { inject, nextTick, onBeforeUnmount, ref, type CSSProperties } from "vue";
+import { memberPresentationKey } from "./presentation";
+const memberPresentation = inject(memberPresentationKey, false);
 import { ChevronDown, MoreHorizontal } from "@lucide/vue";
 
 const props = withDefaults(

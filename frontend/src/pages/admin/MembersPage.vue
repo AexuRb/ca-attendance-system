@@ -1,27 +1,12 @@
 <template>
-  <div class="page-stack members-page">
-    <PageHeader
-      title="成员名册"
-    >
-      <template #actions>
-        <button class="button secondary" @click="openImport">
-          <Upload />批量导入
-        </button>
-        <button class="button primary" @click="openCreate">
-          <UserPlus />新增成员
-        </button>
-      </template>
-    </PageHeader>
-
-    <MemberFilters
-      v-model:keyword="filters.keyword"
-      v-model:role="filters.role"
-      v-model:status="filters.status"
-      v-model:grade="filters.grade"
-      :grades="grades"
-      @submit="applyFilters"
-    />
-
+  <MemberWorkspaceShell class="members-page member-workspace">
+    <template #tools>
+      <button class="mw-button" @click="openImport"><Upload />批量导入</button>
+      <button class="mw-button primary" @click="openCreate"><UserPlus />新增成员</button>
+    </template>
+    <template #filters>
+      <MemberFilters inline v-model:keyword="filters.keyword" v-model:role="filters.role" v-model:status="filters.status" v-model:grade="filters.grade" :grades="grades" @submit="applyFilters" />
+    </template>
     <Transition name="soft-rise">
       <div v-if="selected.size" class="selection-toolbar">
         <div>
@@ -66,86 +51,11 @@
     </div>
     <LoadingBlock v-if="listLoading && !members.length" />
     <EmptyState v-else-if="!members.length && !listError" title="没有符合条件的成员" />
-    <div v-else class="table-shell member-table">
-      <table>
-        <thead>
-          <tr>
-            <th class="selection-column">
-              <input
-                name="memberPageSelection"
-                type="checkbox"
-                aria-label="选择本页可管理成员"
-                :checked="pageAllSelected"
-                :disabled="!selectableIds.length"
-                @change="togglePage"
-              />
-            </th>
-            <th>成员</th>
-            <th>联系方式</th>
-            <th>学院 / 年级</th>
-            <th>角色</th>
-            <th>状态</th>
-            <th class="align-right">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="item in members"
-            :key="item.id"
-            :class="{ 'is-selected': selected.has(item.id) }"
-          >
-            <td class="selection-column">
-              <input
-                :name="`memberSelection-${item.id}`"
-                type="checkbox"
-                :aria-label="`选择 ${item.name}`"
-                :checked="selected.has(item.id)"
-                :disabled="!canEdit(item) || item.id === user?.id"
-                @change="toggleMember(item.id)"
-              />
-            </td>
-            <td>
-              <div class="member-identity">
-                <span class="avatar small">{{ item.name.slice(0, 1) }}</span>
-                <span>
-                  <strong>{{ item.name }}</strong>
-                  <small>{{ item.studentNo }}</small>
-                </span>
-              </div>
-            </td>
-            <td>
-              {{ item.phone || "—" }}
-              <small v-if="item.qq">QQ {{ item.qq }}</small>
-            </td>
-            <td>
-              {{ item.major || "—" }}
-              <small>{{ item.grade || "未填写年级" }}</small>
-            </td>
-            <td>{{ roleLabel(item.role) }}</td>
-            <td>
-              <StatusBadge
-                :label="item.status === 'ACTIVE' ? '启用' : '停用'"
-                :tone="item.status === 'ACTIVE' ? 'success' : 'neutral'"
-              />
-            </td>
-            <td class="align-right row-actions">
-              <MemberRowActions
-                :member="item"
-                :editable="canEdit(item)"
-                :self="item.id === user?.id"
-                :deletable="user?.role === 'ADMIN'"
-                :pending="actions.isPending(`member:${item.id}`)"
-                @edit="openEdit(item)"
-                @toggle-status="toggleStatus(item)"
-                @reset-password="resetTarget = item"
-                @delete="deleteTarget = item"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
+    <MemberRecords v-else-if="members.length" :members="members" :selected="selected" :selectable-ids="selectableIds" :all-selected="pageAllSelected" @toggle-page="togglePage" @toggle-member="toggleMember">
+      <template #actions="{ member: item }">
+        <MemberRowActions :member="item" :editable="canEdit(item)" :self="item.id === user?.id" :deletable="user?.role === 'ADMIN'" :pending="actions.isPending(`member:${item.id}`)" @edit="openEdit(item)" @toggle-status="toggleStatus(item)" @reset-password="resetTarget = item" @delete="deleteTarget = item" />
+      </template>
+    </MemberRecords>
     <div v-if="total" class="pagination">
       <span>共 {{ total }} 人</span>
       <div>
@@ -246,7 +156,7 @@
       @cancel="deleteTarget = null"
       @confirm="remove"
     />
-  </div>
+  </MemberWorkspaceShell>
 </template>
 
 <script setup lang="ts">
@@ -260,10 +170,15 @@ import {
   Upload,
   UserPlus,
 } from "@lucide/vue";
-import PageHeader from "../../shared/ui/PageHeader.vue";
+import MemberWorkspaceShell from "../../features/members/MemberWorkspaceShell.vue";
+import MemberRecords from "../../features/members/MemberRecords.vue";
+import { provide } from "vue";
+import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../features/members/presentation.css";
+provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
-import StatusBadge from "../../shared/ui/StatusBadge.vue";
+
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import MemberEditorDialog from "../../features/members/MemberEditorDialog.vue";
@@ -311,7 +226,6 @@ const {
   remove,
   resetPassword,
   resetTarget,
-  roleLabel,
   saveMember,
   selected,
   selectableIds,

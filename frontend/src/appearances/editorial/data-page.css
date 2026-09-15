@@ -1,4 +1,4 @@
-:root[data-appearance="editorial"] .data-center-page {
+:root[data-appearance="editorial"] .data-center-page:not(.system-workspace) {
   --data-line: var(--line-strong);
   --data-line-soft: var(--line-soft);
   --data-ink: var(--ink-950);
@@ -10,12 +10,12 @@
   gap: 22px;
 }
 
-:root[data-appearance="editorial"] .data-center-page .page-header {
+:root[data-appearance="editorial"] .data-center-page:not(.system-workspace) .page-header {
   margin-bottom: 0;
   border-bottom-width: 2px;
 }
 
-:root[data-appearance="editorial"] .data-center-page .page-heading h1 {
+:root[data-appearance="editorial"] .data-center-page:not(.system-workspace) .page-heading h1 {
   font-family: var(--font-editorial);
   font-size: clamp(34px, 3.2vw, 44px);
   font-weight: 400;

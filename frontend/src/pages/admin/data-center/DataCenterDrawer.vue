@@ -11,7 +11,7 @@
         v-if="open || !compact"
         :id="resolvedPanelId"
         ref="dialog"
-        :class="[panelClass, { open }]"
+        :class="[panelClass, { open, 'refined-data-drawer': refined, 'export-detail mw-scope': refined && panelClass === 'data-config-drawer', 'bw-detail mw-scope': refined && panelClass === 'data-backup-drawer' }]"
         :role="compact ? 'dialog' : 'complementary'"
         :aria-modal="compact ? 'true' : undefined"
         :aria-hidden="open ? undefined : 'true'"
@@ -48,6 +48,7 @@
 <script setup lang="ts">
 import {
   computed,
+  inject,
   nextTick,
   onBeforeUnmount,
   onMounted,
@@ -57,6 +58,8 @@ import {
 } from "vue";
 import { X } from "@lucide/vue";
 import { useDialogFocus } from "../../../shared/ui/useDialogFocus";
+import { memberPresentationKey } from "../../../shared/ui/presentation";
+const refined = inject(memberPresentationKey, false);
 
 const props = defineProps<{
   open: boolean;
