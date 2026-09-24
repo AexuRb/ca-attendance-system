@@ -3,7 +3,7 @@
     <header class="schedule-slot-top">
       <div class="schedule-slot-heading">
         <strong>{{ slot.title }}</strong>
-        <span v-if="!slot.enabled">隐藏</span>
+        <span v-if="!slot.enabled">签到台隐藏</span>
         <small v-else>{{ slot.assignees.length }} 人</small>
       </div>
       <div class="schedule-card-actions">
@@ -12,6 +12,7 @@
           type="button"
           :aria-label="`编辑 ${slot.title}`"
           title="编辑排班"
+          :disabled="readOnly"
           @click="$emit('edit')"
         >
           <Pencil aria-hidden="true" />
@@ -21,6 +22,7 @@
           type="button"
           :aria-label="`归档 ${slot.title}`"
           title="归档排班"
+          :disabled="readOnly"
           @click="$emit('archive')"
         >
           <Trash2 aria-hidden="true" />
@@ -53,7 +55,7 @@ import { computed } from "vue";
 import { Pencil, Trash2 } from "@lucide/vue";
 import type { ScheduleSlot } from "../../../features/schedule/scheduleTypes";
 
-const props = defineProps<{ slot: ScheduleSlot }>();
+const props = defineProps<{ slot: ScheduleSlot; readOnly?: boolean }>();
 
 defineEmits<{
   edit: [];

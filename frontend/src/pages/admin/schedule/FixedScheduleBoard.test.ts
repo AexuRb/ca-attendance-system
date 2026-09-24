@@ -14,7 +14,7 @@ const weekdays = [
 ];
 
 describe("FixedScheduleBoard", () => {
-  it("renders a focused weekday schedule without redundant period actions", async () => {
+  it("renders a focused weekday schedule with a contextual action for empty periods", async () => {
     const wrapper = mount(FixedScheduleBoard, {
       props: {
         periods,
@@ -66,9 +66,11 @@ describe("FixedScheduleBoard", () => {
     expect(
       wrapper.get(".schedule-slot-top").find(".schedule-card-actions").exists(),
     ).toBe(true);
-    expect(wrapper.text()).toContain("14:00–16:00");
+    expect(wrapper.get(".schedule-focus-period .schedule-focus-time").text()).toContain("14:00至 16:00");
 
-    expect(wrapper.find(".schedule-focus-add").exists()).toBe(false);
+    expect(wrapper.findAll(".schedule-focus-add")).toHaveLength(1);
+    await wrapper.get(".schedule-focus-add").trigger("click");
+    expect(wrapper.emitted("add")?.[0]).toEqual([1, "16:00-18:00"]);
 
     await wrapper.findAll(".schedule-focus-day")[1].trigger("click");
     expect(wrapper.get(".schedule-focus-day.active").text()).toContain("星期二");

@@ -41,7 +41,6 @@ export function useRepairManagementWorkspace() {
     refreshAfterMutation,
   } = workspace;
   const editorOpen = ref(false);
-  const filterOpen = ref(false);
   const deleteTarget = ref<RepairCase | null>(null);
   const detailTarget = ref<RepairCase | null>(null);
   const agreementOpen = ref(false);
@@ -315,7 +314,6 @@ export function useRepairManagementWorkspace() {
     statusCounts,
     repairPage,
     editorOpen,
-    filterOpen,
     deleteTarget,
     detailTarget,
     agreementOpen,

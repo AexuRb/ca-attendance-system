@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { ArrowUp } from "@lucide/vue";
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import type { CommandInputState } from "../../../features/command-center/commandTypes";
 
 const props = defineProps<{
@@ -84,6 +84,7 @@ const submitLabel = computed(() => {
 });
 
 watch(() => props.modelValue, () => void nextTick(resize));
+onMounted(resize);
 
 function updateValue(event: Event) {
   emit("update:modelValue", (event.target as HTMLTextAreaElement).value);
@@ -103,7 +104,11 @@ function finishComposition() {
 function resize() {
   if (!textarea.value) return;
   textarea.value.style.height = "auto";
-  textarea.value.style.height = Math.min(textarea.value.scrollHeight, 124) + "px";
+  const configuredMax = Number.parseFloat(
+    getComputedStyle(textarea.value).getPropertyValue("--command-input-max-height"),
+  );
+  const maxHeight = Number.isFinite(configuredMax) ? configuredMax : 168;
+  textarea.value.style.height = Math.min(textarea.value.scrollHeight, maxHeight) + "px";
 }
 
 function focus(value?: string, caret?: number) {

@@ -1,5 +1,5 @@
 <template>
-  <section class="training-month-shell" aria-labelledby="training-month-title">
+  <section class="training-month-shell" aria-labelledby="training-month-title" :aria-busy="loading">
     <div class="training-month-ribbon">
       <header class="training-month-header">
         <div class="training-month-switcher">
@@ -14,7 +14,7 @@
           </button>
           <div>
             <h2 id="training-month-title">{{ label }}</h2>
-            <span>{{ total }} 场培训</span>
+            <span>{{ loading && items.length ? "正在更新场次…" : `${total} 场培训` }}</span>
           </div>
           <button
             class="icon-button"
@@ -39,20 +39,20 @@
       </header>
 
       <div v-if="error" class="training-ribbon-feedback danger" role="alert">
-        <span>{{ error }}</span>
+        <span>{{ error }}{{ items.length ? "；下方仍显示上次结果" : "" }}</span>
         <button class="button text" type="button" @click="$emit('retry')">
           重试
         </button>
       </div>
       <p
-        v-else-if="loading && !items.length"
+        v-if="loading && !items.length && !error"
         class="training-ribbon-feedback"
         aria-live="polite"
       >
         正在加载培训场次…
       </p>
       <div
-        v-else-if="orderedItems.length"
+        v-if="orderedItems.length"
         ref="viewport"
         class="training-ribbon-viewport"
       >
@@ -80,7 +80,7 @@
           </button>
         </div>
       </div>
-      <div v-else class="training-ribbon-empty">
+      <div v-else-if="!loading && !error" class="training-ribbon-empty">
         <CalendarRange aria-hidden="true" />
         <strong>本月暂无培训</strong>
       </div>

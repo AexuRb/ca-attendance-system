@@ -53,6 +53,30 @@ describe("TrainingMonthRibbon", () => {
     await wrapper.setProps({ error: "" });
     expect(wrapper.text()).toContain("本月暂无培训");
   });
+
+  it("keeps the last result visible while refreshing or showing a fetch error", async () => {
+    const wrapper = mount(TrainingMonthRibbon, {
+      props: {
+        label: "2026年8月",
+        items: [session(1, "2026-08-09")],
+        selectedId: 1,
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        hasMore: false,
+        loading: true,
+        error: "",
+      },
+    });
+
+    expect(wrapper.get(".training-month-shell").attributes("aria-busy")).toBe("true");
+    expect(wrapper.get(".training-ribbon-event").text()).toContain("培训 1");
+    expect(wrapper.text()).toContain("正在更新场次");
+
+    await wrapper.setProps({ loading: false, error: "场次读取失败" });
+    expect(wrapper.get(".training-ribbon-event").text()).toContain("培训 1");
+    expect(wrapper.get('[role="alert"]').text()).toContain("下方仍显示上次结果");
+  });
 });
 
 function session(id: number, trainingDate: string): TrainingSession {

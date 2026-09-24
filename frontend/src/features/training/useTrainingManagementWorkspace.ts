@@ -40,6 +40,7 @@ export function useTrainingManagementWorkspace() {
   });
   const {
     filters,
+    appliedFilters,
     sessions: sessionState,
     participants: participantState,
     participantKeyword,
@@ -55,7 +56,12 @@ export function useTrainingManagementWorkspace() {
   const sessions = computed(() => sessionState.items);
   const participants = computed(() => participantState.items);
   const filterError = computed(() => dateRangeError(filters.from, filters.to));
-  const trainingRangeTitle = computed(() => trainingRangeLabel(filters.from, filters.to));
+  const filtersPending = computed(() =>
+    filters.keyword !== appliedFilters.keyword ||
+    filters.from !== appliedFilters.from ||
+    filters.to !== appliedFilters.to,
+  );
+  const trainingRangeTitle = computed(() => trainingRangeLabel(appliedFilters.from, appliedFilters.to));
   const sessionForm = reactive<TrainingSessionForm>({
     id: null,
     title: "",
@@ -119,7 +125,7 @@ export function useTrainingManagementWorkspace() {
   }
 
   async function shiftVisibleMonth(step: number) {
-    const next = shiftTrainingMonth(filters.from || today, step);
+    const next = shiftTrainingMonth(appliedFilters.from || today, step);
     filters.from = next.from;
     filters.to = next.to;
     await applyWorkspaceFilters();
@@ -289,10 +295,10 @@ export function useTrainingManagementWorkspace() {
 
   async function exportSummary() {
     if (filterError.value) return;
-    const params = new URLSearchParams(filters);
+    const params = new URLSearchParams(appliedFilters);
     await actions.run("export-summary", async () => {
       const blob = await task.run(() => get<Blob>(`/api/trainings/export?${params}`));
-      if (blob) downloadBlob(blob, `培训统计_${filters.from}_${filters.to}.xlsx`);
+      if (blob) downloadBlob(blob, `培训统计_${appliedFilters.from}_${appliedFilters.to}.xlsx`);
     });
   }
 
@@ -302,6 +308,7 @@ export function useTrainingManagementWorkspace() {
 
   return {
     filters,
+    appliedFilters,
     sessionState,
     participantState,
     participantKeyword,
@@ -309,6 +316,7 @@ export function useTrainingManagementWorkspace() {
     sessions,
     participants,
     filterError,
+    filtersPending,
     trainingRangeTitle,
     sessionOpen,
     participantOpen,

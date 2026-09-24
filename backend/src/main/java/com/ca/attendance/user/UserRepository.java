@@ -150,6 +150,23 @@ public class UserRepository {
                 """, Long.class, query.args().toArray());
     }
 
+    public List<Long> searchSelectableIds(String keyword, String role, String status, String grade,
+                                          Role operatorRole, long operatorId) {
+        SearchQuery query = searchQuery(keyword, role, status, grade);
+        List<Object> args = new ArrayList<>(query.args());
+        args.add(operatorId);
+        String roleBoundary = operatorRole == Role.ADMIN ? "" : " AND role <> 'ADMIN'";
+        return jdbc.queryForList("""
+                SELECT id
+                FROM users
+                """ + query.where() + """
+                 AND id <> ?
+                """ + roleBoundary + """
+
+                ORDER BY role, student_no
+                """, Long.class, args.toArray());
+    }
+
     public List<String> grades() {
         return jdbc.queryForList("""
                 SELECT DISTINCT grade

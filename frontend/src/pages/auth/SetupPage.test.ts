@@ -32,7 +32,7 @@ describe("SetupPage", () => {
     await wrapper.get('input[name="confirmation"]').setValue("54321");
     await wrapper.get("form").trigger("submit");
 
-    expect(wrapper.text()).toContain("6 至 32 位纯数字");
+    expect(wrapper.text()).toContain("管理员账号须为 6 至 32 位纯数字");
     expect(wrapper.text()).toContain("密码长度必须为 6 至 64 个字符");
     expect(wrapper.text()).toContain("两次输入的密码不一致");
     expect(mocks.initialize).not.toHaveBeenCalled();

@@ -28,6 +28,7 @@
           <AccountPicker
             :model-value="handler"
             :candidates="candidates"
+            compact-selection
             input-name="repair-handler"
             aria-label="选择维修负责人"
             placeholder="搜索姓名或学号"

@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
-type Appearance = "EDITORIAL" | "SPATIAL";
+type Appearance = "CLASSIC" | "EDITORIAL" | "SPATIAL";
 type RepairStatus = "REPAIRING" | "COMPLETED" | "CANCELED";
 
 function json(route: Route, body: unknown, status = 200) {
@@ -64,7 +64,7 @@ async function hasDocumentOverflow(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 }
 
-for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
+for (const appearance of ["CLASSIC", "EDITORIAL", "SPATIAL"] as Appearance[]) {
   test(`${appearance} keeps a populated repair ledger usable across widths`, async ({ page }) => {
     await installMocks(page, appearance);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -72,10 +72,21 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
 
     await expect(page.locator("html")).toHaveAttribute("data-appearance", appearance.toLowerCase());
     await expect(page.getByRole("heading", { name: "维修事务" })).toBeVisible();
+    await expect(page.getByRole("searchbox", { name: "关键词" })).toBeVisible();
+    await expect(page.getByLabel("开始日期")).toBeVisible();
+    await expect(page.getByLabel("结束日期")).toBeVisible();
+    await expect(page.locator(".repair-query-bar").getByRole("button", { name: "查询" })).toBeVisible();
+    if (appearance === "EDITORIAL") {
+      const tools = await page.locator(".mw-tools").boundingBox();
+      const query = await page.locator(".mw-query").boundingBox();
+      expect(query!.y - (tools!.y + tools!.height)).toBeLessThan(4);
+    }
     await expect(page.locator(".repair-status-tabs b")).toHaveText(["8", "1,264", "37"]);
     await expect(page.locator(".repair-ledger-row")).toHaveCount(8);
     expect(await hasDocumentOverflow(page)).toBe(false);
-    expect(await page.locator(".repair-ledger-row td:last-child").first().evaluate((element) => getComputedStyle(element).position)).toBe("sticky");
+    expect(await page.locator(".repair-ledger-row").first().evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(390);
+    await expect(page.locator(".repair-ledger-row").first().locator(".repair-cell-device")).toContainText("自组装台式机");
+    await expect(page.locator(".repair-ledger-row").first().getByRole("button", { name: "查看 CA-2026-08301 的详情" })).toBeVisible();
 
     await page.locator(".repair-ledger-row").first().click();
     await expect(page.locator(".repair-detail-drawer")).toBeVisible();
@@ -85,10 +96,26 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     await page.reload();
     await expect(page.locator(".repair-ledger-row")).toHaveCount(8);
     expect(await hasDocumentOverflow(page)).toBe(false);
-    expect(await page.locator(".repair-ledger-row td:last-child").first().evaluate((element) => getComputedStyle(element).position)).toBe("sticky");
+    expect(await page.locator(".repair-ledger-row").first().evaluate((element) => element.getBoundingClientRect().width)).toBeLessThan(960 / 2);
+    expect(await page.locator(".repair-ledger-row").first().evaluate((element) =>
+      Math.abs(element.getBoundingClientRect().top - element.nextElementSibling!.getBoundingClientRect().top),
+    )).toBeLessThan(2);
 
     await page.getByRole("tab", { name: /已完成/ }).click();
     await expect(page.locator(".repair-ledger-row")).toHaveCount(20);
     await expect(page.locator(".repair-workspace-pagination")).toContainText("共 1264 项");
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.reload();
+    await expect(page.getByLabel("开始日期")).toBeVisible();
+    await expect(page.getByLabel("结束日期")).toBeVisible();
+    if (appearance === "SPATIAL") {
+      const query = await page.locator(".mw-query").boundingBox();
+      const results = await page.locator(".mw-results").boundingBox();
+      expect(query).not.toBeNull();
+      expect(results).not.toBeNull();
+      expect(query!.width / results!.width).toBeGreaterThan(0.95);
+      expect(results!.y).toBeGreaterThan(query!.y + query!.height - 2);
+    }
   });
 }

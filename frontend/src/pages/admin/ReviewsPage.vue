@@ -1,28 +1,36 @@
 <template>
   <RefinedWorkspaceShell class="daily-workspace review-workspace" title="签到审核" description="核对记录后通过签到与签退申请" section-key="today">
-<aside class="daily-review-summary">
-      <span class="filter-summary">
-        <ListChecks />
-        <span>
-          <strong class="daily-review-count">{{ pendingItemCount }}</strong> 项待审核
-          <small v-if="queueTruncated">
-            当前显示最近 {{ records.length }} 条，共 {{ pendingRecordCount }} 条记录
-          </small>
-        </span>
-      </span>
-      <button class="icon-button" title="刷新" aria-label="刷新" :disabled="loading" @click="load">
-        <RefreshCw :class="{ spin: loading }" />
-      </button>
-    <button
+    <aside class="daily-review-summary" aria-label="待审核概况">
+      <div class="filter-summary">
+        <ListChecks aria-hidden="true" />
+        <div>
+          <span class="review-summary-label">待处理队列</span>
+          <div class="review-summary-metrics">
+            <strong class="daily-review-count">{{ (loading || loadError) && !records.length ? "—" : pendingItemCount }}</strong>
+            <span>项待审核</span>
+            <span class="review-summary-divider" aria-hidden="true">/</span>
+            <span>{{ (loading || loadError) && !records.length ? "—" : pendingRecordCount }} 条记录</span>
+          </div>
+          <small v-if="queueTruncated">当前仅显示最近 {{ records.length }} 条；全部通过将处理队列中所有待审核项</small>
+        </div>
+      </div>
+      <div class="review-summary-actions">
+        <button class="icon-button" type="button" title="刷新" aria-label="刷新" :disabled="loading || actionInProgress" @click="load">
+          <RefreshCw :class="{ spin: loading }" />
+        </button>
+        <button
           class="button secondary"
-          :disabled="actions.isPending('bulk') || !pendingItemCount"
+          type="button"
+          :disabled="interactionLocked || !pendingItemCount"
           @click="bulkConfirmOpen = true"
         >
           <CheckCheck />全部通过
-        </button></aside>
+        </button>
+      </div>
+    </aside>
 
     <div v-if="loadError" class="inline-alert danger" role="alert">
-      <span>{{ loadError }}</span>
+      <span>{{ loadError }}{{ records.length ? "；当前列表暂不可审核，请重试刷新" : "" }}</span>
       <button class="button secondary small" type="button" data-action="retry-reviews" @click="load">
         重试
       </button>
@@ -35,13 +43,17 @@
     />
     <div v-else class="review-list">
       <article v-for="record in records" :key="record.id" class="review-row">
-        <span class="avatar">{{ record.name.slice(0, 1) }}</span>
+        <span class="avatar" aria-hidden="true">{{ record.name.slice(0, 1) }}</span>
         <div class="review-person">
-          <strong>{{ record.name }}</strong
-          ><span>{{ record.studentNo }} · {{ record.dutyDate }}</span>
+          <strong>{{ record.name }}</strong>
+          <span class="review-person__details">
+            <span>{{ record.studentNo }}</span>
+            <time :datetime="record.dutyDate">{{ record.dutyDate }}</time>
+          </span>
         </div>
         <div
           class="review-state-actions"
+          role="group"
           :aria-label="`${record.name}的签到与签退状态`"
         >
           <ReviewStateAction
@@ -50,7 +62,9 @@
             :time="clock(record.checkInTime)"
             :status="record.checkInStatus"
             :action-pending="actions.isPending(reviewKey(record.id, 'CHECK_IN'))"
+            :disabled="interactionLocked"
             @approve="review(record.id, 'CHECK_IN', 'APPROVE')"
+            @reject="openReject(record, 'CHECK_IN')"
           />
           <ReviewStateAction
             class="review-approve-check-out"
@@ -58,33 +72,23 @@
             :time="clock(record.checkOutTime)"
             :status="record.checkOutStatus"
             :action-pending="actions.isPending(reviewKey(record.id, 'CHECK_OUT'))"
+            :disabled="interactionLocked"
             @approve="review(record.id, 'CHECK_OUT', 'APPROVE')"
+            @reject="openReject(record, 'CHECK_OUT')"
           />
         </div>
-        <button
-          class="icon-button danger-ghost review-reject"
-          title="驳回"
-          :aria-label="`驳回${record.name}的记录`"
-          :disabled="recordActionPending(record.id)"
-          @click="openReject(record)"
-        >
-          <X />
-        </button>
       </article>
     </div>
     <ModalDialog
       :open="Boolean(rejectTarget)"
-      title="驳回记录"
+      :title="`驳回${rejectPart === 'CHECK_IN' ? '签到' : '签退'}`"
       size="sm"
       @close="closeReject"
     >
-      <label class="field"
-        ><span>驳回部分</span
-        ><select v-model="rejectPart" name="reviewRejectPart">
-          <option value="CHECK_IN">签到</option>
-          <option value="CHECK_OUT">签退</option>
-        </select></label
-      >
+      <p class="review-reject-context" v-if="rejectTarget">
+        <strong>{{ rejectTarget.name }}</strong>
+        <span>{{ rejectTarget.studentNo }} · {{ rejectTarget.dutyDate }} · {{ clock(rejectPart === 'CHECK_IN' ? rejectTarget.checkInTime : rejectTarget.checkOutTime) }}</span>
+      </p>
       <label class="field"
         ><span>驳回原因</span
         ><textarea
@@ -136,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { CheckCheck, ListChecks, RefreshCw, X } from "@lucide/vue";
+import { CheckCheck, ListChecks, RefreshCw } from "@lucide/vue";
 import { provide } from "vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
@@ -152,6 +156,7 @@ import { useAttendanceReviewWorkspace } from "../../features/attendance/useAtten
 
 const {
   actions,
+  actionInProgress,
   bulkApprove,
   bulkConfirmOpen,
   bulkErrors,
@@ -161,11 +166,11 @@ const {
   load,
   loadError,
   loading,
+  interactionLocked,
   openReject,
   pendingItemCount,
   pendingRecordCount,
   queueTruncated,
-  recordActionPending,
   records,
   rejectPart,
   rejectPending,

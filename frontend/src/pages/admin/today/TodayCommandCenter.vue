@@ -19,6 +19,7 @@
       <label v-if="refined" class="daily-command-label" for="daily-command-input">命令与功能搜索 <kbd>/</kbd></label>
       <div class="command-console-shell" :class="{ 'has-suggestions': panelOpen }">
         <CommandSuggestionPanel
+          :floating="refined"
           :open="panelOpen"
           :mode="view.mode"
           :path="view.path"
@@ -48,12 +49,28 @@
       <CommandFeedback v-if="refined" :message="errorMessage" />
       <p v-else class="command-local-note">所有数据与操作均保留在本机</p>
     </div>
-    <div v-if="refined" class="daily-shortcuts"><small>常用入口</small><div v-if="loading" role="status">正在加载今日状态…</div><TodayQuickActions v-else :items="quickActions" @execute="executeQuickAction" /></div>
+    <div v-if="refined" class="daily-shortcuts">
+      <div class="daily-shortcuts-head">
+        <small>常用入口</small>
+        <span v-if="loading" role="status">正在加载今日状态…</span>
+        <span v-else-if="quiet && !loadError">暂无待处理提醒</span>
+      </div>
+      <div v-if="loadError" class="inline-alert danger daily-overview-feedback" role="alert">
+        <CircleAlert aria-hidden="true" />
+        <span>{{ loadError }}</span>
+        <button class="button secondary small" type="button" data-action="retry-today" @click="$emit('retry-load')">重试</button>
+      </div>
+      <div v-if="loading" class="daily-shortcuts-skeleton" aria-hidden="true">
+        <i v-for="index in 3" :key="index"></i>
+      </div>
+      <TodayQuickActions v-else :items="quickActions" @execute="executeQuickAction" />
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { CircleAlert } from "@lucide/vue";
 import type { Role } from "../../../shared/types";
 import { commandInputView, completeCommandInput } from "../../../features/command-center/commandTree";
 import type { CommandNodeSuggestion } from "../../../features/command-center/commandTypes";
@@ -72,13 +89,16 @@ const props = defineProps<{
   role: Role;
   quickActions: TodayQuickAction[];
   errorMessage?: string;
+  loadError?: string;
   loading?: boolean;
+  quiet?: boolean;
   refined?: boolean;
 }>();
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   execute: [value: string];
   clearError: [];
+  "retry-load": [];
 }>();
 
 const root = ref<HTMLElement | null>(null);
@@ -107,7 +127,7 @@ const activeId = computed(() => {
 });
 
 watch(
-  () => [props.modelValue, props.role, view.value.suggestions.map((item) => item.id).join("|")],
+  [() => props.modelValue, () => props.role, () => view.value.suggestions.map((item) => item.id).join("|")],
   resetSelection,
 );
 

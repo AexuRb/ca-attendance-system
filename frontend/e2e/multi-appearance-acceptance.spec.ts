@@ -131,6 +131,9 @@ async function installMocks(
     if (path === "/api/attendance/page") {
       return json(route, { items: [], total: 0, page: 1, pageSize: 20 });
     }
+    if (path === "/api/users/selection") {
+      return json(route, longMembers ? Array.from({ length: 39 }, (_, index) => index + 2) : []);
+    }
     if (path === "/api/users/page") {
       const items = longMembers
         ? Array.from({ length: 40 }, (_, index) => ({
@@ -160,8 +163,24 @@ async function installMocks(
     if (path === "/api/stats/weekly-detail") return json(route, { days: [], users: [], cells: {} });
     if (path === "/api/schedules") return json(route, []);
     if (path === "/api/schedules/assignee-candidates") return json(route, []);
-    if (path === "/api/settings/weekdays") return json(route, []);
-    if (path === "/api/settings/duty-periods") return json(route, []);
+    if (path === "/api/settings/weekdays") {
+      return json(route, [
+        { weekday: 1, weekday_name: "星期一", enabled: true },
+        { weekday: 2, weekday_name: "星期二", enabled: true },
+        { weekday: 3, weekday_name: "星期三", enabled: true },
+        { weekday: 4, weekday_name: "星期四", enabled: true },
+        { weekday: 5, weekday_name: "星期五", enabled: true },
+        { weekday: 6, weekday_name: "星期六", enabled: false },
+        { weekday: 7, weekday_name: "星期日", enabled: false },
+      ]);
+    }
+    if (path === "/api/settings/duty-periods") {
+      return json(route, [
+        { startTime: "08:00", endTime: "10:00", enabled: true },
+        { startTime: "14:00", endTime: "16:00", enabled: true },
+        { startTime: "19:00", endTime: "21:00", enabled: false },
+      ]);
+    }
     if (path === "/api/settings/attendance-policy") {
       return json(route, { requireDutyDay: false, requireDutyPeriod: false });
     }
@@ -182,6 +201,23 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 for (const appearance of appearances) {
+  test(`member table scroll keeps headers visible: ${appearance}`, async ({page}) => {
+    await installMocks(page,{appearance,longMembers:true});
+    await page.goto('/#/admin/members');
+    const scroll = page.locator('.mw-table-scroll');
+    await expect(scroll).toBeVisible();
+    await scroll.evaluate(el => { el.scrollTop = 650; });
+    const header = scroll.locator('thead');
+    const headerBox = await header.boundingBox();
+    const scrollBox = await scroll.boundingBox();
+    expect(headerBox!.y).toBeGreaterThanOrEqual(scrollBox!.y-1);
+    expect(headerBox!.y).toBeLessThanOrEqual(scrollBox!.y+1);
+    expect(await header.evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return el.contains(document.elementFromPoint(r.x+60,r.y+r.height/2));
+    })).toBe(true);
+  });
+
   test(`member presentation: ${appearance} preserves records, bulk requests and focus`, async ({ page }) => {
     await installMocks(page, { appearance, longMembers: true });
     let submitted: unknown;
@@ -193,8 +229,9 @@ for (const appearance of appearances) {
     await page.goto('/#/admin/members');
     await expect(page.locator('.mw-table tbody tr')).toHaveCount(40);
     await expect(page.locator('input[name="memberSelection-1"]')).toBeDisabled();
-    await page.getByRole('checkbox', { name: '选择本页可管理成员' }).check();
+    await page.getByRole('checkbox', { name: '选择当前筛选结果中的全部可管理成员' }).check();
     await expect(page.getByText('已选 39 人', { exact: true })).toBeVisible();
+    await capture(page, `${appearance}-member-selection-polish-1440`);
     await page.getByRole('button', { name: '批量停用', exact: true }).click();
     const bulk = page.getByRole('dialog', { name: '批量停用账号' });
     await bulk.getByLabel('操作原因').fill('虚构成员批量验收');
@@ -227,6 +264,22 @@ for (const appearance of appearances) {
     await page.keyboard.press('Enter');
     await expect(page.locator('#admin-main-content')).toBeFocused();
     await expect(page).toHaveURL(/#\/admin\/members$/);
+  });
+}
+
+for (const appearance of appearances) {
+  test(`${appearance} repair and training workspaces keep the refined interaction contract`, async ({ page }) => {
+    await installMocks(page, { appearance });
+    for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+      await page.setViewportSize(size);
+      for (const route of ["repairs", "trainings"]) {
+        await page.goto(`/?refined-workspace=${appearance}-${size.width}-${route}#/admin/${route}`);
+        await page.waitForLoadState("networkidle");
+        await expect(page.locator("#admin-main-content > *")).toBeVisible();
+        await expect(page.locator('[title="查看详情"]')).toHaveCount(0);
+        await expectNoHorizontalOverflow(page);
+      }
+    }
   });
 }
 
@@ -388,6 +441,24 @@ for (const appearance of appearances) {
       await page.waitForLoadState("networkidle");
       await expect(page).toHaveURL(/#\/admin\/settings(?:\?|$)/);
       await expect(page.locator("#settings-appearance")).toBeVisible();
+      await expect(page.locator(".weekday-calendar-day")).toHaveCount(7);
+      await expect(page.locator(".duty-day-rail .duty-rail-block")).toHaveCount(3);
+      await expect(page.locator(".duty-period-cards .duty-period-tab")).toHaveCount(3);
+      await expectNoHorizontalOverflow(page);
+      if (attempt === 0) {
+        await capture(page, `${appearance}-settings-polish-1440`);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expectNoHorizontalOverflow(page);
+        await capture(page, `${appearance}-settings-polish-390`);
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.locator("#settings-periods").scrollIntoViewIfNeeded();
+        await capture(page, `${appearance}-settings-timeline-1440`);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.locator("#settings-periods").scrollIntoViewIfNeeded();
+        await expectNoHorizontalOverflow(page);
+        await capture(page, `${appearance}-settings-timeline-390`);
+        await page.setViewportSize({ width: 1440, height: 900 });
+      }
       await page.getByRole("link", { name: "数据与备份", exact: true }).click();
       await page.waitForLoadState("networkidle");
       await expect(page).toHaveURL(/#\/admin\/data(?:\?|$)/);

@@ -175,6 +175,145 @@ describe("MembersPage request ordering", () => {
   });
 });
 
+describe("MembersPage filter feedback", () => {
+  it("keeps draft filters distinct from applied results and clears them in one action", async () => {
+    const wrapper = mount(MembersPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+    const pageCalls = () => mocks.apiGet.mock.calls.filter(([url]) => String(url).startsWith("/api/users/page?")).length;
+    expect(wrapper.get(".mw-filter-status-label").text()).toBe("当前筛选");
+    const initialCalls = pageCalls();
+
+    await wrapper.get('select[name="memberRole"]').setValue("MINISTER");
+    expect(wrapper.get(".mw-filter-status-label").text()).toBe("待查询");
+    expect(pageCalls()).toBe(initialCalls);
+
+    await wrapper.get("form.mw-filter").trigger("submit");
+    await flushPromises();
+    expect(wrapper.get(".mw-filter-status-label").text()).toBe("当前筛选");
+    expect(pageCalls()).toBe(initialCalls + 1);
+
+    await wrapper.get(".mw-filter-reset").trigger("click");
+    await flushPromises();
+    expect(wrapper.get('select[name="memberRole"]').element).toHaveProperty("value", "");
+    expect(pageCalls()).toBe(initialCalls + 2);
+    wrapper.unmount();
+  });
+});
+
+describe("MembersPage selection", () => {
+  it("keeps one result toolbar while member selection changes", async () => {
+    const wrapper = mount(MembersPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+
+    const toolbar = wrapper.get(".member-result-toolbar").element;
+    const menuTrigger = wrapper.get<HTMLButtonElement>(".member-result-toolbar .action-menu > button");
+    expect(menuTrigger.element.disabled).toBe(true);
+    expect(wrapper.find(".selection-toolbar").exists()).toBe(false);
+
+    await wrapper.get('input[name="memberSelection-2"]').setValue(true);
+    expect(wrapper.get(".member-result-toolbar").element).toBe(toolbar);
+    expect(wrapper.get(".member-result-summary").text()).toContain("已选 1 人");
+    expect(menuTrigger.element.disabled).toBe(false);
+
+    await menuTrigger.trigger("click");
+    await flushPromises();
+    expect(wrapper.findAll(".mw-menu [role=menuitem]")).toHaveLength(3);
+    await wrapper.get(".mw-menu [role=menuitem]:last-child").trigger("click");
+    await flushPromises();
+    expect(wrapper.get(".member-result-toolbar").element).toBe(toolbar);
+    expect(wrapper.get(".member-result-summary").text()).toContain("共 1 人");
+    expect(menuTrigger.element.disabled).toBe(true);
+    wrapper.unmount();
+  });
+
+  it("selects every manageable member in the current filtered result across pages", async () => {
+    mocks.apiGet.mockImplementation((url: string) => {
+      if (url.startsWith("/api/users/selection")) {
+        return Promise.resolve([2, 22]);
+      }
+      if (url.startsWith("/api/users/page?")) {
+        const requestedPage = new URL(url, "http://localhost").searchParams.get("page");
+        return Promise.resolve({
+          items: [
+            requestedPage === "2"
+              ? { ...linkedMember, id: 22, studentNo: "9900000022", name: "第二页成员" }
+              : linkedMember,
+          ],
+          total: 40,
+          page: Number(requestedPage),
+          pageSize: 20,
+        });
+      }
+      if (url === "/api/users/grades") return Promise.resolve(["2025级"]);
+      return Promise.resolve([]);
+    });
+    const wrapper = mount(MembersPage, {
+      global: { stubs: { Teleport: true } },
+    });
+    await flushPromises();
+
+    const selectAll = wrapper.get('input[name="memberPageSelection"]');
+    await selectAll.setValue(true);
+    await flushPromises();
+
+    expect(mocks.apiGet).toHaveBeenCalledWith("/api/users/selection");
+    expect(wrapper.text()).toContain("已选 2 人");
+    expect((selectAll.element as HTMLInputElement).checked).toBe(true);
+
+    await wrapper.findAll(".pagination button")[1].trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("第二页成员");
+    expect(
+      (wrapper.get('input[name="memberSelection-22"]').element as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect(
+      (wrapper.get('input[name="memberPageSelection"]').element as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+  });
+});
+
+describe("MembersPage empty results", () => {
+  it("does not call an empty page an empty directory when other members exist", async () => {
+    mocks.apiGet.mockImplementation((url: string) => Promise.resolve(
+      url.startsWith("/api/users/page") ? { items: [], total: 20, page: 2, pageSize: 20 } : [],
+    ));
+    const wrapper = mount(MembersPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+    expect(wrapper.text()).toContain("没有符合条件的成员");
+    expect(wrapper.text()).not.toContain("尚未添加成员");
+    expect(wrapper.text()).not.toContain("新增第一位成员");
+    wrapper.unmount();
+  });
+
+  it("uses the last successful query for its empty guidance, not the unsubmitted draft", async () => {
+    mocks.apiGet.mockImplementation((url: string) => Promise.resolve(
+      url.startsWith("/api/users/page") ? { items: [], total: 0, page: 1, pageSize: 20 } : [],
+    ));
+    const wrapper = mount(MembersPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+    expect(wrapper.text()).toContain("尚未添加成员");
+    await wrapper.get('[name="memberKeyword"]').setValue("不存在的成员");
+    expect(wrapper.text()).toContain("尚未添加成员");
+    await wrapper.get(".mw-filter").trigger("submit");
+    await flushPromises();
+    expect(wrapper.text()).toContain("没有符合条件的成员");
+    expect(wrapper.text()).not.toContain("新增第一位成员");
+    await wrapper.get('[name="memberKeyword"]').setValue("");
+    expect(wrapper.text()).toContain("没有符合条件的成员");
+    await wrapper.get(".mw-filter").trigger("submit");
+    await flushPromises();
+    expect(wrapper.text()).toContain("新增第一位成员");
+    wrapper.unmount();
+  });
+});
+
 describe("MembersPage import", () => {
   it("keeps a row-specific import error visible in the dialog", async () => {
     mocks.apiPost.mockRejectedValue(

@@ -6,44 +6,6 @@
   gap: 20px;
 }
 
-:root[data-appearance="spatial"] .repair-filter-shell {
-  overflow: visible;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: none;
-}
-
-:root[data-appearance="spatial"] .repair-search-row {
-  grid-template-columns: 20px minmax(260px, 1fr) auto auto;
-  gap: 12px;
-  min-height: 68px;
-  padding: 12px 14px;
-}
-
-:root[data-appearance="spatial"] .repair-search-row > svg {
-  width: 19px;
-  height: 19px;
-  color: var(--blue-600);
-}
-
-:root[data-appearance="spatial"] .repair-search-row input {
-  min-height: 42px;
-  font-size: 16px;
-}
-
-:root[data-appearance="spatial"] .repair-date-filters {
-  gap: 14px;
-  border-top-color: var(--line);
-  padding: 14px;
-  background: var(--surface-pearl);
-}
-
-:root[data-appearance="spatial"] .repair-date-filters label > span {
-  color: var(--ink-700);
-  font-size: 13px;
-}
-
 :root[data-appearance="spatial"] .repair-status-tabs {
   display: grid;
   width: min(100%, 650px);
@@ -245,12 +207,6 @@
   border-radius: 50%;
 }
 
-:root[data-appearance="spatial"] .repair-ledger-actions .repair-ledger-open {
-  border-color: var(--blue-200);
-  background: var(--blue-50);
-  color: var(--blue-700);
-}
-
 :root[data-appearance="spatial"] .repair-workspace-pagination {
   min-height: 48px;
   border-top: 1px solid var(--line);
@@ -320,15 +276,6 @@
 }
 
 @media (max-width: 620px) {
-  :root[data-appearance="spatial"] .repair-search-row {
-    grid-template-columns: 18px minmax(0, 1fr) auto;
-  }
-
-  :root[data-appearance="spatial"] .repair-filter-toggle {
-    grid-column: 2 / -1;
-    justify-self: start;
-  }
-
   :root[data-appearance="spatial"] .repair-status-tabs button {
     min-height: 52px;
     grid-template-columns: 1fr;

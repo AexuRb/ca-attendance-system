@@ -162,11 +162,11 @@ describe("RepairsPage workspace", () => {
     await flushPromises();
     apiRequest.mockClear();
 
-    await wrapper.get(".repair-filter-toggle").trigger("click");
     const dates = wrapper.findAll('input[type="date"]');
+    expect(dates).toHaveLength(2);
     await dates[0].setValue("2026-08-22");
     await dates[1].setValue("2026-08-21");
-    await wrapper.get("form.repair-filter-shell").trigger("submit");
+    await wrapper.get("form.repair-query-bar").trigger("submit");
 
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "开始日期不能晚于结束日期",

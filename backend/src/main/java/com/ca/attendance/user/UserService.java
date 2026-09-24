@@ -76,6 +76,21 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
+    public List<Long> searchSelectableIds(String keyword, String role, String status, String grade) {
+        AuthUser current = AuthContext.current();
+        requireManageUsers();
+        SearchFilters filters = searchFilters(role, status, grade);
+        return users.searchSelectableIds(
+                keyword,
+                filters.role(),
+                filters.status(),
+                filters.grade(),
+                current.role(),
+                current.id()
+        );
+    }
+
+    @Transactional(readOnly = true)
     public List<String> grades() {
         requireManageUsers();
         return users.grades();

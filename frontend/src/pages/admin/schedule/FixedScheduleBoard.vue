@@ -3,11 +3,12 @@
     v-if="periods.length && visibleWeekdays.length"
     class="schedule-focus-board"
   >
-    <nav class="schedule-focus-days" aria-label="选择排班星期">
+    <nav ref="dayNav" class="schedule-focus-days" aria-label="选择排班星期">
       <button
         v-for="day in visibleWeekdays"
         :key="day.value"
         class="schedule-focus-day"
+        :data-weekday="day.value"
         :class="{
           active: selectedWeekday === day.value,
           disabled: !day.enabled,
@@ -20,19 +21,43 @@
           <strong>{{ day.label }}</strong>
           <small>{{ daySlotCount(day.value) }} 个排班</small>
         </span>
-        <b>{{ dayPeople(day.value) }}</b>
+        <b>{{ dayPeople(day.value) }}<span>人</span></b>
       </button>
     </nav>
+    <p v-if="visibleWeekdays.length > 2" class="schedule-focus-scroll-hint">左右滑动可查看其他星期</p>
 
     <div class="schedule-focus-workspace">
+      <aside
+        class="schedule-focus-summary"
+        :aria-label="`${selectedDay?.label}排班概览`"
+      >
+        <section class="schedule-focus-panel">
+          <h3>{{ selectedDay?.label }}概览</h3>
+          <dl class="schedule-focus-stats">
+            <div>
+              <dt>固定排班</dt>
+              <dd>{{ selectedDaySlotCount }} 个</dd>
+            </div>
+            <div>
+              <dt>签到台可见</dt>
+              <dd>{{ visibleSlotCount }} 个</dd>
+            </div>
+            <div>
+              <dt>已安排人员</dt>
+              <dd>{{ selectedDayPeople }} 人</dd>
+            </div>
+            <div>
+              <dt>待安排时段</dt>
+              <dd>{{ unfilledPeriodCount }} 个</dd>
+            </div>
+          </dl>
+          <p v-if="hiddenSlotCount" class="schedule-focus-summary-note">{{ hiddenSlotCount }} 个排班已隐藏，人员仍计入已安排。</p>
+        </section>
+      </aside>
       <section class="schedule-focus-main">
         <header class="schedule-focus-header">
           <div>
             <h2>{{ selectedDay?.label }}固定排班</h2>
-            <p>
-              {{ periods.length }} 个值班时段 · 已安排
-              {{ selectedDayPeople }} 人
-            </p>
           </div>
           <span v-if="!selectedDay?.enabled" class="schedule-focus-day-state">
             当前星期未开放
@@ -59,67 +84,20 @@
                   v-for="slot in slotsFor(selectedWeekday, period)"
                   :key="slot.id"
                   :slot="slot"
+                  :read-only="readOnly"
                   @edit="$emit('edit', slot)"
                   @archive="$emit('archive', slot)"
                 />
               </div>
               <div v-else class="schedule-focus-empty">
-                <strong>暂未安排人员</strong>
-                <span>该时段尚无固定排班</span>
+                <div><strong>该时段暂无固定排班</strong><span>{{ selectedDay?.enabled ? '可以直接在此时段新增' : '当前星期未开放' }}</span></div>
+                <button v-if="selectedDay?.enabled && !readOnly" class="schedule-focus-add" type="button" @click="$emit('add', selectedWeekday, periodKey(period))"><Plus aria-hidden="true" />新增此时段排班</button>
               </div>
             </div>
 
           </article>
         </div>
       </section>
-
-      <aside
-        class="schedule-focus-summary"
-        :aria-label="`${selectedDay?.label}排班概览`"
-      >
-        <section class="schedule-focus-panel">
-          <h3>{{ selectedDay?.label }}概览</h3>
-          <dl class="schedule-focus-stats">
-            <div>
-              <dt>值班时段</dt>
-              <dd>{{ periods.length }} 个</dd>
-            </div>
-            <div>
-              <dt>固定排班</dt>
-              <dd>{{ selectedDaySlotCount }} 个</dd>
-            </div>
-            <div>
-              <dt>已安排人员</dt>
-              <dd>{{ selectedDayPeople }} 人</dd>
-            </div>
-            <div>
-              <dt>待安排时段</dt>
-              <dd>{{ unfilledPeriodCount }} 个</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section class="schedule-focus-panel">
-          <h3>值班时段</h3>
-          <div class="schedule-focus-periods">
-            <div
-              v-for="period in periods"
-              :key="`summary-${periodKey(period)}`"
-            >
-              <time>
-                {{ shortTime(period.startTime) }}–{{ shortTime(period.endTime) }}
-              </time>
-              <span>
-                {{
-                  periodAssigneeCount(period)
-                    ? `${periodAssigneeCount(period)} 人`
-                    : "未安排"
-                }}
-              </span>
-            </div>
-          </div>
-        </section>
-      </aside>
     </div>
   </div>
   <EmptyState
@@ -129,11 +107,13 @@
         ? '请先在系统设置中开放值班星期'
         : '请先在系统设置中添加值班时间段'
     "
+    description="完成值班时段和开放星期设置后，即可在这里安排固定排班。"
   />
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { Plus } from "@lucide/vue";
 import EmptyState from "../../../shared/ui/EmptyState.vue";
 import FixedScheduleCard from "./FixedScheduleCard.vue";
 import type { DutyPeriod } from "../../../features/settings/dutyPeriods";
@@ -151,11 +131,13 @@ const props = defineProps<{
   periods: DutyPeriod[];
   weekdays: WeekdayOption[];
   preferredWeekday?: number;
+  readOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
   edit: [slot: ScheduleSlot];
   archive: [slot: ScheduleSlot];
+  add: [weekday: number, period: string];
   "weekday-change": [weekday: number];
 }>();
 
@@ -169,6 +151,7 @@ const visibleWeekdays = computed(() => {
 });
 
 const selectedWeekday = ref(initialWeekday());
+const dayNav = ref<HTMLElement | null>(null);
 const selectedDay = computed(() =>
   visibleWeekdays.value.find((day) => day.value === selectedWeekday.value),
 );
@@ -178,6 +161,8 @@ const selectedDaySlotCount = computed(() =>
   ).length,
 );
 const selectedDayPeople = computed(() => dayPeople(selectedWeekday.value));
+const hiddenSlotCount = computed(() => props.slots.filter(slot => Number(slot.weekday) === selectedWeekday.value && slot.enabled === false).length);
+const visibleSlotCount = computed(() => selectedDay.value?.enabled ? selectedDaySlotCount.value - hiddenSlotCount.value : 0);
 const unfilledPeriodCount = computed(
   () =>
     props.periods.filter((period) => periodAssigneeCount(period) === 0).length,
@@ -202,6 +187,19 @@ watch(
   },
   { immediate: true, flush: "sync" },
 );
+watch(selectedWeekday, () => void nextTick(revealSelectedWeekday), { flush: "post" });
+watch(visibleWeekdays, () => void nextTick(revealSelectedWeekday), { flush: "post" });
+onMounted(() => void nextTick(revealSelectedWeekday));
+
+function revealSelectedWeekday() {
+  const nav = dayNav.value;
+  const active = nav?.querySelector<HTMLElement>(`[data-weekday="${selectedWeekday.value}"]`);
+  if (!nav || !active) return;
+  const navRect = nav.getBoundingClientRect();
+  const activeRect = active.getBoundingClientRect();
+  if (activeRect.left < navRect.left) nav.scrollLeft += activeRect.left - navRect.left - 8;
+  else if (activeRect.right > navRect.right) nav.scrollLeft += activeRect.right - navRect.right + 8;
+}
 
 function initialWeekday() {
   return (

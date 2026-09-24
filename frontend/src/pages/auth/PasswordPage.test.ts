@@ -13,7 +13,7 @@ vi.mock("../../layouts/AuthLayout.vue", () => ({
   default: { template: "<main><slot /></main>" },
 }));
 vi.mock("../../app/session", () => ({
-  useSession: () => ({ state: { user: { id: 1 } } }),
+  useSession: () => ({ state: { user: { id: 1 }, access: { mode: "LOCAL" } } }),
 }));
 vi.mock("vue-router", () => ({
   useRouter: () => ({ replace: mocks.replace }),
@@ -25,6 +25,24 @@ afterEach(() => {
 });
 
 describe("PasswordPage", () => {
+  it("lets the user inspect each password field independently", async () => {
+    const wrapper = mount(PasswordPage);
+    const oldPassword = wrapper.get('input[name="oldPassword"]');
+    const newPassword = wrapper.get('input[name="newPassword"]');
+    const confirmation = wrapper.get('input[name="confirmation"]');
+
+    await wrapper.get('button[aria-label="显示原密码"]').trigger("click");
+    expect(oldPassword.attributes("type")).toBe("text");
+    expect(newPassword.attributes("type")).toBe("password");
+
+    await wrapper.get('button[aria-label="显示新密码"]').trigger("click");
+    expect(newPassword.attributes("type")).toBe("text");
+    expect(confirmation.attributes("type")).toBe("password");
+
+    await wrapper.get('button[aria-label="显示确认新密码"]').trigger("click");
+    expect(confirmation.attributes("type")).toBe("text");
+  });
+
   it("shows field errors and does not submit an invalid password change", async () => {
     const wrapper = mount(PasswordPage);
     await wrapper.get('input[name="oldPassword"]').setValue("old-password");

@@ -120,6 +120,62 @@ describe("StatsPage request states", () => {
     expect(apiGet).not.toHaveBeenCalled();
     wrapper.unmount();
   });
+
+  it("shows a retry state instead of zero metrics or an empty table when loading fails", async () => {
+    apiGet.mockRejectedValue(new Error("统计数据加载失败"));
+    const wrapper = mount(StatsPage);
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain("统计数据加载失败");
+    expect(wrapper.get(".stats-metrics").text()).toContain("—");
+    expect(wrapper.get(".stats-results").text()).toContain("统计结果暂不可用");
+    expect(wrapper.find(".weekly-stats-table").exists()).toBe(false);
+    expect(wrapper.get('button[title="请先完成统计，再导出当前日期范围"]').attributes("disabled")).toBeDefined();
+    wrapper.unmount();
+  });
+
+  it("requires applying changed dates before exporting", async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve(
+      url.includes("weekly-detail")
+        ? { days: [], users: [row("示例成员")], cells: {} }
+        : [row("示例成员")],
+    ));
+    const wrapper = mount(StatsPage);
+    await flushPromises();
+    const exportButton = wrapper.get('button[title="导出当前统计结果"]');
+    expect(exportButton.attributes("disabled")).toBeUndefined();
+
+    await wrapper.get('input[name="statsFrom"]').setValue("2026-01-01");
+    expect(wrapper.get('button[title="请先完成统计，再导出当前日期范围"]').attributes("disabled")).toBeDefined();
+    expect(wrapper.get(".stats-results-context").text()).toContain("日期已修改，点击“统计”应用");
+    await wrapper.get("form").trigger("submit");
+    await flushPromises();
+    expect(wrapper.get('button[title="导出当前统计结果"]').attributes("disabled")).toBeUndefined();
+    expect(wrapper.get(".stats-results-context").text()).toContain("2026-01-01");
+    expect(wrapper.get(".stats-results-context").text()).not.toContain("日期已修改");
+    wrapper.unmount();
+  });
+
+  it("opens a member detail from the monthly ranking and loads the applied range", async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve(
+      url.includes("weekly-detail")
+        ? { days: [{ dutyDate: "2026-08-25", weekday: 2, weekdayName: "周二" }, { dutyDate: "2026-09-01", weekday: 2, weekdayName: "周二" }], users: [], cells: { "2026-08-25": { "1": 1 }, "2026-09-01": { "1": 2 } } }
+        : [{ ...row("示例成员"), userId: 1, dutyCount: 1 }],
+    ));
+    const wrapper = mount(StatsPage);
+    await flushPromises();
+    await wrapper.findAll(".segmented button")[1].trigger("click");
+    await flushPromises();
+    await wrapper.get(".stats-ranking-table .stats-detail-trigger").trigger("click");
+    await flushPromises();
+
+    expect(document.body.textContent).toContain("示例成员的统计详情");
+    expect(document.body.textContent).toContain("2026-08-25");
+    expect(document.body.textContent).toContain("2026年8月");
+    expect(document.body.textContent).toContain("2026年9月");
+    expect(apiGet.mock.calls.some(([url]) => String(url).includes("/weekly-detail?from="))).toBe(true);
+    wrapper.unmount();
+  });
 });
 
 vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

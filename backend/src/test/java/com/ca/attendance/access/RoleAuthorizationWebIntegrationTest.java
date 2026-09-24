@@ -94,6 +94,7 @@ class RoleAuthorizationWebIntegrationTest {
                 "/api/attendance/page?from=2026-08-01&to=2026-08-10",
                 "/api/stats/summary?from=2026-08-01&to=2026-08-10",
                 "/api/users/page",
+                "/api/users/selection",
                 "/api/schedules",
                 "/api/trainings/page",
                 "/api/repairs?from=2026-08-01&to=2026-08-10",
@@ -118,6 +119,7 @@ class RoleAuthorizationWebIntegrationTest {
 
         for (String path : new String[]{
                 "/api/users/page",
+                "/api/users/selection",
                 "/api/schedules",
                 "/api/trainings/page",
                 "/api/maintenance/summary",
@@ -134,6 +136,7 @@ class RoleAuthorizationWebIntegrationTest {
     void presidentManagesAssociationDataButNotAdministratorOnlyOperations() throws Exception {
         for (String path : new String[]{
                 "/api/users/page",
+                "/api/users/selection",
                 "/api/schedules",
                 "/api/trainings/page",
                 "/api/repairs?from=2026-08-01&to=2026-08-10",
@@ -157,6 +160,7 @@ class RoleAuthorizationWebIntegrationTest {
     void administratorCanReachAdministratorOnlyInterfaces() throws Exception {
         for (String path : new String[]{
                 "/api/users/page",
+                "/api/users/selection",
                 "/api/schedules",
                 "/api/trainings/page",
                 "/api/maintenance/summary",
@@ -181,6 +185,7 @@ class RoleAuthorizationWebIntegrationTest {
         for (String path : new String[]{
                 "/api/users/page?role=%25",
                 "/api/users/page?status=%25",
+                "/api/users/selection?role=%25",
                 "/api/attendance/page?from=2026-08-01&to=2026-08-10&status=%25",
                 "/api/trainings/page?status=%25",
                 "/api/repairs?from=2026-08-01&to=2026-08-10&status=%25",
@@ -195,6 +200,21 @@ class RoleAuthorizationWebIntegrationTest {
                         .content("{\"phone\":\"13800000000\",\"major\":\"测试学院\",\"grade\":\"2099级\",\"qq\":\"\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("年级只能由会长或管理员在成员管理中修改"));
+    }
+
+    @Test
+    void memberSelectionSpansTheFilteredResultAndAppliesRoleBoundaries() throws Exception {
+        authenticatedGet(Role.PRESIDENT, "/api/users/selection?keyword=authz-")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        authenticatedGet(Role.ADMIN, "/api/users/selection?keyword=authz-")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3));
+
+        authenticatedGet(Role.ADMIN, "/api/users/selection?keyword=authz-&role=MEMBER")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test

@@ -16,7 +16,6 @@
   padding: 4px;
   background: rgb(20 87 118 / 3.5%);
   box-shadow: 0 20px 58px rgb(31 84 109 / 7%);
-  animation: training-region-enter 0.72s var(--ease-out) both;
 }
 
 .training-month-ribbon {
@@ -250,13 +249,6 @@
   color: var(--blue-700);
   transform: translateY(-1px);
 }
-
-.training-ribbon-event:nth-child(1) { animation: training-event-enter 0.62s 0.04s var(--ease-out) both; }
-.training-ribbon-event:nth-child(2) { animation: training-event-enter 0.62s 0.08s var(--ease-out) both; }
-.training-ribbon-event:nth-child(3) { animation: training-event-enter 0.62s 0.12s var(--ease-out) both; }
-.training-ribbon-event:nth-child(4) { animation: training-event-enter 0.62s 0.16s var(--ease-out) both; }
-.training-ribbon-event:nth-child(5) { animation: training-event-enter 0.62s 0.2s var(--ease-out) both; }
-.training-ribbon-event:nth-child(n + 6) { animation: training-event-enter 0.62s 0.24s var(--ease-out) both; }
 
 .training-ribbon-pagination {
   display: flex;
@@ -560,12 +552,6 @@
   transform: translateX(4px);
 }
 
-.training-participant-row:nth-child(1) { animation: training-row-enter 0.56s 0.03s var(--ease-out) both; }
-.training-participant-row:nth-child(2) { animation: training-row-enter 0.56s 0.07s var(--ease-out) both; }
-.training-participant-row:nth-child(3) { animation: training-row-enter 0.56s 0.11s var(--ease-out) both; }
-.training-participant-row:nth-child(4) { animation: training-row-enter 0.56s 0.15s var(--ease-out) both; }
-.training-participant-row:nth-child(n + 5) { animation: training-row-enter 0.56s 0.19s var(--ease-out) both; }
-
 .training-participant-avatar {
   display: grid;
   width: 31px;
@@ -652,18 +638,18 @@
 .training-stage-swap-enter-active,
 .training-stage-swap-leave-active {
   transition:
-    opacity 0.32s var(--ease-out),
-    transform 0.42s var(--ease-out);
+    opacity 0.18s var(--ease-out),
+    transform 0.18s var(--ease-out);
 }
 
 .training-stage-swap-enter-from {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(3px);
 }
 
 .training-stage-swap-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-3px);
 }
 
 .training-import-file {
@@ -703,21 +689,6 @@
 
 .training-import-error {
   margin-top: 10px;
-}
-
-@keyframes training-region-enter {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes training-event-enter {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes training-row-enter {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
 }
 
 @media (max-width: 1100px) {

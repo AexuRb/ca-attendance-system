@@ -71,6 +71,59 @@ describe("training workspace route state", () => {
 });
 
 describe("training workspace requests", () => {
+  it("keeps the displayed range and page requests on applied filters until query succeeds", async () => {
+    const requested: string[] = [];
+    const workspace = useTrainingWorkspace({
+      defaults,
+      loadSessions: async ({ filters, page }) => {
+        requested.push(`${filters.from}:${page}`);
+        return pageResult([session(page)], 25, page, 20);
+      },
+      loadParticipants: async () => pageResult([], 0, 1, 20),
+    });
+
+    await workspace.initialize();
+    workspace.filters.from = "2026-04-01";
+    workspace.filters.to = "2026-04-30";
+    expect(workspace.appliedFilters.from).toBe(defaults.from);
+    expect(workspace.currentQuery().from).toBe(defaults.from);
+
+    await workspace.setSessionPage(2);
+    expect(requested.at(-1)).toBe(`${defaults.from}:2`);
+
+    await workspace.applyFilters();
+    expect(requested.at(-1)).toBe("2026-04-01:1");
+    expect(workspace.appliedFilters.from).toBe("2026-04-01");
+    expect(workspace.currentQuery().from).toBe("2026-04-01");
+  });
+
+  it("keeps the previous applied range when a new query fails", async () => {
+    const requests: number[] = [];
+    const workspace = useTrainingWorkspace({
+      defaults,
+      loadSessions: async ({ filters, page }) => {
+        requests.push(page);
+        if (filters.from === "2026-04-01" && requests.length === 3) throw new Error("场次读取失败");
+        return pageResult([session(page)], 25, page, 20);
+      },
+      loadParticipants: async () => pageResult([], 0, 1, 20),
+    });
+
+    await workspace.initialize();
+    await workspace.setSessionPage(2);
+    workspace.filters.from = "2026-04-01";
+    workspace.filters.to = "2026-04-30";
+    await workspace.applyFilters();
+
+    expect(workspace.sessions.error).toBe("场次读取失败");
+    expect(workspace.appliedFilters.from).toBe(defaults.from);
+    expect(workspace.currentQuery().from).toBe(defaults.from);
+
+    await workspace.retrySessions();
+    expect(requests).toEqual([1, 2, 1, 1]);
+    expect(workspace.appliedFilters.from).toBe("2026-04-01");
+  });
+
   it("aborts an older session request and keeps the newer result", async () => {
     const requests: Array<{
       keyword: string;

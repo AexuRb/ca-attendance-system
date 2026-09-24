@@ -25,7 +25,7 @@
           <Save />{{ actions.isPending('weekdays') ? "正在保存" : "保存星期" }}
         </button>
       </div>
-      <WeekdayCalendarSelector compact :days="weekdays" @toggle="toggleWeekday" />
+      <WeekdayCalendarSelector :days="weekdays" @toggle="toggleWeekday" />
     </section>
     <DutyTimeWorkspace
       refined

@@ -1,10 +1,6 @@
 <template>
   <RefinedWorkspaceShell class="daily-workspace today-workspace" title="今日概览" section-key="today">
     <template #heading><small>{{ todayLabel }} · {{ currentRoleLabel }}工作区</small><h1>今天要处理什么？</h1></template>
-    <div v-if="error" class="inline-alert danger today-load-error" role="alert">
-      <span>{{ error }}</span>
-      <button class="button secondary small" type="button" data-action="retry-today" @click="refresh">重试</button>
-    </div>
     <TodayCommandCenter
       refined
       v-model="commandInput"
@@ -13,9 +9,12 @@
       :role="currentRole"
       :quick-actions="quickActions"
       :error-message="commandError"
+      :load-error="error"
       :loading="loading && !dashboard"
+      :quiet="quietToday"
       @execute="executeCommand"
       @clear-error="commandError = ''"
+      @retry-load="refresh"
     />
   </RefinedWorkspaceShell>
 </template>
@@ -70,6 +69,13 @@ const quickActions = computed(() => buildTodayQuickActions(
   canSchedule.value,
   currentRole.value,
 ));
+const quietToday = computed(() => dashboard.value !== null &&
+  ![
+    dashboard.value.todayPendingCount,
+    dashboard.value.todayOpenCount,
+    dashboard.value.ongoingRepairCount,
+    missingScheduleCount.value,
+  ].some((count) => (count || 0) > 0));
 
 onMounted(() => {
   refresh();

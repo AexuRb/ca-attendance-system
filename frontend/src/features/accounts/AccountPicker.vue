@@ -8,8 +8,11 @@
         :aria-label="ariaLabel"
         :aria-invalid="invalid || undefined"
         :aria-describedby="describedBy"
+        :aria-expanded="compactSelection ? optionsOpen : undefined"
         :placeholder="placeholder"
         autocomplete="off"
+        @focus="optionsOpen = true"
+        @keydown.esc="closeOptions"
       />
       <button
         v-if="modelValue"
@@ -34,6 +37,7 @@
     </div>
 
     <div
+      v-if="!compactSelection || optionsOpen"
       ref="listbox"
       class="account-picker-options"
       role="listbox"
@@ -68,7 +72,7 @@
           aria-hidden="true"
         />
       </button>
-      <p v-if="!visibleCandidates.length">没有匹配的启用账号</p>
+      <p v-if="!visibleCandidates.length">{{ compactSelection && modelValue && !keyword ? "没有其他可选账号" : "没有匹配的启用账号" }}</p>
     </div>
   </div>
 </template>
@@ -93,6 +97,7 @@ const props = withDefaults(
     invalid?: boolean;
     describedBy?: string;
     open?: boolean;
+    compactSelection?: boolean;
   }>(),
   {
     ariaLabel: "选择账号",
@@ -101,6 +106,7 @@ const props = withDefaults(
     invalid: false,
     describedBy: undefined,
     open: true,
+    compactSelection: false,
   },
 );
 const emit = defineEmits<{
@@ -109,14 +115,18 @@ const emit = defineEmits<{
 
 const keyword = ref("");
 const activeId = ref<number | null>(null);
+const optionsOpen = ref(false);
 const listbox = ref<HTMLElement | null>(null);
 let suppressModelReset = false;
-const visibleCandidates = computed(() =>
-  filterAccountCandidates(
+const visibleCandidates = computed(() => {
+  const candidates = filterAccountCandidates(
     mergeAccountCandidates(props.candidates, props.modelValue),
     keyword.value,
-  ),
-);
+  );
+  return props.compactSelection && props.modelValue
+    ? candidates.filter((candidate) => candidate.id !== props.modelValue?.id)
+    : candidates;
+});
 
 watch(
   visibleCandidates,
@@ -138,6 +148,13 @@ watch(
 function resetPicker() {
   keyword.value = "";
   activeId.value = null;
+  if (props.compactSelection) optionsOpen.value = false;
+}
+
+function closeOptions(event: KeyboardEvent) {
+  if (!props.compactSelection || !optionsOpen.value) return;
+  event.stopPropagation();
+  optionsOpen.value = false;
 }
 
 watch(
@@ -208,6 +225,10 @@ function onOptionKeydown(event: KeyboardEvent, candidate: AccountCandidate) {
 function select(candidate: AccountCandidate | null) {
   if (candidate?.inactive) return;
   if (candidate) activeId.value = candidate.id;
+  if (props.compactSelection) {
+    keyword.value = "";
+    optionsOpen.value = !candidate;
+  }
   suppressModelReset = true;
   emit("update:modelValue", candidate);
   void Promise.resolve().then(() => {

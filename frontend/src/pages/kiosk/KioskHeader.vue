@@ -6,7 +6,6 @@
       </span>
       <div>
         <strong>计算机协会值班签到台</strong>
-        <span>值班签到台</span>
       </div>
     </div>
 

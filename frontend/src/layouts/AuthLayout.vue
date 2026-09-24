@@ -10,9 +10,12 @@
           <span>值班管理系统</span>
         </div>
       </div>
-      <div class="auth-signal-context">
-        <i aria-hidden="true"></i>
-        <span>本机管理后台</span>
+      <div class="auth-header-actions">
+        <div class="auth-signal-context">
+          <i aria-hidden="true"></i>
+          <span>{{ entryMode === 'REMOTE_ADMIN' ? '远程管理入口' : '本机管理后台' }}</span>
+        </div>
+        <slot name="header-actions" />
       </div>
     </header>
 
@@ -21,13 +24,17 @@
     </section>
 
     <footer class="auth-signal-footer">
-      <span>计算机协会 · 本机运行</span>
+      <span>计算机协会 · {{ entryMode === 'REMOTE_ADMIN' ? '远程管理' : '本机运行' }}</span>
     </footer>
   </main>
 </template>
 
 <script setup lang="ts">
 import { useRoute } from "vue-router";
+
+withDefaults(defineProps<{ entryMode?: 'LOCAL' | 'REMOTE_ADMIN' }>(), {
+  entryMode: 'LOCAL',
+});
 
 const route = useRoute();
 </script>

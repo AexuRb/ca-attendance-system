@@ -50,6 +50,25 @@ function options(wrapper: ReturnType<typeof mountPicker>) {
 }
 
 describe("AccountPicker", () => {
+  it("keeps a compact selection stable until the user searches for another account", async () => {
+    const wrapper = mount(AccountPicker, {
+      attachTo: document.body,
+      props: { candidates, modelValue: candidates[0], compactSelection: true },
+    });
+
+    expect(wrapper.find(".account-picker-current").text()).toContain("Alpha");
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    await wrapper.get("input").trigger("focus");
+    expect(options(wrapper).map((item) => item.text())).toEqual([
+      expect.stringContaining("Bravo"),
+      expect.stringContaining("Charlie"),
+    ]);
+    await options(wrapper)[0].trigger("click");
+    expect(wrapper.emitted("update:modelValue")?.[0]).toEqual([candidates[1]]);
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
   it("uses a single roving tab stop and supports listbox keyboard selection", async () => {
     const wrapper = mountPicker();
     const items = () => options(wrapper);

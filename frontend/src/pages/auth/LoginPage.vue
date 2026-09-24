@@ -1,15 +1,15 @@
 <template>
-  <AuthLayout>
+  <AuthLayout :entry-mode="state.access.mode">
+    <template #header-actions>
+      <RouterLink v-if="state.access.kioskAvailable" class="auth-header-back" to="/">
+        <ArrowUpRight aria-hidden="true" /><span>返回签到台</span>
+      </RouterLink>
+    </template>
     <form class="auth-form" @submit.prevent="submit">
       <div class="auth-heading">
         <h2>登录后台</h2>
-        <p v-if="state.access.mode === 'REMOTE_ADMIN'">
-          远程入口仅允许会长和管理员
-        </p>
+        <p>{{ state.access.mode === 'REMOTE_ADMIN' ? '仅会长和管理员可通过远程入口登录' : '使用学号或管理员账号进入对应工作区' }}</p>
       </div>
-      <p v-if="sessionNotice" class="auth-session-notice" role="status">
-        {{ sessionNotice }}
-      </p>
       <div class="field">
         <label for="login-account">账号</label>
         <div class="input-with-icon">
@@ -51,14 +51,12 @@
             rememberLabel
           }}</span></label
         >
-        <RouterLink
-          v-if="state.access.kioskAvailable"
-          class="auth-back"
-          to="/"
-          ><ArrowLeft aria-hidden="true" /><span>返回签到台</span></RouterLink
-        >
       </div>
-      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <div class="auth-feedback-slot">
+        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+        <p v-else-if="sessionNotice" class="auth-session-notice" role="status">{{ sessionNotice }}</p>
+        <p v-else class="auth-remember-hint">{{ rememberHint }}</p>
+      </div>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
         <span>{{ busy ? "正在验证" : "进入后台" }}</span>
         <span class="auth-submit-icon" aria-hidden="true">
@@ -74,7 +72,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import {
-  ArrowLeft,
+  ArrowUpRight,
   Eye,
   EyeOff,
   LoaderCircle,
@@ -104,6 +102,9 @@ const accountInput = ref<HTMLInputElement>();
 const rememberLabel = isDesktopCredentialMode()
   ? "记住账号和密码"
   : "记住账号";
+const rememberHint = isDesktopCredentialMode()
+  ? "记住的登录信息仅用于此设备"
+  : "浏览器仅保存账号，不保存密码";
 const sessionNotice = computed(() => {
   if (route.query.reason === "restored") return "数据已恢复，请重新登录";
   if (route.query.reason === "expired") return "登录状态已失效，请重新登录";
@@ -148,3 +149,5 @@ async function submit() {
   }
 }
 </script>
+
+<style src="../../features/auth/login-presentation.css"></style>

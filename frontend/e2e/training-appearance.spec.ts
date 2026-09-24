@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
-type Appearance = "EDITORIAL" | "SPATIAL";
+type Appearance = "CLASSIC" | "EDITORIAL" | "SPATIAL";
 
 function json(route: Route, body: unknown, status = 200) {
   return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -54,7 +54,7 @@ async function hasDocumentOverflow(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 }
 
-for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
+for (const appearance of ["CLASSIC", "EDITORIAL", "SPATIAL"] as Appearance[]) {
   test(`${appearance} keeps training history and long participant lists usable`, async ({ page }) => {
     await installMocks(page, appearance);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -66,14 +66,29 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     await expect(page.locator(".training-participant-row")).toHaveCount(20);
     await expect(page.locator(".training-participant-pagination")).toContainText("共 47 人");
     expect(await hasDocumentOverflow(page)).toBe(false);
+    await page.getByLabel("开始日期").fill("2026-08-01");
+    await expect(page.locator(".training-query-submit")).toHaveText("更新结果");
+    await expect(page.locator("#training-month-title")).toHaveText("2026年9月");
+    await page.getByLabel("结束日期").fill("2026-08-31");
+    await page.locator(".training-query-submit").click();
+    await expect(page.locator("#training-month-title")).toHaveText("2026年8月");
 
     await page.locator(".training-ribbon-event").nth(1).click();
     await expect(page.locator(".training-ribbon-event").nth(1)).toHaveClass(/active/);
     await expect(page.locator(".training-session-heading h2")).toHaveText("校园网络基础");
 
-    await page.setViewportSize({ width: 960, height: 600 });
+    await page.setViewportSize({ width: 900, height: 600 });
     await page.reload();
     await expect(page.locator(".training-participant-row")).toHaveCount(20);
+    expect(await hasDocumentOverflow(page)).toBe(false);
+    await expect(page.locator(".training-participant-columns span").nth(3)).toBeVisible();
+    expect(await page.locator(".training-participant-remark").first().evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(100);
+
+    await page.setViewportSize({ width: 1440, height: 900 });
+    if (appearance === "SPATIAL") {
+      expect(await page.locator(".training-month-shell").evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(800);
+    }
+    await page.setViewportSize({ width: 320, height: 568 });
     expect(await hasDocumentOverflow(page)).toBe(false);
   });
 }

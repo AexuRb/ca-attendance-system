@@ -5,7 +5,10 @@
   >
     <header class="kiosk-signal-caption">
       <h2 id="kiosk-signal-title">今日部长排班</h2>
-      <span>{{ todaySchedule?.weekdayName || weekdayLabel }} · {{ scheduleCount }} 位部长</span>
+      <span>
+        {{ todaySchedule?.weekdayName || weekdayLabel }}
+        <template v-if="todaySchedule"> · {{ scheduleCount }} 人次</template>
+      </span>
     </header>
 
     <div v-if="scheduleError" class="kiosk-signal-message" role="alert">

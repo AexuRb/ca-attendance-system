@@ -12,12 +12,14 @@
       <span>{{ modelValue.length }} 人已选</span>
     </div>
 
-    <div v-if="modelValue.length" class="schedule-assignee-selected">
+    <div v-if="modelValue.length" class="schedule-assignee-selected" aria-label="已选排班人员">
+      <span class="schedule-assignee-selected__label">已选人员</span>
       <button
         v-for="person in modelValue"
         :key="person.studentNo"
         type="button"
         :title="`移除 ${person.name}`"
+        :aria-label="`移除 ${person.name}`"
         @click="remove(person.studentNo)"
       >
         <span>{{ person.name }}</span>

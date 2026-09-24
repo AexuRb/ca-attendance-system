@@ -1,67 +1,3 @@
-.refined-admin-layout .repair-filter-shell {
-  display: grid;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.refined-admin-layout .repair-search-row {
-  display: grid;
-  grid-template-columns: 18px minmax(220px, 1fr) auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-}
-
-.refined-admin-layout .repair-search-row > svg {
-  width: 17px;
-  color: var(--ink-500);
-}
-
-.refined-admin-layout .repair-search-row label {
-  min-width: 0;
-}
-
-.refined-admin-layout .repair-search-row input {
-  width: 100%;
-  min-height: 36px;
-  border: 0;
-  padding: 0 4px;
-  background: transparent;
-  box-shadow: none;
-}
-
-.refined-admin-layout .repair-search-row input:focus {
-  outline: 0;
-  box-shadow: none;
-}
-
-.refined-admin-layout .repair-date-filters {
-  display: flex;
-  align-items: end;
-  gap: 12px;
-  padding: 12px;
-  border-top: 1px solid var(--line-soft);
-  background: var(--surface-soft);
-}
-
-.refined-admin-layout .repair-date-filters label {
-  display: grid;
-  flex: 0 1 190px;
-  gap: 5px;
-}
-
-.refined-admin-layout .repair-date-filters label > span {
-  color: var(--ink-600);
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.refined-admin-layout .repair-date-filters input {
-  min-height: 36px;
-}
-
 .refined-admin-layout .repair-status-tabs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -267,23 +203,6 @@
   background: transparent;
   color: inherit;
   text-align: left;
-}
-
-.refined-admin-layout .repair-card-main::after {
-  color: var(--blue-700);
-  font-size: 12px;
-  content: "查看详情  ›";
-  opacity: 0;
-  transform: translateX(-5px);
-  transition:
-    opacity 180ms var(--ease-out),
-    transform 180ms var(--ease-out);
-}
-
-.refined-admin-layout .repair-active-card:hover .repair-card-main::after,
-.refined-admin-layout .repair-card-main:focus-visible::after {
-  opacity: 1;
-  transform: translateX(0);
 }
 
 .refined-admin-layout .repair-card-device {
@@ -707,32 +626,6 @@
 }
 
 @media (max-width: 700px) {
-  .refined-admin-layout .repair-search-row {
-    grid-template-columns: 18px minmax(0, 1fr) auto;
-  }
-
-  .refined-admin-layout .repair-search-row > .button.secondary {
-    display: none;
-  }
-
-  .refined-admin-layout .repair-filter-toggle {
-    padding-right: 4px;
-    padding-left: 4px;
-  }
-
-  .refined-admin-layout .repair-date-filters {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .refined-admin-layout .repair-date-filters label {
-    min-width: 0;
-  }
-
-  .refined-admin-layout .repair-date-filters .button {
-    grid-column: 1 / -1;
-  }
-
   .refined-admin-layout .repair-status-tabs button {
     min-height: 56px;
     grid-template-columns: 7px minmax(0, 1fr) auto;
@@ -1134,12 +1027,6 @@
     transform 260ms var(--ease-out),
     background 220ms var(--ease-out),
     color 220ms var(--ease-out);
-}
-
-.refined-admin-layout .repair-ledger-actions .repair-ledger-open {
-  opacity: 1;
-  transform: none;
-  color: #3f718e;
 }
 
 .refined-admin-layout .repair-ledger-row:hover .repair-ledger-actions .icon-button,

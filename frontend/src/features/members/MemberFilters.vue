@@ -75,7 +75,7 @@
           </select>
         </label>
         <button
-          v-if="activeFilters.length"
+          v-if="activeFilters.length && !inline"
           class="button text member-filter-clear"
           type="button"
           @click="clearAll"
@@ -86,7 +86,29 @@
     </Transition>
 
     <div
-      v-if="activeFilters.length"
+      v-if="inline"
+      class="mw-filter-status"
+      :data-pending="filtersPending"
+      :aria-label="filtersPending ? '筛选条件尚未查询' : '已应用的筛选条件'"
+    >
+      <div class="mw-filter-status-items">
+        <span class="mw-filter-status-label">{{ filtersPending ? '待查询' : '当前筛选' }}</span>
+        <span v-if="!activeFilters.length" class="mw-filter-status-empty">全部成员</span>
+        <button
+          v-for="filter in activeFilters"
+          :key="filter.key"
+          class="filter-chip"
+          type="button"
+          :aria-label="`移除筛选：${filter.label}`"
+          @click="clearFilter(filter.key)"
+        >
+          {{ filter.label }}<X aria-hidden="true" />
+        </button>
+      </div>
+      <button class="mw-filter-reset" type="button" :disabled="!activeFilters.length" @click="clearAll">清除</button>
+    </div>
+    <div
+      v-else-if="activeFilters.length"
       class="active-filter-row"
       aria-label="当前筛选条件"
     >
@@ -116,6 +138,7 @@ const props = defineProps<{
   grade: string;
   grades: string[];
   inline?: boolean;
+  appliedFilters?: { keyword: string; role: string; status: string; grade: string };
 }>();
 
 const emit = defineEmits<{
@@ -129,6 +152,12 @@ const emit = defineEmits<{
 type FilterKey = "keyword" | "role" | "status" | "grade";
 
 const filtersOpen = ref(false);
+const filtersPending = computed(() =>
+  Boolean(props.appliedFilters) &&
+  (["keyword", "role", "status", "grade"] as const).some(
+    key => props[key] !== props.appliedFilters?.[key],
+  ),
+);
 const activeFilters = computed(() =>
   [
     props.keyword

@@ -5,11 +5,6 @@
   color: var(--ink-950);
 }
 
-.today-load-error {
-  width: min(100%, 820px);
-  margin: 12px auto 0;
-}
-
 @media (max-width: 760px) {
   .today-command-page {
     min-height: calc(100dvh - var(--topbar-height) - 20px);

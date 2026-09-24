@@ -1,46 +1,83 @@
 <template>
-  <AuthLayout>
+  <AuthLayout :entry-mode="state.access.mode">
     <form ref="formElement" class="auth-form" novalidate @submit.prevent="submit">
       <div class="auth-heading">
         <h2>设置新密码</h2>
-        <p>首次登录需要更换初始密码，完成后会重新登录。</p>
+        <p>首次登录请更新初始密码</p>
       </div>
-      <label class="field"
-        ><span>原密码</span
-        ><input
-          v-model="form.oldPassword"
-          name="oldPassword"
-          type="password"
-          autocomplete="current-password"
-          required
-          maxlength="128"
-          :aria-invalid="Boolean(fieldErrors.oldPassword)"
-      /><small v-if="fieldErrors.oldPassword" class="field-error" role="alert">{{ fieldErrors.oldPassword }}</small></label>
-      <label class="field"
-        ><span>新密码</span
-        ><input
-          v-model="form.newPassword"
-          name="newPassword"
-          type="password"
-          autocomplete="new-password"
-          minlength="6"
-          maxlength="64"
-          required
-          :aria-invalid="Boolean(fieldErrors.newPassword)"
-      /><small v-if="fieldErrors.newPassword" class="field-error" role="alert">{{ fieldErrors.newPassword }}</small></label>
-      <label class="field"
-        ><span>确认新密码</span
-        ><input
-          v-model="confirmation"
-          name="confirmation"
-          type="password"
-          autocomplete="new-password"
-          minlength="6"
-          maxlength="64"
-          required
-          :aria-invalid="Boolean(fieldErrors.confirmation)"
-      /><small v-if="fieldErrors.confirmation" class="field-error" role="alert">{{ fieldErrors.confirmation }}</small></label>
-      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <div class="field">
+        <label for="password-current">原密码</label>
+        <div class="input-with-icon">
+          <LockKeyhole aria-hidden="true" />
+          <input
+            id="password-current"
+            ref="oldPasswordInput"
+            v-model="form.oldPassword"
+            name="oldPassword"
+            :type="showOldPassword ? 'text' : 'password'"
+            autocomplete="current-password"
+            required
+            maxlength="128"
+            placeholder="请输入原密码"
+            :aria-invalid="Boolean(fieldErrors.oldPassword)"
+          />
+          <button class="input-icon-button" type="button" :aria-label="showOldPassword ? '隐藏原密码' : '显示原密码'" @click="showOldPassword = !showOldPassword">
+            <EyeOff v-if="showOldPassword" /><Eye v-else />
+          </button>
+        </div>
+        <small v-if="fieldErrors.oldPassword" class="field-error" role="alert">{{ fieldErrors.oldPassword }}</small>
+        <small v-else class="auth-field-hint">输入当前使用的初始密码</small>
+      </div>
+      <div class="field">
+        <label for="password-new">新密码</label>
+        <div class="input-with-icon">
+          <KeyRound aria-hidden="true" />
+          <input
+            id="password-new"
+            v-model="form.newPassword"
+            name="newPassword"
+            :type="showNewPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            minlength="6"
+            maxlength="64"
+            required
+            placeholder="设置新密码"
+            :aria-invalid="Boolean(fieldErrors.newPassword)"
+          />
+          <button class="input-icon-button" type="button" :aria-label="showNewPassword ? '隐藏新密码' : '显示新密码'" @click="showNewPassword = !showNewPassword">
+            <EyeOff v-if="showNewPassword" /><Eye v-else />
+          </button>
+        </div>
+        <small v-if="fieldErrors.newPassword" class="field-error" role="alert">{{ fieldErrors.newPassword }}</small>
+        <small v-else class="auth-field-hint">长度为 6 至 64 个字符</small>
+      </div>
+      <div class="field">
+        <label for="password-confirmation">确认新密码</label>
+        <div class="input-with-icon">
+          <ShieldCheck aria-hidden="true" />
+          <input
+            id="password-confirmation"
+            v-model="confirmation"
+            name="confirmation"
+            :type="showConfirmation ? 'text' : 'password'"
+            autocomplete="new-password"
+            minlength="6"
+            maxlength="64"
+            required
+            placeholder="再次输入新密码"
+            :aria-invalid="Boolean(fieldErrors.confirmation)"
+          />
+          <button class="input-icon-button" type="button" :aria-label="showConfirmation ? '隐藏确认新密码' : '显示确认新密码'" @click="showConfirmation = !showConfirmation">
+            <EyeOff v-if="showConfirmation" /><Eye v-else />
+          </button>
+        </div>
+        <small v-if="fieldErrors.confirmation" class="field-error" role="alert">{{ fieldErrors.confirmation }}</small>
+        <small v-else class="auth-field-hint">请与新密码保持一致</small>
+      </div>
+      <div class="auth-feedback-slot">
+        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+        <p v-else class="auth-action-hint">更新成功后将退出当前登录</p>
+      </div>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
         <span>{{ busy ? "正在更新" : "更新密码" }}</span>
         <span class="auth-submit-icon" aria-hidden="true">
@@ -53,9 +90,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { nextTick, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { KeyRound, LoaderCircle } from "@lucide/vue";
+import { Eye, EyeOff, KeyRound, LoaderCircle, LockKeyhole, ShieldCheck } from "@lucide/vue";
 import AuthLayout from "../../layouts/AuthLayout.vue";
 import { post, setToken } from "../../shared/api";
 import { useSession } from "../../app/session";
@@ -68,10 +105,18 @@ const router = useRouter();
 const { state } = useSession();
 const form = reactive({ oldPassword: "", newPassword: "" });
 const confirmation = ref("");
+const oldPasswordInput = ref<HTMLInputElement | null>(null);
+const showOldPassword = ref(false);
+const showNewPassword = ref(false);
+const showConfirmation = ref(false);
 const busy = ref(false);
 const error = ref("");
 const formElement = ref<HTMLFormElement | null>(null);
 const fieldErrors = reactive<InputErrors>({});
+onMounted(async () => {
+  await nextTick();
+  oldPasswordInput.value?.focus();
+});
 async function submit() {
   if (busy.value) return;
   error.value = "";
@@ -102,3 +147,5 @@ async function submit() {
   }
 }
 </script>
+
+<style src="../../features/auth/setup-password-presentation.css"></style>

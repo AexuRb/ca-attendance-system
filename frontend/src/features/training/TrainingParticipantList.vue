@@ -1,7 +1,10 @@
 <template>
-  <section class="training-participant-section" aria-labelledby="participant-title">
+  <section class="training-participant-section" aria-labelledby="participant-title" :aria-busy="loading">
     <header class="training-participant-toolbar">
-      <h2 id="participant-title">参与名单</h2>
+      <div class="training-participant-title">
+        <h2 id="participant-title">参与名单</h2>
+        <span v-if="loading && items.length" class="training-list-refresh" role="status">正在更新…</span>
+      </div>
       <div class="training-participant-actions">
         <button
           class="button secondary small"
@@ -39,20 +42,20 @@
     </form>
 
     <div v-if="error" class="training-region-feedback danger" role="alert">
-      <span>{{ error }}</span>
+      <span>{{ error }}{{ items.length ? "；下方仍显示上次结果" : "" }}</span>
       <button class="button text" type="button" @click="$emit('retry')">
         重试
       </button>
     </div>
     <p
-      v-else-if="loading"
+      v-else-if="loading && !items.length"
       class="training-region-feedback"
       aria-live="polite"
     >
       正在加载参与名单…
     </p>
 
-    <template v-else-if="items.length">
+    <template v-if="items.length">
       <div class="training-participant-columns" aria-hidden="true">
         <span></span>
         <span>成员</span>
@@ -104,7 +107,7 @@
       </div>
     </template>
 
-    <div v-else class="training-participant-empty">
+    <div v-else-if="!loading && !error" class="training-participant-empty">
       <UserRoundSearch aria-hidden="true" />
       <strong>{{ keyword ? "没有匹配的参与记录" : "暂无参与记录" }}</strong>
       <span>{{ keyword ? "换个关键词再试试" : "可新增记录或导入名单" }}</span>

@@ -8,6 +8,7 @@
       ref="trigger"
       :class="triggerText ? 'button secondary' : 'icon-button'"
       type="button"
+      :disabled="disabled"
       :aria-label="label"
       :title="label"
       aria-haspopup="menu"
@@ -38,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, nextTick, onBeforeUnmount, ref, type CSSProperties } from "vue";
+import { inject, nextTick, onBeforeUnmount, ref, watch, type CSSProperties } from "vue";
 import { memberPresentationKey } from "./presentation";
 const memberPresentation = inject(memberPresentationKey, false);
 import { ChevronDown, MoreHorizontal } from "@lucide/vue";
@@ -48,10 +49,12 @@ const props = withDefaults(
     label?: string;
     align?: "start" | "end";
     triggerText?: string;
+    disabled?: boolean;
   }>(),
   {
     label: "更多操作",
     align: "end",
+    disabled: false,
   },
 );
 
@@ -70,6 +73,7 @@ function menuItems() {
 }
 
 async function toggle() {
+  if (props.disabled) return;
   if (open.value) {
     close();
     return;
@@ -82,6 +86,10 @@ async function toggle() {
   positionMenu();
   menuItems()[0]?.focus();
 }
+
+watch(() => props.disabled, (disabled) => {
+  if (disabled) close();
+});
 
 function close(restoreFocus = false) {
   if (!open.value) return;

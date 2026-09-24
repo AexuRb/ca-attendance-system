@@ -35,6 +35,14 @@ public class UserController {
         return users.searchPage(keyword, role, status, grade, page, pageSize);
     }
 
+    @GetMapping("/selection")
+    public List<Long> selection(@RequestParam(required = false) String keyword,
+                                @RequestParam(required = false) String role,
+                                @RequestParam(required = false) String status,
+                                @RequestParam(required = false) String grade) {
+        return users.searchSelectableIds(keyword, role, status, grade);
+    }
+
     @GetMapping("/grades")
     public List<String> grades() {
         return users.grades();

@@ -1,0 +1,288 @@
+/* Repair-specific finishing; the shared affairs and training surfaces stay unchanged. */
+html:root[data-appearance] .repair-presentation .repair-card-identity strong,
+html:root[data-appearance] .repair-presentation .repair-card-identity small {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html:root[data-appearance] .repair-presentation .repair-card-identity strong {
+  margin-bottom: 5px;
+  color: var(--mw-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+html:root[data-appearance] .repair-presentation :is(.repair-card-status, .repair-card-meta, .repair-card-view) {
+  display: none;
+}
+
+html:root[data-appearance] .repair-presentation .repair-ledger-row {
+  animation: none;
+}
+
+html:root[data-appearance] .repair-presentation .repair-ledger-row:hover {
+  transform: none;
+}
+
+html:root[data-appearance="editorial"] .repair-presentation .mw-query {
+  grid-row: 1 / 3;
+  align-self: start;
+  margin-top: 50px;
+}
+
+html:root[data-appearance="editorial"] .repair-presentation .mw-heading {
+  grid-row: 2;
+  align-self: start;
+  padding-top: 4px;
+}
+
+html:root[data-appearance="editorial"] .repair-presentation .mw-results {
+  grid-row: 3;
+  margin-top: 0;
+}
+
+html:root[data-appearance] .repair-presentation .repair-query-bar > label {
+  min-width: 0;
+}
+
+html:root[data-appearance] .repair-presentation .repair-query-bar input {
+  width: 100%;
+}
+
+html:root[data-appearance] .repair-presentation :is(.repair-ledger-row, .repair-status-tabs button):focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+
+@media (min-width: 1051px) {
+  html:root[data-appearance="spatial"] .repair-presentation .mw-surface {
+    grid-template-columns: 228px minmax(0, 1fr);
+  }
+
+  html:root[data-appearance="spatial"] .repair-presentation .mw-heading {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    padding-right: 240px;
+  }
+
+  html:root[data-appearance="spatial"] .repair-presentation .mw-tools {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    z-index: 1;
+    border: 0;
+    background: transparent;
+  }
+
+  html:root[data-appearance="spatial"] .repair-presentation .mw-query {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    border-right: 0;
+    border-bottom: 1px solid var(--mw-line);
+  }
+
+  html:root[data-appearance="spatial"] .repair-presentation .mw-results {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+}
+
+@media (max-width: 1000px) {
+  html:root[data-appearance] .repair-presentation .repair-ledger-table {
+    overflow: visible;
+    max-height: none;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    scrollbar-gutter: auto;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-table :is(table, tbody) {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-table thead {
+    display: none;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 10px;
+    border: 1px solid var(--mw-line);
+    border-radius: 8px;
+    padding: 15px 17px 12px;
+    background: var(--mw-paper);
+    box-shadow: 0 2px 6px #283f5208;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row td {
+    display: block;
+    position: static;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    text-align: left;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row .repair-cell-id {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-card-status {
+    display: inline-flex;
+    flex: none;
+    margin-top: 2px;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-cell-device {
+    padding: 13px 0;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-cell-device > strong {
+    display: block;
+    margin: 0 0 2px;
+    overflow: visible;
+    color: var(--mw-ink);
+    font-size: 16px;
+    font-weight: 600;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-cell-device > small {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-cell-contact {
+    border-top: 1px solid var(--mw-line);
+    padding: 10px 0;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-cell-contact::before {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--mw-muted);
+    content: "联系人";
+    font: 500 12px/1.4 var(--mw-font);
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-cell-contact > strong {
+    display: inline;
+    margin: 0 8px 0 0;
+    font-size: 13px;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-phone {
+    display: inline-flex;
+    vertical-align: middle;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 14px;
+    margin-top: 8px;
+    color: var(--mw-muted);
+    font: 12px/1.6 var(--mw-font);
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-card-meta time {
+    display: inline;
+    margin: 0;
+    font: inherit;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-card-meta small {
+    font: inherit;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row :is(.repair-cell-handler, .repair-cell-time, .repair-cell-status, .affairs-record-time, .affairs-record-handler, .affairs-record-status) {
+    display: none;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row .repair-ledger-actions {
+    display: flex;
+    position: static;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    min-width: 0;
+    border-top: 1px solid var(--mw-line);
+    padding-top: 9px;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-card-view {
+    display: inline-flex;
+    align-items: center;
+    margin-right: auto;
+    padding-inline: 5px;
+    color: var(--mw-accent);
+    font-weight: 600;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-actions .icon-button {
+    display: inline-flex;
+    flex: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 700px) {
+  html:root[data-appearance="editorial"] .repair-presentation .mw-query {
+    margin-top: 0;
+  }
+
+  html:root[data-appearance="spatial"] .repair-presentation .mw-surface {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row {
+    padding: 13px 14px 10px;
+  }
+
+}
+
+@media (min-width: 701px) and (max-width: 1000px) {
+  html:root[data-appearance] .repair-presentation .repair-ledger-table tbody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row {
+    margin-bottom: 0;
+  }
+
+  html:root[data-appearance] .repair-presentation .repair-ledger-row:nth-child(odd):last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:root[data-appearance] .repair-presentation .repair-ledger-row,
+  html:root[data-appearance] .repair-presentation .repair-ledger-actions .icon-button {
+    transition-duration: 0.01ms;
+  }
+}

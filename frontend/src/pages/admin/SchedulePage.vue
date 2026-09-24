@@ -3,7 +3,8 @@
     <template #tools>
         <button
           class="button primary"
-          :disabled="loading || actions.isPending('save') || !periods.length"
+          :disabled="loading || Boolean(loadError) || actions.isPending('save') || !periods.length"
+          :title="!periods.length ? '请先在系统设置中添加值班时段' : loadError ? '请先重试加载排班' : '新增固定排班'"
           @click="openFixed(null)"
         >
           <Plus />新增排班
@@ -20,7 +21,7 @@
           <button
             role="menuitem"
             type="button"
-            :disabled="loading"
+            :disabled="loading || Boolean(loadError)"
             @click="importOpen = true"
           >
             <Upload aria-hidden="true" />批量导入
@@ -38,8 +39,8 @@
         </button>
       </template>
 
-    <div v-if="loadError && slots.length" class="inline-alert danger" role="alert">
-      <span>{{ loadError }}</span>
+    <div v-if="loadError && slots.length" class="inline-alert danger schedule-stale-alert" role="alert">
+      <span>{{ loadError }}。当前显示上次加载的排班，刷新成功后可继续编辑。</span>
       <button class="button secondary small" type="button" data-action="retry-schedule" @click="loadBase">
         重试
       </button>
@@ -62,8 +63,10 @@
       :periods="periods"
       :weekdays="weekdays"
       :preferred-weekday="preferredWeekday"
+      :read-only="Boolean(loadError)"
       @edit="openFixed"
       @archive="deleteFixed"
+      @add="(weekday, period) => openFixed(null, weekday, period)"
       @weekday-change="setPreferredWeekday"
     />
 
@@ -139,7 +142,7 @@
           :disabled="actions.isPending('save') || !fixedForm.period || !fixedForm.title.trim()"
           @click="saveFixed"
         >
-          保存
+          {{ actions.isPending('save') ? '正在保存' : '保存' }}
         </button>
       </template>
     </ModalDialog>
@@ -169,6 +172,7 @@ import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../features/members/presentation.css";
 import "../../features/workspaces/presentation.css";
+import "../../features/schedule/presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";

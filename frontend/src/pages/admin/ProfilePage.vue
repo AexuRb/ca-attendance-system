@@ -1,34 +1,41 @@
 <template>
   <RefinedWorkspaceShell class="support-workspace profile-presentation" title="个人资料" description="查看个人信息与时长记录" section-key="people" filter-label="筛选个人资料">
-    <template #tools>
-        <button class="button secondary" @click="passwordOpen = true">
-          <KeyRound />修改密码
-        </button>
-      </template>
     <div v-if="pageError" class="inline-alert danger" role="alert">
       <span>{{ pageError }}</span>
       <button class="button secondary small" type="button" @click="retryFailedLoad">重试</button>
     </div>
 
     <div class="profile-summary">
-      <div class="profile-identity"><span class="avatar profile-avatar">{{ user?.name?.slice(0, 1) }}</span>
-      <div>
-        <h2>{{ user?.name }}</h2>
-        <p>{{ user?.studentNo }} · {{ roleLabel(user?.role) }}</p>
+      <div class="profile-summary-main">
+        <div class="profile-identity">
+          <span class="avatar profile-avatar">{{ user?.name?.slice(0, 1) }}</span>
+          <div>
+            <h2>{{ user?.name }}</h2>
+            <p>{{ user?.studentNo }} · {{ roleLabel(user?.role) }}</p>
+          </div>
+        </div>
+        <button class="button secondary profile-password-action" type="button" @click="passwordOpen = true">
+          <KeyRound />修改密码
+        </button>
       </div>
-      </div><div class="profile-totals"><div class="profile-stat">
-        <strong>{{ number(attendanceHours) }}</strong>
-        <span>值班小时</span>
+      <p class="profile-range-note" aria-live="polite">
+        {{ appliedRange ? `统计范围 ${appliedRange.from} 至 ${appliedRange.to}` : recordsError ? '时长记录读取失败' : '正在读取时长记录' }}<span v-if="recordsLoading && recordsReady"> · 更新中</span><span v-else-if="recordsError && recordsReady"> · 更新失败，显示上次结果</span>
+      </p>
+      <div class="profile-totals">
+        <div class="profile-stat">
+          <strong>{{ recordsReady ? number(attendanceHours) : '—' }}</strong>
+          <span>值班小时</span>
+        </div>
+        <div class="profile-stat">
+          <strong>{{ recordsReady ? number(trainingHours) : '—' }}</strong>
+          <span>培训小时</span>
+        </div>
+        <div class="profile-stat profile-stat-total">
+          <strong>{{ recordsReady ? number(totalHours) : '—' }}</strong>
+          <span>合计小时</span>
+        </div>
       </div>
-      <div class="profile-stat">
-        <strong>{{ number(trainingHours) }}</strong>
-        <span>培训小时</span>
-      </div>
-      <div class="profile-stat">
-        <strong>{{ number(totalHours) }}</strong>
-        <span>合计小时</span>
-      </div>
-    </div></div>
+    </div>
 
     <div class="profile-workspace">
       <section class="panel profile-contact-panel">
@@ -61,11 +68,12 @@
           </label>
           <label class="field">
             <span>年级</span>
-            <input :value="profile.grade || '未设置'" name="grade" readonly />
+            <input :value="profile.grade || '未设置'" name="grade" readonly aria-describedby="profile-grade-note" />
+            <small id="profile-grade-note" class="profile-readonly-note">年级为只读信息</small>
           </label>
           <div class="form-actions">
             <button class="button primary" type="submit" :disabled="busy">
-              <Save />保存资料
+              <Save />{{ busy ? '保存中…' : '保存资料' }}
             </button>
           </div>
         </form>
@@ -76,10 +84,11 @@
           <h2>个人记录</h2>
         </div>
         <div class="profile-record-toolbar">
-          <div class="segmented page-tabs" aria-label="记录类型">
+          <div class="segmented page-tabs" role="group" aria-label="记录类型">
             <button
               type="button"
               :class="{ active: activeRecordTab === 'attendance' }"
+              :aria-pressed="activeRecordTab === 'attendance'"
               @click="activeRecordTab = 'attendance'"
             >
               <CalendarCheck />值班 {{ attendanceRecords.length }}
@@ -87,6 +96,7 @@
             <button
               type="button"
               :class="{ active: activeRecordTab === 'training' }"
+              :aria-pressed="activeRecordTab === 'training'"
               @click="activeRecordTab = 'training'"
             >
               <GraduationCap />培训 {{ trainingRecords.length }}
@@ -101,14 +111,21 @@
               <span>结束日期</span>
               <input v-model="to" name="profileRecordTo" type="date" required />
             </label>
-            <button class="button secondary small" type="submit">
-              <Search />查询
+            <button class="button secondary small" type="submit" :disabled="recordsLoading || Boolean(filterError)">
+              <Search />{{ recordsLoading ? '查询中…' : '查询' }}
             </button>
           </form>
         </div>
         <p v-if="filterError" class="form-error" role="alert">{{ filterError }}</p>
+        <p v-if="rangeChanged || (recordsLoading && recordsReady)" class="profile-record-context" aria-live="polite">
+          {{ rangeChanged ? '日期已修改，查询后生效' : '正在更新记录' }}
+        </p>
+        <div v-if="recordsError" class="inline-alert danger profile-record-error" role="alert">
+          <span>{{ recordsError }}{{ recordsReady ? '；下方保留上次结果。' : '' }}</span>
+          <button class="button secondary small" type="button" @click="loadRecords">重试</button>
+        </div>
 
-        <LoadingBlock v-if="recordsLoading && !activeRecords.length" />
+        <LoadingBlock v-if="recordsLoading && !recordsReady" />
         <EmptyState
           v-else-if="!activeRecords.length && !recordsError"
           :title="
@@ -117,7 +134,7 @@
               : '该时间段暂无培训记录'
           "
         />
-        <div v-else class="profile-record-scroll">
+        <div v-else-if="activeRecords.length" class="profile-record-scroll">
           <table v-if="activeRecordTab === 'attendance'">
             <thead>
               <tr>
@@ -138,7 +155,7 @@
                   {{ clock(record.checkInTime) }}–{{ clock(record.checkOutTime) }}
                 </td>
                 <td>{{ record.durationMinutes || 0 }} 分钟</td>
-                <td>{{ number(record.validHours) }} 小时</td>
+                <td><strong class="profile-valid-hours">{{ number(record.validHours) }}</strong> 小时</td>
                 <td>
                   <StatusBadge
                     :label="
@@ -189,6 +206,40 @@
             </tbody>
           </table>
         </div>
+        <ul
+          v-if="activeRecords.length"
+          class="profile-mobile-records"
+          :aria-label="activeRecordTab === 'attendance' ? '值班记录' : '培训记录'"
+        >
+          <template v-if="activeRecordTab === 'attendance'">
+            <li v-for="record in attendanceRecords" :key="record.id" class="profile-mobile-record">
+              <div class="profile-mobile-record-head">
+                <strong>{{ record.dutyDate }}</strong>
+                <StatusBadge :label="attendanceStatusMeta(record.effectiveStatus).label" :tone="attendanceStatusMeta(record.effectiveStatus).tone" />
+              </div>
+              <p>{{ clock(record.checkInTime) }}–{{ clock(record.checkOutTime) }} <span>· {{ sourceLabel(record.source) }}</span></p>
+              <div class="profile-mobile-record-facts">
+                <span>有效 <strong>{{ number(record.validHours) }} 小时</strong></span>
+                <span>原始 {{ record.durationMinutes || 0 }} 分钟</span>
+              </div>
+              <p v-if="attendanceNote(record)" class="profile-mobile-record-note">{{ attendanceNote(record) }}</p>
+            </li>
+          </template>
+          <template v-else>
+            <li v-for="record in trainingRecords" :key="record.participantId" class="profile-mobile-record">
+              <div class="profile-mobile-record-head">
+                <strong>{{ record.title }}</strong>
+                <span class="profile-mobile-record-hours">{{ number(record.durationHours) }} 小时</span>
+              </div>
+              <p>{{ record.trainingDate }} · {{ shortClock(record.startTime) }}–{{ shortClock(record.endTime) }}</p>
+              <div class="profile-mobile-record-facts">
+                <span>{{ record.location || '地点未填写' }}</span>
+                <span>{{ record.speaker || '主讲人未填写' }}</span>
+              </div>
+              <p v-if="record.remark" class="profile-mobile-record-note">{{ record.remark }}</p>
+            </li>
+          </template>
+        </ul>
       </section>
     </div>
 
@@ -213,6 +264,7 @@ import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../features/members/presentation.css";
 import "../../features/workspaces/presentation.css";
+import "../../features/profile/presentation.css";
 provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
@@ -221,10 +273,10 @@ import ProfilePasswordDialog from "../../features/profile/ProfilePasswordDialog.
 import { useProfileWorkspace } from "../../features/profile/useProfileWorkspace";
 
 const {
-  activeRecordTab, activeRecords, attendanceHours, attendanceNote, attendanceRecords,
+  activeRecordTab, activeRecords, appliedRange, attendanceHours, attendanceNote, attendanceRecords,
   attendanceStatusMeta, busy, captureProfileForm, clock, filterError, from, loadRecords,
-  number, pageError, passwordChanged, passwordOpen, profile, profileErrors, recordsError,
-  recordsLoading, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
+  number, pageError, passwordChanged, passwordOpen, profile, profileErrors, rangeChanged, recordsError,
+  recordsLoading, recordsReady, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
   trainingHours, trainingRecords, user,
 } = useProfileWorkspace();
 </script>

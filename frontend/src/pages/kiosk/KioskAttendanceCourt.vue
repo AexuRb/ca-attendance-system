@@ -20,7 +20,7 @@
             :aria-busy="busy"
             @submit.prevent="$emit('lookup')"
           >
-          <label class="kiosk-query-label" for="member-query">学号或姓名</label>
+            <label class="kiosk-query-label" for="member-query">学号或姓名</label>
             <div class="kiosk-focus-query-row">
               <ScanLine aria-hidden="true" />
               <input
@@ -34,7 +34,7 @@
                 placeholder="输入学号或姓名"
                 @input="onQueryInput"
               />
-              <button type="submit" :disabled="busy || !query">
+              <button type="submit" :disabled="busy || !query" :aria-busy="busy">
                 <template v-if="busy">
                   <LoaderCircle class="spin" aria-hidden="true" />
                   <span class="sr-only">正在查询</span>
@@ -46,10 +46,7 @@
             </div>
           </form>
           <p class="kiosk-focus-hint" :class="{ offline: !online }">
-            <i aria-hidden="true"></i>
-            <span>{{ online ? "本机服务正常" : "连接中断，正在重试" }}</span>
-            <span>·</span>
-            <span>Enter 确认</span>
+            {{ online ? "按 Enter 继续" : "连接中断，请稍后重试" }}
           </p>
           <p v-if="error" class="kiosk-focus-error" role="alert">
             <CircleAlert aria-hidden="true" />
@@ -66,7 +63,13 @@
             <ArrowLeft aria-hidden="true" />重新输入
           </button>
           <h1>选择账号</h1>
-          <div class="kiosk-focus-choice-list">
+          <p class="kiosk-focus-choice-intro">
+            找到 {{ matches.length }} 个账号，请核对学号尾号。
+          </p>
+          <div
+            class="kiosk-focus-choice-list"
+            :class="{ 'is-short-list': matches.length <= 4 }"
+          >
             <button
               v-for="member in matches"
               :key="member.memberToken"
@@ -92,6 +95,10 @@
               <ChevronRight v-else aria-hidden="true" />
             </button>
           </div>
+          <p v-if="matches.length > 4" class="kiosk-focus-choice-scroll">
+            <ChevronDown aria-hidden="true" />
+            滚动查看更多账号
+          </p>
           <p v-if="error" class="kiosk-focus-error" role="alert">
             <CircleAlert aria-hidden="true" />
             <span>{{ error }}</span>
@@ -128,6 +135,7 @@
                 class="kiosk-focus-primary"
                 type="button"
                 :disabled="busy"
+                :aria-busy="busy"
                 @click="$emit('submit')"
               >
                 <LoaderCircle v-if="busy" class="spin" aria-hidden="true" />
@@ -148,7 +156,7 @@
           </div>
           <p class="kiosk-focus-confirm-note">
             <i aria-hidden="true"></i>
-            <span>账号正常</span>
+            <span>请核对姓名与学号尾号</span>
             <span v-if="lookupResult.message">· {{ lookupResult.message }}</span>
           </p>
           <p v-if="error" class="kiosk-focus-error" role="alert">
@@ -190,6 +198,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleAlert,
   LoaderCircle,
@@ -231,7 +240,7 @@ const choiceButtons = ref<HTMLButtonElement[]>([]);
 const confirmButton = ref<HTMLButtonElement>();
 const nextButton = ref<HTMLButtonElement>();
 const pendingAction = computed(() =>
-  props.lookupResult?.action === "CHECK_OUT" ? "待签退" : "待签到",
+  props.lookupResult?.action === "CHECK_OUT" ? "本次签退" : "本次签到",
 );
 
 onMounted(focusCurrentStep);

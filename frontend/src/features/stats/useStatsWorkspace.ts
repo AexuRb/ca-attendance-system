@@ -18,12 +18,18 @@ type StatsPreset = "week" | "month" | "year" | "custom";
 export function useStatsWorkspace() {
   const task = useAsyncTask();
   const request = useLatestRequest();
+  const detailRequest = useLatestRequest();
   const actions = usePendingActions();
   const route = useRoute();
   const router = useRouter();
   const { loading, error: loadError } = request;
   const rows = ref<StatsSummaryRow[]>([]);
   const weeklyDetail = ref<WeeklyStatsDetail>({ days: [], users: [], cells: {} });
+  const loaded = ref(false);
+  const loadedRange = ref({ from: "", to: "" });
+  const selectedMember = ref<StatsSummaryRow | null>(null);
+  const memberDetail = ref<WeeklyStatsDetail | null>(null);
+  const cachedDetail = ref<WeeklyStatsDetail | null>(null);
   const from = ref("");
   const to = ref("");
   const preset = ref<StatsPreset>("week");
@@ -52,6 +58,12 @@ export function useStatsWorkspace() {
   );
   const filterError = computed(() => dateRangeError(from.value, to.value));
   const displayError = computed(() => filterError.value || loadError.value);
+  const rangeDirty = computed(() => loaded.value &&
+    (loadedRange.value.from !== from.value || loadedRange.value.to !== to.value));
+  const exportReady = computed(() =>
+    loaded.value && !loading.value && !loadError.value && !filterError.value &&
+    loadedRange.value.from === from.value && loadedRange.value.to === to.value,
+  );
 
   onMounted(async () => {
     restoreRouteState();
@@ -80,6 +92,11 @@ export function useStatsWorkspace() {
   }
 
   async function load() {
+    closeMemberDetail();
+    cachedDetail.value = null;
+    loaded.value = false;
+    rows.value = [];
+    weeklyDetail.value = { days: [], users: [], cells: {} };
     if (filterError.value) return;
     const snapshot = { from: from.value, to: to.value, preset: preset.value };
     const query = new URLSearchParams({ from: snapshot.from, to: snapshot.to });
@@ -97,24 +114,57 @@ export function useStatsWorkspace() {
     if (!value) return;
     rows.value = value.summary;
     weeklyDetail.value = value.weekly || { days: [], users: [], cells: {} };
+    if (value.weekly) cachedDetail.value = value.weekly;
+    loadedRange.value = { from: snapshot.from, to: snapshot.to };
+    loaded.value = true;
   }
 
   async function loadCustom() {
-    preset.value = "custom";
     if (filterError.value) return;
+    preset.value = "custom";
     await syncRoute("push");
     await load();
   }
 
   async function exportExcel() {
-    if (filterError.value) return;
-    const snapshot = { from: from.value, to: to.value };
+    if (!exportReady.value) return;
+    const snapshot = loadedRange.value;
     await actions.run("export", async () => {
       const blob = await task.run(() =>
         get<Blob>(`/api/stats/export?from=${snapshot.from}&to=${snapshot.to}`),
       );
       if (blob) downloadBlob(blob, `值班统计_${snapshot.from}_${snapshot.to}.xlsx`);
     });
+  }
+
+  async function openMemberDetail(member: StatsSummaryRow) {
+    selectedMember.value = member;
+    memberDetail.value = cachedDetail.value;
+    if (!cachedDetail.value) await fetchMemberDetail();
+  }
+
+  function openMemberById(userId: number) {
+    const member = rows.value.find(item => item.userId === userId);
+    if (member) void openMemberDetail(member);
+  }
+
+  async function fetchMemberDetail() {
+    if (!selectedMember.value) return;
+    const snapshot = { ...loadedRange.value };
+    const query = new URLSearchParams(snapshot);
+    const value = await detailRequest.run(
+      signal => get<WeeklyStatsDetail>(`/api/stats/weekly-detail?${query}`, { signal }),
+      "成员详情加载失败",
+    );
+    if (!value || !selectedMember.value ||
+      snapshot.from !== loadedRange.value.from || snapshot.to !== loadedRange.value.to) return;
+    cachedDetail.value = value;
+    memberDetail.value = value;
+  }
+
+  function closeMemberDetail() {
+    selectedMember.value = null;
+    memberDetail.value = null;
   }
 
   function captureExportButton(element: unknown) {
@@ -183,8 +233,11 @@ export function useStatsWorkspace() {
     actions,
     applyPreset,
     captureExportButton,
+    closeMemberDetail,
     displayError,
+    exportReady,
     exportExcel,
+    fetchMemberDetail,
     filterError,
     from,
     hasData,
@@ -192,11 +245,20 @@ export function useStatsWorkspace() {
     loadCustom,
     loading,
     loadError,
+    memberDetail,
+    memberDetailError: detailRequest.error,
+    memberDetailLoading: detailRequest.loading,
+    loaded,
     number,
+    openMemberById,
+    openMemberDetail,
     preset,
     presets,
+    rangeDirty,
     roleLabel,
     rows,
+    selectedMember,
+    loadedRange,
     to,
     totalAttendance,
     totalHours,

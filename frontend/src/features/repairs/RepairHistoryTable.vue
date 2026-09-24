@@ -56,15 +56,6 @@
               <button
                 class="icon-button ghost"
                 type="button"
-                title="查看详情"
-                :aria-label="`查看 ${item.caseNo} 的详情`"
-                @click.stop="$emit('view', item)"
-              >
-                <PanelRightOpen aria-hidden="true" />
-              </button>
-              <button
-                class="icon-button ghost"
-                type="button"
                 title="查看协议"
                 :aria-label="`查看 ${item.caseNo} 的协议`"
                 @click.stop="$emit('preview', item)"
@@ -101,7 +92,6 @@ import {
   EyeOff,
   FileText,
   LoaderCircle,
-  PanelRightOpen,
 } from "@lucide/vue";
 import { computed } from "vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";

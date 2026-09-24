@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import ReviewStateAction from "./ReviewStateAction.vue";
 
 describe("ReviewStateAction", () => {
-  it("uses a pending status tile as the approval action", async () => {
+  it("keeps pending status separate from explicit approval and rejection", async () => {
     const wrapper = mount(ReviewStateAction, {
       props: {
         label: "签到",
@@ -15,11 +15,14 @@ describe("ReviewStateAction", () => {
     });
 
     expect(wrapper.text()).toContain("待审核");
-    expect(wrapper.attributes("disabled")).toBeUndefined();
-    expect(wrapper.attributes("aria-label")).toContain("点击通过");
+    expect(wrapper.get(".review-state-action__status").text()).toBe("待审核");
+    expect(wrapper.get(".review-state-action__approve").attributes("aria-label")).toBe("通过签到 14:16");
+    expect(wrapper.get(".review-state-action__reject").attributes("aria-label")).toBe("驳回签到 14:16");
 
-    await wrapper.trigger("click");
+    await wrapper.get(".review-state-action__approve").trigger("click");
     expect(wrapper.emitted("approve")).toHaveLength(1);
+    await wrapper.get(".review-state-action__reject").trigger("click");
+    expect(wrapper.emitted("reject")).toHaveLength(1);
   });
 
   it("keeps completed and unsubmitted states read only", () => {
@@ -41,9 +44,9 @@ describe("ReviewStateAction", () => {
     });
 
     expect(approved.text()).toContain("已通过");
-    expect(approved.attributes("disabled")).toBeDefined();
+    expect(approved.find("button").exists()).toBe(false);
     expect(empty.text()).toContain("未提交");
-    expect(empty.attributes("disabled")).toBeDefined();
+    expect(empty.find("button").exists()).toBe(false);
   });
 
   it("exposes the processing state without changing dimensions", () => {
@@ -58,6 +61,7 @@ describe("ReviewStateAction", () => {
 
     expect(wrapper.text()).toContain("处理中");
     expect(wrapper.attributes("aria-busy")).toBe("true");
-    expect(wrapper.attributes("disabled")).toBeDefined();
+    expect(wrapper.get(".review-state-action__approve").attributes("disabled")).toBeDefined();
+    expect(wrapper.get(".review-state-action__reject").attributes("disabled")).toBeDefined();
   });
 });

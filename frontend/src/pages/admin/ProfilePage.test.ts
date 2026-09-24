@@ -89,6 +89,34 @@ describe("ProfilePage request states", () => {
     });
     wrapper.unmount();
   });
+
+  it("keeps the applied range and old records visible when a new query fails", async () => {
+    let recordRequests = 0;
+    mocks.get.mockImplementation((url: string) => {
+      if (url === "/api/auth/me") return Promise.resolve({ phone: "", qq: "", major: "计算机学院", grade: "2026级" });
+      if (url.startsWith("/api/attendance/me")) {
+        recordRequests += 1;
+        return recordRequests === 1
+          ? Promise.resolve([{ id: 1, dutyDate: "2026-09-20", durationMinutes: 120, validHours: 2, effectiveStatus: "VALID" }])
+          : Promise.reject(new Error("记录读取失败"));
+      }
+      return Promise.resolve([]);
+    });
+    const wrapper = mount(ProfilePage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+    expect(wrapper.get(".profile-summary").text()).toContain("2");
+    expect(wrapper.get(".profile-record-scroll tbody tr").text()).toContain("2026-09-20");
+
+    await wrapper.get('input[name="profileRecordFrom"]').setValue("2026-08-01");
+    expect(wrapper.get(".profile-record-context").text()).toContain("日期已修改，查询后生效");
+    await wrapper.get("form.profile-record-filter").trigger("submit");
+    await flushPromises();
+
+    expect(wrapper.get(".profile-record-error").text()).toContain("下方保留上次结果");
+    expect(wrapper.get(".profile-summary").text()).toContain("统计范围");
+    expect(wrapper.get(".profile-record-scroll tbody tr").text()).toContain("2026-09-20");
+    wrapper.unmount();
+  });
 });
 
 vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

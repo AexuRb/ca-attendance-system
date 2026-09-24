@@ -135,6 +135,29 @@ describe("TrainingParticipantList", () => {
     await wrapper.setProps({ loading: false, error: "名单读取失败" });
     expect(wrapper.get('[role="alert"]').text()).toContain("名单读取失败");
   });
+
+  it("retains participant rows during refresh and after a failed refresh", async () => {
+    const wrapper = mount(TrainingParticipantList, {
+      props: {
+        items: [participant(1)],
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        hasMore: false,
+        loading: true,
+        error: "",
+        keyword: "",
+      },
+    });
+
+    expect(wrapper.get(".training-participant-section").attributes("aria-busy")).toBe("true");
+    expect(wrapper.get(".training-participant-row").text()).toContain("参与成员 1");
+    expect(wrapper.text()).toContain("正在更新");
+
+    await wrapper.setProps({ loading: false, error: "名单读取失败" });
+    expect(wrapper.get(".training-participant-row").text()).toContain("参与成员 1");
+    expect(wrapper.get('[role="alert"]').text()).toContain("下方仍显示上次结果");
+  });
 });
 
 describe("TrainingSessionDrawer", () => {

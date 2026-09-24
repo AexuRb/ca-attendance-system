@@ -43,6 +43,10 @@ export function useAttendanceReviewWorkspace() {
   const listRequest = useLatestRequest();
   const actions = usePendingActions();
   const { loading, error: loadError } = listRequest;
+  const actionInProgress = computed(() => actions.pending.size > 0);
+  const interactionLocked = computed(
+    () => loading.value || Boolean(loadError.value) || actionInProgress.value,
+  );
   const rejectTarget = ref<ReviewRecord | null>(null);
   const rejectPart = ref<ReviewPart>("CHECK_IN");
   const rejectReason = ref("");
@@ -110,10 +114,14 @@ export function useAttendanceReviewWorkspace() {
     });
   }
 
-  function openReject(record: ReviewRecord) {
+  function openReject(record: ReviewRecord, part: ReviewPart) {
+    if (
+      interactionLocked.value ||
+      (part === "CHECK_IN" ? record.checkInStatus : record.checkOutStatus) !==
+        "PENDING"
+    ) return;
     rejectTarget.value = record;
-    rejectPart.value =
-      record.checkInStatus === "PENDING" ? "CHECK_IN" : "CHECK_OUT";
+    rejectPart.value = part;
     rejectReason.value = "";
   }
 
@@ -137,17 +145,11 @@ export function useAttendanceReviewWorkspace() {
     return `review:${id}:${part}`;
   }
 
-  function recordActionPending(id: number) {
-    return (
-      actions.isPending(reviewKey(id, "CHECK_IN")) ||
-      actions.isPending(reviewKey(id, "CHECK_OUT"))
-    );
-  }
-
   const clock = (value?: string) => value?.slice(11, 16) || "—";
 
   return {
     actions,
+    actionInProgress,
     bulkApprove,
     bulkConfirmOpen,
     bulkErrors,
@@ -157,11 +159,11 @@ export function useAttendanceReviewWorkspace() {
     load,
     loadError,
     loading,
+    interactionLocked,
     openReject,
     pendingItemCount,
     pendingRecordCount,
     queueTruncated,
-    recordActionPending,
     records,
     rejectPart,
     rejectPending,

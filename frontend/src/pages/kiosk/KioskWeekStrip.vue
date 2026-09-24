@@ -1,6 +1,6 @@
 <template>
   <footer class="kiosk-signal-week">
-    <strong class="kiosk-signal-week-title">本周部长排班</strong>
+    <strong class="kiosk-signal-week-title">本周部长排班 <span>人次</span></strong>
     <div class="kiosk-signal-week-days">
       <article
         v-for="day in weekSchedule"

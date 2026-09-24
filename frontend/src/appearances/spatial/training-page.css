@@ -156,7 +156,7 @@
 :root[data-appearance="spatial"] .training-ribbon-event.active {
   border-color: var(--blue-500);
   background: var(--blue-50);
-  transform: translateY(-2px);
+  transform: none;
 }
 
 :root[data-appearance="spatial"] .training-ribbon-event:not(:disabled):hover time,

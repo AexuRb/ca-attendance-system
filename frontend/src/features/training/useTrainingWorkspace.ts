@@ -56,6 +56,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     from: initial.from,
     to: initial.to,
   });
+  const appliedFilters = reactive<TrainingFilters>(copyFilters(filters));
   const sessions = reactive<TrainingPageState<TrainingSession>>(
     createPageState(SESSION_PAGE_SIZE, initial.sessionPage),
   );
@@ -69,33 +70,35 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   let participantVersion = 0;
   let sessionController: AbortController | null = null;
   let participantController: AbortController | null = null;
+  let retryFilters: TrainingFilters | null = null;
+  let retrySessionPage: number | null = null;
   let disposed = false;
 
   async function initialize() {
     if (disposed) return;
-    await loadDirectoryAndSelection(
+    const loaded = await loadDirectoryAndSelection(
       initial.sessionPage,
       initial.sessionId,
       initial.participantPage,
       true,
     );
-    if (disposed) return;
+    if (disposed || !loaded) return;
     syncQuery();
   }
 
   async function applyFilters() {
     if (disposed || dateRangeError(filters.from, filters.to)) return;
     requestedSessionId = null;
-    await loadDirectoryAndSelection(1, null, 1, true);
-    if (disposed) return;
+    const loaded = await loadDirectoryAndSelection(1, null, 1, true, copyFilters(filters));
+    if (disposed || !loaded) return;
     syncQuery();
   }
 
   async function setSessionPage(page: number) {
     if (disposed) return;
     requestedSessionId = null;
-    await loadDirectoryAndSelection(normalizePage(page), null, 1, true);
-    if (disposed) return;
+    const loaded = await loadDirectoryAndSelection(normalizePage(page), null, 1, true);
+    if (disposed || !loaded) return;
     syncQuery();
   }
 
@@ -123,13 +126,14 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
 
   async function retrySessions() {
     if (disposed) return;
-    await loadDirectoryAndSelection(
-      sessions.page,
+    const loaded = await loadDirectoryAndSelection(
+      retrySessionPage ?? sessions.page,
       selected.value?.id || requestedSessionId,
       participants.page,
       false,
+      retryFilters || appliedFilters,
     );
-    if (disposed) return;
+    if (disposed || !loaded) return;
     syncQuery();
   }
 
@@ -159,13 +163,13 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     firstPage = false,
   ) {
     if (disposed) return;
-    await loadDirectoryAndSelection(
+    const loaded = await loadDirectoryAndSelection(
       firstPage ? 1 : sessions.page,
       preferredSessionId,
       participants.page,
       true,
     );
-    if (disposed) return;
+    if (disposed || !loaded) return;
     syncQuery();
   }
 
@@ -189,19 +193,20 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     });
     participantKeyword.value = restored.participantKeyword;
     requestedSessionId = restored.sessionId;
-    await loadDirectoryAndSelection(
+    const loaded = await loadDirectoryAndSelection(
       restored.sessionPage,
       restored.sessionId,
       restored.participantPage,
       true,
+      copyFilters(filters),
     );
-    if (disposed) return;
+    if (disposed || !loaded) return;
     syncQuery();
   }
 
   function currentQuery() {
     return serializeTrainingWorkspaceQuery({
-      ...filters,
+      ...appliedFilters,
       sessionId: selected.value?.id || requestedSessionId,
       sessionPage: sessions.page,
       participantPage: participants.page,
@@ -214,26 +219,29 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     preferredSessionId: number | null,
     participantPage: number,
     forceParticipantLoad: boolean,
+    requestFilters: TrainingFilters = appliedFilters,
   ) {
     const previousId = selected.value?.id || null;
-    const loaded = await loadSessionPage(page);
-    if (!loaded) return;
+    const loaded = await loadSessionPage(page, requestFilters);
+    if (!loaded) return false;
     const next = chooseSession(preferredSessionId, null);
     const changed = next?.id !== previousId;
     selected.value = next;
     requestedSessionId = next?.id || null;
     if (!next) {
       clearParticipants();
-      return;
+      return true;
     }
     if (changed || forceParticipantLoad) {
       setSelected(next, participantPage);
       await loadParticipantPage(participantPage);
     }
+    return true;
   }
 
-  async function loadSessionPage(page: number): Promise<boolean> {
-    if (disposed || dateRangeError(filters.from, filters.to)) return false;
+  async function loadSessionPage(page: number, requestFilters: TrainingFilters = appliedFilters): Promise<boolean> {
+    const snapshot = copyFilters(requestFilters);
+    if (disposed || dateRangeError(snapshot.from, snapshot.to)) return false;
     sessionController?.abort();
     sessionController = new AbortController();
     const controller = sessionController;
@@ -244,18 +252,23 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
       const result = await options.loadSessions({
         page: normalizePage(page),
         pageSize: sessions.pageSize,
-        filters: copyFilters(filters),
+        filters: snapshot,
         signal: controller.signal,
       });
       if (!isCurrentSession(version, controller)) return false;
       if (!result.items.length && result.page > 1 && result.total > 0) {
-        return loadSessionPage(lastPage(result));
+        return loadSessionPage(lastPage(result), snapshot);
       }
       applyPage(sessions, result);
+      Object.assign(appliedFilters, snapshot);
+      retryFilters = null;
+      retrySessionPage = null;
       return true;
     } catch (cause) {
       if (isCurrentSession(version, controller)) {
         sessions.error = errorMessage(cause, "培训场次加载失败");
+        retryFilters = snapshot;
+        retrySessionPage = normalizePage(page);
       }
       return false;
     } finally {
@@ -375,6 +388,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
 
   return {
     filters,
+    appliedFilters,
     sessions,
     participants,
     participantKeyword,

@@ -54,19 +54,6 @@ export function selectableMemberIds(
     .map((member) => member.id);
 }
 
-export function togglePageSelection(
-  selected: Set<number>,
-  pageIds: number[],
-  checked: boolean,
-): Set<number> {
-  const next = new Set(selected);
-  pageIds.forEach((id) => {
-    if (checked) next.add(id);
-    else next.delete(id);
-  });
-  return next;
-}
-
 export function bulkStatusPayload(
   selected: Set<number>,
   status: MemberStatus,

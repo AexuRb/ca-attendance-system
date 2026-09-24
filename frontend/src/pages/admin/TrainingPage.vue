@@ -5,6 +5,7 @@
           :ref="captureExportButton"
           class="button secondary"
           :disabled="isPending('export-summary') || Boolean(filterError)"
+          title="导出当前已应用筛选的统计"
           @click="exportSummary"
         >
           <Download />{{ isPending('export-summary') ? "正在导出" : "导出统计" }}</button
@@ -25,7 +26,7 @@
         ><input v-model="filters.from" name="trainingFrom" type="date" /></label
       ><label
         ><span>结束日期</span><input v-model="filters.to" name="trainingTo" type="date" /></label
-      ><button class="button secondary" type="submit"><Search />查询</button>
+      ><button class="button secondary training-query-submit" :class="{ 'has-pending-filters': filtersPending }" type="submit"><Search />{{ filtersPending ? "更新结果" : "查询" }}</button>
     </form></template>
     <div v-if="filterError" class="inline-alert danger" role="alert">
       {{ filterError }}
@@ -168,6 +169,7 @@ const {
   sessions,
   participants,
   filterError,
+  filtersPending,
   trainingRangeTitle,
   sessionOpen,
   participantOpen,

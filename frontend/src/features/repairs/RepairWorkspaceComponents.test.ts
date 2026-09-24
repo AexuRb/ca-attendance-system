@@ -128,6 +128,7 @@ describe("repair workspace components", () => {
     expect(activeWrapper.text()).toContain("**** **** 5678");
     expect(activeWrapper.find('[title="编辑"]').exists()).toBe(true);
     expect(activeWrapper.find('[title="移入回收站"]').exists()).toBe(true);
+    expect(activeWrapper.find('[title="查看详情"]').exists()).toBe(false);
     await activeWrapper.get(".repair-ledger-row").trigger("click");
     expect(activeWrapper.emitted("view")?.[0]).toEqual([activeRepair]);
 
@@ -146,6 +147,7 @@ describe("repair workspace components", () => {
     expect(archivedWrapper.text()).toContain("已完成");
     expect(archivedWrapper.find('[title="编辑"]').exists()).toBe(false);
     expect(archivedWrapper.find('[title="移入回收站"]').exists()).toBe(false);
+    expect(archivedWrapper.find('[title="查看详情"]').exists()).toBe(false);
   });
 
   it("opens a history row with the Space key", async () => {

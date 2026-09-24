@@ -21,6 +21,8 @@ export function useProfileWorkspace() {
   const { loading: recordsLoading, error: recordsError } = recordsRequest;
   const attendanceRecords = ref<AttendanceProfileRecord[]>([]);
   const trainingRecords = ref<TrainingProfileRecord[]>([]);
+  const appliedRange = ref<{ from: string; to: string } | null>(null);
+  const recordsReady = ref(false);
   const activeRecordTab = ref<"attendance" | "training">("attendance");
   const passwordOpen = ref(false);
   const from = ref(`${new Date().getFullYear()}-01-01`);
@@ -29,7 +31,8 @@ export function useProfileWorkspace() {
   const profileForm = ref<HTMLFormElement | null>(null);
   const profileErrors = reactive<InputErrors>({});
   const filterError = computed(() => dateRangeError(from.value, to.value));
-  const pageError = computed(() => profileRequest.error.value || recordsError.value);
+  const pageError = computed(() => profileRequest.error.value);
+  const rangeChanged = computed(() => !!appliedRange.value && (from.value !== appliedRange.value.from || to.value !== appliedRange.value.to));
   const activeRecords = computed(() => activeRecordTab.value === "attendance" ? attendanceRecords.value : trainingRecords.value);
   const attendanceHours = computed(() => totalAttendanceHours(attendanceRecords.value));
   const trainingHours = computed(() => trainingRecords.value.reduce((sum, record) => sum + Number(record.durationHours || 0), 0));
@@ -48,7 +51,8 @@ export function useProfileWorkspace() {
 
   async function loadRecords() {
     if (filterError.value) return;
-    const query = new URLSearchParams({ from: from.value, to: to.value });
+    const requestedRange = { from: from.value, to: to.value };
+    const query = new URLSearchParams(requestedRange);
     const value = await recordsRequest.run(
       (signal) => Promise.all([
         get<AttendanceProfileRecord[]>(`/api/attendance/me?${query}`, { signal }),
@@ -56,7 +60,11 @@ export function useProfileWorkspace() {
       ]),
       "个人记录加载失败",
     );
-    if (value) [attendanceRecords.value, trainingRecords.value] = value;
+    if (value) {
+      [attendanceRecords.value, trainingRecords.value] = value;
+      appliedRange.value = requestedRange;
+      recordsReady.value = true;
+    }
   }
 
   async function save() {
@@ -111,10 +119,10 @@ export function useProfileWorkspace() {
   }
 
   return {
-    activeRecordTab, activeRecords, attendanceHours, attendanceNote, attendanceRecords,
+    activeRecordTab, activeRecords, appliedRange, attendanceHours, attendanceNote, attendanceRecords,
     attendanceStatusMeta, busy, captureProfileForm, clock, filterError, from, loadRecords,
-    number, pageError, passwordChanged, passwordOpen, profile, profileErrors, recordsError,
-    recordsLoading, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
+    number, pageError, passwordChanged, passwordOpen, profile, profileErrors, rangeChanged, recordsError,
+    recordsLoading, recordsReady, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
     trainingHours, trainingRecords, user,
   };
 }

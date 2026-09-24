@@ -29,9 +29,8 @@
             :aria-invalid="Boolean(errors.account)"
           />
         </div>
-        <small v-if="errors.account" class="field-error" role="alert">
-          {{ errors.account }}
-        </small>
+        <small v-if="errors.account" class="field-error" role="alert">{{ errors.account }}</small>
+        <small v-else class="auth-field-hint">首位管理员将使用此账号登录</small>
       </div>
       <div class="field">
         <label for="setup-name">姓名</label>
@@ -48,9 +47,8 @@
             :aria-invalid="Boolean(errors.name)"
           />
         </div>
-        <small v-if="errors.name" class="field-error" role="alert">
-          {{ errors.name }}
-        </small>
+        <small v-if="errors.name" class="field-error" role="alert">{{ errors.name }}</small>
+        <small v-else class="auth-field-hint">后台将显示这个姓名</small>
       </div>
       <div class="field">
         <label for="setup-password">初始密码</label>
@@ -77,9 +75,8 @@
             <EyeOff v-if="showPassword" /><Eye v-else />
           </button>
         </div>
-        <small v-if="errors.password" class="field-error" role="alert">
-          {{ errors.password }}
-        </small>
+        <small v-if="errors.password" class="field-error" role="alert">{{ errors.password }}</small>
+        <small v-else class="auth-field-hint">长度为 6 至 64 个字符</small>
       </div>
       <div class="field">
         <label for="setup-confirmation">确认密码</label>
@@ -106,11 +103,13 @@
             <EyeOff v-if="showConfirmation" /><Eye v-else />
           </button>
         </div>
-        <small v-if="errors.confirmation" class="field-error" role="alert">
-          {{ errors.confirmation }}
-        </small>
+        <small v-if="errors.confirmation" class="field-error" role="alert">{{ errors.confirmation }}</small>
+        <small v-else class="auth-field-hint">请与初始密码保持一致</small>
       </div>
-      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <div class="auth-feedback-slot">
+        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+        <p v-else class="auth-action-hint">请妥善保存首位管理员的登录信息</p>
+      </div>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
         <span>{{ busy ? "正在初始化" : "创建本地系统" }}</span>
         <span class="auth-submit-icon" aria-hidden="true">
@@ -171,7 +170,7 @@ async function submit() {
   const nextErrors: InputErrors = Object.fromEntries(
     Object.entries(memberErrors).map(([key, message]) => [
       key === "studentNo" ? "account" : key,
-      message,
+      key === "studentNo" ? message.replace(/^学号必须/, "管理员账号须") : message,
     ]),
   );
   const passwordError = validatePassword(form.password);
@@ -197,3 +196,5 @@ async function submit() {
   }
 }
 </script>
+
+<style src="../../features/auth/setup-password-presentation.css"></style>

@@ -22,7 +22,7 @@ html:root[data-appearance] .schedule-presentation .schedule-focus-days { display
 html:root[data-appearance] .schedule-presentation .schedule-focus-day { display:flex; align-items:center; justify-content:space-between; gap:12px; flex:1; min-width:112px; padding:10px 14px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--mw-muted); text-align:left; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-day.active { background:var(--mw-paper); color:var(--mw-accent); border-color:var(--mw-line); box-shadow:0 1px 3px #2436480c; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-day strong { font-size:13px; font-weight:500; }
-html:root[data-appearance] .schedule-presentation .schedule-focus-day small { display:block; font-size:10px; margin-top:4px; }
+html:root[data-appearance] .schedule-presentation .schedule-focus-day small { display:block; font-size:12px; margin-top:4px; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-day b { font-size:12px; font-weight:500; background:var(--mw-paper); padding:3px 7px; border-radius:4px; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-workspace { display:flex; flex-direction:column; gap:0; min-width:0; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-main { min-width:0; padding:24px; border:0; background:transparent; box-shadow:none; }
@@ -32,12 +32,12 @@ html:root[data-appearance] .schedule-presentation .schedule-focus-timeline { dis
 html:root[data-appearance] .schedule-presentation .schedule-focus-period { display:grid; grid-template-columns:120px minmax(0,1fr); gap:20px; padding:18px 0; border-top:1px solid var(--mw-line); }
 html:root[data-appearance] .schedule-presentation .schedule-focus-time { padding:5px 0; border:0; background:transparent; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-time strong { font-size:24px; font-weight:500; font-variant-numeric:tabular-nums; letter-spacing:-.035em; }
-html:root[data-appearance] .schedule-presentation .schedule-focus-time span { display:block; margin-top:5px; font-size:11px; color:var(--mw-muted); }
+html:root[data-appearance] .schedule-presentation .schedule-focus-time span { display:block; margin-top:5px; font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .schedule-presentation .schedule-slot-card { padding:16px; border:1px solid var(--mw-line); border-radius:7px; background:var(--mw-control); box-shadow:none; }
 html:root[data-appearance] .schedule-presentation .schedule-slot-top { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 html:root[data-appearance] .schedule-presentation .schedule-slot-heading { display:flex; align-items:center; gap:8px; }
-html:root[data-appearance] .schedule-presentation .schedule-slot-heading strong { font-size:13px; font-weight:500; }
-html:root[data-appearance] .schedule-presentation .schedule-slot-heading small { font-size:11px; color:var(--mw-muted); }
+html:root[data-appearance] .schedule-presentation .schedule-slot-heading strong { font-size:14px; font-weight:500; }
+html:root[data-appearance] .schedule-presentation .schedule-slot-heading small { font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .schedule-presentation .schedule-card-actions { display:flex; gap:6px; }
 html:root[data-appearance] .schedule-presentation .schedule-assignee-preview { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
 html:root[data-appearance] .schedule-presentation .schedule-assignee-item { display:flex; align-items:center; gap:6px; padding:4px 8px; border-radius:4px; background:var(--mw-soft); }
@@ -46,12 +46,12 @@ html:root[data-appearance] .schedule-presentation .schedule-assignee-initial { d
 html:root[data-appearance] .schedule-presentation .schedule-slot-meta { margin:10px 0 0; font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .schedule-presentation .schedule-focus-empty { min-height:72px; display:flex; flex-direction:column; justify-content:center; gap:5px; padding:16px; background:var(--mw-soft); border:0; border-radius:7px; color:var(--mw-muted); font-size:12px; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-empty strong { font-weight:400; }
-html:root[data-appearance] .schedule-presentation .schedule-focus-empty span { font-size:11px; }
+html:root[data-appearance] .schedule-presentation .schedule-focus-empty span { font-size:12px; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-summary { display:grid; grid-template-columns:1fr 1fr; gap:24px; order:-1; padding:18px 24px; border-bottom:1px solid var(--mw-line); background:var(--mw-soft); }
 html:root[data-appearance] .schedule-presentation .schedule-focus-panel { padding:0; border:0; background:transparent; box-shadow:none; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-stats { display:flex; flex-wrap:wrap; gap:20px; margin:12px 0 0; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-stats div { display:grid; gap:4px; }
-html:root[data-appearance] .schedule-presentation .schedule-focus-stats dt { font-size:11px; color:var(--mw-muted); }
+html:root[data-appearance] .schedule-presentation .schedule-focus-stats dt { font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .schedule-presentation .schedule-focus-stats dd { margin:0; font-size:17px; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-periods { display:flex; flex-wrap:wrap; gap:20px; margin-top:12px; font-size:12px; }
 html:root[data-appearance] .schedule-presentation .schedule-focus-periods div { display:grid; gap:5px; }
@@ -61,40 +61,25 @@ html:root[data-appearance] .stats-presentation .stats-metrics { display:grid; gr
 html:root[data-appearance] .stats-presentation .stats-metrics article { padding:22px 24px; display:grid; grid-template-columns:auto 1fr; align-items:baseline; gap:8px; border:0; border-right:1px solid var(--mw-line); border-radius:0; background:transparent; box-shadow:none; }
 html:root[data-appearance] .stats-presentation .stats-metrics article span { grid-column:1/-1; font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .stats-presentation .stats-metrics strong { font:500 29px/1.3 var(--mw-font); font-variant-numeric:tabular-nums; letter-spacing:-.04em; }
-html:root[data-appearance] .stats-presentation .stats-metrics small { font-size:11px; color:var(--mw-muted); }
-html:root[data-appearance] .stats-presentation .weekly-stats-legend { padding:18px 24px; display:flex; flex-wrap:wrap; gap:16px; font-size:11px; color:var(--mw-muted); }
+html:root[data-appearance] .stats-presentation .stats-metrics small { font-size:12px; color:var(--mw-muted); }
+html:root[data-appearance] .stats-presentation .weekly-stats-legend { padding:18px 24px; display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .stats-presentation .weekly-stats-table table { min-width:900px; }
 html:root[data-appearance] .stats-presentation .stats-ranking-table table { min-width:800px; }
 html:root[data-appearance] .stats-presentation .weekly-member-column { min-width:175px; }
 html:root[data-appearance] .stats-presentation .weekly-hours-cell span { display:inline-block; min-width:28px; padding:5px; border-radius:4px; font-variant-numeric:tabular-nums; }
 html:root[data-appearance] .stats-presentation .weekly-hours-cell span.active { background:var(--mw-soft); color:var(--mw-accent); }
-/* Profile information is directly editable; no additional view/edit step. */
-html:root[data-appearance] .profile-presentation .profile-summary { display:grid; grid-template-columns:52px minmax(160px,1fr) repeat(3,minmax(90px,.4fr)); align-items:center; gap:16px; padding:24px; border-bottom:1px solid var(--mw-line); background:var(--mw-soft); }
-html:root[data-appearance] .profile-presentation .profile-avatar { display:grid; place-items:center; width:48px; height:48px; border:1px solid var(--mw-line); border-radius:12px; background:var(--mw-paper); color:var(--mw-muted); font-size:21px; }
-html:root[data-appearance] .profile-presentation .profile-summary p { font-size:12px; color:var(--mw-muted); margin:6px 0 0; }
-html:root[data-appearance] .profile-presentation .profile-stat { display:grid; gap:5px; border-left:1px solid var(--mw-line); padding-left:20px; }
-html:root[data-appearance] .profile-presentation .profile-stat strong { font-size:26px; font-weight:500; font-variant-numeric:tabular-nums; }
-html:root[data-appearance] .profile-presentation .profile-stat span { color:var(--mw-muted); font-size:11px; }
-html:root[data-appearance] .profile-presentation .profile-workspace { display:grid; grid-template-columns:280px minmax(0,1fr); gap:0; }
-html:root[data-appearance] .profile-presentation .panel { min-width:0; margin:0; padding:24px; border:0; border-radius:0; box-shadow:none; background:transparent; }
-html:root[data-appearance] .profile-presentation .profile-contact-panel { border-right:1px solid var(--mw-line); }
-html:root[data-appearance] .profile-presentation .form-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:18px; margin:20px 0 0; }
-html:root[data-appearance] .profile-presentation .form-grid .field { gap:7px; font-size:12px; }
-html:root[data-appearance] .profile-presentation .profile-record-toolbar { display:grid; gap:14px; margin:18px 0; }
-html:root[data-appearance] .profile-presentation .profile-record-filter { display:flex; flex-wrap:wrap; align-items:end; gap:10px; }
-html:root[data-appearance] .profile-presentation .profile-record-scroll table { min-width:640px; }
 /* Audit rows expose action, identity, reason, and detail without a disclosure step. */
 html:root[data-appearance] .logs-presentation .audit-records { padding:0; }
 html:root[data-appearance] .logs-presentation :is(.audit-record-head,.audit-records>article) { display:grid; grid-template-columns:110px minmax(150px,1fr) 105px minmax(160px,1.2fr) 36px; align-items:center; gap:18px; padding:16px 24px; border-bottom:1px solid var(--mw-line); }
-html:root[data-appearance] .logs-presentation .audit-record-head { background:var(--mw-soft); color:var(--mw-muted); font-size:11px; }
-html:root[data-appearance] .logs-presentation .log-time { display:flex; flex-direction:column; gap:5px; color:var(--mw-muted); font-size:11px; }
+html:root[data-appearance] .logs-presentation .audit-record-head { background:var(--mw-soft); color:var(--mw-muted); font-size:12px; }
+html:root[data-appearance] .logs-presentation .log-time { display:flex; flex-direction:column; gap:5px; color:var(--mw-muted); font-size:12px; }
 html:root[data-appearance] .logs-presentation .log-time strong { font-size:13px; font-weight:500; color:var(--mw-ink); }
 html:root[data-appearance] .logs-presentation .audit-identity { display:grid; gap:4px; overflow-wrap:anywhere; font-size:12px; }
 html:root[data-appearance] .logs-presentation .audit-identity strong { font-size:13px; font-weight:500; }
-html:root[data-appearance] .logs-presentation .audit-identity small { font-size:11px; color:var(--mw-muted); }
+html:root[data-appearance] .logs-presentation .audit-identity small { font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .logs-presentation .audit-reason { margin:0; font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
 /* Editorial: an index beside the working document, with section-level asymmetry. */
-html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation) .mw-results { grid-column:2; grid-row:2/4; padding-top:16px; background:transparent; }
+html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation):not(.schedule-presentation) .mw-results { grid-column:2; grid-row:2/4; padding-top:16px; background:transparent; }
 html:root[data-appearance="editorial"] .schedule-presentation .schedule-focus-board { grid-template-columns:125px minmax(0,1fr); gap:24px; }
 html:root[data-appearance="editorial"] .schedule-presentation .schedule-focus-days { flex-direction:column; align-self:start; padding:4px; border:1px solid var(--mw-line); border-radius:8px; }
 html:root[data-appearance="editorial"] .schedule-presentation .schedule-focus-day { min-width:0; padding:12px 8px; }
@@ -105,15 +90,7 @@ html:root[data-appearance="editorial"] .stats-presentation .mw-results { display
 html:root[data-appearance="editorial"] .stats-presentation .stats-metrics { display:flex; flex-direction:column; border:0; background:var(--mw-soft); align-self:start; }
 html:root[data-appearance="editorial"] .stats-presentation .stats-metrics article { border:0; border-bottom:1px solid var(--mw-line); padding:20px; }
 html:root[data-appearance="editorial"] .stats-presentation .stats-results { min-width:0; }
-html:root[data-appearance="editorial"] .profile-presentation .profile-summary { grid-template-columns:48px 1fr; background:transparent; padding:8px 0 20px; }
-html:root[data-appearance="editorial"] .profile-presentation .profile-stat { grid-row:2; grid-column:auto; padding:12px 0; border:0; }
-html:root[data-appearance="editorial"] .profile-presentation .profile-summary { grid-template-columns:repeat(3,minmax(0,1fr)); }
-html:root[data-appearance="editorial"] .profile-presentation .profile-summary>div:first-of-type { grid-column:2/4; }
-html:root[data-appearance="editorial"] .profile-presentation .profile-workspace { grid-template-columns:minmax(0,1fr); }
-html:root[data-appearance="editorial"] .profile-presentation .panel { padding:22px 0; }
-html:root[data-appearance="editorial"] .profile-presentation .profile-contact-panel { display:grid; grid-template-columns:140px minmax(0,1fr); gap:20px; border-right:0; border-bottom:1px solid var(--mw-line); }
-html:root[data-appearance="editorial"] .profile-presentation .form-grid { margin:0; grid-template-columns:repeat(2,minmax(0,1fr)); }
-html:root[data-appearance="editorial"] .logs-presentation .audit-record-head { display:none; }
+html:root[data-appearance="editorial"] .logs-presentation .audit-records>.audit-record-head { display:none; }
 html:root[data-appearance="editorial"] .logs-presentation .audit-records>article { grid-template-columns:120px minmax(0,1fr) 120px 36px; gap:10px 24px; padding:22px 4px; }
 html:root[data-appearance="editorial"] .logs-presentation .log-time { grid-column:1; grid-row:1/3; align-self:start; }
 html:root[data-appearance="editorial"] .logs-presentation .audit-reason { grid-column:2/4; grid-row:2; }
@@ -126,21 +103,12 @@ html:root[data-appearance="spatial"] .stats-presentation .workspace-metric-hours
 html:root[data-appearance="spatial"] .schedule-presentation .schedule-focus-workspace { display:grid; grid-template-columns:minmax(0,1fr) 235px; }
 html:root[data-appearance="spatial"] .schedule-presentation .schedule-focus-summary { order:0; display:flex; flex-direction:column; border:0; border-left:1px solid var(--mw-line); padding:24px; }
 html:root[data-appearance="spatial"] .schedule-presentation .schedule-focus-stats { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-html:root[data-appearance="spatial"] .profile-presentation .mw-results { display:grid; grid-template-columns:235px minmax(0,1fr); }
-html:root[data-appearance="spatial"] .profile-presentation .profile-summary { display:flex; flex-direction:column; align-items:start; justify-content:start; gap:20px; padding:24px; border:0; border-right:1px solid var(--mw-line); }
-html:root[data-appearance="spatial"] .profile-presentation .profile-stat { width:100%; padding:16px 0 0; border:0; border-top:1px solid var(--mw-line); }
-html:root[data-appearance="spatial"] .profile-presentation .profile-workspace { grid-template-columns:minmax(0,1fr); }
-html:root[data-appearance="spatial"] .profile-presentation .profile-contact-panel { border:0; border-bottom:1px solid var(--mw-line); }
-html:root[data-appearance="spatial"] .profile-presentation .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 html:root[data-appearance="spatial"] .logs-presentation .filter-bar { flex-direction:column; align-items:stretch; }
 html:root[data-appearance="spatial"] .logs-presentation .filter-bar label { flex:auto; }
 html:root[data-appearance="spatial"] .logs-presentation .log-time { flex-direction:column-reverse; }
 @media(max-width:1100px) {
- html:root[data-appearance] .profile-presentation .profile-workspace { grid-template-columns:minmax(0,1fr); }
- html:root[data-appearance] .profile-presentation .profile-contact-panel { border-right:0; border-bottom:1px solid var(--mw-line); }
- html:root[data-appearance] .profile-presentation .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
  html:root[data-appearance] .logs-presentation :is(.audit-record-head,.audit-records>article) { grid-template-columns:85px minmax(120px,1fr) 90px minmax(110px,1fr) 34px; gap:10px; padding:14px; }
- html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation) .mw-results { grid-column:1/-1; grid-row:3; }
+ html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation):not(.schedule-presentation) .mw-results { grid-column:1/-1; grid-row:3; }
  html:root[data-appearance="editorial"] .logs-presentation .audit-records>article { grid-template-columns:85px minmax(0,1fr) 100px 34px; }
 }
 @media(max-width:800px) {
@@ -150,12 +118,7 @@ html:root[data-appearance="spatial"] .logs-presentation .log-time { flex-directi
  html:root[data-appearance="editorial"] .stats-presentation .stats-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
  html:root[data-appearance] .schedule-presentation .schedule-focus-workspace { display:flex; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-summary { order:1; display:grid; grid-template-columns:1fr 1fr; border:0; border-top:1px solid var(--mw-line); }
- html:root[data-appearance] .profile-presentation .profile-summary { grid-template-columns:48px 1fr; }
- html:root[data-appearance] .profile-presentation .profile-summary .profile-stat { border:0; padding:8px 0; }
- html:root[data-appearance="spatial"] .profile-presentation .mw-results { display:block; }
- html:root[data-appearance="spatial"] .profile-presentation .profile-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
- html:root[data-appearance="spatial"] .profile-presentation .profile-summary>div:first-of-type { grid-column:2/4; }
- html:root[data-appearance] .logs-presentation .audit-record-head { display:none; }
+ html:root[data-appearance] .logs-presentation .audit-records>.audit-record-head { display:none; }
  html:root[data-appearance] .logs-presentation .audit-records>article { grid-template-columns:85px minmax(0,1fr) 34px; gap:10px; }
  html:root[data-appearance] .logs-presentation .log-time { grid-column:1; grid-row:1/4; align-self:start; }
  html:root[data-appearance] .logs-presentation .audit-identity { grid-column:2; }
@@ -169,19 +132,12 @@ html:root[data-appearance="spatial"] .logs-presentation .log-time { flex-directi
  html:root[data-appearance] .stats-presentation .stats-metrics { margin:0; grid-template-columns:repeat(2,minmax(0,1fr)); border-radius:0; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-board { display:block; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-days { flex-direction:row; padding:8px; }
- html:root[data-appearance] .schedule-presentation .schedule-focus-day { min-width:104px; }
+ html:root[data-appearance] .schedule-presentation .schedule-focus-day { min-width:128px; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-main { padding:18px 14px; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-period { grid-template-columns:minmax(0,1fr); gap:10px; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-time { display:flex; align-items:baseline; gap:10px; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-time strong { font-size:21px; }
  html:root[data-appearance] .schedule-presentation .schedule-focus-summary { padding:18px 14px; grid-template-columns:minmax(0,1fr); }
- html:root[data-appearance] .profile-presentation .profile-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding:18px; }
- html:root[data-appearance] .profile-presentation .profile-summary>div:first-of-type { grid-column:2/4; }
- html:root[data-appearance] .profile-presentation .profile-summary .profile-stat { grid-row:2; width:auto; }
- html:root[data-appearance] .profile-presentation .panel { padding:18px; }
- html:root[data-appearance] .profile-presentation .profile-contact-panel { display:block; }
- html:root[data-appearance] .profile-presentation .form-grid { margin-top:18px; grid-template-columns:minmax(0,1fr); }
- html:root[data-appearance] .profile-presentation .profile-record-filter label { flex-basis:100%; }
 }
 @media(prefers-reduced-motion:reduce) { html:root[data-appearance] .support-workspace .segmented button { transition:none; } }
 /* Remove legacy sizing and decorative rules that survive outside AdminLayout. */
@@ -201,30 +157,15 @@ html:root[data-appearance] .support-workspace .filter-bar label>span { font-weig
 html:root[data-appearance] .stats-presentation .stats-metrics article { background:transparent; color:var(--mw-ink); }
 html:root[data-appearance] .stats-presentation .weekly-stats-workspace { border:0; border-radius:0; box-shadow:none; background:transparent; }
 html:root[data-appearance] .stats-presentation th strong { font-weight:500; }
-html:root[data-appearance] .stats-presentation th small { display:block; margin-top:4px; font-size:10px; }
+html:root[data-appearance] .stats-presentation th small { display:block; margin-top:4px; font-size:12px; }
 html:root[data-appearance] .logs-presentation .log-time strong { font-family:var(--mw-font); }
-html:root[data-appearance] .logs-presentation .status-badge { font-size:11px; font-weight:500; }
+html:root[data-appearance] .logs-presentation .status-badge { font-size:12px; font-weight:500; }
 @media(min-width:1101px) {
- html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation) .mw-results { grid-row:1/4; margin-top:52px; }
- html:root[data-appearance="editorial"] .profile-presentation .profile-summary { grid-template-columns:64px 1fr 1fr; }
- html:root[data-appearance="editorial"] .profile-presentation .profile-summary .profile-stat { padding-right:10px; }
+ html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation):not(.schedule-presentation):not(.profile-presentation) .mw-results { grid-row:1/4; margin-top:52px; }
 }
 @media(min-width:701px) {
  html:root[data-appearance="spatial"] .stats-presentation .mw-tools { grid-row:2; align-self:center; border:0; padding-right:32px; }
  html:root[data-appearance="spatial"] .stats-presentation .mw-heading { padding-right:190px; }
-}
-html:root[data-appearance] .profile-presentation .profile-summary { grid-template-columns:minmax(200px,1fr) minmax(320px,1.5fr); }
-html:root[data-appearance] .profile-presentation .profile-identity { display:flex; align-items:center; gap:16px; grid-column:auto !important; }
-html:root[data-appearance] .profile-presentation .profile-totals { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
-html:root[data-appearance] .profile-presentation .profile-summary .profile-stat { grid-row:auto; }
-html:root[data-appearance="editorial"] .profile-presentation .profile-summary { display:flex; flex-direction:column; align-items:stretch; gap:22px; }
-html:root[data-appearance="editorial"] .profile-presentation .profile-totals { padding:16px; background:var(--mw-soft); }
-html:root[data-appearance="spatial"] .profile-presentation .profile-totals { width:100%; grid-template-columns:minmax(0,1fr); }
-html:root[data-appearance="spatial"] .profile-presentation .profile-identity { flex-direction:column; align-items:start; }
-@media(max-width:800px) {
- html:root[data-appearance] .profile-presentation .profile-summary { display:flex; flex-direction:column; align-items:stretch; }
- html:root[data-appearance] .profile-presentation .profile-totals { grid-template-columns:repeat(3,minmax(0,1fr)); }
- html:root[data-appearance] .profile-presentation .profile-identity { flex-direction:row; align-items:center; }
 }
 html:root[data-appearance] .stats-presentation .stats-metrics article::before { content:none; }
 html:root[data-appearance] .stats-presentation .stats-metrics strong { color:var(--mw-ink); }
@@ -235,8 +176,8 @@ html:root[data-appearance="editorial"] .stats-presentation .mw-results>.inline-a
 html:root[data-appearance] .schedule-presentation .schedule-focus-day.active :is(strong,small,b) { color:var(--mw-accent); }
 html:root[data-appearance] .mw-modal:has([name="scheduleTitle"]) .schedule-visibility-field { align-items:start; text-align:left; }
 html:root[data-appearance] .mw-modal:has([name="scheduleTitle"]) .schedule-visibility-toggle { justify-self:start; }
-html:root[data-appearance] .mw-modal:has([name="scheduleTitle"]) .schedule-visibility-field>small { text-align:left; font-size:11px; line-height:1.7; }
-html:root[data-appearance] .mw-modal .audit-detail-surface dt { font-size:11px; color:var(--mw-muted); }
+html:root[data-appearance] .mw-modal:has([name="scheduleTitle"]) .schedule-visibility-field>small { text-align:left; font-size:12px; line-height:1.7; }
+html:root[data-appearance] .mw-modal .audit-detail-surface dt { font-size:12px; color:var(--mw-muted); }
 html:root[data-appearance] .mw-modal .audit-detail-surface dd { font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
 html:root[data-appearance] .mw-modal .audit-diff-table { font-size:12px; }
 @media(min-width:801px) {
@@ -247,4 +188,17 @@ html:root[data-appearance] .mw-modal .audit-diff-table { font-size:12px; }
  html:root[data-appearance="classic"] .logs-presentation .audit-records .status-badge { grid-column:2; grid-row:1; }
  html:root[data-appearance="classic"] .logs-presentation .audit-identity { grid-template-columns:1fr 1fr; align-items:baseline; gap:4px 12px; }
  html:root[data-appearance="classic"] .logs-presentation .audit-identity small { grid-column:1; }
+}
+
+/* Schedule and statistics typography stays readable across desktop workspaces. */
+html:root[data-appearance] .schedule-presentation h2 { font-size:18px; }
+html:root[data-appearance] .schedule-presentation .schedule-card-actions { flex-shrink:0; }
+html:root[data-appearance] .schedule-presentation .schedule-slot-meta { overflow-wrap:anywhere; }
+html:root[data-appearance] .stats-presentation :is(th,td small) { font-size:12px; }
+html:root[data-appearance] .stats-presentation .stats-ranking-table td:not(:nth-child(2)),
+html:root[data-appearance] .stats-presentation .weekly-stats-table td:not(:first-child) { white-space:nowrap; font-variant-numeric:tabular-nums; }
+html:root[data-appearance] .schedule-presentation .schedule-focus-day :is(strong,small,b) { white-space:nowrap; }
+
+@media(max-width:600px) {
+ html:root[data-appearance] .mw-modal .audit-detail-surface dl { grid-template-columns:minmax(0,1fr); }
 }

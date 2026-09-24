@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 
-type Appearance = "EDITORIAL" | "SPATIAL";
+type Appearance = "CLASSIC" | "EDITORIAL" | "SPATIAL";
 
 function json(route: Route, body: unknown) {
   return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
@@ -52,7 +52,7 @@ async function hasDocumentOverflow(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
 }
 
-for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
+for (const appearance of ["CLASSIC", "EDITORIAL", "SPATIAL"] as Appearance[]) {
   test(`${appearance} keeps weekly statistics and rankings usable across widths`, async ({ page }) => {
     await installMocks(page, appearance);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -61,18 +61,62 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     await expect(page.locator("html")).toHaveAttribute("data-appearance", appearance.toLowerCase());
     await expect(page.getByRole("heading", { name: "值班统计" })).toBeVisible();
     await expect(page.locator(".stats-metrics strong")).toHaveText(["14", "257.9", "93", "13"]);
-    await expect(page.locator(".weekly-stats-table tbody tr")).toHaveCount(14);
+    await expect(page.locator(".weekly-stats-mobile-record")).toHaveCount(14);
+    await expect(page.locator(".weekly-stats-mobile-record__total").first()).toContainText("22");
+    await page.locator(".weekly-stats-mobile-record summary").first().click();
+    await expect(page.locator(".weekly-stats-mobile-record__days").first().locator("dt")).toHaveCount(7);
+    await expect(page.locator(".weekly-stats-mobile-record__hide-label").first()).toBeVisible();
+    await page.locator(".weekly-stats-mobile-record__detail").first().click();
+    await expect(page.getByRole("dialog", { name: /统计详情/ })).toBeVisible();
+    await page.getByRole("button", { name: "关闭" }).click();
     expect(await hasDocumentOverflow(page)).toBe(false);
-    expect(await page.locator(".weekly-stats-table").evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
 
     await page.setViewportSize({ width: 960, height: 600 });
     await page.waitForTimeout(400);
     expect(await hasDocumentOverflow(page)).toBe(false);
 
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(page.locator(".weekly-stats-table")).toBeVisible();
+    await page.locator(".weekly-stats-table .stats-detail-trigger").first().click();
+    await expect(page.getByRole("dialog", { name: /统计详情/ })).toBeVisible();
+    await expect(page.locator(".stats-detail-days li")).not.toHaveCount(0);
+    await page.getByRole("button", { name: "关闭" }).click();
+
     await page.getByRole("button", { name: "本月" }).click();
     await expect(page.getByRole("button", { name: "本月" })).toHaveClass(/active/);
     await expect(page.locator(".stats-ranking-table tbody tr")).toHaveCount(14);
     await expect(page.locator(".stats-ranking-table .rank").first()).toHaveText("1");
+    await page.locator(".stats-ranking-table .stats-detail-trigger").first().click();
+    await expect(page.getByRole("dialog", { name: /统计详情/ })).toBeVisible();
+    await expect(page.locator(".stats-detail-summary")).toContainText("有效值班次数");
+    await page.getByRole("button", { name: "关闭" }).click();
+    expect(await hasDocumentOverflow(page)).toBe(false);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator(".stats-ranking-mobile-record")).toHaveCount(14);
+    await expect(page.locator(".stats-ranking-mobile-record__breakdown").first()).toContainText("有效值班");
+    expect(await hasDocumentOverflow(page)).toBe(false);
+    await page.setViewportSize({ width: 320, height: 740 });
+    await expect(page.locator(".stats-ranking-mobile-record__total").first()).toBeVisible();
+    expect(await hasDocumentOverflow(page)).toBe(false);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.evaluate(() => { document.documentElement.style.zoom = "2"; });
+    await expect(page.locator(".stats-ranking-mobile-record__total").first()).toBeVisible();
     expect(await hasDocumentOverflow(page)).toBe(false);
   });
 }
+
+test("a failed statistics request keeps its retry path clear", async ({ page }) => {
+  await installMocks(page, "CLASSIC");
+  let fail = true;
+  await page.route("**/api/stats/summary?*", route => fail
+    ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ message: "统计数据加载失败" }) })
+    : json(route, summary));
+  await page.goto("/#/admin/stats");
+  await expect(page.getByRole("alert")).toContainText("统计数据加载失败");
+  await expect(page.getByText("统计结果暂不可用")).toBeVisible();
+  await expect(page.locator(".weekly-stats-table")).toHaveCount(0);
+  await expect(page.locator(".stats-metrics")).toContainText("—");
+  fail = false;
+  await page.getByRole("button", { name: "重试" }).click();
+  await expect(page.locator(".weekly-stats-table tbody tr")).toHaveCount(14);
+});

@@ -30,6 +30,7 @@ describe("DutyTimeWorkspace", () => {
       await wrapper.setProps({ refined });
       expect(wrapper.findAll('#settings-periods')).toHaveLength(1);
       expect(wrapper.get('#settings-periods').text()).toContain('值班时间段');
+      expect(wrapper.find('.duty-day-rail').exists()).toBe(refined);
     }
     wrapper.unmount();
   });
@@ -45,6 +46,19 @@ describe("DutyTimeWorkspace", () => {
     expect(tabs[1]?.classes()).toContain("disabled");
     expect(tabs[1]?.text()).toContain("停用");
     expect(wrapper.findAll(".duty-calendar-compact-row")).toHaveLength(2);
+  });
+
+  it("summarizes and proportionally positions refined duty periods", async () => {
+    const wrapper = mountWorkspace();
+    await wrapper.setProps({ refined: true });
+
+    expect(wrapper.get(".duty-period-overview").text()).toContain("2 小时");
+    expect(wrapper.get(".duty-period-overview").text()).toContain("14:00—18:00");
+    expect(wrapper.findAll(".duty-period-cards .duty-period-tab")).toHaveLength(2);
+    const blocks = wrapper.findAll(".duty-rail-block");
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]?.attributes("style")).toContain("--rail-left");
+    expect(blocks[0]?.attributes("style")).toContain("--rail-width");
   });
 
   it("emits a policy update without mutating the prop", async () => {

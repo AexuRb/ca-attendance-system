@@ -12,37 +12,11 @@
         ><button v-if="canManage" class="button primary" @click="openEditor()">
           <Plus />新建维修
         </button></template>
-    <template #filters><form class="repair-filter-shell" @submit.prevent="load">
-      <div class="repair-search-row">
-        <Search aria-hidden="true" />
-        <label>
-          <span class="sr-only">搜索维修事务</span>
-          <input
-            v-model.trim="filters.keyword"
-            type="search"
-            name="repair-search"
-            placeholder="搜索编号、联系人、设备或故障"
-            autocomplete="off"
-          />
-        </label>
-        <button class="button secondary small" type="submit">搜索</button>
-        <button
-          class="button text small repair-filter-toggle"
-          type="button"
-          :aria-expanded="filterOpen"
-          aria-controls="repair-date-filters"
-          @click="filterOpen = !filterOpen"
-        >
-          <SlidersHorizontal aria-hidden="true" />日期
-        </button>
-      </div>
-      <Transition name="filter-expand">
-        <div v-if="filterOpen" id="repair-date-filters" class="repair-date-filters">
-          <label><span>开始日期</span><input v-model="filters.from" name="repairFrom" type="date" /></label>
-          <label><span>结束日期</span><input v-model="filters.to" name="repairTo" type="date" /></label>
-          <button class="button secondary small" type="submit">应用筛选</button>
-        </div>
-      </Transition>
+    <template #filters><form class="filter-bar repair-query-bar" @submit.prevent="load">
+      <label class="filter-grow"><span>关键词</span><input v-model.trim="filters.keyword" type="search" name="repair-search" placeholder="编号、联系人、设备或故障" autocomplete="off" /></label>
+      <label><span>开始日期</span><input v-model="filters.from" name="repairFrom" type="date" /></label>
+      <label><span>结束日期</span><input v-model="filters.to" name="repairTo" type="date" /></label>
+      <button class="button secondary" type="submit"><Search aria-hidden="true" />查询</button>
     </form></template>
     <div v-if="filterError" class="inline-alert danger" role="alert">
       {{ filterError }}
@@ -161,13 +135,13 @@ import {
   Download,
   Plus,
   Search,
-  SlidersHorizontal,
 } from "@lucide/vue";
 import { provide } from "vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../features/members/presentation.css";
 import "../../features/repairs/presentation.css";
+import "../../features/repairs/repair-page-polish.css";
 provide(memberPresentationKey, true);
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AgreementDialog from "../../shared/ui/AgreementDialog.vue";
@@ -183,7 +157,6 @@ const {
   statusCounts,
   repairPage,
   editorOpen,
-  filterOpen,
   deleteTarget,
   detailTarget,
   agreementOpen,
@@ -220,4 +193,5 @@ const {
   togglePhone,
   captureExportButton,
 } = useRepairManagementWorkspace();
+
 </script>

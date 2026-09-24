@@ -96,7 +96,84 @@
           </button>
         </div>
 
-        <div v-if="periods.length" class="duty-period-tabs" aria-label="选择时间段">
+        <template v-if="refined && periods.length">
+          <div class="duty-period-overview" aria-label="时间段概览">
+            <div><span>已开放</span><strong>{{ enabledDuration }}</strong></div>
+            <div><span>时间段</span><strong>{{ periods.length }} <small>段</small></strong></div>
+            <div><span>覆盖窗口</span><strong>{{ coverageRange }}</strong></div>
+          </div>
+
+          <div class="duty-rail-caption">
+            <strong>日内时间尺 · 06:00—24:00</strong>
+            <span>时段宽度按持续时间等比显示</span>
+          </div>
+          <div ref="railViewport" class="duty-day-rail-viewport">
+            <div
+              class="duty-day-rail"
+              :style="{ '--rail-height': railHeight }"
+              aria-label="按时间比例显示的值班时段"
+            >
+              <span class="duty-rail-zone morning" aria-hidden="true">Morning</span>
+              <span class="duty-rail-zone afternoon" aria-hidden="true">Afternoon</span>
+              <span class="duty-rail-zone evening" aria-hidden="true">Evening</span>
+              <span class="duty-rail-axis" aria-hidden="true"></span>
+              <span
+                v-for="hour in railHours"
+                :key="`rail-${hour}`"
+                class="duty-rail-tick"
+                :class="{ major: hour % 6 === 0 }"
+                :style="railHourStyle(hour)"
+                aria-hidden="true"
+              >
+                <small>{{ formatHour(hour) }}</small>
+              </span>
+              <button
+                v-for="block in railBlocks"
+                :key="`rail-${block.period.startTime}-${block.period.endTime}-${block.index}`"
+                class="duty-rail-block"
+                :class="{
+                  selected: selectedIndex === block.index,
+                  disabled: !block.period.enabled,
+                  conflict: Boolean(periodIssues[block.index]),
+                }"
+                :style="block.style"
+                :data-period-index="block.index"
+                type="button"
+                :aria-pressed="selectedIndex === block.index"
+                :aria-label="`${compactRange(block.period)}，${periodIssues[block.index]?.short || (block.period.enabled ? '启用' : '停用')}`"
+                @click="selectPeriod(block.index, true)"
+              >
+                {{ compactRange(block.period) }}
+              </button>
+            </div>
+          </div>
+          <span class="duty-rail-scroll-hint">左右滑动查看完整时间尺</span>
+
+          <div class="duty-period-tabs duty-period-cards" aria-label="选择时间段">
+            <button
+              v-for="(period, index) in periods"
+              :key="`card-${period.startTime}-${period.endTime}-${index}`"
+              class="duty-period-tab"
+              :class="{
+                selected: selectedIndex === index,
+                disabled: !period.enabled,
+                conflict: Boolean(periodIssues[index]),
+              }"
+              type="button"
+              :aria-pressed="selectedIndex === index"
+              @click="selectPeriod(index, true)"
+            >
+              <i class="duty-period-card-dot" aria-hidden="true"></i>
+              <span class="duty-period-copy">
+                <strong>{{ compactRange(period) }}</strong>
+                <small>{{ duration(period) }} · {{ periodIssues[index]?.short || (period.enabled ? '计入值班' : '暂停计时') }}</small>
+              </span>
+              <em>第 {{ String(index + 1).padStart(2, '0') }} 段</em>
+            </button>
+          </div>
+        </template>
+
+        <div v-else-if="periods.length" class="duty-period-tabs" aria-label="选择时间段">
           <button
             v-for="(period, index) in periods"
             :key="`${period.startTime}-${period.endTime}-${index}`"
@@ -110,16 +187,18 @@
             :aria-pressed="selectedIndex === index"
             @click="selectedIndex = index"
           >
-            <span>{{ compactRange(period) }}</span>
-            <small v-if="periodIssues[index]">{{ periodIssues[index]?.short }}</small>
-            <small v-else-if="!period.enabled">停用</small>
+            <span class="duty-period-copy">
+              <strong>{{ compactRange(period) }}</strong>
+              <small v-if="periodIssues[index]">{{ periodIssues[index]?.short }}</small>
+              <small v-else>{{ period.enabled ? '启用' : '停用' }}</small>
+            </span>
           </button>
         </div>
 
         <div
           v-if="selectedPeriod"
           class="duty-period-form"
-          :class="{ invalid: Boolean(selectedIssue) }"
+          :class="{ invalid: Boolean(selectedIssue), 'duty-period-rail-editor': refined }"
         >
           <div class="duty-period-form-head">
             <div>
@@ -353,10 +432,30 @@ const emit = defineEmits<{
 
 const selectedIndex = ref(0);
 const startInput = ref<HTMLInputElement | null>(null);
+const railViewport = ref<HTMLElement | null>(null);
 const selectedPeriod = computed(() => props.periods[selectedIndex.value] ?? null);
 const enabledCount = computed(() => props.periods.filter((period) => period.enabled).length);
 const periodIssues = computed(() => findPeriodIssues(props.periods));
 const selectedIssue = computed(() => periodIssues.value[selectedIndex.value] ?? null);
+const enabledDuration = computed(() => {
+  const minutes = props.periods.reduce((total, period) => {
+    if (!period.enabled) return total;
+    const start = toMinutes(period.startTime);
+    const end = toMinutes(period.endTime);
+    return start === null || end === null || end <= start ? total : total + end - start;
+  }, 0);
+  const hours = (minutes / 60).toFixed(1).replace(".0", "");
+  return `${hours} 小时`;
+});
+const coverageRange = computed(() => {
+  const valid = props.periods.flatMap((period) => {
+    const start = toMinutes(period.startTime);
+    const end = toMinutes(period.endTime);
+    return start === null || end === null || end <= start ? [] : [{ start, end }];
+  });
+  if (!valid.length) return "—";
+  return `${formatMinutes(Math.min(...valid.map((period) => period.start)))}—${formatMinutes(Math.max(...valid.map((period) => period.end)))}`;
+});
 
 watch(
   () => props.periods.length,
@@ -390,6 +489,7 @@ async function addPeriod() {
   emit("update:periods", next);
   await nextTick();
   startInput.value?.focus();
+  await scrollSelectedRail();
 }
 
 function moveSelected(direction: -1 | 1) {
@@ -398,12 +498,34 @@ function moveSelected(direction: -1 | 1) {
   if (next === props.periods) return;
   selectedIndex.value = target;
   emit("update:periods", next);
+  void scrollSelectedRail();
 }
 
 function removeSelected() {
   const next = props.periods.filter((_, index) => index !== selectedIndex.value);
   selectedIndex.value = Math.min(selectedIndex.value, Math.max(0, next.length - 1));
   emit("update:periods", next);
+}
+
+function selectPeriod(index: number, scroll = false) {
+  selectedIndex.value = index;
+  if (scroll) void scrollSelectedRail(index);
+}
+
+async function scrollSelectedRail(index = selectedIndex.value) {
+  await nextTick();
+  const viewport = railViewport.value;
+  const block = viewport?.querySelector<HTMLElement>(`[data-period-index="${index}"]`);
+  if (!viewport || !block) return;
+  const left = block.offsetLeft + block.offsetWidth / 2 - viewport.clientWidth / 2;
+  viewport.scrollTo({
+    left: Math.max(0, left),
+    behavior:
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+  });
 }
 
 function inputValue(event: Event) {
@@ -436,6 +558,10 @@ function toMinutes(value: string) {
   const [hour, minute] = value.slice(0, 5).split(":").map(Number);
   if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
   return (hour ?? 0) * 60 + (minute ?? 0);
+}
+
+function formatMinutes(value: number) {
+  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 }
 
 interface PeriodIssue {
@@ -500,6 +626,45 @@ function findPeriodIssues(periodRows: DutyPeriod[]): Array<PeriodIssue | null> {
   }
 
   return issues;
+}
+
+const railStartMinutes = 6 * 60;
+const railEndMinutes = 24 * 60;
+const railSpanMinutes = railEndMinutes - railStartMinutes;
+const railInsetPercent = 2.4;
+const railUsablePercent = 100 - railInsetPercent * 2;
+const railHours = Array.from({ length: 10 }, (_, index) => 6 + index * 2);
+const railBlocks = computed(() => {
+  const lanes = layoutDutyPeriodLanes(props.periods);
+  return props.periods.flatMap((period, index) => {
+    const rawStart = toMinutes(period.startTime);
+    const rawEnd = toMinutes(period.endTime);
+    if (rawStart === null || rawEnd === null || rawEnd <= rawStart) return [];
+    const start = Math.max(railStartMinutes, Math.min(railEndMinutes, rawStart));
+    const end = Math.max(railStartMinutes, Math.min(railEndMinutes, rawEnd));
+    if (end <= start) return [];
+    const lane = lanes[index] ?? { laneIndex: 0, laneCount: 1 };
+    return [{
+      period,
+      index,
+      laneCount: lane.laneCount,
+      style: {
+        "--rail-left": `${railInsetPercent + ((start - railStartMinutes) / railSpanMinutes) * railUsablePercent}%`,
+        "--rail-width": `${Math.max(7.5, ((end - start) / railSpanMinutes) * railUsablePercent)}%`,
+        "--rail-lane": String(lane.laneIndex),
+      },
+    }];
+  });
+});
+const railLaneCount = computed(() =>
+  Math.max(1, ...railBlocks.value.map((block) => block.laneCount)),
+);
+const railHeight = computed(() => `${112 + (railLaneCount.value - 1) * 48}px`);
+
+function railHourStyle(hour: number) {
+  return {
+    left: `${railInsetPercent + ((hour * 60 - railStartMinutes) / railSpanMinutes) * railUsablePercent}%`,
+  };
 }
 
 const timelineStartHour = computed(() => {

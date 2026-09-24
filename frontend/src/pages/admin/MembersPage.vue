@@ -5,35 +5,20 @@
       <button class="mw-button primary" @click="openCreate"><UserPlus />新增成员</button>
     </template>
     <template #filters>
-      <MemberFilters inline v-model:keyword="filters.keyword" v-model:role="filters.role" v-model:status="filters.status" v-model:grade="filters.grade" :grades="grades" @submit="applyFilters" />
+      <MemberFilters inline v-model:keyword="filters.keyword" v-model:role="filters.role" v-model:status="filters.status" v-model:grade="filters.grade" :grades="grades" :applied-filters="appliedFilters" @submit="applyFilters" />
     </template>
-    <Transition name="soft-rise">
-      <div v-if="selected.size" class="selection-toolbar">
-        <div>
-          <CheckSquare />
-          <strong>已选 {{ selected.size }} 人</strong>
-          <button class="text-button" type="button" @click="selected.clear()">
-            清除选择
-          </button>
-        </div>
-        <div>
-          <button
-            class="button secondary small"
-            type="button"
-            @click="openBulk('ACTIVE')"
-          >
-            <Power />批量启用
-          </button>
-          <button
-            class="button secondary small"
-            type="button"
-            @click="openBulk('DISABLED')"
-          >
-            <PowerOff />批量停用
-          </button>
-        </div>
+    <div v-if="members.length" class="member-result-toolbar" :class="{ 'has-selection': selected.size }">
+      <div class="member-result-summary">
+        <strong>成员记录</strong>
+        <span aria-live="polite">{{ selected.size ? `已选 ${selected.size} 人` : `共 ${total} 人` }}</span>
       </div>
-    </Transition>
+      <ActionMenu :label="selected.size ? `批量操作，已选 ${selected.size} 人` : '请先选择成员'" trigger-text="批量操作" :disabled="!selected.size">
+        <button role="menuitem" type="button" @click="openBulk('ACTIVE')"><Power aria-hidden="true" />批量启用</button>
+        <button role="menuitem" type="button" @click="openBulk('DISABLED')"><PowerOff aria-hidden="true" />批量停用</button>
+        <div class="member-bulk-menu-divider" role="separator" />
+        <button role="menuitem" type="button" @click="clearSelection"><X aria-hidden="true" />清除选择</button>
+      </ActionMenu>
+    </div>
 
     <div v-if="bulkResult" class="result-note member-bulk-result">
       已更新 {{ bulkResult.updated }}，状态未变 {{ bulkResult.unchanged }}，跳过
@@ -43,19 +28,29 @@
       </ul>
     </div>
 
-    <div v-if="listError" class="inline-alert danger" role="alert">
-      <span>{{ listError }}</span>
-      <button class="button secondary small" type="button" data-action="retry-members" @click="load()">
-        重试
-      </button>
+    <div class="mw-member-content" :class="{ 'mw-list-state': !members.length }">
+      <div v-if="listError" class="inline-alert danger" role="alert">
+        <span>{{ listError }}</span>
+        <button class="button secondary small" type="button" data-action="retry-members" @click="load()">
+          重试
+        </button>
+      </div>
+      <LoadingBlock v-if="listLoading && !members.length" />
+      <EmptyState
+        v-else-if="!members.length && !listError"
+        :title="hasActiveFilters || total > 0 ? '没有符合条件的成员' : '尚未添加成员'"
+        :description="hasActiveFilters || total > 0 ? '调整或清除上方筛选条件后重新查询。' : '新增成员建立名册，也可以通过上方的批量导入添加。'"
+      >
+        <button v-if="!hasActiveFilters && !total" class="button secondary" type="button" @click="openCreate">
+          <UserPlus aria-hidden="true" />新增第一位成员
+        </button>
+      </EmptyState>
+      <MemberRecords v-else-if="members.length" :members="members" :selected="selected" :selectable-ids="selectableIds" :all-selected="allFilteredSelected" :selection-busy="actions.isPending('select-all')" @toggle-all="toggleAll" @toggle-member="toggleMember">
+        <template #actions="{ member: item }">
+          <MemberRowActions :member="item" :editable="canEdit(item)" :self="item.id === user?.id" :deletable="user?.role === 'ADMIN'" :pending="actions.isPending(`member:${item.id}`)" @edit="openEdit(item)" @toggle-status="toggleStatus(item)" @reset-password="resetTarget = item" @delete="deleteTarget = item" />
+        </template>
+      </MemberRecords>
     </div>
-    <LoadingBlock v-if="listLoading && !members.length" />
-    <EmptyState v-else-if="!members.length && !listError" title="没有符合条件的成员" />
-    <MemberRecords v-else-if="members.length" :members="members" :selected="selected" :selectable-ids="selectableIds" :all-selected="pageAllSelected" @toggle-page="togglePage" @toggle-member="toggleMember">
-      <template #actions="{ member: item }">
-        <MemberRowActions :member="item" :editable="canEdit(item)" :self="item.id === user?.id" :deletable="user?.role === 'ADMIN'" :pending="actions.isPending(`member:${item.id}`)" @edit="openEdit(item)" @toggle-status="toggleStatus(item)" @reset-password="resetTarget = item" @delete="deleteTarget = item" />
-      </template>
-    </MemberRecords>
     <div v-if="total" class="pagination">
       <span>共 {{ total }} 人</span>
       <div>
@@ -161,7 +156,6 @@
 
 <script setup lang="ts">
 import {
-  CheckSquare,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -169,6 +163,7 @@ import {
   PowerOff,
   Upload,
   UserPlus,
+  X,
 } from "@lucide/vue";
 import MemberWorkspaceShell from "../../features/members/MemberWorkspaceShell.vue";
 import MemberRecords from "../../features/members/MemberRecords.vue";
@@ -186,6 +181,7 @@ import MemberPasswordResetDialog from "../../features/members/MemberPasswordRese
 import BulkMemberStatusDialog from "../../features/members/BulkMemberStatusDialog.vue";
 import MemberFilters from "../../features/members/MemberFilters.vue";
 import MemberRowActions from "../../features/members/MemberRowActions.vue";
+import ActionMenu from "../../shared/ui/ActionMenu.vue";
 import { useMemberDirectoryWorkspace } from "../../features/members/useMemberDirectoryWorkspace";
 
 const {
@@ -196,6 +192,7 @@ const {
   bulkResult,
   bulkTargetStatus,
   canEdit,
+  clearSelection,
   closeBulk,
   closeEditor,
   closeImport,
@@ -204,6 +201,8 @@ const {
   editorOpen,
   editorTarget,
   filters,
+  appliedFilters,
+  hasActiveFilters,
   gradeChoices,
   grades,
   importError,
@@ -221,7 +220,7 @@ const {
   openEdit,
   openImport,
   page,
-  pageAllSelected,
+  allFilteredSelected,
   pickFile,
   remove,
   resetPassword,
@@ -231,7 +230,7 @@ const {
   selectableIds,
   setPage,
   toggleMember,
-  togglePage,
+  toggleAll,
   toggleStatus,
   total,
   totalPages,

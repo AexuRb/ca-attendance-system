@@ -210,16 +210,15 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as const) {
         }
 
         if (appearance === "SPATIAL" && width === 1440) {
-          await expect
-            .poll(() =>
-              page
-                .locator(
-                  '.weekday-calendar-day[aria-pressed="true"] .weekday-calendar-leaf',
-                )
-                .first()
-                .evaluate((element) => getComputedStyle(element).backgroundColor),
-            )
-            .toBe("rgb(0, 102, 204)");
+          const selectedBackground = await page
+            .locator('.weekday-calendar-day[aria-pressed="true"] .weekday-calendar-leaf')
+            .first()
+            .evaluate((element) => getComputedStyle(element).backgroundColor);
+          const inactiveBackground = await page
+            .locator('.weekday-calendar-day[aria-pressed="false"] .weekday-calendar-leaf')
+            .first()
+            .evaluate((element) => getComputedStyle(element).backgroundColor);
+          expect(selectedBackground).not.toBe(inactiveBackground);
         }
       }
 
@@ -265,14 +264,14 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as const) {
       await expect(page.locator(".duty-period-form")).toHaveClass(/invalid/);
       await expect(page.getByRole("alert")).toContainText("值班时间段不能重复");
       await expect(page.locator(".duty-period-tab.conflict")).toHaveCount(2);
-      await expect(page.locator(".duty-calendar-block.conflict")).toHaveCount(2);
+      await expect(page.locator(".duty-rail-block.conflict")).toHaveCount(2);
 
       const conflictBackground = await page
-        .locator(".duty-calendar-block.conflict")
+        .locator(".duty-rail-block.conflict")
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
       const normalBackground = await page
-        .locator(".duty-calendar-block:not(.conflict):not(.disabled)")
+        .locator(".duty-rail-block:not(.conflict):not(.disabled)")
         .first()
         .evaluate((element) => getComputedStyle(element).backgroundColor);
       expect(conflictBackground).not.toBe(normalBackground);

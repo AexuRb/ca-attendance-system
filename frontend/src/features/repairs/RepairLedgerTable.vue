@@ -25,15 +25,19 @@
             @keydown.enter.self="$emit('view', item)"
             @keydown.space.self.prevent="$emit('view', item)"
           >
-            <td data-label="维修编号">
-              <strong class="case-no">{{ item.caseNo }}</strong>
-              <small>{{ repairAgreementLabel(item.agreementType) }}</small><div v-if="editorial" class="affairs-record-time"><small>{{ timeLabel }}</small><time :datetime="displayTime(item)">{{ repairDateTime(displayTime(item)) }}</time><small>{{ repairAgeLabel(item) }}</small></div>
+            <td class="repair-cell-id" data-label="维修编号">
+              <div class="repair-card-identity">
+                <strong class="case-no">{{ item.caseNo }}</strong>
+                <small>{{ repairAgreementLabel(item.agreementType) }}</small>
+              </div>
+              <span class="repair-card-status repair-ledger-status" :data-status="item.status">{{ statusLabel(item.status) }}</span>
+              <div v-if="editorial" class="affairs-record-time"><small>{{ timeLabel }}</small><time :datetime="displayTime(item)">{{ repairDateTime(displayTime(item)) }}</time><small>{{ repairAgeLabel(item) }}</small></div>
             </td>
-            <td data-label="设备与故障">
+            <td class="repair-cell-device" data-label="设备与故障">
               <strong>{{ repairDeviceName(item) }}</strong>
               <small>{{ item.faultDescription }}</small>
             </td>
-            <td data-label="联系人">
+            <td class="repair-cell-contact" data-label="联系人">
               <strong>{{ item.ownerName }}</strong>
               <span class="repair-ledger-phone">
                 <small>{{ displayPhone(item) }}</small>
@@ -50,27 +54,24 @@
                 </button>
               </span>
               <div v-if="editorial" class="affairs-record-handler"><small>负责人</small>{{ item.handlerName || "待分配" }}</div>
+              <div class="repair-card-meta">
+                <span>负责人 {{ item.handlerName || "待分配" }}</span>
+                <time :datetime="displayTime(item)">{{ repairDateTime(displayTime(item)) }}</time>
+                <small>{{ repairAgeLabel(item) }}</small>
+              </div>
             </td>
-            <td v-if="!editorial" data-label="负责人">{{ item.handlerName || "待分配" }}</td>
-            <td v-if="!editorial" :data-label="timeLabel">
+            <td v-if="!editorial" class="repair-cell-handler" data-label="负责人">{{ item.handlerName || "待分配" }}</td>
+            <td v-if="!editorial" class="repair-cell-time" :data-label="timeLabel">
               <time :datetime="displayTime(item)">{{ repairDateTime(displayTime(item)) }}</time>
               <small>{{ repairAgeLabel(item) }}</small>
             </td>
-            <td v-if="!editorial" data-label="状态">
+            <td v-if="!editorial" class="repair-cell-status" data-label="状态">
               <span class="repair-ledger-status" :data-status="item.status">
                 {{ statusLabel(item.status) }}
               </span>
             </td>
             <td class="repair-ledger-actions align-right mw-actions-column" data-label="操作"><span v-if="editorial" class="repair-ledger-status affairs-record-status" :data-status="item.status">{{ statusLabel(item.status) }}</span>
-              <button
-                class="icon-button ghost repair-ledger-open"
-                type="button"
-                title="查看详情"
-                :aria-label="`查看 ${item.caseNo} 的详情`"
-                @click.stop="$emit('view', item)"
-              >
-                <PanelRightOpen aria-hidden="true" />
-              </button>
+              <button class="button text small repair-card-view" type="button" :aria-label="`查看 ${item.caseNo} 的详情`" @click.stop="$emit('view', item)">查看详情</button>
               <button
                 class="icon-button ghost repair-ledger-secondary-action"
                 type="button"
@@ -135,7 +136,6 @@ import {
   EyeOff,
   FileText,
   LoaderCircle,
-  PanelRightOpen,
   Pencil,
   Trash2,
   Wrench,

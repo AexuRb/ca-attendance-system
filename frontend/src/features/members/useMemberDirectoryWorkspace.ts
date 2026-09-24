@@ -15,7 +15,6 @@ import { excelFileError } from "../../shared/validation/fileValidation";
 import {
   bulkStatusPayload,
   selectableMemberIds,
-  togglePageSelection,
   type BulkStatusResult,
   type MemberImportResult,
   type MemberPage,
@@ -37,6 +36,9 @@ export function useMemberDirectoryWorkspace() {
   const page = ref(1);
   const pageSize = 20;
   const selected = ref(new Set<number>());
+  const allFilteredSelected = ref(false);
+  const activeFilters = ref({ keyword: "", role: "", status: "", grade: "" });
+  let activeFilterKey: string | null = null;
   const editorOpen = ref(false);
   const editorTarget = ref<MemberSummary | null>(null);
   const importOpen = ref(false);
@@ -62,11 +64,6 @@ export function useMemberDirectoryWorkspace() {
   );
   const selectableIds = computed(() =>
     selectableMemberIds(members.value, user.value?.role, user.value?.id),
-  );
-  const pageAllSelected = computed(
-    () =>
-      selectableIds.value.length > 0 &&
-      selectableIds.value.every((id) => selected.value.has(id)),
   );
   const lockEditorAccountControls = computed(
     () =>
@@ -95,14 +92,16 @@ export function useMemberDirectoryWorkspace() {
   );
 
   async function load(target = page.value) {
+    const requestFilters = { ...filters };
+    const requestFilterKey = filterKey(requestFilters);
+    if (activeFilterKey !== null && activeFilterKey !== requestFilterKey) {
+      clearSelection();
+    }
     const query = new URLSearchParams({
       page: String(target),
       pageSize: String(pageSize),
     });
-    if (filters.keyword) query.set("keyword", filters.keyword);
-    if (filters.role) query.set("role", filters.role);
-    if (filters.status) query.set("status", filters.status);
-    if (filters.grade) query.set("grade", filters.grade);
+    appendFilters(query, requestFilters);
     const value = await listRequest.run(
       (signal) => get<MemberPage>(`/api/users/page?${query}`, { signal }),
       "成员名册加载失败",
@@ -111,9 +110,12 @@ export function useMemberDirectoryWorkspace() {
     members.value = value.items;
     total.value = value.total;
     page.value = value.page;
+    activeFilters.value = requestFilters;
+    activeFilterKey = requestFilterKey;
   }
 
   async function applyFilters() {
+    clearSelection();
     await syncRoute(1, "push");
     await load(1);
   }
@@ -223,14 +225,33 @@ export function useMemberDirectoryWorkspace() {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     selected.value = next;
+    allFilteredSelected.value = false;
   }
 
-  function togglePage(event: Event) {
-    selected.value = togglePageSelection(
-      selected.value,
-      selectableIds.value,
-      (event.target as HTMLInputElement).checked,
-    );
+  async function toggleAll(event: Event) {
+    if (!(event.target as HTMLInputElement).checked) {
+      clearSelection();
+      return;
+    }
+    const requestFilters = { ...activeFilters.value };
+    const requestFilterKey = filterKey(requestFilters);
+    await actions.run("select-all", async () => {
+      const query = new URLSearchParams();
+      appendFilters(query, requestFilters);
+      const queryText = query.toString();
+      const suffix = queryText ? `?${queryText}` : "";
+      const ids = await task.run(
+        () => get<number[]>(`/api/users/selection${suffix}`),
+      );
+      if (!ids || activeFilterKey !== requestFilterKey) return;
+      selected.value = new Set(ids);
+      allFilteredSelected.value = ids.length > 0;
+    });
+  }
+
+  function clearSelection() {
+    selected.value = new Set();
+    allFilteredSelected.value = false;
   }
 
   function openBulk(status: MemberStatus) {
@@ -251,7 +272,7 @@ export function useMemberDirectoryWorkspace() {
       if (!result) return;
       bulkResult.value = result;
       bulkOpen.value = false;
-      selected.value = new Set();
+      clearSelection();
       await load();
     });
   }
@@ -357,6 +378,25 @@ export function useMemberDirectoryWorkspace() {
     }
   }
 
+  function appendFilters(
+    query: URLSearchParams,
+    values: { keyword: string; role: string; status: string; grade: string },
+  ) {
+    if (values.keyword) query.set("keyword", values.keyword);
+    if (values.role) query.set("role", values.role);
+    if (values.status) query.set("status", values.status);
+    if (values.grade) query.set("grade", values.grade);
+  }
+
+  function filterKey(values: {
+    keyword: string;
+    role: string;
+    status: string;
+    grade: string;
+  }) {
+    return JSON.stringify(values);
+  }
+
   async function syncRoute(targetPage: number, mode: "push" | "replace") {
     suppressRouteRestore = true;
     try {
@@ -386,6 +426,7 @@ export function useMemberDirectoryWorkspace() {
     bulkResult,
     bulkTargetStatus,
     canEdit,
+    clearSelection,
     closeBulk,
     closeEditor,
     closeImport,
@@ -394,6 +435,8 @@ export function useMemberDirectoryWorkspace() {
     editorOpen,
     editorTarget,
     filters,
+    appliedFilters: computed(() => activeFilters.value),
+    hasActiveFilters: computed(() => Object.values(activeFilters.value).some(value => value.trim() !== "")),
     gradeChoices,
     grades,
     importError,
@@ -411,7 +454,7 @@ export function useMemberDirectoryWorkspace() {
     openEdit,
     openImport,
     page,
-    pageAllSelected,
+    allFilteredSelected,
     pickFile,
     remove,
     resetPassword,
@@ -422,7 +465,7 @@ export function useMemberDirectoryWorkspace() {
     selectableIds,
     setPage,
     toggleMember,
-    togglePage,
+    toggleAll,
     toggleStatus,
     total,
     totalPages,

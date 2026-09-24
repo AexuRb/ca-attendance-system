@@ -23,6 +23,28 @@ function mountMenu() {
 }
 
 describe("ActionMenu", () => {
+  it("keeps its trigger in place and closes when disabled", async () => {
+    const wrapper = mount(ActionMenu, {
+      attachTo: document.body,
+      props: { disabled: true, triggerText: "批量操作" },
+      slots: { default: '<button role="menuitem">执行</button>' },
+    });
+    const trigger = wrapper.get<HTMLButtonElement>('button[aria-haspopup="menu"]');
+    await trigger.trigger("click");
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+
+    await wrapper.setProps({ disabled: false });
+    await trigger.trigger("click");
+    await nextTick();
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+
+    await wrapper.setProps({ disabled: true });
+    await nextTick();
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(wrapper.get('button[aria-haspopup="menu"]').element).toBe(trigger.element);
+    wrapper.unmount();
+  });
+
   it("opens and focuses the first menu item", async () => {
     const wrapper = mountMenu();
 

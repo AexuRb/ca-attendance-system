@@ -1,22 +1,28 @@
 <template>
   <ModalDialog :open="open" title="批量导入排班" size="lg" @close="close">
     <div class="schedule-import-workspace">
-      <label class="field">
+      <label class="field schedule-import-file">
         <span>Excel 文件</span>
-        <input
-          ref="fileInput"
-          name="scheduleImportFile"
-          type="file"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          @change="selectFile"
-        />
+        <span class="schedule-import-file-control">
+          <span class="schedule-import-file-action">选择文件</span>
+          <span class="schedule-import-file-name" :title="file?.name || '未选择文件'">{{ file?.name || '未选择文件' }}</span>
+          <input
+            ref="fileInput"
+            name="scheduleImportFile"
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            :disabled="busy"
+            aria-label="选择排班 Excel 文件"
+            @change="selectFile"
+          />
+        </span>
       </label>
       <button
         class="button secondary"
         :disabled="busy || !file"
         @click="previewFile"
       >
-        <FileSearch />校验预览
+        <FileSearch />{{ busy && !preview ? '正在校验' : '校验预览' }}
       </button>
     </div>
     <p v-if="fileError" class="form-error" role="alert">{{ fileError }}</p>
@@ -80,7 +86,7 @@
         :disabled="busy || !file || !preview?.valid"
         @click="confirmImport"
       >
-        <Upload />确认导入
+        <Upload />{{ busy ? '正在导入' : '确认导入' }}
       </button>
     </template>
   </ModalDialog>
@@ -125,6 +131,8 @@ function selectFile(event: Event) {
 async function previewFile() {
   if (!file.value) return;
   busy.value = true;
+  preview.value = null;
+  fileError.value = "";
   try {
     const body = new FormData();
     body.append("file", file.value);
@@ -137,10 +145,7 @@ async function previewFile() {
       preview.value.valid ? "success" : "warning",
     );
   } catch (cause) {
-    notify(
-      cause instanceof Error ? cause.message : "排班文件校验失败",
-      "danger",
-    );
+    fileError.value = cause instanceof Error ? cause.message : "排班文件校验失败";
   } finally {
     busy.value = false;
   }
