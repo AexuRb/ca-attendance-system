@@ -114,6 +114,21 @@ html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-step-
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-step-leave-active { transition:opacity 140ms ease-in,transform 140ms ease-in; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-step-enter-from { transform:translateX(4px); }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-step-leave-to { transform:translateX(-4px); }
+html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-signal-step-enter-active { transition-duration:210ms; }
+html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-signal-step-leave-active { transition-duration:175ms; }
+html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-signal-step-enter-from { transform:translateY(2px); }
+html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-signal-step-leave-to { transform:translateY(-2px); }
+html:root[data-appearance="spatial"] .public-presentation.public-kiosk .kiosk-signal-step-enter-active { transition-duration:160ms; }
+html:root[data-appearance="spatial"] .public-presentation.public-kiosk .kiosk-signal-step-leave-active { transition-duration:130ms; }
+
+/* Authentication feedback changes inside a reserved slot without moving fields. */
+html:root[data-appearance] .public-presentation.public-auth { --auth-feedback-time:165ms; --auth-feedback-y:2px; }
+html:root[data-appearance="editorial"] .public-presentation.public-auth { --auth-feedback-time:210ms; --auth-feedback-y:0px; }
+html:root[data-appearance="spatial"] .public-presentation.public-auth { --auth-feedback-time:150ms; --auth-feedback-y:3px; }
+html:root[data-appearance] .public-presentation.public-auth .auth-feedback-slot > * { grid-area:1 / 1; }
+html:root[data-appearance] .public-presentation.public-auth :is(.auth-feedback-swap-enter-active,.auth-feedback-swap-leave-active) { transition:opacity var(--auth-feedback-time) ease,transform var(--auth-feedback-time) ease; }
+html:root[data-appearance] .public-presentation.public-auth .auth-feedback-swap-enter-from { opacity:0; transform:translateY(var(--auth-feedback-y)); }
+html:root[data-appearance] .public-presentation.public-auth .auth-feedback-swap-leave-to { opacity:0; transform:translateY(calc(-1 * var(--auth-feedback-y))); }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-state h1 { margin:0; font-family:inherit; font-size:34px; font-weight:600; line-height:1.4; letter-spacing:-.5px; color:var(--pub-ink); }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-terminal-head { margin:0; padding:0; border:0; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-form { display:grid; gap:9px; width:100%; margin:0; }

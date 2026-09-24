@@ -100,7 +100,7 @@ describe("ReviewsPage bulk approval", () => {
     });
     await flushPromises();
 
-    const approve = wrapper.get(".review-approve-check-in");
+    const approve = wrapper.get(".review-approve-check-in .review-state-action__approve");
     await approve.trigger("click");
     await approve.trigger("click");
     expect(mocks.apiPost).toHaveBeenCalledTimes(1);

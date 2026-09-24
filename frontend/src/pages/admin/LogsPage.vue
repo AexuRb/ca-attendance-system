@@ -1,6 +1,6 @@
 <template>
   <RefinedWorkspaceShell class="support-workspace logs-presentation" title="操作日志" description="追溯系统内的重要操作" section-key="system" filter-label="筛选操作日志">
-    <template #tools><button class="button secondary" :disabled="actions.isPending('export') || Boolean(filterError)" @click="exportLogs">
+    <template #tools><button class="button secondary" :disabled="actions.isPending('export')" title="按当前列表的筛选条件导出" @click="exportLogs">
           <Download />导出日志</button
         ><button class="button danger" :disabled="actions.isPending('clear')" @click="clearOpen = true">
           <Trash2 />清空日志
@@ -40,16 +40,16 @@
         class="button secondary small"
         type="button"
         data-action="retry-logs"
-        @click="load()"
+        @click="retryLoad"
       >
         重试
       </button>
     </div>
     <LoadingBlock v-if="listLoading && !items.length" /><EmptyState
       v-else-if="!items.length && !listError"
-      title="暂无操作日志"
+      :title="hasAppliedFilters && !justCleared ? '没有符合条件的日志' : '暂无操作日志'"
     />
-    <div v-else class="audit-records"><div class="audit-record-head" aria-hidden="true"><span>时间</span><span>操作人 / 对象</span><span>操作类型</span><span>操作说明</span><span>详情</span></div>
+    <div v-else-if="items.length" class="audit-records" :class="{ 'is-refreshing': listLoading }" :aria-busy="listLoading"><div class="audit-record-head" aria-hidden="true"><span>时间</span><span>操作人 / 对象</span><span>操作类型</span><span>操作说明</span><span>详情</span></div>
       <article v-for="item in items" :key="item.id">
 
         <div class="log-time">
@@ -61,8 +61,8 @@
         <p class="audit-reason">{{ item.reason || "未填写操作原因" }}</p>
         <button
           class="icon-button"
-          title="查看变更详情"
-          aria-label="查看变更详情"
+          :title="`查看${actionLabel(item.actionType)}详情`"
+          :aria-label="`查看变更详情：${item.operatorName || '系统'}，${date(item.createdAt)} ${time(item.createdAt)}，${actionLabel(item.actionType)}`"
           type="button"
           @click="detail = item"
         >
@@ -186,7 +186,7 @@ import { useAuditLogWorkspace } from "../../features/audit/useAuditLogWorkspace"
 
 const {
   actionLabel, actionTone, actions, applyFilters, auditActionOptions, clearLogs, clearOpen,
-  date, detail, detailRows, displayError, exportLogs, filterError, filters, items, listError, listLoading,
-  load, page, pretty, setPage, targetLabel, time, total, totalPages,
+  date, detail, detailRows, displayError, exportLogs, filters, hasAppliedFilters, items, justCleared, listError, listLoading,
+  page, pretty, retryLoad, setPage, targetLabel, time, total, totalPages,
 } = useAuditLogWorkspace();
 </script>

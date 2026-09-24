@@ -47,7 +47,9 @@
     <template v-else>
     <div class="attendance-results-summary" aria-live="polite">
       <div class="attendance-results-summary__title"><span>记录列表</span><strong>{{ total }} 条</strong></div>
-      <span class="attendance-results-summary__range">{{ appliedFrom || '不限开始日期' }} — {{ appliedTo || '不限结束日期' }}</span>
+      <Transition name="attendance-range-swap" mode="out-in">
+        <span :key="`${appliedFrom}-${appliedTo}`" class="attendance-results-summary__range">{{ appliedFrom || '不限开始日期' }} — {{ appliedTo || '不限结束日期' }}</span>
+      </Transition>
     </div>
     <div class="mw-table-scroll attendance-table-scroll" tabindex="0" aria-label="值班记录，可横向滚动">
       <table class="mw-table attendance-table">

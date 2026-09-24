@@ -53,7 +53,7 @@ describe("DutyTimeWorkspace", () => {
     await wrapper.setProps({ refined: true });
 
     expect(wrapper.get(".duty-period-overview").text()).toContain("2 小时");
-    expect(wrapper.get(".duty-period-overview").text()).toContain("14:00—18:00");
+    expect(wrapper.get(".duty-period-overview").text()).toContain("14:00—16:00");
     expect(wrapper.findAll(".duty-period-cards .duty-period-tab")).toHaveLength(2);
     const blocks = wrapper.findAll(".duty-rail-block");
     expect(blocks).toHaveLength(2);

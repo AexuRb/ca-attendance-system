@@ -45,6 +45,9 @@ export function useSettingsWorkspace() {
   );
   const periodError = computed(() => validateDutyPeriods(periods.value));
   const weekdayBaseline = ref("");
+  const weekdaysDirty = computed(
+    () => Boolean(weekdayBaseline.value) && weekdaySnapshot() !== weekdayBaseline.value,
+  );
   const periodBaseline = ref("");
   const policyBaseline = ref("");
   const periodsDirty = computed(
@@ -54,7 +57,7 @@ export function useSettingsWorkspace() {
     () => Boolean(policyBaseline.value) && policySnapshot() !== policyBaseline.value,
   );
   const unsaved = useUnsavedChanges(() =>
-    (Boolean(weekdayBaseline.value) && weekdaySnapshot() !== weekdayBaseline.value) ||
+    weekdaysDirty.value ||
     periodsDirty.value ||
     policyDirty.value ||
     appearanceDirty.value,
@@ -219,5 +222,6 @@ export function useSettingsWorkspace() {
     toggleWeekday,
     unsaved,
     weekdays,
+    weekdaysDirty,
   };
 }

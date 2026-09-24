@@ -26,7 +26,8 @@
     </nav>
     <p v-if="visibleWeekdays.length > 2" class="schedule-focus-scroll-hint">左右滑动可查看其他星期</p>
 
-    <div class="schedule-focus-workspace">
+    <Transition :name="motionDirection > 0 ? 'schedule-day-next' : 'schedule-day-previous'" mode="out-in">
+    <div :key="selectedWeekday" class="schedule-focus-workspace">
       <aside
         class="schedule-focus-summary"
         :aria-label="`${selectedDay?.label}排班概览`"
@@ -99,6 +100,7 @@
         </div>
       </section>
     </div>
+    </Transition>
   </div>
   <EmptyState
     v-else
@@ -151,6 +153,7 @@ const visibleWeekdays = computed(() => {
 });
 
 const selectedWeekday = ref(initialWeekday());
+const motionDirection = ref(1);
 const dayNav = ref<HTMLElement | null>(null);
 const selectedDay = computed(() =>
   visibleWeekdays.value.find((day) => day.value === selectedWeekday.value),
@@ -187,7 +190,10 @@ watch(
   },
   { immediate: true, flush: "sync" },
 );
-watch(selectedWeekday, () => void nextTick(revealSelectedWeekday), { flush: "post" });
+watch(selectedWeekday, (next, previous) => {
+  motionDirection.value = next >= previous ? 1 : -1;
+  void nextTick(revealSelectedWeekday);
+}, { flush: "post" });
 watch(visibleWeekdays, () => void nextTick(revealSelectedWeekday), { flush: "post" });
 onMounted(() => void nextTick(revealSelectedWeekday));
 

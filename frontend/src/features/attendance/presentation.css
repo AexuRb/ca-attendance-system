@@ -328,3 +328,28 @@ html:root[data-appearance=spatial] .today-workspace.mw-scope .daily-command .com
   html:root[data-appearance] .today-workspace .daily-command .command-welcome-actions,
   html:root[data-appearance] .today-workspace .daily-shortcuts-skeleton { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Reviewed items leave the queue; the remaining cards settle into place. */
+html:root[data-appearance] .review-workspace { --review-queue-time:170ms; }
+html:root[data-appearance=editorial] .review-workspace { --review-queue-time:215ms; }
+html:root[data-appearance=spatial] .review-workspace { --review-queue-time:150ms; }
+html:root[data-appearance] .review-workspace .review-list { position:relative; }
+html:root[data-appearance] .review-workspace .review-state-action { transition:background-color var(--review-queue-time) ease,border-color var(--review-queue-time) ease,box-shadow var(--review-queue-time) ease; }
+html:root[data-appearance] .review-workspace .review-queue-move,
+html:root[data-appearance] .review-workspace .review-queue-leave-active { transition:opacity var(--review-queue-time) ease,transform var(--review-queue-time) cubic-bezier(.2,.7,.2,1); }
+html:root[data-appearance] .review-workspace .review-queue-leave-active { position:absolute; width:100%; }
+html:root[data-appearance] .review-workspace .review-queue-leave-to { opacity:0; transform:translateY(-2px); }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .review-workspace :is(.review-queue-move,.review-queue-leave-active,.review-state-action) { transition:none; }
+}
+
+/* Applied dates change in the summary; table rows remain stationary. */
+html:root[data-appearance] .attendance-workspace { --attendance-range-time:165ms; --attendance-range-y:2px; }
+html:root[data-appearance=editorial] .attendance-workspace { --attendance-range-time:210ms; --attendance-range-y:0px; }
+html:root[data-appearance=spatial] .attendance-workspace { --attendance-range-time:150ms; --attendance-range-y:3px; }
+html:root[data-appearance] .attendance-workspace :is(.attendance-range-swap-enter-active,.attendance-range-swap-leave-active) { transition:opacity var(--attendance-range-time) ease,transform var(--attendance-range-time) ease; }
+html:root[data-appearance] .attendance-workspace .attendance-range-swap-enter-from { opacity:0; transform:translateY(var(--attendance-range-y)); }
+html:root[data-appearance] .attendance-workspace .attendance-range-swap-leave-to { opacity:0; transform:translateY(calc(-1 * var(--attendance-range-y))); }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .attendance-workspace :is(.attendance-range-swap-enter-active,.attendance-range-swap-leave-active) { transition:none; }
+}

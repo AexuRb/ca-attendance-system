@@ -266,3 +266,15 @@ html:root[data-appearance="spatial"] .profile-presentation .profile-contact-pane
   html:root[data-appearance] .profile-presentation .profile-record-scroll tbody tr,
   html:root[data-appearance] .profile-presentation .profile-mobile-record { transition:none; transform:none; }
 }
+
+/* Record-type switching keeps the filter toolbar fixed. */
+html:root[data-appearance] .profile-presentation { --profile-swap-time:170ms; --profile-swap-x:0px; --profile-swap-y:2px; }
+html:root[data-appearance=editorial] .profile-presentation { --profile-swap-time:190ms; --profile-swap-y:0px; }
+html:root[data-appearance=editorial] .profile-presentation .profile-record-filter .button { white-space:nowrap; }
+html:root[data-appearance=spatial] .profile-presentation { --profile-swap-time:155ms; --profile-swap-x:4px; --profile-swap-y:0px; }
+html:root[data-appearance] .profile-presentation :is(.profile-record-swap-enter-active,.profile-record-swap-leave-active) { transition:opacity var(--profile-swap-time) ease,transform var(--profile-swap-time) cubic-bezier(.2,.7,.2,1); }
+html:root[data-appearance] .profile-presentation .profile-record-swap-enter-from { opacity:0; transform:translate(var(--profile-swap-x),var(--profile-swap-y)); }
+html:root[data-appearance] .profile-presentation .profile-record-swap-leave-to { opacity:0; transform:translate(calc(-1 * var(--profile-swap-x)),calc(-1 * var(--profile-swap-y))); }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .profile-presentation :is(.profile-record-swap-enter-active,.profile-record-swap-leave-active) { transition:none; }
+}

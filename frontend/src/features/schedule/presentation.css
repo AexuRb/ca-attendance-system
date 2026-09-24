@@ -137,3 +137,19 @@ html:root[data-appearance=spatial] .schedule-presentation.schedule-presentation 
 @media (prefers-reduced-motion:reduce) {
   html:root[data-appearance] .schedule-presentation.schedule-presentation :is(.schedule-focus-add,.schedule-focus-day,.schedule-slot-card) { transition:none; }
 }
+
+/* The weekday index stays fixed while the chosen day's work surface changes. */
+html:root[data-appearance] .schedule-presentation {
+  --schedule-motion-time:180ms;
+  --schedule-motion-ease:cubic-bezier(.2,.7,.2,1);
+}
+html:root[data-appearance=editorial] .schedule-presentation { --schedule-motion-time:190ms; --schedule-motion-ease:cubic-bezier(.22,.6,.2,1); }
+html:root[data-appearance=spatial] .schedule-presentation { --schedule-motion-time:165ms; --schedule-motion-ease:cubic-bezier(.25,.8,.25,1); }
+html:root[data-appearance] .schedule-presentation :is(.schedule-day-next-enter-active,.schedule-day-next-leave-active,.schedule-day-previous-enter-active,.schedule-day-previous-leave-active) {
+  transition:opacity var(--schedule-motion-time) var(--schedule-motion-ease),transform var(--schedule-motion-time) var(--schedule-motion-ease);
+}
+html:root[data-appearance] .schedule-presentation :is(.schedule-day-next-enter-from,.schedule-day-previous-leave-to) { opacity:0; transform:translateX(4px); }
+html:root[data-appearance] .schedule-presentation :is(.schedule-day-next-leave-to,.schedule-day-previous-enter-from) { opacity:0; transform:translateX(-4px); }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .schedule-presentation :is(.schedule-day-next-enter-active,.schedule-day-next-leave-active,.schedule-day-previous-enter-active,.schedule-day-previous-leave-active) { transition:none; }
+}

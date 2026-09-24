@@ -113,7 +113,7 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     await expectNoDocumentOverflow(page);
 
     await page.getByRole("tab", { name: "本机备份" }).click();
-    await expect(page.locator(".data-backup-table tbody tr")).toHaveCount(9);
+    await expect(page.locator(".bw-table tbody tr")).toHaveCount(9);
     await expect(page.getByText("ca-attendance-complete-backup-20260903-193055.zip")).toBeVisible();
     await page.getByRole("button", { name: /^查看备份详情/ }).first().click();
     await expect(page.locator("#data-backup-details")).toHaveAttribute("role", "dialog");

@@ -7,9 +7,9 @@
           <span class="review-summary-label">待处理队列</span>
           <div class="review-summary-metrics">
             <strong class="daily-review-count">{{ (loading || loadError) && !records.length ? "—" : pendingItemCount }}</strong>
-            <span>项待审核</span>
+            <span> 项待审核</span>
             <span class="review-summary-divider" aria-hidden="true">/</span>
-            <span>{{ (loading || loadError) && !records.length ? "—" : pendingRecordCount }} 条记录</span>
+            <span>共 {{ (loading || loadError) && !records.length ? "—" : pendingRecordCount }} 条记录</span>
           </div>
           <small v-if="queueTruncated">当前仅显示最近 {{ records.length }} 条；全部通过将处理队列中所有待审核项</small>
         </div>
@@ -41,7 +41,7 @@
       title="待审核已清空"
       description="当前没有需要处理的签到或签退。"
     />
-    <div v-else class="review-list">
+    <TransitionGroup v-else name="review-queue" tag="div" class="review-list">
       <article v-for="record in records" :key="record.id" class="review-row">
         <span class="avatar" aria-hidden="true">{{ record.name.slice(0, 1) }}</span>
         <div class="review-person">
@@ -78,7 +78,7 @@
           />
         </div>
       </article>
-    </div>
+    </TransitionGroup>
     <ModalDialog
       :open="Boolean(rejectTarget)"
       :title="`驳回${rejectPart === 'CHECK_IN' ? '签到' : '签退'}`"

@@ -134,7 +134,7 @@ for (const appearance of ["EDITORIAL", "SPATIAL"] as Appearance[]) {
     await expect(page.locator(".logs-presentation .audit-reason").first()).toHaveCSS(
       "font-size", "12px",
     );
-    await expect(page.locator(".logs-presentation .status-badge").first()).toHaveCSS("font-size", "11px");
+    await expect(page.locator(".logs-presentation .status-badge").first()).toHaveCSS("font-size", "12px");
     await expect(page.locator(".logs-presentation .mw-tools")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 
     for (const viewport of [

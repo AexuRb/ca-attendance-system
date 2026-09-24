@@ -638,18 +638,21 @@
 .training-stage-swap-enter-active,
 .training-stage-swap-leave-active {
   transition:
-    opacity 0.18s var(--ease-out),
-    transform 0.18s var(--ease-out);
+    opacity var(--training-swap-time, 180ms) var(--ease-out),
+    transform var(--training-swap-time, 180ms) var(--ease-out);
 }
+
+html:root[data-appearance=editorial] .training-presentation { --training-swap-time:190ms; --training-swap-distance:0px; }
+html:root[data-appearance=spatial] .training-presentation { --training-swap-time:155ms; --training-swap-distance:4px; }
 
 .training-stage-swap-enter-from {
   opacity: 0;
-  transform: translateY(3px);
+  transform: translateY(var(--training-swap-distance, 3px));
 }
 
 .training-stage-swap-leave-to {
   opacity: 0;
-  transform: translateY(-3px);
+  transform: translateY(calc(-1 * var(--training-swap-distance, 3px)));
 }
 
 .training-import-file {

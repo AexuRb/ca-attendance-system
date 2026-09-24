@@ -92,16 +92,17 @@ html:root[data-appearance] .system-workspace .data-center-tabs { grid-column:1/-
 html:root[data-appearance] .system-workspace .data-center-tabs button { display:flex; align-items:center; gap:7px; border:1px solid transparent; border-radius:6px; padding:7px 12px; background:none; font:13px/1.6 var(--mw-font); color:var(--mw-muted); box-shadow:none; }
 html:root[data-appearance] .system-workspace .data-center-tabs button.active { color:var(--mw-accent); background:var(--mw-soft); border-color:var(--mw-line); }
 html:root[data-appearance] .system-workspace .data-tab-panel { grid-column:1/-1; padding:20px; margin:0; min-width:0; width:100%; }
+html:root[data-appearance] .system-workspace .data-export-table-frame:not(.drawer-open):not(.preview-ready) { height:auto; min-height:0; grid-template-rows:auto auto auto; }
+html:root[data-appearance] .system-workspace .data-export-table-frame:not(.drawer-open):not(.preview-ready) .data-preview-pending { min-height:112px; margin:12px 0 0; padding:16px; }
 html:root[data-appearance] .backup-workspace #data-panel-backups,html:root[data-appearance] .bw-workspace { display:contents; }
 html:root[data-appearance] .bw-overview { grid-column:1/-1; display:grid; grid-template-columns:minmax(180px,1fr) auto auto; gap:4px 28px; padding:24px; background:var(--mw-soft); border:0; border-bottom:1px solid var(--mw-line); border-radius:0; min-width:0; }
 html:root[data-appearance] .bw-eyebrow { display:flex; align-items:center; gap:7px; color:var(--mw-muted); font-size:12px; }
 html:root[data-appearance] .bw-latest { grid-column:1; font:500 26px/1.5 var(--mw-font); color:var(--mw-ink); }
 html:root[data-appearance] .bw-age { grid-column:1; color:var(--mw-muted); font-size:12px; }
-html:root[data-appearance] .bw-caption { grid-column:1; color:var(--mw-muted); font-size:12px; }
-html:root[data-appearance] .bw-metrics { grid-column:2; grid-row:1/5; display:flex; gap:26px; align-items:center; color:var(--mw-muted); }
+html:root[data-appearance] .bw-metrics { grid-column:2; grid-row:1/4; display:flex; gap:26px; align-items:center; color:var(--mw-muted); }
 html:root[data-appearance] .bw-metrics span { display:grid; gap:4px; font-size:12px; }
 html:root[data-appearance] .bw-metrics b { font:500 18px/1.6 var(--mw-font); color:var(--mw-ink); }
-html:root[data-appearance] .bw-tools { grid-column:3; grid-row:1/5; display:flex; gap:8px; align-items:center; }
+html:root[data-appearance] .bw-tools { grid-column:3; grid-row:1/4; display:flex; gap:8px; align-items:center; }
 html:root[data-appearance] .bw-file-button { position:relative; overflow:hidden; cursor:pointer; }
 html:root[data-appearance] .bw-file-button input { position:absolute; inset:0; opacity:0; width:100%; height:100%; cursor:pointer; }
 html:root[data-appearance] .bw-file-button:focus-within { outline:2px solid var(--mw-accent); outline-offset:3px; }
@@ -138,12 +139,19 @@ html:root[data-appearance] .bw-filename { display:flex; align-items:center; gap:
 html:root[data-appearance] .bw-filename strong { display:block; font:500 14px/1.7 var(--mw-font); overflow-wrap:anywhere; }
 html:root[data-appearance] .bw-filename small { display:block; margin-top:2px; font:12px/1.6 var(--mw-font); }
 html:root[data-appearance] .bw-inline-meta { display:none; }
+html:root[data-appearance] .bw-inline-size::before { content:' · '; }
 html:root[data-appearance] .bw-table .selected td { background:var(--mw-soft); }
 html:root[data-appearance] .bw-overview>.form-error { grid-column:1/-1; }
 
 /* Editorial: margin chapters, first subject opposite the page heading. */
 html:root[data-appearance=editorial] .system-workspace .mw-surface { grid-template-columns:225px minmax(0,1fr); }
 html:root[data-appearance=editorial] .system-workspace .mw-heading { grid-column:1; grid-row:2; }
+@media(min-width:701px) {
+  html:root[data-appearance=editorial] .data-center-page.system-workspace .mw-subnav { grid-column:1; grid-row:1/3; }
+  html:root[data-appearance=editorial] .data-center-page.system-workspace .mw-heading { grid-column:2; grid-row:1; padding:8px 0 12px; }
+  html:root[data-appearance=editorial] .data-center-page.system-workspace .data-center-tabs { grid-column:2; grid-row:2; align-self:end; padding:0 0 14px; border-top:0; }
+  html:root[data-appearance=editorial] .data-center-page.system-workspace .data-tab-panel { grid-column:2; grid-row:3; }
+}
 html:root[data-appearance=editorial] .sw-section { grid-column:1/-1; grid-template-columns:225px minmax(0,1fr); column-gap:32px; padding:24px 0; }
 html:root[data-appearance=editorial] .sw-heading h2 { font:400 22px/1.5 SimSun,serif; }
 html:root[data-appearance=editorial] .sw-heading>.button { grid-column:2; grid-row:2; justify-self:start; }
@@ -161,10 +169,9 @@ html:root[data-appearance=editorial] .sw-periods .sw-heading>.button { grid-row:
 html:root[data-appearance=editorial] .sw-periods .duty-period-footer { grid-column:2; grid-row:3; flex-direction:row; align-items:center; gap:18px; justify-self:end; }
 html:root[data-appearance=editorial] .sw-periods .duty-period-form { padding:18px; background:var(--mw-soft); }
 html:root[data-appearance=editorial] .sw-periods .duty-period-tab { background:none; border:0; border-bottom:1px solid var(--mw-line); }
-html:root[data-appearance=editorial] .backup-workspace .bw-overview { grid-column:2; grid-row:1/3; grid-template-columns:minmax(0,1fr); border:0; padding:24px; border-radius:8px; align-self:start; }
+html:root[data-appearance=editorial] .backup-workspace .bw-overview { grid-column:2; grid-row:3; grid-template-columns:minmax(0,1fr); border:0; padding:18px 24px; border-radius:8px; align-self:start; }
 html:root[data-appearance=editorial] .bw-overview .bw-metrics { grid-column:1; grid-row:auto; margin:8px 0; }
 html:root[data-appearance=editorial] .bw-overview .bw-tools { grid-column:1; grid-row:auto; margin-top:14px; }
-html:root[data-appearance=editorial] .backup-workspace .data-center-tabs { grid-row:3; }
 html:root[data-appearance=editorial] .backup-workspace .bw-records { grid-row:4; }
 html:root[data-appearance=editorial] .bw-table .bw-size { display:none; }
 html:root[data-appearance=editorial] .bw-inline-date { display:none; }
@@ -244,6 +251,29 @@ html:root[data-appearance=spatial] .bw-table { min-width:430px; }
   html:root[data-appearance] .bw-table { min-width:540px; }
   html:root[data-appearance=spatial] .bw-table { min-width:410px; }
   html:root[data-appearance] .system-workspace .data-tab-panel { padding:12px; }
+}
+
+@media(max-width:760px) {
+  html:root[data-appearance] .system-workspace .bw-table-scroll { overflow:visible; }
+  html:root[data-appearance] .system-workspace .bw-table { display:block; width:100%; min-width:0; }
+  html:root[data-appearance] .system-workspace .bw-table thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  html:root[data-appearance] .system-workspace .bw-table tbody { display:block; }
+  html:root[data-appearance] .system-workspace .bw-table tbody tr { display:block; position:relative; border-bottom:1px solid var(--mw-line); }
+  html:root[data-appearance] .system-workspace .bw-table tbody tr:last-child { border-bottom:0; }
+  html:root[data-appearance] .system-workspace .bw-table td:nth-child(2) { display:block; min-width:0; padding:14px 16px 16px; border:0; }
+  html:root[data-appearance] .system-workspace .bw-table :is(.bw-date,.bw-size) { display:none; }
+  html:root[data-appearance] .system-workspace .bw-table .bw-actions { position:absolute; right:0; bottom:0; width:auto; padding:0 16px 12px 8px; border:0; box-shadow:none; background:transparent; }
+  html:root[data-appearance] .system-workspace .bw-filename { width:100%; min-width:0; }
+  html:root[data-appearance] .system-workspace .bw-filename>svg { flex:none; }
+  html:root[data-appearance] .system-workspace .bw-filename span { min-width:0; }
+  html:root[data-appearance] .system-workspace .bw-filename strong { overflow-wrap:anywhere; line-height:1.45; }
+  html:root[data-appearance] .system-workspace .bw-inline-meta { display:block; margin:3px 0 0 29px; padding-right:82px; overflow-wrap:anywhere; }
+  html:root[data-appearance] .system-workspace .bw-inline-date { display:inline; }
+}
+
+@media(max-width:360px) {
+  html:root[data-appearance] .system-workspace .bw-inline-meta { display:grid; gap:1px; }
+  html:root[data-appearance] .system-workspace .bw-inline-size::before { content:none; }
 }
 
 /* Weekday flip cards keep shared behavior while using theme tokens. */
@@ -357,4 +387,75 @@ html:root[data-appearance=spatial] .sw-periods :is(.duty-period-overview,.duty-d
 @media(prefers-reduced-motion:reduce) {
   html:root[data-appearance] .sw-periods .duty-day-rail-viewport { scroll-behavior:auto; }
   html:root[data-appearance] .sw-periods :is(.duty-rail-block,.duty-period-cards .duty-period-tab):active { transform:none; }
+}
+
+/* System tabs replace one panel; appearance and weekday selections keep their geometry. */
+html:root[data-appearance] .system-workspace { --system-swap-time:170ms; }
+html:root[data-appearance=editorial] .system-workspace { --system-swap-time:190ms; }
+html:root[data-appearance=spatial] .system-workspace { --system-swap-time:150ms; }
+html:root[data-appearance] .system-workspace :is(.data-panel-swap-enter-active,.data-panel-swap-leave-active) { transition:opacity var(--system-swap-time) ease,transform var(--system-swap-time) cubic-bezier(.2,.7,.2,1); }
+html:root[data-appearance] .system-workspace .data-panel-swap-enter-from { opacity:0; transform:translateY(3px); }
+html:root[data-appearance] .system-workspace .data-panel-swap-leave-to { opacity:0; transform:translateY(-2px); }
+html:root[data-appearance=editorial] .system-workspace :is(.data-panel-swap-enter-from,.data-panel-swap-leave-to) { transform:none; }
+html:root[data-appearance=spatial] .system-workspace .data-panel-swap-enter-from { transform:translateX(4px); }
+html:root[data-appearance=spatial] .system-workspace .data-panel-swap-leave-to { transform:translateX(-4px); }
+html:root[data-appearance] .system-workspace .data-center-tabs button,
+html:root[data-appearance] .settings-workspace .appearance-choice,
+html:root[data-appearance] .settings-workspace .appearance-choice::after { transition:background-color var(--system-swap-time) ease,border-color var(--system-swap-time) ease,color var(--system-swap-time) ease,box-shadow var(--system-swap-time) ease; }
+html:root[data-appearance] .settings-workspace .weekday-calendar-day:hover .weekday-calendar-leaf { transform:translateY(-1px); }
+html:root[data-appearance] .settings-workspace .weekday-calendar-day:active .weekday-calendar-leaf { transform:none; }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .system-workspace :is(.data-panel-swap-enter-active,.data-panel-swap-leave-active,.data-center-tabs button,.appearance-choice),
+  html:root[data-appearance] .settings-workspace .appearance-choice::after { transition:none; }
+  html:root[data-appearance] .settings-workspace .weekday-calendar-day:hover .weekday-calendar-leaf { transform:none; }
+}
+
+/* Settings finish: compact weekday rhythm, clear draft state, distinct selection and enablement. */
+html:root[data-appearance] .settings-workspace .sw-heading .sw-section-status { display:inline-flex; width:max-content; max-width:100%; margin-top:10px; padding:3px 8px; border:1px solid color-mix(in srgb,var(--mw-accent) 30%,var(--mw-line)); border-radius:4px; background:color-mix(in srgb,var(--mw-accent) 7%,var(--mw-paper)); color:var(--mw-accent); font-weight:600; }
+html:root[data-appearance] .settings-workspace .sw-heading>.button:disabled { opacity:.56; box-shadow:none; cursor:not-allowed; }
+html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-count { margin-top:12px; }
+html:root[data-appearance] .settings-workspace .sw-policy .duty-policy-option:hover { background:color-mix(in srgb,var(--mw-accent) 3%,transparent); }
+html:root[data-appearance] .settings-workspace .sw-policy input[role=switch]:focus-visible { outline:3px solid color-mix(in srgb,var(--mw-accent) 35%,transparent); outline-offset:3px; }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-rail-block.disabled.selected { border:2px solid var(--mw-muted); border-style:dashed; background:var(--mw-paper); color:var(--mw-ink); box-shadow:0 5px 15px #24364816; }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-rail-block.disabled.selected::after { background:var(--mw-muted); }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-rail-block.conflict.selected { border:2px solid #b34b42; background:#a84138; color:white; }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-rail-block.conflict.selected::after { background:#fff; }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-period-cards .duty-period-tab.disabled.selected { border-color:var(--mw-muted); background:var(--mw-soft); box-shadow:inset 3px 0 var(--mw-muted); }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-period-cards .duty-period-tab.conflict.selected { border-color:#b34b42; box-shadow:inset 3px 0 #b34b42; }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-period-cards .duty-period-tab.disabled.selected .duty-period-copy small { color:var(--mw-muted); }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-period-rail-editor:has(.duty-period-enabled:not(.active)) { border-color:color-mix(in srgb,var(--mw-muted) 30%,var(--mw-line)); }
+html:root[data-appearance] .settings-workspace .sw-periods .duty-period-rail-editor :is(input[type=time],button):focus-visible { outline:2px solid var(--mw-accent); outline-offset:2px; }
+
+@media(min-width:701px) {
+  html:root[data-appearance=editorial] .settings-workspace .mw-heading { grid-column:1/-1; grid-row:1; align-self:start; padding:14px 24px 20px; }
+  html:root[data-appearance=editorial] .settings-workspace .mw-subnav { grid-column:1; grid-row:2; align-self:start; }
+  html:root[data-appearance=editorial] .settings-workspace .sw-appearance { grid-column:2; grid-row:2; padding-top:16px; }
+  html:root[data-appearance=spatial] .settings-workspace .sw-policy { grid-column:1/-1; grid-template-columns:minmax(0,1fr) auto; }
+  html:root[data-appearance=spatial] .settings-workspace .sw-policy .sw-heading>div { grid-column:1; grid-row:1; }
+  html:root[data-appearance=spatial] .settings-workspace .sw-policy .sw-heading>.button { grid-column:2; grid-row:1; justify-self:end; align-self:center; }
+  html:root[data-appearance=spatial] .settings-workspace .sw-policy .duty-policy-grid { grid-column:1/-1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  html:root[data-appearance=spatial] .settings-workspace .sw-policy .duty-policy-option { padding:14px 16px; border:1px solid var(--mw-line); border-radius:12px; background:var(--mw-control); }
+}
+
+@media(max-width:760px) {
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-grid { grid-template-columns:repeat(8,minmax(0,1fr)); gap:6px; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-day { grid-column:span 2; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-day:nth-child(5) { grid-column:2 / span 2; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-day:nth-child(6) { grid-column:4 / span 2; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-day:nth-child(7) { grid-column:6 / span 2; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-leaf { min-height:72px; grid-template-rows:1fr 25px; border-radius:6px; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-cap,
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-body small { display:none; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-body { gap:0; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-body strong { font-size:13px; white-space:nowrap; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-state { font-size:12px; }
+  html:root[data-appearance] .settings-workspace .sw-weekdays .weekday-calendar-count { margin:8px 0 0; }
+  html:root[data-appearance] .settings-workspace .sw-periods .duty-rail-caption { margin-top:0; }
+  html:root[data-appearance] .settings-workspace .sw-periods .duty-period-overview { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  html:root[data-appearance] .settings-workspace .sw-periods .duty-period-overview>div { padding:9px; }
+  html:root[data-appearance] .settings-workspace .sw-periods .duty-period-overview strong { font-size:13px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .settings-workspace .sw-policy input[role=switch]::after,
+  html:root[data-appearance] .settings-workspace .sw-periods :is(.duty-rail-block,.duty-period-cards .duty-period-tab) { transition:none; }
 }

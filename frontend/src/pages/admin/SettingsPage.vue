@@ -20,8 +20,9 @@
         <div>
           <h2>值班星期</h2>
           <span>未开放日仍可签到签退，计时遵循审核与下方规则。</span>
+          <span v-if="weekdaysDirty" class="sw-section-status" role="status">星期设置未保存</span>
         </div>
-        <button class="button primary small" :disabled="actions.isPending('weekdays')" @click="saveWeekdays">
+        <button class="button primary small" :disabled="!weekdaysDirty || actions.isPending('weekdays')" @click="saveWeekdays">
           <Save />{{ actions.isPending('weekdays') ? "正在保存" : "保存星期" }}
         </button>
       </div>
@@ -88,5 +89,6 @@ const {
   toggleWeekday,
   unsaved,
   weekdays,
+  weekdaysDirty,
 } = useSettingsWorkspace();
 </script>

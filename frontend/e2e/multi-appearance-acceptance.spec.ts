@@ -400,7 +400,7 @@ for (const appearance of appearances) {
       for (const route of ["/", "/login"]) {
         await page.goto("/#" + route);
         await expect(page.locator("html")).toHaveAttribute("data-appearance", appearance.toLowerCase());
-        await expect(page.locator(route === "/" ? ".kiosk-signal-app" : ".auth-layout")).toBeVisible();
+        await expect(page.locator(route === "/" ? ".public-kiosk" : ".public-auth")).toBeVisible();
         await expectNoHorizontalOverflow(page);
         await capture(page, `${appearance}-${route === "/" ? "kiosk" : "login"}-${size.width}`);
       }

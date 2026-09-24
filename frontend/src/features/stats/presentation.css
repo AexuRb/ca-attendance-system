@@ -167,3 +167,14 @@ html:root[data-appearance] .stats-ranking-mobile { display:none; }
   html:root[data-appearance] .weekly-stats-mobile-record>summary,
   html:root[data-appearance] .weekly-stats-mobile-record__toggle svg { transition-duration:.01ms; }
 }
+
+/* Statistics replace one complete result surface after a range is applied. */
+html:root[data-appearance] .stats-presentation { --stats-swap-time:175ms; --stats-swap-ease:cubic-bezier(.2,.7,.2,1); }
+html:root[data-appearance=editorial] .stats-presentation { --stats-swap-time:190ms; --stats-swap-ease:cubic-bezier(.22,.6,.2,1); }
+html:root[data-appearance=spatial] .stats-presentation { --stats-swap-time:160ms; --stats-swap-ease:cubic-bezier(.25,.8,.25,1); }
+html:root[data-appearance] .stats-presentation :is(.stats-result-swap-enter-active,.stats-result-swap-leave-active) { transition:opacity var(--stats-swap-time) var(--stats-swap-ease),transform var(--stats-swap-time) var(--stats-swap-ease); }
+html:root[data-appearance] .stats-presentation .stats-result-swap-enter-from { opacity:0; transform:translateY(3px); }
+html:root[data-appearance] .stats-presentation .stats-result-swap-leave-to { opacity:0; transform:translateY(-2px); }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .stats-presentation :is(.stats-result-swap-enter-active,.stats-result-swap-leave-active) { transition:none; }
+}

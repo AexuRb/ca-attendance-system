@@ -7,13 +7,14 @@
             <p v-if="!refined" class="eyebrow">ATTENDANCE POLICY</p>
             <h2>有效时长规则</h2>
             <span v-if="refined">时长认定遵循现有审核规则。</span>
+            <span v-if="refined && policyDirty" class="sw-section-status" role="status">时长规则未保存</span>
           </div>
           <button
             v-if="canEditPolicy"
             class="button primary small duty-save-button"
             :class="{ dirty: policyDirty }"
             type="button"
-            :disabled="policyPending"
+            :disabled="policyPending || !policyDirty"
             :title="policyDirty ? '有未保存修改' : undefined"
             @click="$emit('save-policy')"
           >
@@ -98,9 +99,9 @@
 
         <template v-if="refined && periods.length">
           <div class="duty-period-overview" aria-label="时间段概览">
-            <div><span>已开放</span><strong>{{ enabledDuration }}</strong></div>
-            <div><span>时间段</span><strong>{{ periods.length }} <small>段</small></strong></div>
-            <div><span>覆盖窗口</span><strong>{{ coverageRange }}</strong></div>
+            <div><span>计时时长</span><strong>{{ enabledDuration }}</strong></div>
+            <div><span>启用时段</span><strong>{{ enabledCount }} <small>段</small></strong></div>
+            <div><span>计时覆盖</span><strong>{{ coverageRange }}</strong></div>
           </div>
 
           <div class="duty-rail-caption">
@@ -449,6 +450,7 @@ const enabledDuration = computed(() => {
 });
 const coverageRange = computed(() => {
   const valid = props.periods.flatMap((period) => {
+    if (!period.enabled) return [];
     const start = toMinutes(period.startTime);
     const end = toMinutes(period.endTime);
     return start === null || end === null || end <= start ? [] : [{ start, end }];

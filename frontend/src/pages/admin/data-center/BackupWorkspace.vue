@@ -2,10 +2,9 @@
   <section class="bw-workspace">
     <aside class="bw-overview">
       <span class="bw-eyebrow"><ShieldCheck aria-hidden="true" />最近完整备份</span>
-      <strong class="bw-latest">{{ latest ? shortDate(latest.createdAt) + '，' + latestTime : '尚未创建' }}</strong>
-      <span class="bw-age"><time v-if="latest" :datetime="latest.createdAt">{{ latestRelative }}</time><span v-else>等待创建首个备份</span></span>
-      <span class="bw-caption">{{ latestDay }}</span>
-      <div class="bw-metrics"><span>本机备份 <b>{{ backupCount }} 份</b></span><span>占用空间 <b>{{ bytes(totalSize) }}</b></span></div>
+      <strong class="bw-latest">{{ latest ? shortDate(latest.createdAt) + '，' + latestTime : loading ? '正在读取' : '尚未创建' }}</strong>
+      <span class="bw-age"><time v-if="latest" :datetime="latest.createdAt">{{ latestRelative }}</time><span v-else>{{ loading ? '正在加载备份档案' : '等待创建首个备份' }}</span></span>
+      <div class="bw-metrics"><span>本机备份 <b>{{ loading && !summary ? '读取中' : `${backupCount} 份` }}</b></span><span>占用空间 <b>{{ loading && !summary ? '读取中' : bytes(totalSize) }}</b></span></div>
       <div class="bw-tools">
         <label v-if="canRestore" class="button secondary bw-file-button"><Upload aria-hidden="true" />从文件恢复
           <input type="file" name="backup-restore-file" aria-label="选择需要恢复的备份文件" accept=".zip" @change="$emit('pick-restore', $event)" />
@@ -20,12 +19,12 @@
         <div class="data-backup-list-pane">
           <LoadingBlock v-if="loading" label="正在加载备份" />
           <EmptyState v-else-if="!filteredBackups.length" :title="emptyTitle" />
-          <div v-else class="bw-table-scroll" tabindex="0" aria-label="备份记录，可横向滚动">
+          <div v-else class="bw-table-scroll" tabindex="0" aria-label="备份档案">
             <table class="bw-table">
               <thead><tr><th class="bw-date">创建时间</th><th>备份文件</th><th class="bw-size">大小</th><th class="bw-actions">操作</th></tr></thead>
               <tbody><tr v-for="item in filteredBackups" :key="item.filename" :class="{ selected: selected?.filename === item.filename }">
                 <td class="bw-date">{{ dateTime(item.createdAt) }}</td>
-                <td><button class="bw-filename" type="button" :aria-label="`查看备份详情：${item.filename}`" aria-controls="data-backup-details" :aria-expanded="selected?.filename === item.filename" @click="selectBackup(item)"><FileArchive aria-hidden="true" /><span><strong>{{ item.filename }}</strong><small>完整业务数据</small></span></button><small class="bw-inline-meta"><span class="bw-inline-date">{{ dateTime(item.createdAt) }} · </span>{{ bytes(item.size) }}</small></td>
+                <td><button class="bw-filename" type="button" :aria-label="`查看备份详情：${item.filename}`" aria-controls="data-backup-details" :aria-expanded="selected?.filename === item.filename" @click="selectBackup(item)"><FileArchive aria-hidden="true" /><span><strong>{{ item.filename }}</strong><small>完整业务数据</small></span></button><small class="bw-inline-meta"><span class="bw-inline-date">{{ dateTime(item.createdAt) }}</span><span class="bw-inline-size">{{ bytes(item.size) }}</span></small></td>
                 <td class="bw-size">{{ bytes(item.size) }}</td>
                 <td class="bw-actions"><div><button class="icon-button" type="button" title="下载备份" :aria-label="`下载备份：${item.filename}`" @click="$emit('download', item)"><Download aria-hidden="true" /></button><button v-if="canDelete" class="icon-button danger-ghost" type="button" title="删除备份" :aria-label="`删除备份：${item.filename}`" @click="$emit('request-delete', item)"><Trash2 aria-hidden="true" /></button></div></td>
               </tr></tbody>
@@ -42,7 +41,7 @@
           @close="selected = null"
         >
           <template v-if="selected">
-            <span class="data-backup-available">文件完整</span>
+            <span class="data-backup-available">本机备份档案</span>
             <h4>{{ selected.filename }}</h4>
             <dl class="data-backup-facts">
               <div><dt>创建时间</dt><dd>{{ dateTime(selected.createdAt) }}</dd></div>
@@ -126,9 +125,6 @@ const totalSize = computed(
 );
 const latest = computed(() => props.backups[0] || null);
 const latestTime = computed(() => (latest.value ? shortTime(latest.value.createdAt) : "—"));
-const latestDay = computed(() =>
-  latest.value ? `${shortDate(latest.value.createdAt)} 最近完整备份` : "等待创建首个备份",
-);
 const latestRelative = computed(() => {
   if (!latest.value) return "尚未创建";
   const elapsed = relativeTimeNow.value - new Date(latest.value.createdAt).getTime();

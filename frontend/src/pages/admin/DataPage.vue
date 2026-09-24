@@ -49,6 +49,7 @@
       <button class="button secondary small" type="button" @click="retryActiveTab">重试</button>
     </div>
 
+    <Transition name="data-panel-swap" mode="out-in">
     <section
       v-if="tab === 'export'"
       id="data-panel-export"
@@ -117,6 +118,7 @@
         @request-purge="purgeTarget = $event"
       />
     </section>
+    </Transition>
 
     <ConfirmDialog
       :open="createBackupOpen"

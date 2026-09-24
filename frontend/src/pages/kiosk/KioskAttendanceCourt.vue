@@ -46,7 +46,7 @@
             </div>
           </form>
           <p class="kiosk-focus-hint" :class="{ offline: !online }">
-            {{ online ? "按 Enter 继续" : "连接中断，请稍后重试" }}
+            {{ online ? "按 Enter 继续" : "连接中断，正在重试" }}
           </p>
           <p v-if="error" class="kiosk-focus-error" role="alert">
             <CircleAlert aria-hidden="true" />

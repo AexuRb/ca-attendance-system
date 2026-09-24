@@ -113,6 +113,53 @@ describe("LogsPage request states", () => {
     expect(mocks.get).not.toHaveBeenCalled();
     wrapper.unmount();
   });
+
+  it("uses applied filters for pagination and export until the next query succeeds", async () => {
+    mocks.get.mockImplementation((url: string) => {
+      if (url.startsWith("/api/logs/export")) return Promise.resolve(new Blob(["fixture"]));
+      const requestedPage = Number(new URL(url, "http://localhost").searchParams.get("page") || 1);
+      return Promise.resolve({ items: page(`第${requestedPage}页`).items, total: 21, page: requestedPage, pageSize: 20 });
+    });
+    const wrapper = mount(LogsPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+
+    await wrapper.get('input[name="logKeyword"]').setValue("尚未查询");
+    await wrapper.findAll(".pagination button")[1]?.trigger("click");
+    await flushPromises();
+    expect(String(mocks.get.mock.lastCall?.[0])).toContain("page=2");
+    expect(String(mocks.get.mock.lastCall?.[0])).not.toContain("keyword=");
+
+    await wrapper.get(".mw-tools .button.secondary").trigger("click");
+    await flushPromises();
+    expect(String(mocks.get.mock.lastCall?.[0])).toContain("/api/logs/export?");
+    expect(String(mocks.get.mock.lastCall?.[0])).not.toContain("keyword=");
+
+    await wrapper.get("form.filter-bar").trigger("submit");
+    await flushPromises();
+    expect(String(mocks.get.mock.lastCall?.[0])).toContain("keyword=%E5%B0%9A%E6%9C%AA%E6%9F%A5%E8%AF%A2");
+    wrapper.unmount();
+  });
+
+  it("keeps the previous results and retries the failed filter", async () => {
+    mocks.get.mockResolvedValueOnce(page("原结果"))
+      .mockRejectedValueOnce(new Error("模拟查询失败"))
+      .mockResolvedValueOnce(page("新结果"));
+    const wrapper = mount(LogsPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+
+    await wrapper.get('input[name="logKeyword"]').setValue("待重试");
+    await wrapper.get("form.filter-bar").trigger("submit");
+    await flushPromises();
+    expect(wrapper.text()).toContain("原结果");
+    expect(wrapper.text()).toContain("模拟查询失败");
+
+    await wrapper.get('[data-action="retry-logs"]').trigger("click");
+    await flushPromises();
+    expect(String(mocks.get.mock.lastCall?.[0])).toContain("keyword=%E5%BE%85%E9%87%8D%E8%AF%95");
+    expect(wrapper.text()).toContain("新结果");
+    expect(wrapper.text()).not.toContain("原结果");
+    wrapper.unmount();
+  });
 });
 
 vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));

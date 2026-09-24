@@ -107,8 +107,10 @@
         <small v-else class="auth-field-hint">请与初始密码保持一致</small>
       </div>
       <div class="auth-feedback-slot">
-        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-        <p v-else class="auth-action-hint">请妥善保存首位管理员的登录信息</p>
+        <Transition name="auth-feedback-swap">
+          <p v-if="error" key="error" class="form-error" role="alert">{{ error }}</p>
+          <p v-else key="hint" class="auth-action-hint">请妥善保存首位管理员的登录信息</p>
+        </Transition>
       </div>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
         <span>{{ busy ? "正在初始化" : "创建本地系统" }}</span>

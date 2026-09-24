@@ -134,7 +134,8 @@
               : '该时间段暂无培训记录'
           "
         />
-        <div v-else-if="activeRecords.length" class="profile-record-scroll">
+        <Transition name="profile-record-swap" mode="out-in">
+        <div v-if="activeRecords.length && !(recordsLoading && !recordsReady)" :key="activeRecordTab" class="profile-record-scroll">
           <table v-if="activeRecordTab === 'attendance'">
             <thead>
               <tr>
@@ -206,8 +207,11 @@
             </tbody>
           </table>
         </div>
+        </Transition>
+        <Transition name="profile-record-swap" mode="out-in">
         <ul
           v-if="activeRecords.length"
+          :key="activeRecordTab"
           class="profile-mobile-records"
           :aria-label="activeRecordTab === 'attendance' ? '值班记录' : '培训记录'"
         >
@@ -240,6 +244,7 @@
             </li>
           </template>
         </ul>
+        </Transition>
       </section>
     </div>
 

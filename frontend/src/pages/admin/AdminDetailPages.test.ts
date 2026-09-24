@@ -143,7 +143,9 @@ describe("SettingsPage details", () => {
 
   it("prevents duplicate saves for the same settings section", async () => {
     apiGet.mockImplementation((url: string) => {
-      if (url === "/api/settings/weekdays") return Promise.resolve([]);
+      if (url === "/api/settings/weekdays") {
+        return Promise.resolve([{ weekday: 1, weekday_name: "星期一", enabled: true }]);
+      }
       if (url === "/api/settings/attendance-policy") {
         return Promise.resolve({ requireDutyDay: false, requireDutyPeriod: false });
       }
@@ -157,6 +159,8 @@ describe("SettingsPage details", () => {
     await flushPromises();
 
     const saveWeekdays = wrapper.get("#settings-weekdays").get(".button.primary");
+    await wrapper.get('#settings-weekdays [data-weekday="1"]').trigger("click");
+    expect(saveWeekdays.attributes("disabled")).toBeUndefined();
     await saveWeekdays.trigger("click");
     await saveWeekdays.trigger("click");
     expect(apiPut).toHaveBeenCalledTimes(1);

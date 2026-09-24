@@ -57,6 +57,35 @@ html:root[data-appearance] .repair-presentation :is(.repair-ledger-row, .repair-
   outline-offset: 2px;
 }
 
+/* Status changes are shown at the stable tab rail while the ledger loads. */
+html:root[data-appearance] .repair-presentation .repair-status-tabs button {
+  position:relative;
+  transition:background-color 170ms ease,border-color 170ms ease,color 170ms ease,box-shadow 170ms ease;
+}
+html:root[data-appearance=editorial] .repair-presentation .repair-status-tabs button { transition-duration:215ms; }
+html:root[data-appearance=spatial] .repair-presentation .repair-status-tabs button { transition-duration:150ms; }
+html:root[data-appearance] .repair-presentation .repair-status-tabs button::after {
+  position:absolute;
+  right:12px;
+  bottom:0;
+  left:12px;
+  height:2px;
+  border-radius:2px;
+  background:var(--mw-accent);
+  content:"";
+  transform:scaleX(0);
+  transform-origin:center;
+  transition:transform 170ms cubic-bezier(.2,.7,.2,1);
+}
+html:root[data-appearance=editorial] .repair-presentation .repair-status-tabs button::after { height:1px; transition-duration:215ms; }
+html:root[data-appearance=spatial] .repair-presentation .repair-status-tabs button::after { right:auto; top:8px; bottom:8px; left:0; width:2px; height:auto; transform:scaleY(0); transition-duration:150ms; }
+html:root[data-appearance] .repair-presentation .repair-status-tabs button[aria-selected=true]::after { transform:scaleX(1); }
+html:root[data-appearance=spatial] .repair-presentation .repair-status-tabs button[aria-selected=true]::after { transform:scaleY(1); }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .repair-presentation .repair-status-tabs button,
+  html:root[data-appearance] .repair-presentation .repair-status-tabs button::after { transition:none; }
+}
+
 @media (min-width: 1051px) {
   html:root[data-appearance="spatial"] .repair-presentation .mw-surface {
     grid-template-columns: 228px minmax(0, 1fr);

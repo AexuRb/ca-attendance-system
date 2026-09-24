@@ -57,8 +57,10 @@
       <LoadingBlock v-if="loading" />
       <EmptyState v-else-if="loadError" title="统计结果暂不可用" description="请使用上方的重试按钮重新获取统计结果" />
       <EmptyState v-else-if="!hasData" title="该时间段暂无有效统计" />
+      <Transition name="stats-result-swap" mode="out-in">
+      <div v-if="loaded && !loading && !loadError && hasData" :key="`${preset}-${loadedRange.from}-${loadedRange.to}`" class="stats-result-content">
       <WeeklyStatsTable
-        v-else-if="preset === 'week'"
+        v-if="preset === 'week'"
         :detail="weeklyDetail"
         @select-member="openMemberById"
       />
@@ -113,6 +115,8 @@
           <button class="stats-detail-trigger stats-ranking-mobile-record__detail" type="button" @click="openMemberDetail(item)">查看详情</button>
         </li>
       </ol>
+      </div>
+      </Transition>
     </section>
     <StatsMemberDetail
       :open="!!selectedMember"

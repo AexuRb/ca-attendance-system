@@ -53,9 +53,11 @@
         >
       </div>
       <div class="auth-feedback-slot">
-        <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-        <p v-else-if="sessionNotice" class="auth-session-notice" role="status">{{ sessionNotice }}</p>
-        <p v-else class="auth-remember-hint">{{ rememberHint }}</p>
+        <Transition name="auth-feedback-swap">
+          <p v-if="error" key="error" class="form-error" role="alert">{{ error }}</p>
+          <p v-else-if="sessionNotice" key="session" class="auth-session-notice" role="status">{{ sessionNotice }}</p>
+          <p v-else key="hint" class="auth-remember-hint">{{ rememberHint }}</p>
+        </Transition>
       </div>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
         <span>{{ busy ? "正在验证" : "进入后台" }}</span>

@@ -123,8 +123,7 @@ html:root[data-appearance] .system-workspace.data-finish-workspace .data-source-
 html:root[data-appearance] .system-workspace.data-finish-workspace .data-recycle-table-frame { padding-bottom:0; }
 html:root[data-appearance] .system-workspace.data-finish-workspace .row-actions .danger-ghost { color:#b44740; }
 @media(min-width:1101px) {
- html:root[data-appearance="editorial"] .system-workspace.data-finish-workspace .data-center-tabs { grid-column:2; grid-row:1; align-self:start; padding:0 0 14px; border-top:0; }
- html:root[data-appearance="editorial"] .system-workspace.data-finish-workspace .data-tab-panel { grid-column:2; grid-row:1/4; margin-top:65px; }
+ html:root[data-appearance="editorial"] .system-workspace.data-finish-workspace .data-tab-panel { grid-column:2; grid-row:3; margin-top:0; }
  html:root[data-appearance="editorial"] .system-workspace.data-finish-workspace .data-recycle-workspace { grid-template-columns:190px minmax(0,1fr); gap:20px; }
 }
 html:root[data-appearance] .export-detail .data-field-grid input { pointer-events:auto; }

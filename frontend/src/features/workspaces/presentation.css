@@ -70,14 +70,29 @@ html:root[data-appearance] .stats-presentation .weekly-hours-cell span { display
 html:root[data-appearance] .stats-presentation .weekly-hours-cell span.active { background:var(--mw-soft); color:var(--mw-accent); }
 /* Audit rows expose action, identity, reason, and detail without a disclosure step. */
 html:root[data-appearance] .logs-presentation .audit-records { padding:0; }
-html:root[data-appearance] .logs-presentation :is(.audit-record-head,.audit-records>article) { display:grid; grid-template-columns:110px minmax(150px,1fr) 105px minmax(160px,1.2fr) 36px; align-items:center; gap:18px; padding:16px 24px; border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .logs-presentation :is(.audit-record-head,.audit-records>article) { display:grid; grid-template-columns:110px minmax(180px,1.15fr) minmax(140px,.7fr) minmax(160px,1.4fr) 36px; align-items:center; gap:16px; padding:16px 24px; border-bottom:1px solid var(--mw-line); }
 html:root[data-appearance] .logs-presentation .audit-record-head { background:var(--mw-soft); color:var(--mw-muted); font-size:12px; }
 html:root[data-appearance] .logs-presentation .log-time { display:flex; flex-direction:column; gap:5px; color:var(--mw-muted); font-size:12px; }
 html:root[data-appearance] .logs-presentation .log-time strong { font-size:13px; font-weight:500; color:var(--mw-ink); }
-html:root[data-appearance] .logs-presentation .audit-identity { display:grid; gap:4px; overflow-wrap:anywhere; font-size:12px; }
+html:root[data-appearance] .logs-presentation .audit-identity { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; font-size:12px; }
 html:root[data-appearance] .logs-presentation .audit-identity strong { font-size:13px; font-weight:500; }
 html:root[data-appearance] .logs-presentation .audit-identity small { font-size:12px; color:var(--mw-muted); }
-html:root[data-appearance] .logs-presentation .audit-reason { margin:0; font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+html:root[data-appearance] .logs-presentation .audit-reason { display:-webkit-box; margin:0; min-width:0; overflow:hidden; -webkit-box-orient:vertical; -webkit-line-clamp:2; font-size:12px; line-height:1.7; overflow-wrap:anywhere; }
+html:root[data-appearance] .logs-presentation .audit-records .status-badge { max-width:100%; min-width:0; white-space:normal; text-align:center; overflow-wrap:anywhere; }
+html:root[data-appearance] .logs-presentation .audit-records>article { transition:background-color var(--mw-speed) ease; }
+html:root[data-appearance] .logs-presentation .audit-records>article:is(:hover,:focus-within) { background:color-mix(in srgb,var(--mw-accent) 3%,var(--mw-paper)); }
+html:root[data-appearance] .logs-presentation .audit-records .icon-button:focus-visible { outline:2px solid var(--mw-accent); outline-offset:2px; }
+@media(max-width:800px) {
+  html:root[data-appearance] .logs-presentation .mw-query .filter-bar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; gap:12px 10px; }
+  html:root[data-appearance] .logs-presentation .mw-query .filter-bar label { width:100%; min-width:0; }
+  html:root[data-appearance] .logs-presentation .mw-query .filter-bar label:nth-child(-n+2),
+  html:root[data-appearance] .logs-presentation .mw-query .filter-bar>.button { grid-column:1/-1; }
+  html:root[data-appearance] .logs-presentation .mw-query .filter-bar :is(input,select,.button) { width:100%; }
+  html:root[data-appearance] .logs-presentation .mw-query .filter-bar :is(input[type=date],input[type=search],select) { min-height:40px; }
+}
+@media(max-width:350px) {
+  html:root[data-appearance] .logs-presentation .mw-query .filter-bar { grid-template-columns:minmax(0,1fr); }
+}
 /* Editorial: an index beside the working document, with section-level asymmetry. */
 html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation):not(.schedule-presentation) .mw-results { grid-column:2; grid-row:2/4; padding-top:16px; background:transparent; }
 html:root[data-appearance="editorial"] .schedule-presentation .schedule-focus-board { grid-template-columns:125px minmax(0,1fr); gap:24px; }
@@ -91,7 +106,7 @@ html:root[data-appearance="editorial"] .stats-presentation .stats-metrics { disp
 html:root[data-appearance="editorial"] .stats-presentation .stats-metrics article { border:0; border-bottom:1px solid var(--mw-line); padding:20px; }
 html:root[data-appearance="editorial"] .stats-presentation .stats-results { min-width:0; }
 html:root[data-appearance="editorial"] .logs-presentation .audit-records>.audit-record-head { display:none; }
-html:root[data-appearance="editorial"] .logs-presentation .audit-records>article { grid-template-columns:120px minmax(0,1fr) 120px 36px; gap:10px 24px; padding:22px 4px; }
+html:root[data-appearance="editorial"] .logs-presentation .audit-records>article { grid-template-columns:110px minmax(0,1fr) minmax(135px,auto) 36px; gap:7px 18px; padding:15px 4px; }
 html:root[data-appearance="editorial"] .logs-presentation .log-time { grid-column:1; grid-row:1/3; align-self:start; }
 html:root[data-appearance="editorial"] .logs-presentation .audit-reason { grid-column:2/4; grid-row:2; }
 html:root[data-appearance="editorial"] .logs-presentation .audit-records .icon-button { grid-column:4; grid-row:1/3; }
@@ -107,9 +122,9 @@ html:root[data-appearance="spatial"] .logs-presentation .filter-bar { flex-direc
 html:root[data-appearance="spatial"] .logs-presentation .filter-bar label { flex:auto; }
 html:root[data-appearance="spatial"] .logs-presentation .log-time { flex-direction:column-reverse; }
 @media(max-width:1100px) {
- html:root[data-appearance] .logs-presentation :is(.audit-record-head,.audit-records>article) { grid-template-columns:85px minmax(120px,1fr) 90px minmax(110px,1fr) 34px; gap:10px; padding:14px; }
+ html:root[data-appearance] .logs-presentation :is(.audit-record-head,.audit-records>article) { grid-template-columns:85px minmax(120px,1fr) minmax(105px,.7fr) minmax(110px,1fr) 34px; gap:10px; padding:14px; }
  html:root[data-appearance="editorial"] .support-workspace:not(.logs-presentation):not(.stats-presentation):not(.schedule-presentation) .mw-results { grid-column:1/-1; grid-row:3; }
- html:root[data-appearance="editorial"] .logs-presentation .audit-records>article { grid-template-columns:85px minmax(0,1fr) 100px 34px; }
+ html:root[data-appearance="editorial"] .logs-presentation .audit-records>article { grid-template-columns:85px minmax(0,1fr) minmax(110px,auto) 34px; }
 }
 @media(max-width:800px) {
  html:root[data-appearance] .support-workspace .mw-results { grid-column:1/-1; }
@@ -120,10 +135,10 @@ html:root[data-appearance="spatial"] .logs-presentation .log-time { flex-directi
  html:root[data-appearance] .schedule-presentation .schedule-focus-summary { order:1; display:grid; grid-template-columns:1fr 1fr; border:0; border-top:1px solid var(--mw-line); }
  html:root[data-appearance] .logs-presentation .audit-records>.audit-record-head { display:none; }
  html:root[data-appearance] .logs-presentation .audit-records>article { grid-template-columns:85px minmax(0,1fr) 34px; gap:10px; }
- html:root[data-appearance] .logs-presentation .log-time { grid-column:1; grid-row:1/4; align-self:start; }
+ html:root[data-appearance] .logs-presentation .log-time { grid-column:1; grid-row:1/3; align-self:start; }
  html:root[data-appearance] .logs-presentation .audit-identity { grid-column:2; }
- html:root[data-appearance] .logs-presentation .audit-records .status-badge { grid-column:2; grid-row:2; justify-self:start; }
- html:root[data-appearance] .logs-presentation .audit-reason { grid-column:2; grid-row:3; }
+ html:root[data-appearance] .logs-presentation .audit-records .status-badge { grid-column:2/-1; grid-row:2; justify-self:start; }
+ html:root[data-appearance] .logs-presentation .audit-reason { grid-column:1/-1; grid-row:3; -webkit-line-clamp:3; }
  html:root[data-appearance] .logs-presentation .audit-records .icon-button { grid-column:3; grid-row:1; }
 }
 @media(max-width:600px) {
@@ -181,13 +196,9 @@ html:root[data-appearance] .mw-modal .audit-detail-surface dt { font-size:12px; 
 html:root[data-appearance] .mw-modal .audit-detail-surface dd { font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
 html:root[data-appearance] .mw-modal .audit-diff-table { font-size:12px; }
 @media(min-width:801px) {
- html:root[data-appearance="classic"] .logs-presentation :is(.audit-record-head,.audit-records>article) { grid-template-columns:110px 100px minmax(180px,1.3fr) minmax(150px,1fr) 36px; padding-block:12px; }
- html:root[data-appearance="classic"] .logs-presentation .audit-record-head>span:nth-child(2),
- html:root[data-appearance="classic"] .logs-presentation .audit-identity { grid-column:3; grid-row:1; }
- html:root[data-appearance="classic"] .logs-presentation .audit-record-head>span:nth-child(3),
- html:root[data-appearance="classic"] .logs-presentation .audit-records .status-badge { grid-column:2; grid-row:1; }
- html:root[data-appearance="classic"] .logs-presentation .audit-identity { grid-template-columns:1fr 1fr; align-items:baseline; gap:4px 12px; }
- html:root[data-appearance="classic"] .logs-presentation .audit-identity small { grid-column:1; }
+ html:root[data-appearance="classic"] .logs-presentation :is(.audit-record-head,.audit-records>article) { grid-template-columns:90px minmax(140px,1.1fr) minmax(120px,.75fr) minmax(125px,1.25fr) 36px; gap:12px; padding-block:13px; }
+ html:root[data-appearance="classic"] .logs-presentation .audit-identity { grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:baseline; gap:4px 10px; }
+ html:root[data-appearance="classic"] .logs-presentation .audit-identity small { grid-column:1/-1; }
 }
 
 /* Schedule and statistics typography stays readable across desktop workspaces. */
@@ -201,4 +212,14 @@ html:root[data-appearance] .schedule-presentation .schedule-focus-day :is(strong
 
 @media(max-width:600px) {
  html:root[data-appearance] .mw-modal .audit-detail-surface dl { grid-template-columns:minmax(0,1fr); }
+}
+
+/* Logs keep their rows in place while a filter request refreshes. */
+html:root[data-appearance] .logs-presentation .audit-records { transition:opacity 170ms ease; }
+html:root[data-appearance=editorial] .logs-presentation .audit-records { transition-duration:210ms; }
+html:root[data-appearance=spatial] .logs-presentation .audit-records { transition-duration:150ms; }
+html:root[data-appearance] .logs-presentation .audit-records.is-refreshing { opacity:.68; }
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .logs-presentation .audit-records { transition:none; }
+  html:root[data-appearance] .logs-presentation .audit-records>article { transition:none; }
 }

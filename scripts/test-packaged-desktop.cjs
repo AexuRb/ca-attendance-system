@@ -124,7 +124,7 @@ async function createRepair(theme) {
   await dialog.locator('[name="repair-device-type"]').fill('虚构测试设备');
   await dialog.locator('[name="repair-fault-description"]').fill('隔离桌面验收，不是真实维修');
   await dialog.getByRole('button', { name: '下一步', exact: true }).click();
-  await dialog.getByRole('option').first().click();
+  await expect(dialog.locator('.account-picker-current')).toContainText('隔离验收管理员');
   await dialog.getByRole('button', { name: '保存事务', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await page.reload();
@@ -178,7 +178,7 @@ async function run() {
     await createTraining(theme);
     await checkZoom(theme);
     await navigate('/');
-    await expect(page.locator('.kiosk-signal-app')).toBeVisible();
+    await expect(page.locator('.public-kiosk-shell')).toBeVisible();
     await screenshot(`${theme}-kiosk`);
     await page.evaluate(() => localStorage.removeItem('ca_attendance_token'));
     await navigate('/login');

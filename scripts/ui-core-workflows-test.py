@@ -331,9 +331,9 @@ def main() -> None:
             wait_until="networkidle",
         )
         expect(page.get_by_role("heading", name="成员名册")).to_be_visible()
-        expect(page.get_by_text("陈测试", exact=True)).to_be_visible()
         member_row = page.locator("tbody tr").filter(has_text="2025000001")
         expect(member_row).to_have_count(1)
+        expect(member_row.get_by_text("陈测试", exact=True)).to_be_visible()
         member_row.locator("input[type='checkbox']").check()
         expect(page.get_by_text("已选 1 人", exact=True)).to_be_visible()
         member_row.get_by_role("button", name="编辑 陈测试").click()
@@ -358,12 +358,12 @@ def main() -> None:
             wait_until="networkidle",
         )
         expect(page.get_by_role("heading", name="个人资料")).to_be_visible()
-        expect(page.get_by_text("有效", exact=True)).to_be_visible()
-        expect(page.get_by_text("待审核", exact=True)).to_be_visible()
+        expect(page.get_by_role("table").get_by_text("有效", exact=True)).to_be_visible()
+        expect(page.get_by_role("table").get_by_text("待审核", exact=True)).to_be_visible()
         page.get_by_role("button", name="培训 1").click()
-        expect(page.get_by_text("网络基础培训", exact=True)).to_be_visible()
-        expect(page.get_by_text("陈测试", exact=True)).to_be_visible()
-        expect(page.get_by_text("1.5 小时", exact=True)).to_be_visible()
+        expect(page.get_by_role("table").get_by_text("网络基础培训", exact=True)).to_be_visible()
+        expect(page.get_by_role("table").get_by_text("陈测试", exact=True)).to_be_visible()
+        expect(page.get_by_role("table").get_by_text("1.5 小时", exact=True)).to_be_visible()
         page.get_by_role("button", name="修改密码").click()
         expect(page.get_by_role("heading", name="修改登录密码")).to_be_visible()
         page.get_by_role("button", name="取消").click()
@@ -411,7 +411,7 @@ def main() -> None:
         )
         expect(page.get_by_role("heading", name="值班记录")).to_be_visible()
         expect(page.get_by_text("共 41 条记录", exact=True)).to_be_visible()
-        expect(page.get_by_text("陈测试", exact=True)).to_be_visible()
+        expect(page.get_by_role("table").get_by_text("陈测试", exact=True)).to_be_visible()
         manual_button = page.get_by_role("button", name="补录记录")
         manual_button.click()
         expect(
@@ -433,7 +433,7 @@ def main() -> None:
         expect(
             page.get_by_role("textbox", name="选择补录成员")
         ).to_be_visible()
-        page.get_by_text("陈测试", exact=True).last.click()
+        page.get_by_role("dialog").get_by_text("陈测试", exact=True).click()
         expect(
             page.locator(".account-picker-current", has_text="2025000001")
         ).to_be_visible()
@@ -457,7 +457,7 @@ def main() -> None:
             wait_until="networkidle",
         )
         expect(page.get_by_role("heading", name="系统设置")).to_be_visible()
-        expect(page.locator(".duty-period-tab.disabled").first).to_contain_text("停用")
+        expect(page.locator(".duty-period-tab.disabled").first).to_contain_text("暂停计时")
         expect(page.get_by_label("开始时间")).to_have_value("16:00")
         assert_no_page_overflow(page, "desktop settings")
         page.screenshot(

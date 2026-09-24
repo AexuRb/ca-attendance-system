@@ -713,6 +713,20 @@
   transform: translateY(-8px);
 }
 
+/* Theme-specific command feedback keeps the input fixed and the panel close to its anchor. */
+html:root[data-appearance] .today-workspace { --command-motion-time:175ms; --command-motion-distance:3px; }
+html:root[data-appearance=editorial] .today-workspace { --command-motion-time:215ms; --command-motion-distance:2px; }
+html:root[data-appearance=spatial] .today-workspace { --command-motion-time:155ms; --command-motion-distance:4px; }
+html:root[data-appearance] .today-workspace :is(.command-panel-enter-active,.command-panel-leave-active,.command-feedback-enter-active,.command-feedback-leave-active,.command-welcome-detail-enter-active,.command-welcome-detail-leave-active) {
+  transition:opacity var(--command-motion-time) ease,transform var(--command-motion-time) cubic-bezier(.2,.7,.2,1);
+}
+html:root[data-appearance] .today-workspace :is(.command-panel-enter-from,.command-panel-leave-to,.command-feedback-enter-from,.command-feedback-leave-to) {
+  transform:translateY(var(--command-motion-distance));
+}
+html:root[data-appearance] .today-workspace :is(.command-welcome-detail-enter-from,.command-welcome-detail-leave-to) {
+  transform:translateY(calc(-1 * var(--command-motion-distance)));
+}
+
 @keyframes command-welcome-in {
   from {
     opacity: 0;
