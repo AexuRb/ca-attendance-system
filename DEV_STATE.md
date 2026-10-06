@@ -2,9 +2,11 @@
 
 更新：2026-10-06。
 
-## 3.3.2 正式发布进行中：本地验证与封包完成
+## 3.3.2 正式发布已完成
 
-用户在候选包交付后要求开始正式发布。发布前重新 fetch，origin/main 与本地基线均为 a3e79a2，v3.3.2 尚不存在；本次统一前端、后端、桌面及两个 lockfile 为 3.3.2，不覆盖既有 Release。原六步及两项补充验收已结束，本节是用户新授权的正式发布，历史产物表不代表当前文件。
+用户在候选包交付后要求开始正式发布。发布提交为 `340d13443ac21ab1884bf84a62731b63fb40fa7a`，基于核对后的 origin/main `a3e79a2`；[该提交的 GitHub CI](https://github.com/AexuRb/ca-attendance-system/actions/runs/37419132598) 后端、前端、桌面、脚本与格式检查全部通过，Linux 前端构建静态资源无漂移。版本及两个 lockfile 一致为 3.3.2，原六步及两项补充验收已结束，历史产物表不代表当前文件。
+
+[v3.3.2 Release](https://github.com/AexuRb/ca-attendance-system/releases/tag/v3.3.2) 已公开并设为 Latest。标签对象 `bbe6b1b4bba408dcd58c565532c4691c1219c58c` 与本地一致，指向上述通过 CI 的 main 发布提交。Git HTTPS 推送标签连接重置，兼容 HTTP/1.1 仍失败，改用 GitHub Git Data API 上传完全相同的注解标签；未改变发布提交或移动已有标签。三个资产均为 uploaded，重新下载到唯一证据目录的 published-downloads，文件大小、SHA-256、远端摘要和下载的 SHA256SUMS 全部一致。公开 Release 保留未覆盖项披露，不宣称完整发布门禁通过。
 
 本地后端全量测试、依赖上界、前端全量测试、类型检查、构建、桌面测试、Python 脚本测试及 Python/PowerShell/CJS 语法检查均通过，实际结果从临时目录 Surefire、Vitest、Node 和 unittest 报告读取。旧导航失败测试的 session 夹具缺 ready 状态，且仍断言已被恢复弹窗替代的旧 Toast；补齐真实启动/恢复接线后继续检查当前路由不变、只呈现一次反馈、内部错误不外露，未改生产路由或放宽权限。保留修正前失败证据。
 
@@ -14,7 +16,7 @@
 
 安装版/便携 ZIP 由 scripts/build-desktop.ps1 生成，复用已通过测试结果；新增可选 ElectronDist 参数在任何构建前校验本机缓存版本与 electron.exe，默认打包行为保留。源 JAR、79 个静态文件、ASAR 7 个源码文件、315 个 Java 文件与 ZIP 393 个程序文件逐字节一致，分发数据目录为空、校验和正确。实际新 Electron 打包程序通过托盘、单实例、回环端口、后端异常退出、目录迁移和窗口状态检查，实际解压便携版两次启动/正常退出/同根重启通过。
 
-| 当前候选文件 | 字节 | SHA256 |
+| 当前发行文件 | 字节 | SHA256 |
 | --- | --- | --- |
 | backend/target/attendance-backend.jar | 60,953,879 | `e9d252fac694cce262b04a04306d4704aa7e4b0f0b74e88bf52a7463e57113e1` |
 | release-artifacts/CA-Attendance-System-Setup-3.3.2.exe | 191,348,507 | `d22164e0913d1c67c2180c852a32d2be4086f4126dbde33dca0f41bf98c66070` |
@@ -24,7 +26,7 @@
 
 自动审批曾拒绝启动界面并初始化账号的组合操作，未给出具体原因；随后拆分为临时便携程序只读启动与已验证空库的单独合成夹具初始化，完成浏览器复核。原生窗口捕获重试后仍失败，停止原生 UI 操作。内置浏览器 tab 4 已退出登录、导航 about:blank 并 markHandoff，未调用 close；不宣称 Codex 闪退根因解决。
 
-本地封包完成，正式发布依次执行提交推送、该提交的 GitHub CI、标签/Release、远端资产下载校验。发布说明与升级/回滚边界见 docs/releases/v3.3.2.md，README、运行说明、CHANGELOG 已对齐版本；完成后补录实际提交、工作流与资产结果。原生文件/Excel、离页确认、安装升级卸载、Windows/DPI/多显示器及上述性能/UI 回归未覆盖项已明确披露，不能标记完整发布门禁通过；不操作已安装程序。
+正式发布的提交推送、GitHub CI、标签/Release 与远端下载校验已完成。新增证据为 release-commit-ci.json、github-ci.log、tag-object.json、published-release.json 和 formal-release-result.json；先前 release-readiness.json 保留本地候选阶段的未发布快照。发布说明与升级/回滚边界见 docs/releases/v3.3.2.md，README、运行说明、CHANGELOG 已对齐版本。原生文件/Excel、离页确认、安装升级卸载、Windows/DPI/多显示器及上述性能/UI 回归未覆盖项已明确披露，不能标记完整发布门禁通过；未操作正式数据或已安装程序。本次剩余发布步骤为零，不追加滚动开发任务。
 
 历史补充交付（3.3.1）：数据安全补充验收与桌面成品同步均已完成，以下各成品表为当时快照。原前端六步及两个补充项已关闭，不追加滚动候选。
 
