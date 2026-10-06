@@ -98,8 +98,9 @@ export async function api<T = unknown>(
 
 export const get = <T = unknown>(path: string, options: RequestInit = {}) =>
   api<T>(path, options);
-export const post = <T = unknown>(path: string, body?: unknown) =>
+export const post = <T = unknown>(path: string, body?: unknown, options: Pick<RequestInit, "signal"> = {}) =>
   api<T>(path, {
+    ...options,
     method: "POST",
     body: body instanceof FormData ? body : JSON.stringify(body ?? {}),
   });

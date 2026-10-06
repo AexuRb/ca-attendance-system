@@ -123,13 +123,16 @@ function viewCommand(
   if (object.canonical === "值班记录") {
     const status = attendanceStatus(args[0]);
     if (status) {
-      if (args.length > 1) return extraArguments(args.slice(1));
+      const remaining = args.slice(1);
+      const range = remaining.length ? exactRange(remaining, now) : undefined;
+      if (range && "message" in range) return invalid(range.message);
+      const rangeLabel = range ? " " + range.label : "";
       return resolved(
-        "/ 查看 值班记录 " + args[0],
-        "已筛选" + args[0] + "值班记录",
+        "/ 查看 值班记录 " + args[0] + rangeLabel,
+        "已筛选" + (range?.label || "") + args[0] + "值班记录",
         "navigate",
         object.routeName,
-        { status },
+        { status, ...(range ? { from: range.from, to: range.to } : {}) },
       );
     }
     const range = optionalRange(args, now, "本周");

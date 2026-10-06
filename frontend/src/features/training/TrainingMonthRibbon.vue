@@ -55,6 +55,7 @@
         v-if="orderedItems.length"
         ref="viewport"
         class="training-ribbon-viewport"
+        @scroll="$emit('scroll')"
       >
         <div
           class="training-ribbon-track"
@@ -82,7 +83,7 @@
       </div>
       <div v-else-if="!loading && !error" class="training-ribbon-empty">
         <CalendarRange aria-hidden="true" />
-        <strong>本月暂无培训</strong>
+        <strong>没有符合条件的培训</strong>
       </div>
 
       <footer v-if="total > pageSize" class="training-ribbon-pagination">
@@ -113,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, watch, type ComponentPublicInstance } from "vue";
 import { CalendarRange, ChevronLeft, ChevronRight } from "@lucide/vue";
 import type { TrainingSession } from "./trainingTypes";
 
@@ -127,6 +128,8 @@ const props = defineProps<{
   hasMore: boolean;
   loading: boolean;
   error: string;
+  bindScroll?: (element: Element | ComponentPublicInstance | null) => void;
+  restoringHistory?: boolean;
 }>();
 
 defineEmits<{
@@ -134,9 +137,11 @@ defineEmits<{
   page: [page: number];
   "shift-month": [step: number];
   retry: [];
+  scroll: [];
 }>();
 
 const viewport = ref<HTMLElement | null>(null);
+watch(viewport, (element) => props.bindScroll?.(element), { flush: "post" });
 const orderedItems = computed(() =>
   [...props.items].sort((left, right) =>
     `${left.trainingDate} ${left.startTime || ""}`.localeCompare(
@@ -161,6 +166,7 @@ watch(
   () => [props.selectedId, props.items] as const,
   async () => {
     await nextTick();
+    if (props.restoringHistory) return;
     const selected = viewport.value?.querySelector<HTMLElement>(
       '.training-ribbon-event[aria-pressed="true"]',
     );

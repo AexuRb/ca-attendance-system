@@ -185,7 +185,10 @@ public class TrainingQueryService {
         ), userId, databaseDate(range.start()), databaseDate(range.end()));
     }
 
-    List<Map<String, Object>> memberSummary(LocalDate from, LocalDate to) {
+    List<Map<String, Object>> memberSummary(String keyword, String status, LocalDate from, LocalDate to) {
+        SessionQuery query = sessionQuery(keyword, status, from, to);
+        List<Object> args = new ArrayList<>(query.args());
+        args.add(ExportRowLimit.FETCH_LIMIT);
         return jdbc.queryForList("""
                 SELECT p.student_no_snapshot AS studentNo,
                        p.name_snapshot AS name,
@@ -193,13 +196,12 @@ public class TrainingQueryService {
                        COALESCE(SUM(p.duration_hours), 0) AS durationHours
                 FROM training_participants p
                 JOIN training_sessions s ON s.id = p.session_id
-                WHERE s.status <> 'ARCHIVED'
-                  AND s.training_date BETWEEN ? AND ?
+                """ + query.where() + """
                   AND p.duration_hours > 0
                 GROUP BY p.student_no_snapshot, p.name_snapshot
                 ORDER BY durationHours DESC, trainingCount DESC, p.student_no_snapshot
                 LIMIT ?
-                """, from, to, ExportRowLimit.FETCH_LIMIT);
+                """, args.toArray());
     }
 
     private SessionQuery sessionQuery(String keyword, String status, LocalDate from, LocalDate to) {

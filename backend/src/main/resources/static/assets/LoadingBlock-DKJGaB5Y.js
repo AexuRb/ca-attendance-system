@@ -1,0 +1,1 @@
+import{J as e,S as t,_ as n,ht as r,j as i,m as a,x as o}from"./vue-router-tnz-igFk.js";import{w as s}from"./index-DnpVGhfg.js";var c={class:`loading-block`,role:`status`},l=t({__name:`LoadingBlock`,props:{label:{}},setup(t){return(l,u)=>(i(),n(`div`,c,[o(e(s),{class:`spin`}),a(`span`,null,r(t.label||`正在加载`),1)]))}});export{l as t};

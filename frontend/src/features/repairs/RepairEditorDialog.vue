@@ -1,17 +1,18 @@
 <template>
   <ModalDialog
     :open="open"
-    :title="form.id ? '编辑维修事务' : '新建维修事务'"
+    :title="form.id ? initialStep === 2 ? '更新维修处理' : '编辑维修事务' : '新建维修事务'"
     size="lg"
     @close="close"
   >
     <form id="repair-editor-form" novalidate @submit.prevent="submit">
+      <p v-if="form.id" class="repair-editor-context">{{ form.ownerName }} · {{ form.deviceBrand }} {{ form.deviceModel || form.deviceType }}<br />{{ form.faultDescription }}</p>
       <nav class="repair-editor-steps" aria-label="维修事务填写步骤">
         <button type="button" :class="{ active: step === 1 }" :aria-current="step === 1 ? 'step' : undefined" @click="step = 1">
           <span>1</span><strong>设备与联系人</strong>
         </button>
         <button type="button" :class="{ active: step === 2 }" :aria-current="step === 2 ? 'step' : undefined" @click="step = 2">
-          <span>2</span><strong>受理与确认</strong>
+          <span>2</span><strong>处理与确认</strong>
         </button>
       </nav>
       <RepairDeviceStep v-if="step === 1" :form="form" :errors="errors" />
@@ -56,6 +57,7 @@ const props = defineProps<{
   handler: AccountCandidate | null;
   candidates: AccountCandidate[];
   pending: boolean;
+  initialStep?: 1 | 2;
 }>();
 const emit = defineEmits<{ close: []; save: []; "update:handler": [value: AccountCandidate | null] }>();
 const step = ref<1 | 2>(1);
@@ -67,10 +69,10 @@ function close() {
 
 watch(() => props.open, (open) => {
   if (open) {
-    step.value = 1;
+    step.value = props.initialStep || 1;
     clearErrors();
   }
-});
+}, { immediate: true });
 
 async function nextStep() {
   clearErrors();

@@ -1,4 +1,10 @@
 /* Repair-specific finishing; the shared affairs and training surfaces stay unchanged. */
+html:root[data-appearance] .repair-query-context { display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px; padding:6px 20px; border-bottom:1px solid var(--mw-line); color:var(--mw-muted); background:var(--mw-soft); font-size:12px; overflow-wrap:anywhere; }
+html:root[data-appearance] .repair-query-context strong { color:var(--mw-ink); font-weight:500; }
+html:root[data-appearance] .affairs-detail .repair-detail-drawer:has(.repair-detail-navigation) { grid-template-rows:auto auto minmax(0,1fr) auto; }
+html:root[data-appearance] .repair-detail-navigation { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:12px 20px; border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .repair-detail-navigation span { font-size:12px; color:var(--mw-muted); }
+html:root[data-appearance] .repair-editor-context { margin:0 0 16px; padding:10px 12px; background:var(--mw-soft); color:var(--mw-ink); font-size:13px; overflow-wrap:anywhere; }
 html:root[data-appearance] .repair-presentation .repair-card-identity strong,
 html:root[data-appearance] .repair-presentation .repair-card-identity small {
   display: block;
@@ -27,22 +33,13 @@ html:root[data-appearance] .repair-presentation .repair-ledger-row:hover {
   transform: none;
 }
 
-html:root[data-appearance="editorial"] .repair-presentation .mw-query {
-  grid-row: 1 / 3;
-  align-self: start;
-  margin-top: 50px;
-}
-
-html:root[data-appearance="editorial"] .repair-presentation .mw-heading {
-  grid-row: 2;
-  align-self: start;
-  padding-top: 4px;
-}
-
-html:root[data-appearance="editorial"] .repair-presentation .mw-results {
-  grid-row: 3;
-  margin-top: 0;
-}
+/* Keep layout ownership here, without changing the shared training shell. */
+html:root[data-appearance] .repair-presentation .mw-heading { padding:14px 24px; }
+html:root[data-appearance] .repair-presentation .mw-heading :is(small,p) { display:none; }
+html:root[data-appearance] .repair-presentation .mw-heading h1 { margin:0; }
+html:root[data-appearance] .repair-presentation .mw-tools { padding:12px 24px; }
+html:root[data-appearance] .repair-presentation .mw-query { padding:12px 20px; }
+html:root[data-appearance] .repair-presentation .repair-status-tabs { padding:8px 20px; }
 
 html:root[data-appearance] .repair-presentation .repair-query-bar > label {
   min-width: 0;
@@ -86,23 +83,54 @@ html:root[data-appearance=spatial] .repair-presentation .repair-status-tabs butt
   html:root[data-appearance] .repair-presentation .repair-status-tabs button::after { transition:none; }
 }
 
+@media (min-width: 1001px) {
+  html:root[data-appearance] .repair-presentation .repair-query-bar {
+    grid-template-columns:minmax(180px,2fr) repeat(2,minmax(150px,1fr)) auto;
+  }
+  html:root[data-appearance] .repair-presentation .repair-query-bar > label:first-child { grid-column:auto; }
+  html:root[data-appearance] .repair-presentation .repair-ledger-row td { padding-block:10px; }
+  html:root[data-appearance] .repair-presentation .repair-ledger-table th { padding-block:10px; }
+}
+
+@media (min-width: 701px) {
+  html:root[data-appearance="editorial"] .repair-presentation .mw-surface {
+    grid-template-columns:190px minmax(0,1fr) auto;
+    gap:0 20px;
+    padding:18px 20px;
+  }
+  html:root[data-appearance="editorial"] .repair-presentation .mw-subnav { grid-column:1; grid-row:1/3; }
+  html:root[data-appearance="editorial"] .repair-presentation .mw-heading { grid-column:2; grid-row:1; padding:0 0 10px; }
+  html:root[data-appearance="editorial"] .repair-presentation .mw-tools { grid-column:3; grid-row:1; padding:0 0 10px; align-self:center; }
+  html:root[data-appearance="editorial"] .repair-presentation .mw-query { grid-column:2/-1; grid-row:2; margin:0; padding:10px 16px; }
+  html:root[data-appearance="editorial"] .repair-presentation .mw-results { grid-column:1/-1; grid-row:3; margin-top:12px; }
+}
+
+@media (min-width: 1001px) {
+  html:root[data-appearance="editorial"] .repair-presentation .affairs-record-time { display:grid; grid-template-columns:auto 1fr; gap:0 8px; margin-top:4px; }
+  html:root[data-appearance="editorial"] .repair-presentation .affairs-record-time time { margin:0; }
+  html:root[data-appearance="editorial"] .repair-presentation .affairs-record-time small:last-child { grid-column:1/-1; }
+  html:root[data-appearance="editorial"] .repair-presentation .affairs-record-handler { margin-top:4px; }
+  html:root[data-appearance="editorial"] .repair-presentation .affairs-record-handler small { display:inline; margin-right:8px; }
+  html:root[data-appearance="editorial"] .repair-presentation .affairs-record-status { display:inline-block; margin:0 8px 0 0; }
+}
+
 @media (min-width: 1051px) {
+  html:root[data-appearance="spatial"] .repair-presentation .mw-primary { width:100%; }
+  html:root[data-appearance="spatial"] .repair-presentation .mw-subnav { padding:8px 20px; }
   html:root[data-appearance="spatial"] .repair-presentation .mw-surface {
-    grid-template-columns: 228px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   html:root[data-appearance="spatial"] .repair-presentation .mw-heading {
-    grid-column: 1 / -1;
+    grid-column: 1;
     grid-row: 2;
-    padding-right: 240px;
   }
 
   html:root[data-appearance="spatial"] .repair-presentation .mw-tools {
     grid-column: 2;
     grid-row: 2;
-    align-self: center;
-    z-index: 1;
-    border: 0;
+    align-self: stretch;
+    border-bottom: 1px solid var(--mw-line);
     background: transparent;
   }
 

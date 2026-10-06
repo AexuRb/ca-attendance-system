@@ -46,6 +46,96 @@ describe("useKioskAttendance schedule refresh", () => {
     );
   });
 
+  it("retries a 503 lookup without letting a successful schedule poll hide its failure", async () => {
+    let lookupAttempts = 0;
+    vi.mocked(get).mockImplementation(async path => {
+      if (path.includes("/attendance/lookup")) {
+        if (++lookupAttempts === 1) throw new ApiError("synthetic internal detail", 503);
+        return { exists: true, memberToken: "sel_member", name: "合成成员", action: "CHECK_IN" } as never;
+      }
+      return (path.endsWith("/week") ? [] : { slots: [] }) as never;
+    });
+    const mounted = mountKioskState();
+    try {
+      await flushPromises();
+      mounted.state.query.value = "9900000011";
+      await mounted.state.lookup();
+      expect(mounted.state.online.value).toBe(false);
+      expect(mounted.state.error.value).toContain("自动重试");
+      expect(mounted.state.error.value).not.toContain("synthetic internal");
+      window.dispatchEvent(new Event("focus"));
+      await flushPromises();
+      expect(mounted.state.online.value).toBe(false);
+      await vi.advanceTimersByTimeAsync(2500);
+      expect(lookupAttempts).toBe(2);
+      expect(mounted.state.step.value).toBe("confirm");
+      expect(mounted.state.online.value).toBe(true);
+    } finally { mounted.wrapper.unmount(); }
+  });
+
+  it("keeps a failed write manual and reuses its attempt after background reads recover", async () => {
+    const mounted = mountKioskState();
+    try {
+      await flushPromises();
+      mounted.state.lookupResult.value = { exists: true, memberToken: "sel_member", name: "合成成员", action: "CHECK_IN", message: "" };
+      mounted.state.step.value = "confirm";
+      vi.mocked(post).mockRejectedValueOnce(new ApiError("synthetic private detail", 503))
+        .mockResolvedValueOnce({ name: "合成成员", action: "CHECK_IN", submittedAt: new Date().toISOString() } as never);
+      await mounted.state.submitAttendance();
+      const firstBody = vi.mocked(post).mock.calls[0]![1];
+      expect(mounted.state.online.value).toBe(false);
+      expect(mounted.state.error.value).toContain("暂未确认");
+      expect(mounted.state.error.value).not.toContain("synthetic private");
+      window.dispatchEvent(new Event("focus"));
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(post).toHaveBeenCalledOnce();
+      expect(mounted.state.online.value).toBe(false);
+      await mounted.state.submitAttendance();
+      expect(vi.mocked(post).mock.calls[1]![1]).toEqual(firstBody);
+      expect(mounted.state.step.value).toBe("success");
+    } finally { mounted.wrapper.unmount(); }
+  });
+
+  it("does not mark a failed schedule service healthy after an attendance lookup succeeds", async () => {
+    let scheduleFailed = true;
+    vi.mocked(get).mockImplementation(async path => {
+      if (path.includes("/attendance/lookup")) return { exists: true, memberToken: "sel_member", name: "合成成员", action: "CHECK_IN" } as never;
+      if (scheduleFailed) throw new ApiError("synthetic schedule detail", 503);
+      return (path.endsWith("/week") ? [] : { slots: [] }) as never;
+    });
+    const mounted = mountKioskState();
+    try {
+      await flushPromises();
+      expect(mounted.state.scheduleError.value).not.toContain("synthetic");
+      mounted.state.query.value = "9900000011";
+      await mounted.state.lookup();
+      expect(mounted.state.online.value).toBe(false);
+      expect(mounted.state.step.value).toBe("confirm");
+      scheduleFailed = false;
+      await vi.advanceTimersByTimeAsync(3000);
+      expect(mounted.state.online.value).toBe(true);
+      expect(mounted.state.scheduleError.value).toBe("");
+      expect(post).not.toHaveBeenCalled();
+    } finally { mounted.wrapper.unmount(); }
+  });
+
+  it("does not retry an obsolete 503 lookup after the query is edited", async () => {
+    vi.mocked(get).mockImplementation(async path => {
+      if (path.includes("/attendance/lookup")) throw new ApiError("unavailable", 503);
+      return (path.endsWith("/week") ? [] : { slots: [] }) as never;
+    });
+    const mounted = mountKioskState();
+    try {
+      await flushPromises();
+      mounted.state.query.value = "9900000011";
+      await mounted.state.lookup();
+      mounted.state.query.value = "9900000022";
+      mounted.state.clearError();
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(vi.mocked(get).mock.calls.filter(([path]) => path.includes("/attendance/lookup"))).toHaveLength(1);
+    } finally { mounted.wrapper.unmount(); }
+  });
+
   it("updates the shared date and reloads schedules after midnight", async () => {
     let state: KioskState | undefined;
     const wrapper = mount(defineComponent({

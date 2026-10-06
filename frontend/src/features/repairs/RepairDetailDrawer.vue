@@ -30,7 +30,12 @@
             </button>
           </header>
 
-          <div class="repair-detail-body" data-dialog-content>
+          <nav v-if="position" class="repair-detail-navigation" aria-label="浏览当前页维修记录">
+            <button class="button secondary small" type="button" :disabled="!canPrevious" @click="$emit('previous')">上一项</button>
+            <span aria-live="polite">{{ position }}</span>
+            <button class="button secondary small" type="button" :disabled="!canNext" @click="$emit('next')">下一项</button>
+          </nav>
+          <div ref="detailBody" class="repair-detail-body" data-dialog-content>
             <div class="repair-detail-status">
               <StatusBadge :label="statusLabel" :tone="statusTone" />
               <span>{{ repairAgreementLabel(item.agreementType) }}</span>
@@ -113,6 +118,7 @@
           </div>
 
           <footer class="repair-detail-actions">
+            <button v-if="canManage" class="button primary" type="button" @click="$emit('process', item)"><Wrench aria-hidden="true" />更新处理</button>
             <button
               class="button secondary"
               type="button"
@@ -123,7 +129,7 @@
             </button>
             <button
               v-if="canManage"
-              class="button primary"
+              class="button secondary"
               type="button"
               @click="$emit('edit', item)"
             >
@@ -147,7 +153,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject } from "vue";
+import { computed, ref, inject, watch } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 const refined = inject(memberPresentationKey, false);
 import {
@@ -180,17 +186,25 @@ const props = defineProps<{
   phoneVisible: boolean;
   canManage: boolean;
   canDelete: boolean;
+  position?: string;
+  canPrevious?: boolean;
+  canNext?: boolean;
 }>();
 
 const emit = defineEmits<{
   close: [];
   preview: [item: RepairCase];
   edit: [item: RepairCase];
+  process: [item: RepairCase];
+  previous: [];
+  next: [];
   delete: [item: RepairCase];
   "toggle-phone": [id: number];
 }>();
 
 const dialog = ref<HTMLElement | null>(null);
+const detailBody = ref<HTMLElement | null>(null);
+watch(() => props.item?.id, () => { if (detailBody.value) detailBody.value.scrollTop = 0; }, { flush: "post" });
 useDialogFocus({
   root: dialog,
   open: () => props.open,

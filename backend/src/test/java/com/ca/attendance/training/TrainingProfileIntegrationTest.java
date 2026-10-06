@@ -127,6 +127,75 @@ class TrainingProfileIntegrationTest {
         }
     }
 
+    @Test
+    void summaryMembersUseTheSameKeywordStatusAndDatesAsSessions() throws Exception {
+        LocalDate date = LocalDate.of(2026, 10, 3);
+        long adminId = insertAdmin("scope-admin", "范围管理员");
+        AuthContext.set(new AuthUser(adminId, "scope-admin", "范围管理员", Role.ADMIN,
+                Instant.now().plusSeconds(3600)));
+        long first = insertSession(date);
+        long second = insertSession(date);
+        long other = insertSession(date);
+        long planned = insertSession(date);
+        long outside = insertSession(date.minusDays(1));
+        long archived = insertSession(date);
+        jdbc.update("UPDATE training_sessions SET title = '匹配培训' WHERE id IN (?, ?, ?, ?, ?)",
+                first, second, planned, outside, archived);
+        jdbc.update("UPDATE training_sessions SET status = 'PLANNED' WHERE id = ?", planned);
+        jdbc.update("UPDATE training_sessions SET status = 'ARCHIVED' WHERE id = ?", archived);
+        insertParticipant(first, memberId, "1001", "目标成员", "PRESENT", "1.25");
+        insertParticipant(second, memberId, "1001", "目标成员", "PRESENT", "2.00");
+        insertParticipant(other, memberId, "1001", "目标成员", "PRESENT", "4.00");
+        insertParticipant(planned, memberId, "1001", "目标成员", "PRESENT", "8.00");
+        insertParticipant(outside, memberId, "1001", "目标成员", "PRESENT", "16.00");
+        insertParticipant(archived, memberId, "1001", "目标成员", "PRESENT", "32.00");
+        long excludedMember = insertUser("1002", "范围外成员");
+        insertParticipant(other, excludedMember, "1002", "范围外成员", "PRESENT", "64.00");
+
+        var summary = trainings.exportSummary("匹配培训", "COMPLETED", date, date);
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(summary.bytes()))) {
+            var sessions = workbook.getSheet("培训场次");
+            var members = workbook.getSheet("成员统计");
+            assertEquals(4, sessions.getLastRowNum());
+            assertEquals(1, members.getLastRowNum());
+            assertEquals("1001", members.getRow(1).getCell(0).getStringCellValue());
+            assertEquals(2.0, members.getRow(1).getCell(2).getNumericCellValue());
+            assertEquals(3.25, members.getRow(1).getCell(3).getNumericCellValue());
+            assertEquals(3.25, sessions.getRow(3).getCell(5).getNumericCellValue()
+                    + sessions.getRow(4).getCell(5).getNumericCellValue());
+        }
+        var empty = trainings.exportSummary("没有匹配场次", null, date, date);
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(empty.bytes()))) {
+            assertEquals(2, workbook.getSheet("培训场次").getLastRowNum());
+            assertEquals(0, workbook.getSheet("成员统计").getLastRowNum());
+        }
+    }
+
+    @Test
+    void summaryMembersMatchLiteralKeywordsAcrossAllSessionSearchFields() throws Exception {
+        LocalDate date = LocalDate.of(2026, 10, 3);
+        long adminId = insertAdmin("literal-admin", "关键词管理员");
+        AuthContext.set(new AuthUser(adminId, "literal-admin", "关键词管理员", Role.ADMIN,
+                Instant.now().plusSeconds(3600)));
+        String keyword = "范围%_\\'";
+        long matching = insertSession(date);
+        long other = insertSession(date);
+        insertParticipant(matching, memberId, "1001", "目标成员", "PRESENT", "1.25");
+        insertParticipant(other, memberId, "1001", "目标成员", "PRESENT", "2.00");
+        for (String field : new String[]{"title", "location", "speaker", "description"}) {
+            jdbc.update("UPDATE training_sessions SET title = '普通培训', location = '活动室', "
+                    + "speaker = '主讲人', description = '' WHERE id = ?", matching);
+            jdbc.update("UPDATE training_sessions SET " + field + " = ? WHERE id = ?", keyword, matching);
+            var summary = trainings.exportSummary(keyword, null, date, date);
+            try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(summary.bytes()))) {
+                assertEquals(3, workbook.getSheet("培训场次").getLastRowNum());
+                var member = workbook.getSheet("成员统计").getRow(1);
+                assertEquals(1.0, member.getCell(2).getNumericCellValue(), field);
+                assertEquals(1.25, member.getCell(3).getNumericCellValue(), field);
+            }
+        }
+    }
+
     private long insertUser(String studentNo, String name) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO users (

@@ -1,4 +1,4 @@
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { del, downloadBlob, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
@@ -6,6 +6,8 @@ import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import { notify } from "../../shared/composables/useToast";
 import { dateRangeError } from "../../shared/validation/dateRange";
+import { createPrivateNavigationState } from "../../shared/navigation/privateNavigationState";
+import { routeQuerySignature, updateOwnedRouteQuery } from "../../shared/navigation/routeQueryState";
 import { fetchTrainingParticipantPage, fetchTrainingSessionPage } from "./trainingApi";
 import { currentTrainingMonth, shiftTrainingMonth, trainingRangeLabel } from "./trainingCalendar";
 import type {
@@ -13,17 +15,39 @@ import type {
   TrainingParticipantForm,
   TrainingSession,
   TrainingSessionForm,
+  TrainingWorkspaceRouteState,
 } from "./trainingTypes";
-import { useTrainingWorkspace } from "./useTrainingWorkspace";
+import { useTrainingWorkspace, type TrainingWorkspaceQuery } from "./useTrainingWorkspace";
+
+type ScrollPosition = { top: number; left: number };
+type HistorySnapshot = { state: TrainingWorkspaceRouteState; signature: string; ribbon: ScrollPosition; participants: ScrollPosition };
+const historyMemory = createPrivateNavigationState<HistorySnapshot>();
+const visitKey = "trainingWorkspaceVisit";
+const publicKeys = ["sessionId", "sessionPage", "participantPage", "from", "to"] as const;
 
 export function useTrainingManagementWorkspace() {
   const task = useAsyncTask();
   const actions = usePendingActions();
   const route = useRoute();
   const router = useRouter();
+  const historyScope = historyMemory.scope();
+  const ribbonScroll = ref<HTMLElement | null>(null);
+  const participantScroll = ref<HTMLElement | null>(null);
+  let active = true;
+  let routeReady = false;
+  let suppressRouteRestore = false;
+  let activeVisit: string | undefined;
+  let syncVersion = 0;
+  const initialHistory = historySnapshot();
+  let pendingRestore = initialHistory;
+  let restoreReady = false;
+  const restoringHistory = ref(Boolean(initialHistory));
+  const initialQuery = privateQuery(route.query, initialHistory);
   const initialIntent = typeof route.query.intent === "string" ? route.query.intent : "";
   const sessionOpen = ref(false);
   const participantOpen = ref(false);
+  const participantSession = ref<TrainingSession | null>(null);
+  const participantSavedMessage = ref("");
   const importOpen = ref(false);
   const importError = ref("");
   const exportButton = ref<HTMLButtonElement | null>(null);
@@ -35,15 +59,17 @@ export function useTrainingManagementWorkspace() {
     loadSessions: fetchTrainingSessionPage,
     loadParticipants: fetchTrainingParticipantPage,
     defaults: { from: initialMonth.from, to: initialMonth.to },
-    initialQuery: route.query,
+    initialQuery,
     onQueryChange: replaceRouteQuery,
   });
   const {
     filters,
     appliedFilters,
+    hasAppliedSessionQuery,
     sessions: sessionState,
     participants: participantState,
     participantKeyword,
+    appliedParticipantKeyword,
     selected,
     applyFilters: applyWorkspaceFilters,
     setSessionPage,
@@ -56,6 +82,13 @@ export function useTrainingManagementWorkspace() {
   const sessions = computed(() => sessionState.items);
   const participants = computed(() => participantState.items);
   const filterError = computed(() => dateRangeError(filters.from, filters.to));
+  const summaryExportReady = computed(() => hasAppliedSessionQuery.value && !sessionState.loading && !sessionState.error);
+  const summaryExportTitle = computed(() => {
+    if (sessionState.loading) return "场次正在查询，完成后可导出";
+    if (sessionState.error) return "场次查询失败，请重试成功后导出";
+    if (!hasAppliedSessionQuery.value) return "请先完成场次查询，再导出统计";
+    return "按已查询的日期与场次关键词导出全部场次统计；不受分页或参与名单搜索影响";
+  });
   const filtersPending = computed(() =>
     filters.keyword !== appliedFilters.keyword ||
     filters.from !== appliedFilters.from ||
@@ -88,6 +121,8 @@ export function useTrainingManagementWorkspace() {
   );
 
   onMounted(async () => {
+    await consumeKeywords();
+    routeReady = true;
     await workspace.initialize();
     if (initialIntent === "new") openSession();
     if (initialIntent === "import") {
@@ -99,24 +134,118 @@ export function useTrainingManagementWorkspace() {
       exportButton.value?.focus();
     }
   });
-  onBeforeUnmount(workspace.dispose);
+  onBeforeUnmount(() => {
+    rememberScroll();
+    active = false;
+    workspace.dispose();
+  });
   watch(
     () => route.query,
     async (query) => {
+      if (!routeReady || suppressRouteRestore || !active) return;
       if (sameQuery(query, workspace.currentQuery())) return;
-      await workspace.restoreQuery(query);
+      rememberScroll();
+      pendingRestore = historySnapshot();
+      restoringHistory.value = Boolean(pendingRestore);
+      restoreReady = false;
+      const request = privateQuery(query, pendingRestore);
+      await consumeKeywords();
+      await workspace.restoreQuery(request);
     },
   );
   onBeforeRouteLeave(
-    () =>
-      new Promise<boolean>((resolve) => {
+    () => {
+      if (actions.isPending("save-participant") || actions.isPending("save-session")) return false;
+      return new Promise<boolean>((resolve) => {
         unsaved.request(() => resolve(true), () => resolve(false));
-      }),
+      });
+    },
   );
 
   async function replaceRouteQuery(query: Record<string, string>) {
-    if (sameQuery(route.query, query)) return;
-    await router.replace({ query });
+    if (!active || sessionState.loading || sessionState.error || participantState.loading || participantState.error) return;
+    const version = ++syncVersion;
+    const state = workspace.currentState();
+    suppressRouteRestore = true;
+    try {
+      if (!sameQuery(route.query, query)) await router.replace({ query });
+      if (router.options && !currentVisit()) {
+        await router.replace({ query, state: { [visitKey]: crypto.randomUUID() }, force: true });
+      }
+    } finally {
+      suppressRouteRestore = false;
+    }
+    if (!active || version !== syncVersion) return;
+    activeVisit = currentVisit();
+    const saved = pendingRestore;
+    // A changed query, deleted session or clamped page cannot inherit another result's position.
+    if (saved && (Object.keys(saved.state) as Array<keyof TrainingWorkspaceRouteState>).some(key => saved.state[key] !== state[key])) {
+      pendingRestore = undefined;
+      restoringHistory.value = false;
+    }
+    if (activeVisit) historyScope.set(activeVisit, {
+      state: { ...state }, signature: publicSignature(),
+      ribbon: pendingRestore?.ribbon || position(ribbonScroll.value),
+      participants: pendingRestore?.participants || participantPosition(),
+    });
+    restoreReady = true;
+    await nextTick();
+    restoreScroll();
+  }
+
+  function currentVisit() {
+    const id = router.options?.history.state[visitKey];
+    return typeof id === "string" ? id : undefined;
+  }
+  function publicSignature() { return routeQuerySignature(route.query, publicKeys); }
+  function historySnapshot() {
+    if (route.query.keyword !== undefined || route.query.participantKeyword !== undefined) return undefined;
+    const id = currentVisit();
+    const saved = id ? historyScope.get(id) : undefined;
+    return saved?.signature === publicSignature() ? saved : undefined;
+  }
+  function privateQuery(query: TrainingWorkspaceQuery, saved?: HistorySnapshot) {
+    return saved ? { ...query, keyword: saved.state.keyword, participantKeyword: saved.state.participantKeyword } : query;
+  }
+  async function consumeKeywords() {
+    suppressRouteRestore = true;
+    try { await updateOwnedRouteQuery(router, route.query, ["keyword", "participantKeyword"], {}, "replace"); }
+    finally { suppressRouteRestore = false; }
+  }
+  function position(element: HTMLElement | null): ScrollPosition {
+    return { top: element?.scrollTop || 0, left: element?.scrollLeft || 0 };
+  }
+  function participantPosition() {
+    return participantScroll.value?.dataset.sessionId === String(selected.value?.id) ? position(participantScroll.value) : { top: 0, left: 0 };
+  }
+  function rememberScroll() {
+    const saved = activeVisit ? historyScope.get(activeVisit) : undefined;
+    if (!saved || restoringHistory.value) return;
+    if (ribbonScroll.value) saved.ribbon = position(ribbonScroll.value);
+    if (participantScroll.value?.dataset.sessionId === String(saved.state.sessionId)) saved.participants = position(participantScroll.value);
+  }
+  function restoreScroll() {
+    if (!active || !restoreReady || !pendingRestore) return;
+    if (ribbonScroll.value) {
+      ribbonScroll.value.scrollTop = pendingRestore.ribbon.top;
+      ribbonScroll.value.scrollLeft = pendingRestore.ribbon.left;
+    }
+    const list = participantScroll.value;
+    if (participantState.items.length && (!list || list.dataset.sessionId !== String(selected.value?.id))) return;
+    if (list) {
+      list.scrollTop = pendingRestore.participants.top;
+      list.scrollLeft = pendingRestore.participants.left;
+    }
+    pendingRestore = undefined;
+    restoringHistory.value = false;
+  }
+  function bindRibbonScroll(element: Element | ComponentPublicInstance | null) {
+    ribbonScroll.value = element instanceof HTMLElement ? element : null;
+    restoreScroll();
+  }
+  function bindParticipantScroll(element: Element | ComponentPublicInstance | null) {
+    participantScroll.value = element instanceof HTMLElement ? element : null;
+    restoreScroll();
   }
 
   async function applyFilters() {
@@ -150,6 +279,7 @@ export function useTrainingManagementWorkspace() {
   }
 
   function closeSession() {
+    if (actions.isPending("save-session")) return;
     unsaved.request(() => {
       sessionOpen.value = false;
     });
@@ -193,12 +323,15 @@ export function useTrainingManagementWorkspace() {
   }
 
   function openParticipant(item?: TrainingParticipant) {
+    if (!selected.value || actions.isPending("save-participant")) return;
+    participantSession.value = { ...selected.value };
+    participantSavedMessage.value = "";
     Object.assign(
       participantForm,
       item || {
         id: null,
         studentNo: "",
-        name: participants.value.length ? "" : selected.value?.speaker || "",
+        name: "",
         durationHours: defaultDuration(selected.value),
         remark: "",
       },
@@ -208,6 +341,7 @@ export function useTrainingManagementWorkspace() {
   }
 
   function closeParticipant() {
+    if (actions.isPending("save-participant")) return;
     unsaved.request(() => {
       participantOpen.value = false;
     });
@@ -218,22 +352,32 @@ export function useTrainingManagementWorkspace() {
     importOpen.value = true;
   }
 
-  async function saveParticipant() {
-    const session = selected.value;
+  async function saveParticipant(continueAdding = false) {
+    if (actions.isPending("save-participant")) return;
+    const session = participantSession.value;
     if (!session) return;
     const path = `/api/trainings/${session.id}/participants`;
-    const result = await actions.run("save-participant", () =>
-      participantForm.id
-        ? task.run<TrainingParticipant>(
-            () => put(`${path}/${participantForm.id}`, participantForm),
+    const payload = { ...participantForm };
+    await actions.run("save-participant", async () => {
+      const result = payload.id
+        ? await task.run<TrainingParticipant>(
+            () => put(`${path}/${payload.id}`, payload),
             "参与记录已更新",
           )
-        : task.run<TrainingParticipant>(() => post(path, participantForm), "参与记录已添加"),
-    );
-    if (result) {
+        : await task.run<TrainingParticipant>(() => post(path, payload), "参与记录已添加");
+      if (!result) return;
+      const keepOpen = continueAdding && !payload.id;
+      if (keepOpen) {
+        Object.assign(participantForm, { id: null, studentNo: "", name: "", durationHours: payload.durationHours, remark: "" });
+        participantSavedMessage.value = `上一条已保存：${result.name || payload.name}。可继续登记下一人。`;
+      }
       participantBaseline.value = snapshot(participantForm);
-      participantOpen.value = false;
+      participantOpen.value = keepOpen;
       await workspace.refreshAfterParticipantMutation();
+    });
+    if (participantOpen.value && !participantForm.studentNo && !participantForm.name) {
+      await nextTick();
+      document.querySelector<HTMLInputElement>('[name="participant-student-no"]')?.focus();
     }
   }
 
@@ -294,11 +438,12 @@ export function useTrainingManagementWorkspace() {
   }
 
   async function exportSummary() {
-    if (filterError.value) return;
-    const params = new URLSearchParams(appliedFilters);
+    if (!summaryExportReady.value) return;
+    const snapshot = { ...appliedFilters };
+    const params = new URLSearchParams(snapshot);
     await actions.run("export-summary", async () => {
       const blob = await task.run(() => get<Blob>(`/api/trainings/export?${params}`));
-      if (blob) downloadBlob(blob, `培训统计_${appliedFilters.from}_${appliedFilters.to}.xlsx`);
+      if (blob) downloadBlob(blob, `培训统计_${snapshot.from}_${snapshot.to}.xlsx`);
     });
   }
 
@@ -307,16 +452,28 @@ export function useTrainingManagementWorkspace() {
   }
 
   return {
+    restoringHistory,
+    ribbonScroll,
+    participantScroll,
+    bindRibbonScroll,
+    bindParticipantScroll,
+    rememberScroll,
+    participantSession,
+    participantSavedMessage,
     filters,
     appliedFilters,
+    hasAppliedSessionQuery,
     sessionState,
     participantState,
     participantKeyword,
+    appliedParticipantKeyword,
     selected,
     sessions,
     participants,
     filterError,
     filtersPending,
+    summaryExportReady,
+    summaryExportTitle,
     trainingRangeTitle,
     sessionOpen,
     participantOpen,

@@ -5,10 +5,11 @@
           :ref="captureExportButton"
           v-if="canExport"
           class="button secondary"
-          :disabled="isPending('export-repairs') || Boolean(filterError)"
+          :disabled="exportDisabled"
+          title="按已查询的日期与关键词导出全部状态，不受当前页限制"
           @click="exportCases"
         >
-          <Download />{{ isPending('export-repairs') ? "正在导出" : "导出" }}</button
+          <Download />{{ isPending('export-repairs') ? "正在导出" : "导出全部状态" }}</button
         ><button v-if="canManage" class="button primary" @click="openEditor()">
           <Plus />新建维修
         </button></template>
@@ -16,10 +17,15 @@
       <label class="filter-grow"><span>关键词</span><input v-model.trim="filters.keyword" type="search" name="repair-search" placeholder="编号、联系人、设备或故障" autocomplete="off" /></label>
       <label><span>开始日期</span><input v-model="filters.from" name="repairFrom" type="date" /></label>
       <label><span>结束日期</span><input v-model="filters.to" name="repairTo" type="date" /></label>
-      <button class="button secondary" type="submit"><Search aria-hidden="true" />查询</button>
+      <button class="button secondary" type="submit" :disabled="repairPage.loading"><Search aria-hidden="true" />{{ repairPage.loading ? '查询中…' : filtersPending ? '更新结果' : '查询' }}</button>
     </form></template>
     <div v-if="filterError" class="inline-alert danger" role="alert">
       {{ filterError }}
+    </div>
+
+    <div class="repair-query-context">
+      <span aria-live="polite"><template v-if="hasAppliedQuery">当前结果：{{ appliedFilters.from || '不限开始日期' }} — {{ appliedFilters.to || '不限结束日期' }}<template v-if="appliedFilters.keyword"> · 关键词：{{ appliedFilters.keyword }}</template></template><template v-else>尚无成功查询结果</template></span>
+      <QueryStatus :as="repairPage.loading || repairPage.error ? 'strong' : 'span'" :loading="repairPage.loading" :failed="Boolean(repairPage.error)" :dirty="filtersPending" :loading-text="`正在查询${pendingQuery?.status === 'COMPLETED' ? '已完成' : pendingQuery?.status === 'CANCELED' ? '已取消' : '进行中'}记录`" failed-text="查询未成功，重试将沿用上次请求条件" dirty-text="筛选已修改，查询后生效；翻页和导出仍沿用当前结果条件" />
     </div>
 
     <RepairStatusTabs
@@ -37,16 +43,18 @@
       tabindex="0"
     >
       <RepairLedgerTable
+        :bind-scroll="bindTableScroll"
+        @scroll="rememberTableScroll"
         :items="repairPage.items"
         :status="activeStatus"
         :loading="repairPage.loading"
-        :error="repairPage.error"
+        :error="repairPage.error && `${repairPage.error}${repairPage.items.length ? '；当前条件与列表仍为上次成功结果' : ''}`"
         :revealed-phones="revealedPhones"
-        :can-manage="canManage"
-        :can-delete="canDelete"
+        :can-manage="canManage && !repairPage.loading && !repairPage.error"
+        :can-delete="canDelete && !repairPage.loading && !repairPage.error"
         @view="detailTarget = $event"
         @preview="preview"
-        @edit="openEditor"
+        @process="openEditor($event, 2)"
         @delete="requestDelete"
         @toggle-phone="togglePhone"
         @retry="retry"
@@ -80,11 +88,17 @@
       :open="Boolean(detailTarget)"
       :item="detailTarget"
       :phone-visible="Boolean(detailTarget && phoneVisible(detailTarget.id))"
-      :can-manage="canManage"
-      :can-delete="canDelete"
+      :can-manage="canManage && !repairPage.loading && !repairPage.error"
+      :can-delete="canDelete && !repairPage.loading && !repairPage.error"
+      :position="detailPosition"
+      :can-previous="detailCanPrevious"
+      :can-next="detailCanNext"
+      @previous="moveDetail(-1)"
+      @next="moveDetail(1)"
       @close="detailTarget = null"
       @preview="preview"
       @edit="editFromDetail"
+      @process="editFromDetail($event, 2)"
       @delete="requestDelete"
       @toggle-phone="togglePhone"
     />
@@ -94,6 +108,7 @@
       :handler="selectedHandler"
       :candidates="handlerCandidates"
       :pending="isPending('save-repair')"
+      :initial-step="editorInitialStep"
       @update:handler="selectedHandler = $event"
       @close="closeEditor"
       @save="save"
@@ -138,8 +153,9 @@ import {
 } from "@lucide/vue";
 import { provide } from "vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import QueryStatus from "../../shared/ui/QueryStatus.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/repairs/presentation.css";
 import "../../features/repairs/repair-page-polish.css";
 provide(memberPresentationKey, true);
@@ -152,6 +168,18 @@ import RepairStatusTabs from "../../features/repairs/RepairStatusTabs.vue";
 import { useRepairManagementWorkspace } from "../../features/repairs/useRepairManagementWorkspace";
 
 const {
+  bindTableScroll,
+  rememberTableScroll,
+  appliedFilters,
+  hasAppliedQuery,
+  filtersPending,
+  pendingQuery,
+  exportDisabled,
+  editorInitialStep,
+  detailPosition,
+  detailCanPrevious,
+  detailCanNext,
+  moveDetail,
   activeStatus,
   filters,
   statusCounts,

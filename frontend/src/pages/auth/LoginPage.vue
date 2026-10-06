@@ -84,7 +84,7 @@ import {
 } from "@lucide/vue";
 import AuthLayout from "../../layouts/AuthLayout.vue";
 import { useSession } from "../../app/session";
-import { safeLoginNext } from "../../app/router";
+import { safeLoginNext } from "../../app/loginRedirect";
 import {
   clearRememberedLogin,
   isDesktopCredentialMode,

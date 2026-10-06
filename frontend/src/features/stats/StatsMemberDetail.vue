@@ -7,11 +7,11 @@
         <div><dt>合计时长</dt><dd>{{ number(member.totalHours) }}<small>小时</small></dd></div>
         <div><dt>有效值班</dt><dd>{{ number(member.attendanceHours ?? member.dutyHours) }}<small>小时</small></dd></div>
         <div><dt>培训时长</dt><dd>{{ number(member.trainingHours) }}<small>小时</small></dd></div>
-        <div><dt>有效值班次数</dt><dd>{{ effectiveDutyCount(member) }}<small>次</small></dd></div>
+        <div><dt>有效记录次数</dt><dd>{{ effectiveDutyCount(member) }}<small>次</small></dd></div>
       </dl>
       <section class="stats-detail-daily" aria-label="每日有效值班时长">
         <h3>有效值班明细 <small v-if="activeDays.length">{{ activeDays.length }} 天</small></h3>
-        <p class="stats-detail-hint">下方仅列有效值班日期；培训时长在上方单独汇总。</p>
+        <p class="stats-detail-hint">有效记录次数包含有效值班记录与培训参与；下方仅列有效值班日期，培训时长在上方单独汇总。</p>
         <LoadingBlock v-if="loading" />
         <div v-else-if="error" class="inline-alert danger" role="alert">
           <span>{{ error }}</span><button class="button secondary small" type="button" @click="$emit('retry')">重试</button>

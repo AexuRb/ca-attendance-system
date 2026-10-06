@@ -57,6 +57,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     to: initial.to,
   });
   const appliedFilters = reactive<TrainingFilters>(copyFilters(filters));
+  const hasAppliedSessionQuery = ref(false);
   const sessions = reactive<TrainingPageState<TrainingSession>>(
     createPageState(SESSION_PAGE_SIZE, initial.sessionPage),
   );
@@ -65,6 +66,8 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   );
   const selected = ref<TrainingSession | null>(null);
   const participantKeyword = ref(initial.participantKeyword);
+  const appliedParticipantKeyword = ref(initial.participantKeyword);
+  let retryParticipantQuery: { sessionId: number; page: number; keyword: string } | null = null;
   let requestedSessionId = initial.sessionId;
   let sessionVersion = 0;
   let participantVersion = 0;
@@ -72,6 +75,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   let participantController: AbortController | null = null;
   let retryFilters: TrainingFilters | null = null;
   let retrySessionPage: number | null = null;
+  let retryDirectorySelection: { sessionId: number | null; participantPage: number; keyword: string } | null = null;
   let disposed = false;
 
   async function initialize() {
@@ -106,32 +110,28 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     if (disposed) return;
     requestedSessionId = item?.id || null;
     setSelected(item, 1);
-    syncQuery();
-    if (item) await loadParticipantPage(1);
+    if (!item || await loadParticipantPage(1)) syncQuery();
   }
 
   async function setParticipantPage(page: number) {
     if (disposed || !selected.value) return;
-    participants.page = normalizePage(page);
-    syncQuery();
-    await loadParticipantPage(participants.page);
+    if (await loadParticipantPage(page)) syncQuery();
   }
 
   async function searchParticipants() {
     if (disposed || !selected.value) return;
-    await loadParticipantPage(1);
-    if (disposed) return;
-    syncQuery();
+    if (await loadParticipantPage(1, participantKeyword.value.trim())) syncQuery();
   }
 
   async function retrySessions() {
     if (disposed) return;
     const loaded = await loadDirectoryAndSelection(
       retrySessionPage ?? sessions.page,
-      selected.value?.id || requestedSessionId,
-      participants.page,
-      false,
+      retryDirectorySelection ? retryDirectorySelection.sessionId : selected.value?.id ?? requestedSessionId,
+      retryDirectorySelection?.participantPage ?? participants.page,
+      Boolean(retryDirectorySelection),
       retryFilters || appliedFilters,
+      retryDirectorySelection?.keyword ?? appliedParticipantKeyword.value,
     );
     if (disposed || !loaded) return;
     syncQuery();
@@ -139,7 +139,9 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
 
   async function retryParticipants() {
     if (disposed || !selected.value) return;
-    await loadParticipantPage(participants.page);
+    const pending = retryParticipantQuery;
+    if (pending && pending.sessionId !== selected.value.id) return;
+    if (await loadParticipantPage(pending?.page ?? participants.page, pending?.keyword ?? appliedParticipantKeyword.value)) syncQuery();
   }
 
   async function refreshSessions(preferredSessionId = selected.value?.id || null) {
@@ -175,6 +177,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
 
   async function refreshAfterParticipantMutation() {
     if (disposed || !selected.value) return;
+    participants.items = [];
     await Promise.all([
       refreshSessions(selected.value.id),
       loadParticipantPage(participants.page),
@@ -187,11 +190,11 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     if (disposed) return;
     const restored = parseTrainingWorkspaceQuery(query, options.defaults);
     Object.assign(filters, {
-      keyword: restored.keyword,
+      keyword: query.keyword === undefined ? appliedFilters.keyword : restored.keyword,
       from: restored.from,
       to: restored.to,
     });
-    participantKeyword.value = restored.participantKeyword;
+    participantKeyword.value = query.participantKeyword === undefined ? appliedParticipantKeyword.value : restored.participantKeyword;
     requestedSessionId = restored.sessionId;
     const loaded = await loadDirectoryAndSelection(
       restored.sessionPage,
@@ -199,19 +202,24 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
       restored.participantPage,
       true,
       copyFilters(filters),
+      participantKeyword.value,
     );
     if (disposed || !loaded) return;
     syncQuery();
   }
 
   function currentQuery() {
-    return serializeTrainingWorkspaceQuery({
+    return serializeTrainingWorkspaceQuery(currentState());
+  }
+
+  function currentState(): TrainingWorkspaceRouteState {
+    return {
       ...appliedFilters,
       sessionId: selected.value?.id || requestedSessionId,
       sessionPage: sessions.page,
       participantPage: participants.page,
-      participantKeyword: participantKeyword.value,
-    });
+      participantKeyword: appliedParticipantKeyword.value,
+    };
   }
 
   async function loadDirectoryAndSelection(
@@ -220,10 +228,13 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     participantPage: number,
     forceParticipantLoad: boolean,
     requestFilters: TrainingFilters = appliedFilters,
+    requestParticipantKeyword = appliedParticipantKeyword.value,
   ) {
     const previousId = selected.value?.id || null;
+    retryDirectorySelection = { sessionId: preferredSessionId, participantPage, keyword: requestParticipantKeyword };
     const loaded = await loadSessionPage(page, requestFilters);
     if (!loaded) return false;
+    retryDirectorySelection = null;
     const next = chooseSession(preferredSessionId, null);
     const changed = next?.id !== previousId;
     selected.value = next;
@@ -234,7 +245,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     }
     if (changed || forceParticipantLoad) {
       setSelected(next, participantPage);
-      await loadParticipantPage(participantPage);
+      return loadParticipantPage(participantPage, requestParticipantKeyword);
     }
     return true;
   }
@@ -261,6 +272,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
       }
       applyPage(sessions, result);
       Object.assign(appliedFilters, snapshot);
+      hasAppliedSessionQuery.value = true;
       retryFilters = null;
       retrySessionPage = null;
       return true;
@@ -276,7 +288,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     }
   }
 
-  async function loadParticipantPage(page: number): Promise<boolean> {
+  async function loadParticipantPage(page: number, keyword = appliedParticipantKeyword.value): Promise<boolean> {
     if (disposed) return false;
     const sessionId = selected.value?.id;
     if (!sessionId) {
@@ -287,23 +299,23 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     participantController = new AbortController();
     const controller = participantController;
     const version = ++participantVersion;
-    participants.page = normalizePage(page);
-    participants.items = [];
+    const snapshot = { sessionId, page: normalizePage(page), keyword: keyword.trim() };
+    retryParticipantQuery = snapshot;
     participants.loading = true;
     participants.error = "";
     try {
       const result = await options.loadParticipants({
-        sessionId,
-        keyword: participantKeyword.value.trim(),
-        page: participants.page,
+        ...snapshot,
         pageSize: participants.pageSize,
         signal: controller.signal,
       });
       if (!isCurrentParticipant(version, sessionId, controller)) return false;
       if (!result.items.length && result.page > 1 && result.total > 0) {
-        return loadParticipantPage(lastPage(result));
+        return loadParticipantPage(lastPage(result), snapshot.keyword);
       }
       applyPage(participants, result);
+      appliedParticipantKeyword.value = snapshot.keyword;
+      retryParticipantQuery = null;
       return true;
     } catch (cause) {
       if (
@@ -335,6 +347,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     if (disposed) return;
     participantController?.abort();
     participantVersion += 1;
+    retryParticipantQuery = null;
     selected.value = item;
     requestedSessionId = item?.id || null;
     Object.assign(
@@ -389,9 +402,11 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
   return {
     filters,
     appliedFilters,
+    hasAppliedSessionQuery,
     sessions,
     participants,
     participantKeyword,
+    appliedParticipantKeyword,
     selected,
     initialize,
     applyFilters,
@@ -406,6 +421,7 @@ export function useTrainingWorkspace(options: WorkspaceOptions) {
     refreshAfterParticipantMutation,
     restoreQuery,
     currentQuery,
+    currentState,
     dispose,
   };
 }

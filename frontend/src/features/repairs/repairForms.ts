@@ -1,6 +1,11 @@
 import type { AccountCandidate } from "../accounts/accountCandidates";
 import type { RepairCaseForm } from "./repairTypes";
 
+export function repairLocalDateTime(date = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export type RepairField =
   | "ownerName"
   | "ownerPhone"

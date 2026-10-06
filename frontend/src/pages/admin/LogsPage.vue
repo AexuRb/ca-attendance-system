@@ -1,6 +1,6 @@
 <template>
   <RefinedWorkspaceShell class="support-workspace logs-presentation" title="操作日志" description="追溯系统内的重要操作" section-key="system" filter-label="筛选操作日志">
-    <template #tools><button class="button secondary" :disabled="actions.isPending('export')" title="按当前列表的筛选条件导出" @click="exportLogs">
+    <template #tools><button class="button secondary" :disabled="actions.isPending('export') || !exportReady" title="按当前列表的筛选条件导出" @click="exportLogs">
           <Download />导出日志</button
         ><button class="button danger" :disabled="actions.isPending('clear')" @click="clearOpen = true">
           <Trash2 />清空日志
@@ -44,6 +44,10 @@
       >
         重试
       </button>
+    </div>
+    <div v-if="loaded" class="audit-query-context">
+      <span aria-live="polite">当前结果：{{ appliedFilters.from || '不限开始日期' }} — {{ appliedFilters.to || '不限结束日期' }} · {{ appliedFilters.actionType ? actionLabel(appliedFilters.actionType) : '全部操作' }}<template v-if="appliedFilters.keyword"> · 关键词：{{ appliedFilters.keyword }}</template></span>
+      <QueryStatus :loading="listLoading" :failed="Boolean(listError)" :dirty="filtersPending" loading-text="正在更新，暂示上次结果" failed-text="查询未成功，重试将沿用上次请求条件" dirty-text="筛选已修改，查询后生效；翻页和导出仍沿用当前结果条件" />
     </div>
     <LoadingBlock v-if="listLoading && !items.length" /><EmptyState
       v-else-if="!items.length && !listError"
@@ -172,9 +176,10 @@ import {
   Trash2,
 } from "@lucide/vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import QueryStatus from "../../shared/ui/QueryStatus.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
@@ -186,7 +191,7 @@ import { useAuditLogWorkspace } from "../../features/audit/useAuditLogWorkspace"
 
 const {
   actionLabel, actionTone, actions, applyFilters, auditActionOptions, clearLogs, clearOpen,
-  date, detail, detailRows, displayError, exportLogs, filters, hasAppliedFilters, items, justCleared, listError, listLoading,
+  date, detail, detailRows, displayError, exportLogs, exportReady, filters, filtersPending, appliedFilters, loaded, hasAppliedFilters, items, justCleared, listError, listLoading,
   page, pretty, retryLoad, setPage, targetLabel, time, total, totalPages,
 } = useAuditLogWorkspace();
 </script>

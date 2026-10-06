@@ -39,9 +39,11 @@ export function useUnsavedChanges(isDirty: () => boolean) {
   }
 
   onMounted(() => window.addEventListener("beforeunload", onBeforeUnload));
-  onBeforeUnmount(() =>
-    window.removeEventListener("beforeunload", onBeforeUnload),
-  );
+  onBeforeUnmount(() => {
+    // Session expiry can remove the page while its leave confirmation is pending.
+    cancel();
+    window.removeEventListener("beforeunload", onBeforeUnload);
+  });
 
   return { confirmOpen, request, cancel, discard };
 }

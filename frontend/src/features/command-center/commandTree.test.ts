@@ -2,6 +2,20 @@ import { describe, expect, it } from "vitest";
 import { commandInputView, completeCommandInput } from "./commandTree";
 
 describe("command tree", () => {
+  it("offers an optional date after an attendance status without changing role access", () => {
+    const input = "/ 查看 值班记录 未签退 ";
+    const view = commandInputView(input, "MINISTER");
+    expect(view.state).toBe("extensible");
+    const today = view.suggestions.find(item => item.label === "今天")!;
+    expect(today).toBeDefined();
+    const completed = completeCommandInput(input, today);
+    expect(completed.value.trim()).toBe("/ 查看 值班记录 未签退 今天");
+    expect(commandInputView(completed.value, "MINISTER").state).toBe("executable");
+    expect(commandInputView(input, "MEMBER").suggestions).toEqual([]);
+    expect(commandInputView(input, "MEMBER").state).toBe("invalid");
+    expect(commandInputView(input, "MEMBER").statusMessage).toContain("无权");
+  });
+
   it("shows only allowed root actions for the current role", () => {
     const minister = commandInputView("/", "MINISTER");
     const admin = commandInputView("/", "ADMIN");

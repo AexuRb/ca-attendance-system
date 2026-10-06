@@ -71,6 +71,40 @@ describe("training workspace route state", () => {
 });
 
 describe("training workspace requests", () => {
+  it("keeps participant drafts out of paging and refresh, and retries the failed snapshot", async () => {
+    const calls: Array<{ keyword: string; page: number }> = [];
+    let fail = false;
+    const workspace = useTrainingWorkspace({
+      defaults,
+      loadSessions: async () => pageResult([session(1)], 1, 1, 20),
+      loadParticipants: async ({ keyword, page }) => {
+        calls.push({ keyword, page });
+        if (fail) { fail = false; throw new Error('名单查询失败'); }
+        return pageResult([participant(page, 1)], 40, page, 20);
+      },
+    });
+    await workspace.initialize();
+    workspace.participantKeyword.value = '未提交';
+    await workspace.setParticipantPage(2);
+    expect(calls.at(-1)).toEqual({ keyword: '', page: 2 });
+    await workspace.refreshAfterParticipantMutation();
+    expect(calls.at(-1)).toEqual({ keyword: '', page: 2 });
+    fail = true;
+    workspace.participantKeyword.value = '失败条件';
+    await workspace.searchParticipants();
+    expect(workspace.participants.page).toBe(2);
+    expect(workspace.participants.items[0].id).toBe(2);
+    expect(workspace.currentQuery().participantPage).toBe('2');
+    workspace.participantKeyword.value = '新的草稿';
+    await workspace.retryParticipants();
+    expect(calls.at(-1)).toEqual({ keyword: '失败条件', page: 1 });
+    expect(workspace.appliedParticipantKeyword.value).toBe('失败条件');
+    expect(workspace.participantKeyword.value).toBe('新的草稿');
+    await workspace.restoreQuery({ sessionId: '1', participantPage: '2' });
+    expect(calls.at(-1)).toEqual({ keyword: '失败条件', page: 2 });
+    expect(workspace.participantKeyword.value).toBe('失败条件');
+  });
+
   it("keeps the displayed range and page requests on applied filters until query succeeds", async () => {
     const requested: string[] = [];
     const workspace = useTrainingWorkspace({

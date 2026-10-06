@@ -165,7 +165,7 @@ import { ArchiveRestore, DatabaseBackup, FileSpreadsheet } from "@lucide/vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/settings/presentation.css";
 provide(memberPresentationKey, true);
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";

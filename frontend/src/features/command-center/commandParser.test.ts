@@ -12,6 +12,19 @@ import {
 const now = new Date(2026, 7, 28, 10, 0, 0);
 
 describe("command center parser", () => {
+  it.each(["MINISTER", "PRESIDENT", "ADMIN"] as const)("combines attendance status and date for %s", role => {
+    expect(resolveCommand("/ 查看 考勤 未签退 今天", role, now)).toMatchObject({
+      kind: "resolved", canonical: "/ 查看 值班记录 未签退 今天",
+      target: { name: "attendance", query: { status: "INCOMPLETE", from: "2026-08-28", to: "2026-08-28" } },
+    });
+    expect(resolveCommand("/ 查看 值班记录 待审核 2026-08-01..2026-08-28", role, now)).toMatchObject({
+      kind: "resolved", target: { query: { status: "PENDING", from: "2026-08-01", to: "2026-08-28" } },
+    });
+    expect(resolveCommand("/ 查看 值班记录 未签退 今天 昨天", role, now).kind).toBe("invalid");
+    expect(resolveCommand("/ 查看 值班记录 未签退 错误范围", role, now).kind).toBe("invalid");
+    expect(resolveCommand("/ 查看 值班记录 未签退 2026-08-28..2026-08-01", role, now).kind).toBe("invalid");
+  });
+
   it("normalizes aliases and creates a weekly attendance route", () => {
     expect(resolveCommand("/ 查看 考勤 本周", "MINISTER", now)).toEqual({
       kind: "resolved",

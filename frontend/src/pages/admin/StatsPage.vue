@@ -20,13 +20,13 @@
       ><button class="button secondary" type="submit"><BarChart3 />统计</button>
     </form></template>
     <div v-if="displayError" class="inline-alert danger" role="alert">
-      <span>{{ displayError }}</span>
+      <span>{{ displayError }}{{ loadError && loaded ? '；下方保留上次成功结果，重试沿用失败条件' : '' }}</span>
       <button
         v-if="loadError"
         class="button secondary small"
         type="button"
         data-action="retry-stats"
-        @click="load"
+        @click="retry"
       >
         重试
       </button>
@@ -50,18 +50,19 @@
       </article>
     </section>
     <section class="stats-results">
-      <div v-if="loaded && !loading && !loadError" class="stats-results-context" aria-live="polite">
-        <span>当前结果 <strong>{{ loadedRange.from }} — {{ loadedRange.to }}</strong></span>
-        <span v-if="rangeDirty" class="stats-results-context__pending">日期已修改，点击“统计”应用</span>
+      <div v-if="loaded" class="stats-results-context">
+        <span aria-live="polite">当前结果 <strong>{{ loadedRange.from }} — {{ loadedRange.to }}</strong></span>
+        <QueryStatus :class="{ 'stats-results-context__pending': rangeDirty && !loading && !loadError }" :loading="loading" :failed="Boolean(loadError)" :dirty="rangeDirty" loading-text="正在更新统计…" failed-text="统计未成功，重试将沿用上次请求日期" dirty-text="日期已修改，点击“统计”应用" />
       </div>
-      <LoadingBlock v-if="loading" />
-      <EmptyState v-else-if="loadError" title="统计结果暂不可用" description="请使用上方的重试按钮重新获取统计结果" />
-      <EmptyState v-else-if="!hasData" title="该时间段暂无有效统计" />
+      <LoadingBlock v-if="loading && !loaded" />
+      <EmptyState v-else-if="loadError && !loaded" title="统计结果暂不可用" description="请使用上方的重试按钮重新获取统计结果" />
+      <EmptyState v-else-if="loaded && !hasData" title="该时间段暂无有效统计" />
       <Transition name="stats-result-swap" mode="out-in">
-      <div v-if="loaded && !loading && !loadError && hasData" :key="`${preset}-${loadedRange.from}-${loadedRange.to}`" class="stats-result-content">
+      <div v-if="loaded && hasData" :key="`${loadedPreset}-${loadedRange.from}-${loadedRange.to}`" class="stats-result-content">
       <WeeklyStatsTable
-        v-if="preset === 'week'"
+        v-if="loadedPreset === 'week'"
         :detail="weeklyDetail"
+        :disabled="loading || Boolean(loadError)"
         @select-member="openMemberById"
       />
       <div v-else class="table-shell stats-ranking-table">
@@ -75,7 +76,7 @@
             <th>值班时长</th>
             <th>培训时长</th>
             <th>合计时长</th>
-            <th>有效值班次数</th>
+            <th>有效记录次数</th>
           </tr>
         </thead>
         <tbody>
@@ -87,7 +88,7 @@
               <span class="rank" :data-rank="index + 1">{{ index + 1 }}</span>
             </td>
             <td>
-              <span class="stats-member-title"><strong>{{ item.name }}</strong><button class="stats-detail-trigger" type="button" @click="openMemberDetail(item)">查看详情</button></span>
+              <span class="stats-member-title"><strong>{{ item.name }}</strong><button class="stats-detail-trigger" type="button" :disabled="loading || Boolean(loadError)" @click="openMemberDetail(item)">查看详情</button></span>
               <small>{{ item.studentNo }}</small>
             </td>
             <td>{{ item.grade || "—" }}</td>
@@ -100,7 +101,7 @@
         </tbody>
         </table>
       </div>
-      <ol v-if="preset !== 'week'" class="stats-ranking-mobile" aria-label="成员时长排行">
+      <ol v-if="loadedPreset !== 'week'" class="stats-ranking-mobile" aria-label="成员时长排行">
         <li v-for="(item, index) in rows" :key="item.userId || item.studentNo" class="stats-ranking-mobile-record">
           <div class="stats-ranking-mobile-record__head">
             <span class="rank" :data-rank="index + 1">{{ index + 1 }}</span>
@@ -110,9 +111,9 @@
           <dl class="stats-ranking-mobile-record__breakdown">
             <div><dt>值班</dt><dd>{{ number(item.attendanceHours ?? item.dutyHours) }} 小时</dd></div>
             <div><dt>培训</dt><dd>{{ number(item.trainingHours) }} 小时</dd></div>
-            <div><dt>有效值班</dt><dd>{{ effectiveDutyCount(item) }} 次</dd></div>
+            <div><dt>有效记录</dt><dd>{{ effectiveDutyCount(item) }} 次</dd></div>
           </dl>
-          <button class="stats-detail-trigger stats-ranking-mobile-record__detail" type="button" @click="openMemberDetail(item)">查看详情</button>
+          <button class="stats-detail-trigger stats-ranking-mobile-record__detail" type="button" :disabled="loading || Boolean(loadError)" @click="openMemberDetail(item)">查看详情</button>
         </li>
       </ol>
       </div>
@@ -135,9 +136,10 @@
 <script setup lang="ts">
 import { BarChart3, Download } from "@lucide/vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import QueryStatus from "../../shared/ui/QueryStatus.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
 import "../../features/stats/presentation.css";
 provide(memberPresentationKey, true);
@@ -159,7 +161,8 @@ const {
   fetchMemberDetail,
   from,
   hasData,
-  load,
+  retry,
+  loadedPreset,
   loadCustom,
   loading,
   loadError,

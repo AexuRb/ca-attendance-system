@@ -6,9 +6,10 @@ import {
   type RouteRecordRaw,
 } from "vue-router";
 import { useSession } from "./session";
-import { notify } from "../shared/composables/useToast";
 import { cancelScrollRestoration, restoreScrollPosition } from "./scrollRestoration";
 import type { AccessContext, Role, UserSession } from "../shared/types";
+import LoginPage from "../pages/auth/LoginPage.vue";
+export { safeLoginNext } from "./loginRedirect";
 
 const routes: RouteRecordRaw[] = [
   {
@@ -19,7 +20,8 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/login",
     name: "login",
-    component: () => import("../pages/auth/LoginPage.vue"),
+    // Sign-out must remain reachable after the local service goes offline.
+    component: LoginPage,
   },
   {
     path: "/setup",
@@ -125,15 +127,12 @@ export const router = createRouter({
   },
 });
 
-router.onError(() => {
-  // Keep the current workspace and its input intact; never reload automatically.
-  notify("页面未能打开，请重新选择页面；若仍失败，请重新加载应用。", "danger");
-});
-
 router.beforeEach(async (to) => {
   cancelScrollRestoration();
   const session = useSession();
+  if (!session.state.ready) session.state.startupTarget = to.fullPath;
   await session.bootstrap();
+  if (!session.state.ready) return false;
   return resolveRouteAccess(to, session.state);
 });
 
@@ -177,8 +176,4 @@ export function resolveRouteAccess(
       : { name: "today" };
   }
   return true;
-}
-
-export function safeLoginNext(value: unknown): string | null {
-  return typeof value === "string" && /^\/(?!\/)/.test(value) ? value : null;
 }

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { validateRepairForm } from "./repairForms";
+import { repairLocalDateTime, validateRepairForm } from "./repairForms";
 
 describe("repair form validation", () => {
+  it("formats intake time in local time instead of UTC", () => {
+    expect(repairLocalDateTime(new Date(2026, 8, 29, 1, 7))).toBe("2026-09-29T01:07");
+  });
   it("returns errors with the editor step that owns each field", () => {
     const result = validateRepairForm(
       {

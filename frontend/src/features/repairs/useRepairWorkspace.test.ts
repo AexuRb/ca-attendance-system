@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   parseRepairWorkspaceQuery,
   serializeRepairWorkspaceQuery,
@@ -18,6 +18,58 @@ const defaults: Pick<RepairFilters, "from" | "to"> = {
 };
 
 describe("repair workspace", () => {
+  it("keeps draft filters out of paging, status switches and mutation refreshes", async () => {
+    const loadPage = vi.fn(async ({ status, page }) => repairPage(status, page, 2, 42));
+    const workspace = useRepairWorkspace({ defaults, loadPage });
+    await workspace.initialize();
+    workspace.filters.keyword = "未提交条件";
+    workspace.filters.from = "2099-01-01";
+    await workspace.setPage(2);
+    await workspace.setStatus("COMPLETED");
+    await workspace.refreshAfterMutation();
+    expect(loadPage.mock.calls.slice(1).every(([request]) => JSON.stringify(request.filters) === JSON.stringify({ keyword: "", ...defaults }))).toBe(true);
+    expect(workspace.page.page).toBe(1);
+    expect(workspace.filtersPending.value).toBe(true);
+    expect(workspace.currentQuery().from).toBe(defaults.from);
+  });
+
+  it("keeps the result, counts and URL unchanged on failure and retries the submitted snapshot", async () => {
+    const loadPage = vi.fn(async ({ status, page }) => repairPage(status, page, 2, 42));
+    const onQueryChange = vi.fn();
+    const workspace = useRepairWorkspace({ defaults, loadPage, onQueryChange });
+    await workspace.initialize();
+    const previousItems = [...workspace.page.items];
+    const previousCounts = { ...workspace.counts };
+    workspace.filters.keyword = "已提交关键词";
+    workspace.filters.from = "2026-03-01";
+    loadPage.mockRejectedValueOnce(new Error("查询失败"));
+    await workspace.applyFilters();
+    expect(workspace.page.items).toEqual(previousItems);
+    expect(workspace.counts).toEqual(previousCounts);
+    expect(workspace.appliedFilters.from).toBe(defaults.from);
+    expect(onQueryChange).toHaveBeenCalledTimes(1);
+    workspace.filters.keyword = "后来修改的草稿";
+    await workspace.retry();
+    expect(loadPage.mock.calls.at(-1)?.[0].filters.keyword).toBe("已提交关键词");
+    expect(workspace.appliedFilters.keyword).toBe("已提交关键词");
+    expect(onQueryChange.mock.calls.at(-1)?.[1]).toBe("push");
+    expect(workspace.currentQuery()).not.toHaveProperty("keyword");
+  });
+
+  it("does not relabel the old rows as a failed status and does not lose the keyword on URL restoration", async () => {
+    const loadPage = vi.fn(async ({ status, page }) => repairPage(status, page, 2, 42));
+    const workspace = useRepairWorkspace({ defaults, initialQuery: { keyword: "笔记本" }, loadPage });
+    await workspace.initialize();
+    loadPage.mockRejectedValueOnce(new Error("切换失败"));
+    await workspace.setStatus("CANCELED");
+    expect(workspace.activeStatus.value).toBe("REPAIRING");
+    expect(workspace.page.items[0]?.status).toBe("REPAIRING");
+    await workspace.retry();
+    expect(workspace.activeStatus.value).toBe("CANCELED");
+    await workspace.restoreQuery({ status: "COMPLETED", page: "2" });
+    expect(loadPage.mock.calls.at(-1)?.[0].filters.keyword).toBe("笔记本");
+  });
+
   it("loads only the active status while receiving all filtered counts", async () => {
     const calls: Array<{ status: RepairStatus; page: number; pageSize: number }> = [];
     const queries: Array<{

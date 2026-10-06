@@ -46,7 +46,7 @@
             </div>
           </form>
           <p class="kiosk-focus-hint" :class="{ offline: !online }">
-            {{ online ? "按 Enter 继续" : "连接中断，正在重试" }}
+            {{ online ? "按 Enter 继续" : "服务连接异常，可稍后重新查询" }}
           </p>
           <p v-if="error" class="kiosk-focus-error" role="alert">
             <CircleAlert aria-hidden="true" />
@@ -126,6 +126,7 @@
               <button
                 class="kiosk-focus-secondary"
                 type="button"
+                :disabled="busy"
                 @click="$emit('reset')"
               >
                 重新输入
@@ -244,6 +245,12 @@ const pendingAction = computed(() =>
 );
 
 onMounted(focusCurrentStep);
+watch(() => props.busy, async busy => {
+  if (!busy && props.step === "confirm") {
+    await nextTick();
+    confirmButton.value?.focus();
+  }
+});
 watch(
   () => props.step,
   () => focusCurrentStep(),

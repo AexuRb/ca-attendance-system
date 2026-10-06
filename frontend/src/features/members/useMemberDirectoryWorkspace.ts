@@ -1,4 +1,4 @@
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSession } from "../../app/session";
 import { del, get, post, put } from "../../shared/api";
@@ -12,6 +12,7 @@ import {
   updateOwnedRouteQuery,
 } from "../../shared/navigation/routeQueryState";
 import { excelFileError } from "../../shared/validation/fileValidation";
+import { createPrivateNavigationState } from "../../shared/navigation/privateNavigationState";
 import {
   bulkStatusPayload,
   selectableMemberIds,
@@ -22,10 +23,24 @@ import {
   type MemberSummary,
 } from "./memberDirectory";
 
+type DirectoryFilters = { keyword: string; role: string; status: string; grade: string };
+type TablePosition = { top: number; left: number };
+type HistorySnapshot = { filters: DirectoryFilters; page: number; signature: string; scroll: TablePosition };
+const historyMemory = createPrivateNavigationState<HistorySnapshot>();
+const visitKey = "memberDirectoryVisit";
+
 export function useMemberDirectoryWorkspace() {
   const { user } = useSession();
   const route = useRoute();
   const router = useRouter();
+  const historyScope = historyMemory.scope();
+  const tableScroll = ref<HTMLElement | null>(null);
+  const bindTableScroll = (element: Element | ComponentPublicInstance | null) => {
+    tableScroll.value = element instanceof HTMLElement ? element : null;
+  };
+  let activeVisit: string | undefined;
+  let active = true;
+  let queryVersion = 0;
   const task = useAsyncTask();
   const listRequest = useLatestRequest();
   const actions = usePendingActions();
@@ -39,6 +54,7 @@ export function useMemberDirectoryWorkspace() {
   const allFilteredSelected = ref(false);
   const activeFilters = ref({ keyword: "", role: "", status: "", grade: "" });
   let activeFilterKey: string | null = null;
+  let lastQuery: { page: number; filters: DirectoryFilters; mode: "push" | "replace"; restore?: TablePosition } | null = null;
   const editorOpen = ref(false);
   const editorTarget = ref<MemberSummary | null>(null);
   const importOpen = ref(false);
@@ -54,6 +70,33 @@ export function useMemberDirectoryWorkspace() {
   const routeKeys = ["role", "status", "grade", "page", "keyword"] as const;
   let routeReady = false;
   let suppressRouteRestore = false;
+
+  const publicSignature = () => routeQuerySignature(route.query, ["role", "status", "grade", "page"]);
+  function currentVisit() {
+    const id = router.options?.history.state[visitKey];
+    return typeof id === "string" ? id : undefined;
+  }
+  function historySnapshot() {
+    const id = currentVisit();
+    const saved = id ? historyScope.get(id) : undefined;
+    return saved?.signature === publicSignature() ? saved : undefined;
+  }
+  async function ensureVisit() {
+    if (!router.options || !active) return undefined;
+    if (!currentVisit()) {
+      await router.replace({ query: route.query, state: { [visitKey]: crypto.randomUUID() }, force: true });
+    }
+    return currentVisit();
+  }
+  function rememberTableScroll() {
+    const saved = activeVisit ? historyScope.get(activeVisit) : undefined;
+    if (!saved || !tableScroll.value) return;
+    saved.scroll = { top: tableScroll.value.scrollTop, left: tableScroll.value.scrollLeft };
+  }
+  onBeforeUnmount(() => {
+    rememberTableScroll();
+    active = false;
+  });
 
   const totalPages = computed(() =>
     Math.max(1, Math.ceil(total.value / pageSize)),
@@ -73,10 +116,12 @@ export function useMemberDirectoryWorkspace() {
 
   onMounted(async () => {
     restoreRouteState(true);
-    const initialPage = positiveRoutePage(route.query.page);
+    const saved = stringRouteQuery(route.query.keyword) ? undefined : historySnapshot();
+    if (saved) Object.assign(filters, saved.filters);
+    const initialPage = saved?.page || positiveRoutePage(route.query.page);
+    await updateOwnedRouteQuery(router, route.query, ["keyword"], {}, "replace");
     routeReady = true;
-    await syncRoute(initialPage, "replace");
-    await Promise.all([load(initialPage), loadGrades()]);
+    await Promise.all([load(initialPage, { ...filters }, "replace", saved?.scroll), loadGrades()]);
     const intent = stringRouteQuery(route.query.intent);
     if (intent === "new") openCreate();
     if (intent === "import") openImport();
@@ -86,17 +131,20 @@ export function useMemberDirectoryWorkspace() {
     () => routeQuerySignature(route.query, routeKeys),
     () => {
       if (!routeReady || suppressRouteRestore) return;
+      rememberTableScroll();
+      const saved = historySnapshot();
       restoreRouteState(false);
-      void load(positiveRoutePage(route.query.page));
+      if (saved) filters.keyword = saved.filters.keyword;
+      void load(positiveRoutePage(route.query.page), { ...filters }, "replace", saved?.scroll);
     },
   );
 
-  async function load(target = page.value) {
-    const requestFilters = { ...filters };
+  async function load(target = page.value, values = activeFilters.value, mode: "push" | "replace" = "replace", restore?: TablePosition) {
+    rememberTableScroll();
+    const version = ++queryVersion;
+    const requestFilters = { ...values };
+    lastQuery = { page: target, filters: requestFilters, mode, restore };
     const requestFilterKey = filterKey(requestFilters);
-    if (activeFilterKey !== null && activeFilterKey !== requestFilterKey) {
-      clearSelection();
-    }
     const query = new URLSearchParams({
       page: String(target),
       pageSize: String(pageSize),
@@ -107,22 +155,41 @@ export function useMemberDirectoryWorkspace() {
       "成员名册加载失败",
     );
     if (!value) return;
+    activeVisit = undefined;
+    if (activeFilterKey !== null && activeFilterKey !== requestFilterKey) clearSelection();
     members.value = value.items;
     total.value = value.total;
     page.value = value.page;
     activeFilters.value = requestFilters;
     activeFilterKey = requestFilterKey;
+    lastQuery = null;
+    await syncRoute(value.page, mode);
+    const visit = await ensureVisit();
+    await nextTick();
+    if (!active || version !== queryVersion) return;
+    if (restore && tableScroll.value) {
+      tableScroll.value.scrollTop = restore.top;
+      tableScroll.value.scrollLeft = restore.left;
+    }
+    activeVisit = visit;
+    if (visit) historyScope.set(visit, {
+      filters: { ...requestFilters }, page: value.page, signature: publicSignature(),
+      scroll: { top: tableScroll.value?.scrollTop || 0, left: tableScroll.value?.scrollLeft || 0 },
+    });
   }
 
   async function applyFilters() {
-    clearSelection();
-    await syncRoute(1, "push");
-    await load(1);
+    await load(1, { ...filters }, "push");
   }
 
   async function setPage(target: number) {
-    await syncRoute(target, "push");
-    await load(target);
+    await load(target, activeFilters.value, "push");
+  }
+
+  async function retry() {
+    const request = lastQuery;
+    if (request) await load(request.page, request.filters, request.mode, request.restore);
+    else await load();
   }
 
   async function loadGrades() {
@@ -221,6 +288,7 @@ export function useMemberDirectoryWorkspace() {
   }
 
   function toggleMember(id: number) {
+    if (listLoading.value || listError.value) return;
     const next = new Set(selected.value);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -229,6 +297,7 @@ export function useMemberDirectoryWorkspace() {
   }
 
   async function toggleAll(event: Event) {
+    if (listLoading.value || listError.value) return;
     if (!(event.target as HTMLInputElement).checked) {
       clearSelection();
       return;
@@ -243,7 +312,7 @@ export function useMemberDirectoryWorkspace() {
       const ids = await task.run(
         () => get<number[]>(`/api/users/selection${suffix}`),
       );
-      if (!ids || activeFilterKey !== requestFilterKey) return;
+      if (!ids || listLoading.value || listError.value || activeFilterKey !== requestFilterKey) return;
       selected.value = new Set(ids);
       allFilteredSelected.value = ids.length > 0;
     });
@@ -255,6 +324,7 @@ export function useMemberDirectoryWorkspace() {
   }
 
   function openBulk(status: MemberStatus) {
+    if (listLoading.value || listError.value) return;
     bulkTargetStatus.value = status;
     bulkOpen.value = true;
   }
@@ -375,6 +445,8 @@ export function useMemberDirectoryWorkspace() {
     filters.grade = stringRouteQuery(route.query.grade);
     if (includeSensitiveKeyword) {
       filters.keyword = stringRouteQuery(route.query.keyword);
+    } else {
+      filters.keyword = activeFilters.value.keyword;
     }
   }
 
@@ -405,9 +477,9 @@ export function useMemberDirectoryWorkspace() {
         route.query,
         routeKeys,
         {
-          role: filters.role,
-          status: filters.status,
-          grade: filters.grade,
+          role: activeFilters.value.role,
+          status: activeFilters.value.status,
+          grade: activeFilters.value.grade,
           page: targetPage > 1 ? targetPage : undefined,
         },
         mode,
@@ -419,6 +491,9 @@ export function useMemberDirectoryWorkspace() {
   }
 
   return {
+    bindTableScroll,
+    tableScroll,
+    rememberTableScroll,
     actions,
     applyBulkStatus,
     applyFilters,
@@ -447,6 +522,7 @@ export function useMemberDirectoryWorkspace() {
     listError,
     listLoading,
     load,
+    retry,
     lockEditorAccountControls,
     members,
     openBulk,

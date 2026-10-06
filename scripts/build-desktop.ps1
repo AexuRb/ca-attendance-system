@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$SkipDependencyInstall,
-    [switch]$SkipTests
+    [switch]$SkipTests,
+    [string]$ElectronDist = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -11,6 +12,22 @@ $backendRoot = Join-Path $repoRoot 'backend'
 $desktopRoot = Join-Path $repoRoot 'desktop'
 $desktopRelease = Join-Path $desktopRoot 'release'
 $artifactRoot = Join-Path $repoRoot 'release-artifacts'
+
+$electronDistPath = ''
+if ($ElectronDist) {
+    $candidateDist = if ([System.IO.Path]::IsPathRooted($ElectronDist)) {
+        $ElectronDist
+    } else {
+        Join-Path $desktopRoot $ElectronDist
+    }
+    $electronDistPath = (Resolve-Path -LiteralPath $candidateDist).Path
+    $electronVersion = (Get-Content -LiteralPath (Join-Path $electronDistPath 'version') -Raw).Trim()
+    $desktopPackage = Get-Content -LiteralPath (Join-Path $desktopRoot 'package.json') -Raw | ConvertFrom-Json
+    if ($electronVersion -ne $desktopPackage.devDependencies.electron -or
+        -not (Test-Path -LiteralPath (Join-Path $electronDistPath 'electron.exe') -PathType Leaf)) {
+        throw 'Cached Electron runtime does not match the pinned desktop version.'
+    }
+}
 
 function Invoke-Checked([string]$workingDirectory, [string]$command, [string[]]$arguments) {
     Push-Location $workingDirectory
@@ -50,7 +67,7 @@ if (-not $SkipDependencyInstall) {
 Invoke-Checked $frontendRoot 'npm.cmd' @('run', 'build')
 
 Write-Host 'Packaging backend...'
-$backendArguments = @('-q', 'package')
+$backendArguments = @('-q', 'clean', 'package')
 if ($SkipTests) {
     Write-Host 'Reusing previous test results as explicitly requested.'
     $backendArguments += '-DskipTests'
@@ -70,7 +87,11 @@ $previousSigningSetting = $env:CSC_IDENTITY_AUTO_DISCOVERY
 $env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
 try {
     Write-Host 'Building unsigned Windows installer...'
-    Invoke-Checked $desktopRoot 'npm.cmd' @('run', 'dist')
+    $distArguments = @('run', 'dist')
+    if ($electronDistPath) {
+        $distArguments += @('--', "--config.electronDist=$electronDistPath")
+    }
+    Invoke-Checked $desktopRoot 'npm.cmd' $distArguments
 } finally {
     $env:CSC_IDENTITY_AUTO_DISCOVERY = $previousSigningSetting
 }

@@ -1,6 +1,6 @@
 {
   "name": "ca-attendance-desktop",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "private": true,
   "description": "计算机协会本地离线管理系统桌面端",
   "author": "AexuRb",
@@ -13,11 +13,11 @@
     "dist": "electron-builder --win nsis --x64"
   },
   "devDependencies": {
-    "electron": "43.1.0",
+    "electron": "43.7.7",
     "electron-builder": "26.15.3"
   },
   "overrides": {
-    "brace-expansion": "5.0.9"
+    "brace-expansion": "5.0.12"
   },
   "build": {
     "appId": "cn.cugb.computerassociation.attendance",

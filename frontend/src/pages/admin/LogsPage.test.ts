@@ -2,6 +2,9 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import LogsPage from "./LogsPage.vue";
+import { reactive } from "vue";
+
+const testRoute = reactive<{ query: Record<string, string> }>({ query: {} });
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -12,7 +15,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("vue-router", () => ({
   RouterLink: { template: "<a><slot /></a>" },
-  useRoute: () => ({ query: {} }),
+  useRoute: () => testRoute,
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
@@ -47,11 +50,52 @@ function page(name: string) {
 }
 
 afterEach(() => {
+  testRoute.query = {};
   Object.values(mocks).forEach((mock) => mock.mockReset());
   document.body.innerHTML = "";
 });
 
 describe("LogsPage request states", () => {
+  it("keeps applied conditions after a failed history navigation and retries its original snapshot", async () => {
+    mocks.get.mockResolvedValueOnce({ ...page("旧范围"), total: 21 })
+      .mockRejectedValueOnce(new Error("历史查询失败"))
+      .mockResolvedValueOnce({ ...page("旧范围第二页"), total: 21, page: 2 })
+      .mockRejectedValueOnce(new Error("再次失败"))
+      .mockResolvedValueOnce(page("重试范围"));
+    const wrapper = mount(LogsPage);
+    await flushPromises();
+    testRoute.query = { actionType: "UPDATE_USER" };
+    await flushPromises();
+    expect(wrapper.text()).toContain("旧范围");
+    expect(wrapper.get(".mw-tools .button.secondary").attributes("disabled")).toBeDefined();
+    await wrapper.findAll(".pagination button")[1]!.trigger("click");
+    await flushPromises();
+    expect(String(mocks.get.mock.lastCall?.[0])).not.toContain("actionType=");
+    testRoute.query = { actionType: "DELETE_USER" };
+    await flushPromises();
+    await wrapper.get('select[name="logActionType"]').setValue("UPDATE_USER");
+    await wrapper.get('[data-action="retry-logs"]').trigger("click");
+    await flushPromises();
+    expect(String(mocks.get.mock.lastCall?.[0])).toContain("actionType=DELETE_USER");
+    expect(wrapper.text()).toContain("重试范围");
+    expect(wrapper.get(".mw-tools .button.secondary").attributes("disabled")).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it("prevents exports until the first query succeeds", async () => {
+    const pending = deferred<ReturnType<typeof page>>();
+    mocks.get.mockReturnValueOnce(pending.promise);
+    const wrapper = mount(LogsPage);
+    await flushPromises();
+    const button = wrapper.get(".mw-tools .button.secondary");
+    expect(button.attributes("disabled")).toBeDefined();
+    await button.trigger("click");
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+    pending.resolve(page("加载完成"));
+    await flushPromises();
+    expect(button.attributes("disabled")).toBeUndefined();
+    wrapper.unmount();
+  });
   it("offers readable operation types instead of a free-form code field", async () => {
     mocks.get.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
     const wrapper = mount(LogsPage, { global: { stubs: { Teleport: true } } });
@@ -124,6 +168,8 @@ describe("LogsPage request states", () => {
     await flushPromises();
 
     await wrapper.get('input[name="logKeyword"]').setValue("尚未查询");
+    expect(wrapper.get('.audit-query-context').text()).toContain('筛选已修改');
+    expect(wrapper.get('.audit-query-context').text()).not.toContain('尚未查询');
     await wrapper.findAll(".pagination button")[1]?.trigger("click");
     await flushPromises();
     expect(String(mocks.get.mock.lastCall?.[0])).toContain("page=2");
@@ -152,6 +198,8 @@ describe("LogsPage request states", () => {
     await flushPromises();
     expect(wrapper.text()).toContain("原结果");
     expect(wrapper.text()).toContain("模拟查询失败");
+    expect(wrapper.get('.audit-query-context').text()).toContain('查询未成功');
+    expect(wrapper.get('.audit-query-context').text()).not.toContain('筛选已修改');
 
     await wrapper.get('[data-action="retry-logs"]').trigger("click");
     await flushPromises();

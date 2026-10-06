@@ -1,1 +1,0 @@
-import{F as e,M as t,R as n,W as r,ot as i,rt as a,z as o}from"./api-u-msTCAA.js";import{t as s}from"./loader-circle-I4cqgXNg.js";var c={class:`loading-block`,role:`status`},l=o({__name:`LoadingBlock`,props:{label:{}},setup(o){return(l,u)=>(r(),e(`div`,c,[n(a(s),{class:`spin`}),t(`span`,null,i(o.label||`正在加载`),1)]))}});export{l as t};

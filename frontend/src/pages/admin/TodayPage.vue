@@ -23,7 +23,7 @@
 import { computed, onBeforeUnmount, onMounted, provide, ref } from "vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/attendance/presentation.css";
 provide(memberPresentationKey, true);
 import { useRouter } from "vue-router";
@@ -43,6 +43,7 @@ const router = useRouter();
 const request = useLatestRequest();
 const { loading, error } = request;
 const dashboard = ref<TodayDashboardData | null>(null);
+const dashboardDate = ref("");
 const schedule = ref<TodayScheduleData | null>(null);
 const commandInput = ref("");
 const commandError = ref("");
@@ -68,6 +69,7 @@ const quickActions = computed(() => buildTodayQuickActions(
   missingScheduleCount.value,
   canSchedule.value,
   currentRole.value,
+  dashboardDate.value || today.value,
 ));
 const quietToday = computed(() => dashboard.value !== null &&
   ![
@@ -104,6 +106,7 @@ async function load() {
   );
   if (!result) return;
   [dashboard.value, schedule.value] = result;
+  dashboardDate.value = queryDate;
 }
 
 async function executeCommand(value: string) {

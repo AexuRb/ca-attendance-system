@@ -1,5 +1,6 @@
 <template>
   <RefinedWorkspaceShell class="daily-workspace review-workspace" title="签到审核" description="核对记录后通过签到与签退申请" section-key="today">
+    <template #heading><h1>签到审核</h1><p>核对时间，分别处理签到与签退</p></template>
     <aside class="daily-review-summary" aria-label="待审核概况">
       <div class="filter-summary">
         <ListChecks aria-hidden="true" />
@@ -15,6 +16,12 @@
         </div>
       </div>
       <div class="review-summary-actions">
+        <label class="review-select-visible">
+          <input type="checkbox" :checked="allVisibleSelected" :indeterminate="selectedIds.length > 0 && !allVisibleSelected" :disabled="interactionLocked || !records.length" @change="toggleVisible" />
+          选择当前显示的 {{ records.length }} 条
+        </label>
+        <span class="review-selection-count" aria-live="polite">已选 {{ selectedIds.length }} 条 · {{ selectedItemCount }} 项待审核</span>
+        <button class="button primary" type="button" :disabled="interactionLocked || !selectedItemCount" @click="openBulk(true)"><CheckCheck />通过所选</button>
         <button class="icon-button" type="button" title="刷新" aria-label="刷新" :disabled="loading || actionInProgress" @click="load">
           <RefreshCw :class="{ spin: loading }" />
         </button>
@@ -22,7 +29,7 @@
           class="button secondary"
           type="button"
           :disabled="interactionLocked || !pendingItemCount"
-          @click="bulkConfirmOpen = true"
+          @click="openBulk(false)"
         >
           <CheckCheck />全部通过
         </button>
@@ -42,8 +49,8 @@
       description="当前没有需要处理的签到或签退。"
     />
     <TransitionGroup v-else name="review-queue" tag="div" class="review-list">
-      <article v-for="record in records" :key="record.id" class="review-row">
-        <span class="avatar" aria-hidden="true">{{ record.name.slice(0, 1) }}</span>
+      <article v-for="record in records" :key="record.id" class="review-row" :class="{ 'is-selected': selectedIds.includes(record.id) }" :data-review-id="record.id" tabindex="-1" :aria-label="`${record.name} ${record.dutyDate} ${clock(record.checkInTime)} 签到的待审核记录`">
+        <input class="review-select-record" type="checkbox" :checked="selectedIds.includes(record.id)" :disabled="interactionLocked" :aria-label="`选择 ${record.name} ${record.dutyDate} ${clock(record.checkInTime)} 签到的记录`" @change="toggleRecord(record.id)" />
         <div class="review-person">
           <strong>{{ record.name }}</strong>
           <span class="review-person__details">
@@ -63,7 +70,7 @@
             :status="record.checkInStatus"
             :action-pending="actions.isPending(reviewKey(record.id, 'CHECK_IN'))"
             :disabled="interactionLocked"
-            @approve="review(record.id, 'CHECK_IN', 'APPROVE')"
+            @approve="approveAndContinue(record.id, 'CHECK_IN')"
             @reject="openReject(record, 'CHECK_IN')"
           />
           <ReviewStateAction
@@ -73,7 +80,7 @@
             :status="record.checkOutStatus"
             :action-pending="actions.isPending(reviewKey(record.id, 'CHECK_OUT'))"
             :disabled="interactionLocked"
-            @approve="review(record.id, 'CHECK_OUT', 'APPROVE')"
+            @approve="approveAndContinue(record.id, 'CHECK_OUT')"
             @reject="openReject(record, 'CHECK_OUT')"
           />
         </div>
@@ -105,7 +112,7 @@
         ><button
           class="button danger"
           :disabled="rejectPending || !rejectReason.trim()"
-          @click="confirmReject"
+          @click="rejectAndContinue"
         >
           确认驳回
         </button></template
@@ -113,13 +120,14 @@
     </ModalDialog>
     <ConfirmDialog
       :open="bulkConfirmOpen"
-      title="通过全部待审核记录"
-      :message="`将通过全部 ${pendingItemCount} 项待审核，涉及 ${pendingRecordCount} 条记录。提交时将按数据库中的最新待审核范围处理。`"
-      confirm-label="全部通过"
+      :title="bulkIsSelected ? '通过所选记录' : '通过全部待审核记录'"
+      :message="bulkIsSelected ? `将通过所选 ${bulkRecordCount} 条记录中的 ${bulkItemCount} 项待审核（包括签到和签退）。其他记录不会处理，已由他人处理的项目将跳过。` : `将通过全部 ${bulkItemCount} 项待审核，涉及 ${bulkRecordCount} 条记录，包括当前未展示的记录。提交时将按数据库中的最新待审核范围处理。`"
+      :confirm-label="bulkIsSelected ? '通过所选' : '全部通过'"
       :pending="actions.isPending('bulk')"
       @cancel="bulkConfirmOpen = false"
       @confirm="bulkApprove"
     />
+    <ConfirmDialog :open="unsaved.confirmOpen.value" title="放弃驳回原因" message="已填写的驳回原因尚未提交，放弃后无法恢复。" confirm-label="放弃修改" danger @cancel="unsaved.cancel" @confirm="unsaved.discard" />
     <ModalDialog
       :open="bulkErrors.length > 0"
       title="部分记录未处理"
@@ -141,10 +149,10 @@
 
 <script setup lang="ts">
 import { CheckCheck, ListChecks, RefreshCw } from "@lucide/vue";
-import { provide } from "vue";
+import { nextTick, provide } from "vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/attendance/presentation.css";
 provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
@@ -152,9 +160,11 @@ import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import ReviewStateAction from "./reviews/ReviewStateAction.vue";
-import { useAttendanceReviewWorkspace } from "../../features/attendance/useAttendanceReviewWorkspace";
+import { useAttendanceReviewWorkspace, type ReviewPart } from "../../features/attendance/useAttendanceReviewWorkspace";
 
 const {
+  selectedIds, selectedItemCount, allVisibleSelected, toggleRecord, toggleVisible,
+  openBulk, bulkIsSelected, bulkRecordCount, bulkItemCount, unsaved,
   actions,
   actionInProgress,
   bulkApprove,
@@ -179,4 +189,28 @@ const {
   review,
   reviewKey,
 } = useAttendanceReviewWorkspace();
+
+async function focusNextRecord(id: number, index: number) {
+  await nextTick();
+  const next = records.value.find(record => record.id === id) || records.value[Math.min(index, records.value.length - 1)];
+  const target = loadError.value
+    ? document.querySelector<HTMLElement>('[data-action="retry-reviews"]')
+    : next
+    ? document.querySelector<HTMLElement>(`.review-workspace [data-review-id="${next.id}"]`)
+    : document.querySelector<HTMLElement>('.review-workspace button[aria-label="刷新"]');
+  target?.focus({ preventScroll: true });
+  target?.scrollIntoView?.({ block: "nearest" });
+}
+
+async function approveAndContinue(id: number, part: ReviewPart) {
+  const index = records.value.findIndex(record => record.id === id);
+  if (await review(id, part, 'APPROVE')) await focusNextRecord(id, index);
+}
+
+async function rejectAndContinue() {
+  const id = rejectTarget.value?.id;
+  if (id === undefined) return;
+  const index = records.value.findIndex(record => record.id === id);
+  if (await confirmReject()) await focusNextRecord(id, index);
+}
 </script>

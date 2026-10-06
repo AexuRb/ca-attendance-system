@@ -1,0 +1,1 @@
+import{J as e,S as t,h as n,j as r,n as i}from"./vue-router-tnz-igFk.js";var a=t({__name:`AdminLayout`,setup(t){return(t,a)=>(r(),n(e(i)))}});export{a as default};

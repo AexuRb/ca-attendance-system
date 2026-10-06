@@ -14,6 +14,7 @@ import type { StatsSummaryRow } from "./statsSummary";
 import type { WeeklyStatsDetail } from "./weeklyStats";
 
 type StatsPreset = "week" | "month" | "year" | "custom";
+type StatsQuery = { from: string; to: string; preset: StatsPreset };
 
 export function useStatsWorkspace() {
   const task = useAsyncTask();
@@ -27,6 +28,8 @@ export function useStatsWorkspace() {
   const weeklyDetail = ref<WeeklyStatsDetail>({ days: [], users: [], cells: {} });
   const loaded = ref(false);
   const loadedRange = ref({ from: "", to: "" });
+  const loadedPreset = ref<StatsPreset>("week");
+  let pendingQuery: { snapshot: StatsQuery; mode: "push" | "replace" } | null = null;
   const selectedMember = ref<StatsSummaryRow | null>(null);
   const memberDetail = ref<WeeklyStatsDetail | null>(null);
   const cachedDetail = ref<WeeklyStatsDetail | null>(null);
@@ -52,7 +55,7 @@ export function useStatsWorkspace() {
     rows.value.reduce((sum, item) => sum + Number(item.trainingCount || 0), 0),
   );
   const hasData = computed(() =>
-    preset.value === "week"
+    loadedPreset.value === "week"
       ? weeklyDetail.value.users.length > 0
       : rows.value.length > 0,
   );
@@ -68,7 +71,6 @@ export function useStatsWorkspace() {
   onMounted(async () => {
     restoreRouteState();
     routeReady = true;
-    await syncRoute("replace");
     await load();
     if (stringRouteQuery(route.query.intent) === "export") {
       void nextTick(() => exportButton.value?.focus());
@@ -87,18 +89,13 @@ export function useStatsWorkspace() {
   async function applyPreset(id: "week" | "month" | "year") {
     preset.value = id;
     setPresetRange(id);
-    await syncRoute("push");
-    await load();
+    await load(undefined, "push");
   }
 
-  async function load() {
+  async function load(snapshot: StatsQuery = { from: from.value, to: to.value, preset: preset.value }, mode: "push" | "replace" = "replace") {
+    if (dateRangeError(snapshot.from, snapshot.to)) return;
     closeMemberDetail();
-    cachedDetail.value = null;
-    loaded.value = false;
-    rows.value = [];
-    weeklyDetail.value = { days: [], users: [], cells: {} };
-    if (filterError.value) return;
-    const snapshot = { from: from.value, to: to.value, preset: preset.value };
+    pendingQuery = { snapshot, mode };
     const query = new URLSearchParams({ from: snapshot.from, to: snapshot.to });
     const value = await request.run(async (signal) => {
       const summary = get<StatsSummaryRow[]>(`/api/stats/summary?${query}`, { signal });
@@ -114,16 +111,23 @@ export function useStatsWorkspace() {
     if (!value) return;
     rows.value = value.summary;
     weeklyDetail.value = value.weekly || { days: [], users: [], cells: {} };
-    if (value.weekly) cachedDetail.value = value.weekly;
+    cachedDetail.value = value.weekly;
     loadedRange.value = { from: snapshot.from, to: snapshot.to };
+    loadedPreset.value = snapshot.preset;
     loaded.value = true;
+    pendingQuery = null;
+    await syncRoute(mode);
+  }
+
+  async function retry() {
+    if (pendingQuery) await load(pendingQuery.snapshot, pendingQuery.mode);
+    else await load();
   }
 
   async function loadCustom() {
     if (filterError.value) return;
     preset.value = "custom";
-    await syncRoute("push");
-    await load();
+    await load(undefined, "push");
   }
 
   async function exportExcel() {
@@ -138,6 +142,7 @@ export function useStatsWorkspace() {
   }
 
   async function openMemberDetail(member: StatsSummaryRow) {
+    if (loading.value || loadError.value) return;
     selectedMember.value = member;
     memberDetail.value = cachedDetail.value;
     if (!cachedDetail.value) await fetchMemberDetail();
@@ -220,7 +225,7 @@ export function useStatsWorkspace() {
         router,
         route.query,
         routeKeys,
-        { from: from.value, to: to.value, preset: preset.value },
+        { ...loadedRange.value, preset: loadedPreset.value },
         mode,
       );
     } finally {
@@ -242,6 +247,8 @@ export function useStatsWorkspace() {
     from,
     hasData,
     load,
+    retry,
+    loadedPreset,
     loadCustom,
     loading,
     loadError,

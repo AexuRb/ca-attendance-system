@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   api,
+  post,
   configureTokenStorage,
   getToken,
   safeDownloadFilename,
@@ -24,6 +25,19 @@ afterEach(() => {
 });
 
 describe("api client", () => {
+  it("passes an optional cancellation signal through POST without changing JSON or authentication", async () => {
+    setToken("synthetic-token");
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await post("/api/example", { requestId: "synthetic-id" }, { signal: controller.signal });
+    const options = fetchMock.mock.calls[0][1];
+    expect(options.signal).toBe(controller.signal);
+    expect(options.method).toBe("POST");
+    expect(options.body).toBe(JSON.stringify({ requestId: "synthetic-id" }));
+    expect(options.headers.get("Authorization")).toBe("Bearer synthetic-token");
+    expect(options.headers.get("Content-Type")).toBe("application/json");
+  });
   it("normalizes download names before assigning them to the browser", () => {
     expect(safeDownloadFilename(' 培训名单_测试/场次:*?"<>|.xlsx ')).toBe(
       "培训名单_测试_场次_.xlsx",

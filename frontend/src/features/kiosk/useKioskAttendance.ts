@@ -1,5 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { ApiError, get, post } from "../../shared/api";
+import { createKioskRequests, KioskRequestTimeout, KIOSK_WRITE_TIMEOUT } from "./kioskRequests";
 import {
   canConfirmAttendance,
   type AttendanceLookupResult,
@@ -27,7 +28,9 @@ export function useKioskAttendance() {
   const matches = ref<AttendanceMemberOption[]>([]);
   const busy = ref(false);
   const error = ref("");
-  const online = ref(true);
+  const scheduleAvailable = ref(true);
+  const attendanceAvailable = ref(true);
+  const online = computed(() => scheduleAvailable.value && attendanceAvailable.value);
   const todaySchedule = ref<ScheduleDay | null>(null);
   const weekSchedule = ref<ScheduleDay[]>([]);
   const scheduleError = ref("");
@@ -47,6 +50,8 @@ export function useKioskAttendance() {
   let pendingLookupQuery: string | null = null;
   let disposed = false;
   let interactionVersion = 0;
+  const scheduleRequests = createKioskRequests();
+  const interactionRequests = createKioskRequests();
 
   const scheduleCount = computed(
     () =>
@@ -70,6 +75,8 @@ export function useKioskAttendance() {
   onBeforeUnmount(() => {
     disposed = true;
     interactionVersion += 1;
+    interactionRequests.cancel();
+    scheduleRequests.cancel();
     clearTimers();
   });
 
@@ -79,21 +86,24 @@ export function useKioskAttendance() {
     window.clearTimeout(scheduleRetryTimer);
     scheduleRequest = (async () => {
       try {
-        const [today, week] = await Promise.all([
-          get<ScheduleDay>("/api/public/schedules/today"),
-          get<ScheduleDay[]>("/api/public/schedules/week"),
-        ]);
+        const [today, week] = await scheduleRequests.run(signal => Promise.all([
+          get<ScheduleDay>("/api/public/schedules/today", { signal }),
+          get<ScheduleDay[]>("/api/public/schedules/week", { signal }),
+        ]));
         if (disposed) return;
         todaySchedule.value = today;
         weekSchedule.value = week;
         scheduleError.value = "";
-        online.value = true;
+        scheduleAvailable.value = true;
         lastScheduleRefreshAt = Date.now();
       } catch (cause) {
         if (disposed) return;
-        scheduleError.value =
-          cause instanceof Error ? cause.message : "排班暂时不可用";
-        online.value = !isNetworkError(cause);
+        scheduleError.value = cause instanceof KioskRequestTimeout
+          ? "排班读取超时，正在重试。"
+          : isRetryableError(cause)
+          ? "排班服务暂时不可用，正在重试。"
+          : cause instanceof Error ? cause.message : "排班暂时不可用";
+        scheduleAvailable.value = !isRetryableError(cause);
         if (isRetryableError(cause)) {
           scheduleRetryTimer = window.setTimeout(() => void loadSchedule(), 3000);
         }
@@ -140,11 +150,12 @@ export function useKioskAttendance() {
     busy.value = true;
     error.value = "";
     try {
-      const result = await get<AttendanceLookupResult>(
+      const result = await interactionRequests.run(signal => get<AttendanceLookupResult>(
         `/api/public/attendance/lookup?query=${encodeURIComponent(lookupQuery)}`,
-      );
+        { signal },
+      ));
       if (disposed || version !== interactionVersion) return;
-      online.value = true;
+      attendanceAvailable.value = true;
       pendingLookupQuery = null;
       if (result.matches?.length) {
         matches.value = result.matches;
@@ -160,16 +171,18 @@ export function useKioskAttendance() {
     } catch (cause) {
       if (disposed || version !== interactionVersion) return;
       const message = cause instanceof Error ? cause.message : "查询失败";
-      if (isNetworkError(cause)) {
-        online.value = false;
-        error.value = "本机服务暂时无法连接。已保留当前输入，连接恢复后将自动重试。";
+      if (isRetryableError(cause)) {
+        attendanceAvailable.value = false;
+        error.value = cause instanceof KioskRequestTimeout
+          ? "查询等待超时，已保留当前输入，稍后将自动重试。"
+          : "本机服务暂时无法连接。已保留当前输入，连接恢复后将自动重试。";
         lookupRetryTimer = window.setTimeout(() => {
           if (!disposed && pendingLookupQuery === lookupQuery) {
             void performLookup(lookupQuery, selectedToken);
           }
         }, RETRY_DELAY);
       } else {
-        online.value = true;
+        attendanceAvailable.value = true;
         pendingLookupQuery = null;
         error.value = message;
       }
@@ -194,17 +207,19 @@ export function useKioskAttendance() {
       submissionAttempt,
       lookupResult.value.memberToken,
     );
+    const attempt = submissionAttempt;
     try {
-      const result = await post<AttendanceSubmitResult>(
+      const result = await interactionRequests.run(signal => post<AttendanceSubmitResult>(
         "/api/public/attendance/submit",
         {
-          memberToken: submissionAttempt.memberToken,
-          requestId: submissionAttempt.requestId,
+          memberToken: attempt.memberToken,
+          requestId: attempt.requestId,
         },
-      );
+        { signal },
+      ), KIOSK_WRITE_TIMEOUT);
       if (disposed || version !== interactionVersion) return;
       submissionAttempt = null;
-      online.value = true;
+      attendanceAvailable.value = true;
       successName.value = result.name;
       successAction.value =
         result.action === "CHECK_IN" ? "签到成功" : "签退成功";
@@ -218,11 +233,13 @@ export function useKioskAttendance() {
       resetTimer = window.setTimeout(reset, RESET_DELAY);
     } catch (cause) {
       if (disposed || version !== interactionVersion) return;
-      const networkError = isNetworkError(cause);
-      online.value = !networkError;
+      const serviceFailure = isRetryableError(cause);
+      attendanceAvailable.value = !serviceFailure;
       const message = cause instanceof Error ? cause.message : "提交失败";
-      error.value = networkError
-        ? "本机服务暂时无法连接。当前确认已保留，请重新提交。"
+      error.value = cause instanceof KioskRequestTimeout
+        ? "提交等待超时，结果暂未确认。当前确认已保留，请保留此页面并再次确认，避免重新输入。"
+        : serviceFailure
+        ? "提交结果暂未确认。当前确认已保留，请保留此页面并再次确认，避免重新输入。"
         : message;
       step.value = "confirm";
     } finally {
@@ -231,6 +248,12 @@ export function useKioskAttendance() {
   }
 
   function clearError() {
+    if (step.value === "input" && busy.value) {
+      interactionVersion += 1;
+      interactionRequests.cancel();
+      busy.value = false;
+      selectingMemberToken.value = "";
+    }
     window.clearTimeout(lookupRetryTimer);
     pendingLookupQuery = null;
     error.value = "";
@@ -239,6 +262,7 @@ export function useKioskAttendance() {
   function reset() {
     // Reset the interaction, not a write that may already have reached the server.
     interactionVersion += 1;
+    interactionRequests.cancel();
     busy.value = false;
     window.clearTimeout(resetTimer);
     window.clearTimeout(lookupRetryTimer);

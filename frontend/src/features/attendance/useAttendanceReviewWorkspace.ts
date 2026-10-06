@@ -1,4 +1,6 @@
 import { computed, onMounted, ref } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
+import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import { get, post } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
@@ -51,7 +53,20 @@ export function useAttendanceReviewWorkspace() {
   const rejectPart = ref<ReviewPart>("CHECK_IN");
   const rejectReason = ref("");
   const bulkConfirmOpen = ref(false);
+  const selectedIds = ref<number[]>([]);
+  const bulkTargetIds = ref<number[] | undefined>();
+  const selectedRecords = computed(() => records.value.filter(record => selectedIds.value.includes(record.id)));
+  const selectedItemCount = computed(() => selectedRecords.value.reduce((count, record) => count + pendingParts(record), 0));
+  const allVisibleSelected = computed(() => records.value.length > 0 && selectedRecords.value.length === records.value.length);
+  const bulkIsSelected = computed(() => bulkTargetIds.value !== undefined);
+  const bulkRecordCount = ref(0);
+  const bulkItemCount = ref(0);
   const bulkErrors = ref<string[]>([]);
+  const unsaved = useUnsavedChanges(() => Boolean(rejectTarget.value && rejectReason.value.trim()));
+  onBeforeRouteLeave(() => {
+    if (actionInProgress.value) return false;
+    return new Promise<boolean>(resolve => unsaved.request(() => resolve(true), () => resolve(false)));
+  });
   const rejectPending = computed(() =>
     rejectTarget.value
       ? actions.isPending(reviewKey(rejectTarget.value.id, rejectPart.value))
@@ -68,6 +83,7 @@ export function useAttendanceReviewWorkspace() {
     );
     if (!value) return;
     records.value = value.items;
+    selectedIds.value = selectedIds.value.filter(id => value.items.some(record => record.id === id && pendingParts(record) > 0));
     pendingRecordCount.value = value.recordCount;
     pendingItemCount.value = value.itemCount;
     queueTruncated.value = value.truncated;
@@ -79,6 +95,7 @@ export function useAttendanceReviewWorkspace() {
     action: ReviewAction,
     reason = "",
   ) {
+    if (interactionLocked.value) return false;
     const result = await actions.run(reviewKey(id, part), async () => {
       const reviewed = await task.run(
         () => post(`/api/attendance/${id}/review`, { part, action, reason }),
@@ -92,11 +109,13 @@ export function useAttendanceReviewWorkspace() {
   }
 
   async function bulkApprove() {
+    if (interactionLocked.value || !bulkConfirmOpen.value) return;
+    if (bulkTargetIds.value?.length === 0) return;
     await actions.run("bulk", async () => {
       const result = await task.run(() =>
         post<BulkReviewResult>(
           "/api/attendance/reviews/bulk",
-          buildBulkApprovalRequest(),
+          buildBulkApprovalRequest(bulkTargetIds.value),
         ),
       );
       if (!result) return;
@@ -114,6 +133,30 @@ export function useAttendanceReviewWorkspace() {
     });
   }
 
+  function pendingParts(record: ReviewRecord) {
+    return Number(record.checkInStatus === "PENDING") + Number(record.checkOutStatus === "PENDING");
+  }
+
+  function toggleRecord(id: number) {
+    if (interactionLocked.value) return;
+    selectedIds.value = selectedIds.value.includes(id)
+      ? selectedIds.value.filter(selected => selected !== id)
+      : [...selectedIds.value, id];
+  }
+
+  function toggleVisible() {
+    if (interactionLocked.value) return;
+    selectedIds.value = allVisibleSelected.value ? [] : records.value.map(record => record.id);
+  }
+
+  function openBulk(selected: boolean) {
+    if (interactionLocked.value || (selected ? !selectedItemCount.value : !pendingItemCount.value)) return;
+    bulkTargetIds.value = selected ? selectedRecords.value.map(record => record.id) : undefined;
+    bulkRecordCount.value = selected ? selectedRecords.value.length : pendingRecordCount.value;
+    bulkItemCount.value = selected ? selectedItemCount.value : pendingItemCount.value;
+    bulkConfirmOpen.value = true;
+  }
+
   function openReject(record: ReviewRecord, part: ReviewPart) {
     if (
       interactionLocked.value ||
@@ -127,18 +170,19 @@ export function useAttendanceReviewWorkspace() {
 
   async function confirmReject() {
     const target = rejectTarget.value;
-    if (!target) return;
+    if (!target || !rejectReason.value.trim()) return false;
     const succeeded = await review(
       target.id,
       rejectPart.value,
       "REJECT",
-      rejectReason.value,
+      rejectReason.value.trim(),
     );
     if (succeeded) rejectTarget.value = null;
+    return succeeded;
   }
 
   function closeReject() {
-    if (!rejectPending.value) rejectTarget.value = null;
+    if (!rejectPending.value) unsaved.request(() => { rejectTarget.value = null; });
   }
 
   function reviewKey(id: number, part: ReviewPart) {
@@ -148,6 +192,16 @@ export function useAttendanceReviewWorkspace() {
   const clock = (value?: string) => value?.slice(11, 16) || "—";
 
   return {
+    selectedIds,
+    selectedItemCount,
+    allVisibleSelected,
+    toggleRecord,
+    toggleVisible,
+    openBulk,
+    bulkIsSelected,
+    bulkRecordCount,
+    bulkItemCount,
+    unsaved,
     actions,
     actionInProgress,
     bulkApprove,

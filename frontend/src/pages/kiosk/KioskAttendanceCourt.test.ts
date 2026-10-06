@@ -77,8 +77,24 @@ describe("KioskAttendanceCourt", () => {
       props: props({ online: false }),
     });
 
-    expect(wrapper.get(".kiosk-focus-hint").text()).toContain("连接中断，正在重试");
+    expect(wrapper.get(".kiosk-focus-hint").text()).toContain("服务连接异常");
+    expect(wrapper.get(".kiosk-focus-hint").text()).not.toContain("正在重试");
     expect(wrapper.get(".kiosk-focus-hint").text()).not.toContain("本机服务正常");
+  });
+
+  it("blocks resetting during submission and refocuses confirmation after failure", async () => {
+    const wrapper = mount(KioskAttendanceCourt, { attachTo: document.body, props: props({
+      step: "confirm", busy: true,
+      lookupResult: { exists: true, memberToken: "sel_member", name: "合成成员", action: "CHECK_IN", message: "" },
+    }) });
+    try {
+      expect(wrapper.get('.kiosk-focus-secondary').attributes('disabled')).toBeDefined();
+      await wrapper.get('.kiosk-focus-secondary').trigger('click');
+      expect(wrapper.emitted('reset')).toBeUndefined();
+      await wrapper.setProps({ busy: false, error: "提交结果暂未确认" });
+      await flushPromises();
+      expect(document.activeElement).toBe(wrapper.get('.kiosk-focus-primary').element);
+    } finally { wrapper.unmount(); }
   });
 
   it("focuses the first account when the flow enters the choice step", async () => {

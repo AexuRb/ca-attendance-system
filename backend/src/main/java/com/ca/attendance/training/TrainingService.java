@@ -280,7 +280,7 @@ public class TrainingService {
         LocalDate start = from == null ? LocalDate.of(LocalDate.now().getYear(), 1, 1) : from;
         LocalDate end = to == null ? LocalDate.now() : to;
         List<TrainingSessionItem> sessions = queries.sessions(keyword, status, start, end);
-        List<Map<String, Object>> memberRows = queries.memberSummary(start, end);
+        List<Map<String, Object>> memberRows = queries.memberSummary(keyword, status, start, end);
         ExportRowLimit.requireWithinLimit(sessions.size() + memberRows.size());
         TrainingExcelExportService.ExportDocument document =
                 excelExports.generateSummary(sessions, memberRows, start, end);
@@ -289,6 +289,9 @@ public class TrainingService {
         filters.put("to", end.toString());
         if (keyword != null && !keyword.isBlank()) {
             filters.put("keyword", keyword.trim());
+        }
+        if (status != null && !status.isBlank()) {
+            filters.put("status", TrainingSessionStatus.parse(status));
         }
         logs.logExport(
                 "TRAINING_SUMMARY",

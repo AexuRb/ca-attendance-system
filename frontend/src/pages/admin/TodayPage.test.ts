@@ -27,6 +27,32 @@ afterEach(() => {
 });
 
 describe("TodayPage request states", () => {
+  it("opens reminder results for the successful dashboard date after a later refresh fails", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 8, 29, 23, 59));
+    mocks.apiGet.mockImplementation((url: string) => Promise.resolve(
+      url.includes("schedules") ? { slots: [] } : { todayOpenCount: 2 },
+    ));
+    mocks.routerPush.mockResolvedValue(undefined);
+    const wrapper = mount(TodayPage);
+    await flushPromises();
+    expect(wrapper.get(".command-welcome-actions").text()).toContain("2026-09-29");
+
+    vi.setSystemTime(new Date(2026, 8, 30, 0, 1));
+    mocks.apiGet.mockRejectedValueOnce(new Error("演示刷新失败"));
+    window.dispatchEvent(new Event("focus"));
+    await flushPromises();
+    expect(wrapper.get('[role="alert"]').text()).toContain("演示刷新失败");
+    expect(wrapper.get(".command-welcome-actions").text()).toContain("2026-09-29");
+    await wrapper.findAll(".command-welcome-action")
+      .find(action => action.text().includes("未签退"))!.trigger("click");
+    await flushPromises();
+    expect(mocks.routerPush).toHaveBeenCalledWith({
+      name: "attendance", query: { status: "INCOMPLETE", from: "2026-09-29", to: "2026-09-29" },
+    });
+    wrapper.unmount();
+  });
+
   it("shows a retryable error instead of presenting failed data as empty", async () => {
     mocks.apiGet.mockRejectedValueOnce(new Error("今日数据加载失败"));
     mocks.apiGet.mockResolvedValueOnce({ slots: [] });

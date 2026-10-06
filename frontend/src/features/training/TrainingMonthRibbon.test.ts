@@ -51,7 +51,7 @@ describe("TrainingMonthRibbon", () => {
     expect(wrapper.get('[role="alert"]').text()).toContain("场次读取失败");
 
     await wrapper.setProps({ error: "" });
-    expect(wrapper.text()).toContain("本月暂无培训");
+    expect(wrapper.text()).toContain("没有符合条件的培训");
   });
 
   it("keeps the last result visible while refreshing or showing a fetch error", async () => {

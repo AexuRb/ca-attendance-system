@@ -69,6 +69,7 @@ html:root[data-appearance] .stats-presentation .weekly-member-column { min-width
 html:root[data-appearance] .stats-presentation .weekly-hours-cell span { display:inline-block; min-width:28px; padding:5px; border-radius:4px; font-variant-numeric:tabular-nums; }
 html:root[data-appearance] .stats-presentation .weekly-hours-cell span.active { background:var(--mw-soft); color:var(--mw-accent); }
 /* Audit rows expose action, identity, reason, and detail without a disclosure step. */
+html:root[data-appearance] .logs-presentation .audit-query-context { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 16px; padding:8px 24px; border-bottom:1px solid var(--mw-line); background:var(--mw-soft); color:var(--mw-muted); font:12px/1.5 var(--mw-font); overflow-wrap:anywhere; }
 html:root[data-appearance] .logs-presentation .audit-records { padding:0; }
 html:root[data-appearance] .logs-presentation :is(.audit-record-head,.audit-records>article) { display:grid; grid-template-columns:110px minmax(180px,1.15fr) minmax(140px,.7fr) minmax(160px,1.4fr) 36px; align-items:center; gap:16px; padding:16px 24px; border-bottom:1px solid var(--mw-line); }
 html:root[data-appearance] .logs-presentation .audit-record-head { background:var(--mw-soft); color:var(--mw-muted); font-size:12px; }

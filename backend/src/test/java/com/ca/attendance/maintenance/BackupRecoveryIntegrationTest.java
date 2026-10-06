@@ -123,6 +123,23 @@ class BackupRecoveryIntegrationTest {
     }
 
     @Test
+    void restorePreservesFractionalLoginTimestamps() throws Exception {
+        String adminLogin = "2026-10-06T12:23:20.455934100";
+        String memberLogin = "2026-10-06 08:29:32.418549400";
+        jdbc.update("UPDATE users SET last_login_at = ? WHERE id = ?", adminLogin, adminId);
+        jdbc.update("UPDATE users SET last_login_at = ? WHERE id = ?", memberLogin, memberId);
+        BackupService.BackupItem source = backups.create();
+        jdbc.update("UPDATE users SET last_login_at = NULL");
+
+        backups.restore(upload(source));
+
+        assertEquals(adminLogin, jdbc.queryForObject(
+                "SELECT last_login_at FROM users WHERE id = ?", String.class, adminId));
+        assertEquals(memberLogin, jdbc.queryForObject(
+                "SELECT last_login_at FROM users WHERE id = ?", String.class, memberId));
+    }
+
+    @Test
     void restoresEverySupportedTableAndPreservesRelationships() throws Exception {
         seedEveryBusinessTable();
         Map<String, Integer> expectedCounts = tableCounts();

@@ -1,9 +1,8 @@
 <template>
   <div class="repair-ledger-region">
-    <div v-if="items.length" class="repair-ledger-table mw-table-scroll" tabindex="0" aria-label="维修台账，可横向滚动">
+    <div v-if="items.length" :ref="bindScroll" class="repair-ledger-table mw-table-scroll" tabindex="0" aria-label="维修台账，可横向滚动" @scroll="$emit('scroll')">
       <table class="mw-table">
         <thead>
-          <tr v-if="spatial" class="mw-column-groups"><th colspan="2" scope="colgroup">维修内容</th><th colspan="3" scope="colgroup">联系与受理</th><th colspan="2" scope="colgroup">状态与操作</th></tr>
           <tr>
             <th>{{ editorial ? "维修档案" : "维修编号" }}</th>
             <th>设备与故障</th>
@@ -85,9 +84,9 @@
                 v-if="status === 'REPAIRING' && canManage"
                 class="icon-button ghost repair-ledger-secondary-action"
                 type="button"
-                title="编辑"
-                :aria-label="`编辑 ${item.caseNo}`"
-                @click.stop="$emit('edit', item)"
+                title="更新处理"
+                :aria-label="`更新 ${item.caseNo} 的处理情况`"
+                @click.stop="$emit('process', item)"
               >
                 <Pencil aria-hidden="true" />
               </button>
@@ -125,11 +124,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type ComponentPublicInstance } from "vue";
 import { useAppearance } from "../../appearance/appearanceStore";
 const { state: appearance } = useAppearance();
 const editorial = computed(() => appearance.active === "EDITORIAL");
-const spatial = computed(() => appearance.active === "SPATIAL");
 import {
   Archive,
   Eye,
@@ -159,15 +157,17 @@ const props = defineProps<{
   revealedPhones: Set<number>;
   canManage: boolean;
   canDelete: boolean;
+  bindScroll?: (element: Element | ComponentPublicInstance | null) => void;
 }>();
 
 defineEmits<{
   view: [item: RepairCase];
   preview: [item: RepairCase];
-  edit: [item: RepairCase];
+  process: [item: RepairCase];
   delete: [item: RepairCase];
   "toggle-phone": [id: number];
   retry: [];
+  scroll: [];
 }>();
 
 const timeLabel = computed(() => {
@@ -176,9 +176,9 @@ const timeLabel = computed(() => {
   return "受理时间";
 });
 const emptyTitle = computed(() => {
-  if (props.status === "COMPLETED") return "暂无已完成记录";
-  if (props.status === "CANCELED") return "暂无已取消记录";
-  return "当前没有进行中的维修";
+  if (props.status === "COMPLETED") return "当前条件下没有已完成记录";
+  if (props.status === "CANCELED") return "当前条件下没有已取消记录";
+  return "当前条件下没有进行中的维修";
 });
 const emptyIcon = computed(() =>
   props.status === "REPAIRING" ? Wrench : Archive,

@@ -4,11 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import StatsPage from "./StatsPage.vue";
 
 const apiGet = vi.fn();
+const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
 vi.mock("vue-router", () => ({
   RouterLink: { template: "<a><slot /></a>" },
   useRoute: () => ({ query: {} }),
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => navigation,
 }));
 
 vi.mock("../../shared/api", () => ({
@@ -37,10 +38,40 @@ const row = (name: string) => ({
 
 afterEach(() => {
   apiGet.mockReset();
+  navigation.push.mockReset();
+  navigation.replace.mockReset();
   vi.useRealTimers();
 });
 
 describe("StatsPage request states", () => {
+  it("retains successful statistics on failure and retries the captured range without committing draft dates", async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('weekly-detail')
+      ? { days: [], users: [row('原结果')], cells: {} } : [row('原结果')]));
+    const wrapper = mount(StatsPage);
+    await flushPromises();
+    const before = wrapper.get('.stats-results-context').text();
+    apiGet.mockRejectedValueOnce(new Error('本次查询失败'));
+    await wrapper.get('input[name="statsFrom"]').setValue('2026-01-01');
+    await wrapper.get('input[name="statsTo"]').setValue('2026-02-01');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(wrapper.get('.stats-results-context').text()).toContain(before);
+    expect(wrapper.get('.stats-results-context').text()).toContain('统计未成功');
+    expect(wrapper.get('.stats-results-context').text()).not.toContain('日期已修改');
+    expect(wrapper.text()).toContain('原结果');
+    expect(wrapper.find('.weekly-stats-table').exists()).toBe(true);
+    expect(wrapper.get('.stats-detail-trigger').attributes('disabled')).toBeDefined();
+    await wrapper.get('input[name="statsFrom"]').setValue('2026-03-01');
+    await wrapper.get('[data-action="retry-stats"]').trigger('click');
+    await flushPromises();
+    expect(apiGet.mock.calls.at(-1)?.[0]).toBe('/api/stats/summary?from=2026-01-01&to=2026-02-01');
+    expect(navigation.push).toHaveBeenLastCalledWith({ query: { from: '2026-01-01', to: '2026-02-01', preset: 'custom' } });
+    expect(wrapper.get('.stats-results-context').text()).toContain('2026-01-01 — 2026-02-01');
+    expect(wrapper.find('.stats-ranking-table').exists()).toBe(true);
+    wrapper.unmount();
+  });
+
   it("loads the current week by default", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 7, 26, 12));

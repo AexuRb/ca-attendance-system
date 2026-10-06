@@ -22,7 +22,7 @@
       <tbody>
         <tr v-for="member in detail.users" :key="member.userId">
           <td class="weekly-member-column">
-            <span class="stats-member-title"><strong>{{ member.name }}</strong><button class="stats-detail-trigger" type="button" @click="$emit('select-member', member.userId)">查看详情</button></span>
+            <span class="stats-member-title"><strong>{{ member.name }}</strong><button class="stats-detail-trigger" type="button" :disabled="disabled" @click="$emit('select-member', member.userId)">查看详情</button></span>
             <small>{{ member.studentNo }} · {{ roleLabel(member.role) }}</small>
           </td>
           <td>{{ member.grade || "—" }}</td>
@@ -74,7 +74,7 @@
               <dd>{{ displayHours(weeklyCellHours(detail, day.dutyDate, member.userId)) }}<small v-if="weeklyCellHours(detail, day.dutyDate, member.userId) > 0"> 小时</small></dd>
             </div>
           </dl>
-          <button class="stats-detail-trigger weekly-stats-mobile-record__detail" type="button" @click="$emit('select-member', member.userId)">查看成员详情</button>
+          <button class="stats-detail-trigger weekly-stats-mobile-record__detail" type="button" :disabled="disabled" @click="$emit('select-member', member.userId)">查看成员详情</button>
         </details>
       </li>
     </ol>
@@ -89,7 +89,7 @@ import {
   type WeeklyStatsDetail,
 } from "./weeklyStats";
 
-defineProps<{ detail: WeeklyStatsDetail }>();
+defineProps<{ detail: WeeklyStatsDetail; disabled?: boolean }>();
 defineEmits<{ 'select-member': [userId: number] }>();
 
 function displayHours(value: unknown) {

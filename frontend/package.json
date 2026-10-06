@@ -1,6 +1,6 @@
 {
   "name": "ca-attendance-frontend",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@lucide/vue": "^1.21.0",
-    "vue": "^3.5.38",
+    "vue": "^3.5.43",
     "vue-router": "4.6.4"
   },
   "devDependencies": {
@@ -28,7 +28,7 @@
     "vue-tsc": "^3.3.8"
   },
   "overrides": {
-    "brace-expansion": "5.0.9",
+    "brace-expansion": "5.0.12",
     "minimatch": "10.2.5"
   }
 }

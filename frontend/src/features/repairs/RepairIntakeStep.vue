@@ -1,8 +1,16 @@
 <template>
   <div class="form-sections repair-editor-body">
     <section>
-      <h3>受理信息</h3>
+      <h3>处理信息</h3>
       <div class="form-grid two">
+        <label class="field span-2">
+          <span>状态</span>
+          <select v-model="form.status" name="repair-status" data-dialog-initial-focus>
+            <option value="REPAIRING">进行中</option>
+            <option value="COMPLETED">已完成</option>
+            <option value="CANCELED">已取消</option>
+          </select>
+        </label>
         <label class="field">
           <span>受理时间</span>
           <input
@@ -38,6 +46,10 @@
           />
           <small v-if="errors.handler" id="repair-handler-error" class="field-error" role="alert">{{ errors.handler }}</small>
         </div>
+        <label class="field span-2">
+          <span>维修说明</span>
+          <textarea v-model.trim="form.serviceDescription" name="repair-service-description" rows="2" />
+        </label>
         <label class="field span-2">
           <span>备注</span>
           <input v-model.trim="form.remark" name="repair-remark" autocomplete="off" />

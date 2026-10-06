@@ -4,8 +4,8 @@
         ><button
           :ref="captureExportButton"
           class="button secondary"
-          :disabled="isPending('export-summary') || Boolean(filterError)"
-          title="导出当前已应用筛选的统计"
+          :disabled="isPending('export-summary') || !summaryExportReady"
+          :title="summaryExportTitle"
           @click="exportSummary"
         >
           <Download />{{ isPending('export-summary') ? "正在导出" : "导出统计" }}</button
@@ -27,9 +27,25 @@
       ><label
         ><span>结束日期</span><input v-model="filters.to" name="trainingTo" type="date" /></label
       ><button class="button secondary training-query-submit" :class="{ 'has-pending-filters': filtersPending }" type="submit"><Search />{{ filtersPending ? "更新结果" : "查询" }}</button>
-    </form></template>
-    <div v-if="filterError" class="inline-alert danger" role="alert">
-      {{ filterError }}
+    </form>
+      <div v-if="filterError" class="inline-alert danger" role="alert">
+        {{ filterError }}
+      </div>
+    </template>
+    <div class="training-query-context">
+      <span v-if="hasAppliedSessionQuery" class="training-applied-filters">
+        已查询：{{ appliedFilters.from }} 至 {{ appliedFilters.to }} · {{ sessionState.total }} 场
+        <template v-if="appliedFilters.keyword"> · 场次关键词：{{ appliedFilters.keyword }}</template>
+      </span>
+      <QueryStatus
+        :loading="sessionState.loading"
+        :failed="Boolean(sessionState.error)"
+        :dirty="filtersPending"
+        :loading-text="hasAppliedSessionQuery ? '正在查询场次，暂示上次结果' : '正在查询场次'"
+        :failed-text="hasAppliedSessionQuery ? '场次查询未成功，暂示上次结果；重试沿用上次请求条件' : '场次查询未成功，重试沿用上次请求条件'"
+        dirty-text="筛选已修改，查询后生效；导出仍使用已查询条件"
+        :idle-text="hasAppliedSessionQuery ? '' : '尚无成功场次查询'"
+      />
     </div>
     <TrainingMonthRibbon
       :label="trainingRangeTitle"
@@ -41,6 +57,9 @@
       :has-more="sessionState.hasMore"
       :loading="sessionState.loading"
       :error="sessionState.error"
+      :bind-scroll="bindRibbonScroll"
+      :restoring-history="restoringHistory"
+      @scroll="rememberScroll"
       @select="selectSession"
       @page="setSessionPage"
       @shift-month="shiftVisibleMonth"
@@ -59,6 +78,7 @@
         />
         <TrainingParticipantList
           v-model:keyword="participantKeyword"
+          :applied-keyword="appliedParticipantKeyword"
           :items="participants"
           :total="participantState.total"
           :page="participantState.page"
@@ -66,6 +86,9 @@
           :has-more="participantState.hasMore"
           :loading="participantState.loading"
           :error="participantState.error"
+          :session-id="selected.id"
+          :bind-scroll="bindParticipantScroll"
+          @scroll="rememberScroll"
           :delete-pending-id="isPending('delete-participant') ? participantDeleteTarget?.id : null"
           @search="searchParticipants"
           @page="setParticipantPage"
@@ -92,6 +115,8 @@
       @save="saveSession"
     />
     <TrainingParticipantEditorDialog
+      :session="participantSession"
+      :saved-message="participantSavedMessage"
       :open="participantOpen"
       :form="participantForm"
       :pending="isPending('save-participant')"
@@ -147,10 +172,11 @@ import {
 import { provide } from "vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/repairs/presentation.css";
 provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
+import QueryStatus from "../../shared/ui/QueryStatus.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import TrainingParticipantList from "../../features/training/TrainingParticipantList.vue";
 import TrainingParticipantEditorDialog from "../../features/training/TrainingParticipantEditorDialog.vue";
@@ -161,15 +187,26 @@ import TrainingMonthRibbon from "../../features/training/TrainingMonthRibbon.vue
 import { useTrainingManagementWorkspace } from "../../features/training/useTrainingManagementWorkspace";
 
 const {
+  restoringHistory,
+  bindRibbonScroll,
+  bindParticipantScroll,
+  rememberScroll,
+  participantSession,
+  participantSavedMessage,
   filters,
+  appliedFilters,
+  hasAppliedSessionQuery,
   sessionState,
   participantState,
   participantKeyword,
+  appliedParticipantKeyword,
   selected,
   sessions,
   participants,
   filterError,
   filtersPending,
+  summaryExportReady,
+  summaryExportTitle,
   trainingRangeTitle,
   sessionOpen,
   participantOpen,

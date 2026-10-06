@@ -21,6 +21,7 @@ export function useAuditLogWorkspace() {
   const { loading: listLoading, error: listError } = listRequest;
   const items = ref<OperationLog[]>([]);
   const total = ref(0);
+  const loaded = ref(false);
   const page = ref(1);
   const pageSize = 20;
   const detail = ref<OperationLog | null>(null);
@@ -28,6 +29,7 @@ export function useAuditLogWorkspace() {
   const justCleared = ref(false);
   const filters = reactive<LogFilters>({ keyword: "", actionType: "", from: "", to: "" });
   const appliedFilters = ref<LogFilters>({ ...filters });
+  const filtersPending = computed(() => JSON.stringify(filters) !== JSON.stringify(appliedFilters.value));
   const pendingQuery = ref<PendingQuery | null>(null);
   const routeKeys = ["actionType", "from", "to", "page", "keyword"] as const;
   let routeReady = false;
@@ -38,14 +40,16 @@ export function useAuditLogWorkspace() {
   const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
   const detailRows = computed(() => detail.value ? buildAuditDiff(detail.value.beforeData, detail.value.afterData) : []);
   const hasAppliedFilters = computed(() => Object.values(appliedFilters.value).some(Boolean));
+  const exportReady = computed(() => loaded.value && !listLoading.value && !listError.value);
 
   onMounted(async () => {
     restoreRouteState(true);
-    appliedFilters.value = { ...filters };
+    const initialFilters = { ...filters };
     const initialPage = positiveRoutePage(route.query.page);
     routeReady = true;
-    await syncRoute(initialPage, "replace", appliedFilters.value);
-    await load(initialPage);
+    // Remove sensitive URL keywords immediately, but apply result conditions only on success.
+    await syncRoute(initialPage, "replace", initialFilters);
+    await runQuery({ filters: initialFilters, page: initialPage, routeMode: "replace" });
   });
   watch(
     () => routeQuerySignature(route.query, routeKeys),
@@ -53,8 +57,7 @@ export function useAuditLogWorkspace() {
       if (!routeReady || suppressRouteRestore) return;
       restoreRouteState(false);
       filters.keyword = appliedFilters.value.keyword;
-      appliedFilters.value = { ...filters };
-      void load(positiveRoutePage(route.query.page));
+      void runQuery({ filters: { ...filters }, page: positiveRoutePage(route.query.page), routeMode: "replace" });
     },
   );
 
@@ -63,6 +66,7 @@ export function useAuditLogWorkspace() {
   }
 
   async function runQuery(request: PendingQuery) {
+    if (dateRangeError(request.filters.from, request.filters.to)) return false;
     const currentQuery = ++queryVersion;
     const query = params({ ...request.filters, page: request.page, pageSize });
     const value = await listRequest.run(
@@ -78,6 +82,7 @@ export function useAuditLogWorkspace() {
     total.value = value.total;
     page.value = value.page;
     appliedFilters.value = { ...request.filters };
+    loaded.value = true;
     pendingQuery.value = null;
     if (request.routeMode) await syncRoute(value.page, request.routeMode, request.filters);
     return true;
@@ -88,6 +93,7 @@ export function useAuditLogWorkspace() {
   }
 
   async function exportLogs() {
+    if (!exportReady.value) return;
     const snapshot = { ...appliedFilters.value };
     await actions.run("export", async () => {
       const blob = await task.run(() => get<Blob>(`/api/logs/export?${params(snapshot)}`));
@@ -159,7 +165,7 @@ export function useAuditLogWorkspace() {
 
   return {
     actionLabel, actionTone, actions, applyFilters, auditActionOptions, clearLogs, clearOpen,
-    date, detail, detailRows, displayError, exportLogs, filterError, filters, items, listError,
+    date, detail, detailRows, displayError, exportLogs, exportReady, filterError, filters, filtersPending, appliedFilters, loaded, items, listError,
     hasAppliedFilters, justCleared, listLoading, load, page, pretty, retryLoad, setPage, targetLabel, time, total, totalPages,
   };
 }

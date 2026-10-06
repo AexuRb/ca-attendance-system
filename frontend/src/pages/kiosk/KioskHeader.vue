@@ -14,7 +14,7 @@
         class="kiosk-focus-service"
         :online="online"
         online-label="本机服务正常"
-        offline-label="连接中断，正在重试"
+        offline-label="服务连接异常"
       />
       <div class="kiosk-focus-time">
         <time class="kiosk-focus-clock" :datetime="clockIso">{{ clock }}</time>

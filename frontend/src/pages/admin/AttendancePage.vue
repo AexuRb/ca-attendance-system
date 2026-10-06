@@ -1,5 +1,6 @@
 <template>
   <RefinedWorkspaceShell class="daily-workspace attendance-workspace" title="值班记录" description="查看签到、签退与有效时长" section-key="duty" filter-label="筛选值班记录">
+    <template #heading><h1>值班记录</h1><p>逐条核对签到、签退与计入时长</p></template>
     <template #tools
         ><button v-if="canCreate" class="button primary" @click="openCreate">
           <Plus />补录记录
@@ -13,6 +14,7 @@
       ><label class="filter-grow"
         ><span>成员</span
         ><input
+          ref="keywordInput"
           v-model.trim="filters.keyword"
           name="attendanceKeyword"
           type="search"
@@ -27,40 +29,42 @@
           <option value="PENDING">待审核</option>
           <option value="INVALID">无效</option>
         </select></label
-      ><button class="button secondary" type="submit"><Search />查询</button>
+      ><button class="button secondary" type="submit" :disabled="listLoading"><Search />{{ listLoading ? '查询中…' : filtersPending ? '更新结果' : '查询' }}</button>
     </form></template>
     <div v-if="displayError" class="inline-alert danger" role="alert">
-      <span>{{ displayError }}</span>
+      <span>{{ displayError }}{{ listError && records.length ? '；下方保留上次成功查询的结果' : '' }}</span>
       <button
         v-if="listError"
         class="button secondary small"
         type="button"
         data-action="retry-attendance"
-        @click="load()"
+        @click="retryLoad"
       >
         重试
       </button>
     </div>
-    <LoadingBlock v-if="listLoading && !records.length" />
-    <EmptyState v-else-if="!records.length && listError" title="记录暂时无法加载" description="请使用上方的重试按钮重新获取记录" />
-    <EmptyState v-else-if="!records.length" title="没有符合条件的记录" />
-    <template v-else>
-    <div class="attendance-results-summary" aria-live="polite">
+    <div v-if="hasAppliedQuery" class="attendance-results-summary">
       <div class="attendance-results-summary__title"><span>记录列表</span><strong>{{ total }} 条</strong></div>
       <Transition name="attendance-range-swap" mode="out-in">
-        <span :key="`${appliedFrom}-${appliedTo}`" class="attendance-results-summary__range">{{ appliedFrom || '不限开始日期' }} — {{ appliedTo || '不限结束日期' }}</span>
+        <span :key="`${appliedFilters.from}-${appliedFilters.to}`" class="attendance-results-summary__range" aria-live="polite">{{ appliedFilters.from || '不限开始日期' }} — {{ appliedFilters.to || '不限结束日期' }} · {{ statusLabel(appliedFilters.status) || '全部状态' }}<template v-if="appliedFilters.keyword"> · 成员：{{ appliedFilters.keyword }}</template></span>
       </Transition>
+      <QueryStatus class="attendance-query-status" :loading="listLoading" :failed="Boolean(listError)" :dirty="filtersPending" loading-text="正在更新，暂示上次结果" failed-text="查询未成功，重试将沿用上次请求条件" dirty-text="筛选已修改，查询后生效" :idle-text="records.length ? '计入时长按每条记录独立舍入' : ''" />
     </div>
-    <div class="mw-table-scroll attendance-table-scroll" tabindex="0" aria-label="值班记录，可横向滚动">
+    <LoadingBlock v-if="listLoading && !records.length" />
+    <EmptyState v-else-if="!records.length && listError" title="记录暂时无法加载" description="请使用上方的重试按钮重新获取记录" />
+    <EmptyState v-else-if="!records.length && hasAppliedQuery" title="没有符合条件的记录" description="本次查询已完成。可调整日期、成员或状态后重新查询。">
+      <button class="button secondary small" type="button" data-action="adjust-attendance-filters" @click="keywordInput?.focus()">调整筛选</button>
+    </EmptyState>
+    <template v-else-if="records.length">
+    <div :ref="bindTableScroll" class="mw-table-scroll attendance-table-scroll" tabindex="0" aria-label="值班记录，可横向滚动" @scroll.passive="rememberTableScroll">
       <table class="mw-table attendance-table">
         <thead>
-          <tr v-if="spatial" class="mw-column-groups"><th colspan="2" scope="colgroup">成员与日期</th><th colspan="2" scope="colgroup">签到与签退</th><th colspan="3" scope="colgroup">认定与操作</th></tr>
           <tr>
             <th>{{ editorial ? "成员与日期" : "成员" }}</th>
             <th v-if="!editorial">日期</th>
             <th>{{ editorial ? "签到 / 签退" : "签到" }}</th>
             <th v-if="!editorial">签退</th>
-            <th>{{ editorial ? "认定结果" : "有效时长" }}</th>
+            <th>{{ editorial ? "认定结果" : "计入时长" }}</th>
             <th v-if="!editorial">状态</th>
             <th class="align-right mw-actions-column">操作</th>
           </tr>
@@ -75,8 +79,8 @@
             <td><div class="daily-times"><span><small v-if="editorial">签到</small><time v-if="item.checkInTime" :datetime="item.checkInTime">{{ dateTime(item.checkInTime) }}</time><span v-else>—</span></span><span v-if="editorial"><small>签退</small><time v-if="item.checkOutTime" :datetime="item.checkOutTime">{{ dateTime(item.checkOutTime) }}</time><span v-else>—</span></span></div></td>
             <td v-if="!editorial" class="attendance-clock"><time v-if="item.checkOutTime" :datetime="item.checkOutTime">{{ dateTime(item.checkOutTime) }}</time><span v-else>—</span></td>
             <td class="daily-outcome">
-              <small v-if="editorial">有效时长</small>
-              {{ item.durationMinutes ? `${item.durationMinutes} 分钟` : "—" }}
+              <strong>{{ item.validHours ?? '—' }} 小时</strong>
+              <small>有效分钟 {{ item.durationMinutes ?? '—' }}</small>
               <StatusBadge v-if="editorial" :label="statusLabel(item.effectiveStatus)" :tone="statusTone(item.effectiveStatus)" />
             </td>
             <td v-if="!editorial">
@@ -149,8 +153,9 @@
         </div>
         <div class="attendance-mobile-record__foot">
           <div class="attendance-mobile-record__duration">
-            <small>有效时长</small>
-            <strong>{{ item.durationMinutes ? `${item.durationMinutes} 分钟` : "—" }}</strong>
+            <small>计入时长</small>
+            <strong>{{ item.validHours ?? '—' }} 小时</strong>
+            <small>有效分钟 {{ item.durationMinutes ?? '—' }}</small>
           </div>
           <div class="attendance-mobile-record__actions">
             <button class="button secondary small" type="button" :disabled="!actionAccess(item).allowed"
@@ -264,6 +269,15 @@
       >
     </ModalDialog>
     <ConfirmDialog
+      :open="unsaved.confirmOpen.value"
+      title="放弃未保存修改"
+      message="当前值班记录还有未保存的内容，放弃后无法恢复。"
+      confirm-label="放弃修改"
+      danger
+      @cancel="unsaved.cancel"
+      @confirm="unsaved.discard"
+    />
+    <ConfirmDialog
       :open="Boolean(deleteTarget)"
       title="删除值班记录"
       :message="`将删除 ${deleteTarget?.name || ''} 在 ${deleteTarget?.dutyDate || ''} 的值班记录，系统会先自动备份。`"
@@ -286,20 +300,17 @@ import {
   Search,
   Trash2,
 } from "@lucide/vue";
-import { computed, provide } from "vue";
-import { useRoute } from "vue-router";
+import { computed, provide, ref } from "vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import { useAppearance } from "../../appearance/appearanceStore";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/attendance/presentation.css";
+import QueryStatus from "../../shared/ui/QueryStatus.vue";
 provide(memberPresentationKey, true);
 const { state: appearance } = useAppearance();
-const route = useRoute();
-const appliedFrom = computed(() => typeof route.query.from === "string" ? route.query.from : "");
-const appliedTo = computed(() => typeof route.query.to === "string" ? route.query.to : "");
 const editorial = computed(() => appearance.active === "EDITORIAL");
-const spatial = computed(() => appearance.active === "SPATIAL");
+const keywordInput = ref<HTMLInputElement | null>(null);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
@@ -309,6 +320,13 @@ import AccountPicker from "../../features/accounts/AccountPicker.vue";
 import { useAttendanceRecordsWorkspace } from "../../features/attendance/useAttendanceRecordsWorkspace";
 
 const {
+  bindTableScroll,
+  rememberTableScroll,
+  appliedFilters,
+  hasAppliedQuery,
+  filtersPending,
+  retryLoad,
+  unsaved,
   actionAccess,
   actions,
   applyFilters,
@@ -325,7 +343,6 @@ const {
   form,
   listError,
   listLoading,
-  load,
   manualCandidates,
   openCreate,
   openEdit,

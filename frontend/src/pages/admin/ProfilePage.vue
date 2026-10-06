@@ -267,7 +267,7 @@ import {
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
 import "../../features/profile/presentation.css";
 provide(memberPresentationKey, true);

@@ -126,7 +126,9 @@ describe("repair workspace components", () => {
     expect(activeWrapper.text()).toContain("受理时间");
     expect(activeWrapper.text()).toContain("进行中");
     expect(activeWrapper.text()).toContain("**** **** 5678");
-    expect(activeWrapper.find('[title="编辑"]').exists()).toBe(true);
+    await activeWrapper.get('[title="更新处理"]').trigger("click");
+    expect(activeWrapper.emitted("process")?.[0]).toEqual([activeRepair]);
+    expect(activeWrapper.emitted("view")).toBeUndefined();
     expect(activeWrapper.find('[title="移入回收站"]').exists()).toBe(true);
     expect(activeWrapper.find('[title="查看详情"]').exists()).toBe(false);
     await activeWrapper.get(".repair-ledger-row").trigger("click");
@@ -145,7 +147,7 @@ describe("repair workspace components", () => {
     });
     expect(archivedWrapper.text()).toContain("完成时间");
     expect(archivedWrapper.text()).toContain("已完成");
-    expect(archivedWrapper.find('[title="编辑"]').exists()).toBe(false);
+    expect(archivedWrapper.find('[title="更新处理"]').exists()).toBe(false);
     expect(archivedWrapper.find('[title="移入回收站"]').exists()).toBe(false);
     expect(archivedWrapper.find('[title="查看详情"]').exists()).toBe(false);
   });

@@ -1,5 +1,5 @@
 <template>
-  <div class="mw-table-scroll" tabindex="0" aria-label="成员记录，可横向滚动">
+  <div :ref="bindScroll" class="mw-table-scroll" tabindex="0" aria-label="成员记录，可横向滚动" @scroll.passive="$emit('tableScroll')">
     <table class="mw-table" :class="{ 'mw-directory': editorial }">
       <thead>
         <tr v-if="spatial" class="mw-column-groups"><th colspan="2" scope="colgroup">成员身份</th><th colspan="2" scope="colgroup">资料</th><th colspan="3" scope="colgroup">账号与操作</th></tr>
@@ -20,7 +20,7 @@
         <tr v-for="item in members" :key="item.id" :class="{ 'is-selected': selected.has(item.id) }">
           <td class="mw-selection">
             <label class="mw-check-control mw-row-check">
-              <input :name="`memberSelection-${item.id}`" type="checkbox" :aria-label="`选择 ${item.name}`" :checked="selected.has(item.id)" :disabled="!selectableIds.includes(item.id)" @change="$emit('toggleMember',item.id)">
+              <input :name="`memberSelection-${item.id}`" type="checkbox" :aria-label="`选择 ${item.name}`" :checked="selected.has(item.id)" :disabled="selectionBusy || !selectableIds.includes(item.id)" @change="$emit('toggleMember',item.id)">
               <span class="mw-checkmark" aria-hidden="true"></span>
             </label>
           </td>
@@ -44,7 +44,7 @@
       <article v-for="item in members" :key="item.id" class="mw-mobile-record" :class="{ 'is-selected': selected.has(item.id) }" :aria-label="`${item.name}的成员记录`">
         <div class="mw-mobile-record-head">
           <label class="mw-check-control mw-row-check">
-            <input :name="`memberMobileSelection-${item.id}`" type="checkbox" :aria-label="`选择 ${item.name}`" :checked="selected.has(item.id)" :disabled="!selectableIds.includes(item.id)" @change="$emit('toggleMember',item.id)">
+            <input :name="`memberMobileSelection-${item.id}`" type="checkbox" :aria-label="`选择 ${item.name}`" :checked="selected.has(item.id)" :disabled="selectionBusy || !selectableIds.includes(item.id)" @change="$emit('toggleMember',item.id)">
             <span class="mw-checkmark" aria-hidden="true"></span>
           </label>
           <span class="mw-avatar" aria-hidden="true">{{ item.name.slice(0,1) }}</span>
@@ -62,13 +62,13 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type ComponentPublicInstance } from "vue";
 import { useAppearance } from "../../appearance/appearanceStore";
 import { roleLabel } from "../../app/adminNavigation";
 import type { MemberSummary } from "./memberDirectory";
 const { state } = useAppearance();
 const editorial = computed(()=>state.active==='EDITORIAL');
 const spatial = computed(()=>state.active==='SPATIAL');
-defineProps<{ members: MemberSummary[]; selected: Set<number>; selectableIds: number[]; allSelected: boolean; selectionBusy?: boolean }>();
-defineEmits<{ toggleAll: [event: Event]; toggleMember: [id:number] }>();
+defineProps<{ members: MemberSummary[]; selected: Set<number>; selectableIds: number[]; allSelected: boolean; selectionBusy?: boolean; bindScroll?: (element: Element | ComponentPublicInstance | null) => void }>();
+defineEmits<{ toggleAll: [event: Event]; toggleMember: [id:number]; tableScroll: [] }>();
 </script>

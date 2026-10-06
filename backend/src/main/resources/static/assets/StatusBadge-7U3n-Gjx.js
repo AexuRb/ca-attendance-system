@@ -1,0 +1,1 @@
+import{S as e,_ as t,ht as n,j as r}from"./vue-router-tnz-igFk.js";var i=[`data-tone`],a=e({__name:`StatusBadge`,props:{label:{},tone:{}},setup(e){return(a,o)=>(r(),t(`span`,{class:`status-badge`,"data-tone":e.tone},n(e.label),9,i))}});export{a as t};

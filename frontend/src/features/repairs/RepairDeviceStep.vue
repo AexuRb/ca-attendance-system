@@ -11,14 +11,6 @@
           </select>
         </label>
         <label class="field">
-          <span>状态</span>
-          <select v-model="form.status" name="repair-status">
-            <option value="REPAIRING">进行中</option>
-            <option value="COMPLETED">已完成</option>
-            <option value="CANCELED">已取消</option>
-          </select>
-        </label>
-        <label class="field">
           <span>联系人</span>
           <input
             v-model.trim="form.ownerName"
@@ -78,10 +70,6 @@
             :aria-invalid="Boolean(errors.faultDescription)"
           />
           <small v-if="errors.faultDescription" class="field-error" role="alert">{{ errors.faultDescription }}</small>
-        </label>
-        <label class="field span-2">
-          <span>维修说明</span>
-          <textarea v-model.trim="form.serviceDescription" name="repair-service-description" rows="2" />
         </label>
       </div>
     </section>

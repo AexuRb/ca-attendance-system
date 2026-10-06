@@ -7,24 +7,26 @@ export function buildTodayQuickActions(
   missingScheduleCount: number,
   canSchedule: boolean,
   role: Role,
+  date = "今天",
 ): TodayQuickAction[] {
   const items: TodayQuickAction[] = [];
   const pending = dashboard?.todayPendingCount || 0;
   const open = dashboard?.todayOpenCount || 0;
   const repairs = dashboard?.ongoingRepairCount || 0;
+  const dateLabel = date === "今天" ? "今日" : date;
 
   if (pending) items.push({
     id: "reviews",
     command: "/ 打开 签到审核",
-    label: `处理 ${pending} 条待审核记录`,
-    detail: "签到审核",
+    label: "处理待审核记录",
+    detail: `${dateLabel} ${pending} 条提醒 · 完整队列`,
     tone: "amber",
   });
   if (open) items.push({
     id: "attendance-open",
-    command: "/ 查看 值班记录 未签退",
+    command: "/ 查看 值班记录 未签退 " + date,
     label: `查看 ${open} 条未签退记录`,
-    detail: "值班记录",
+    detail: `${dateLabel} · 值班记录`,
     tone: "red",
   });
   if (canSchedule && missingScheduleCount) items.push({

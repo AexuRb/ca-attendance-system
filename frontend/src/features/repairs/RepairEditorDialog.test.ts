@@ -63,6 +63,14 @@ describe("RepairEditorDialog", () => {
     await wrapper.vm.$nextTick();
     expect(document.body.textContent).toContain("请选择负责人");
     expect(document.activeElement?.getAttribute("name")).toBe("repair-handler");
+    await wrapper.setProps({ open: false });
+    await wrapper.setProps({ open: true, initialStep: 2, form: { ...wrapper.props("form"), id: 1, ownerName: "" } });
+    expect(document.body.querySelector('[name="repair-received-at"]')).not.toBeNull();
+    document.body.querySelector<HTMLFormElement>("#repair-editor-form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    await wrapper.vm.$nextTick();
+    expect(document.activeElement?.getAttribute("name")).toBe("repair-owner-name");
+    expect(wrapper.emitted("save")).toBeUndefined();
     wrapper.unmount();
   });
 });

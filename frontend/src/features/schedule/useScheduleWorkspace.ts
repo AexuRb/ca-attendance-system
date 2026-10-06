@@ -1,9 +1,10 @@
 import { computed, onMounted, reactive, ref } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { del, downloadBlob, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
+import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import { updateOwnedRouteQuery } from "../../shared/navigation/routeQueryState";
 import type { DutyPeriod } from "../settings/dutyPeriods";
 import {
@@ -60,6 +61,16 @@ export function useScheduleWorkspace() {
     enabled: true,
     note: "",
   });
+  const editorBaseline = ref("");
+  const editorSnapshot = () => JSON.stringify(schedulePayload(fixedForm));
+  const unsaved = useUnsavedChanges(() => actions.isPending("save") ||
+    (editorOpen.value && editorSnapshot() !== editorBaseline.value));
+  onBeforeRouteLeave(() => {
+    if (actions.isPending("save")) return false;
+    return new Promise<boolean>(resolve => {
+      unsaved.request(() => resolve(true), () => resolve(false));
+    });
+  });
 
   onMounted(async () => {
     await loadBase();
@@ -95,6 +106,7 @@ export function useScheduleWorkspace() {
     weekday = weekdays.value.find((day) => day.enabled)?.value || 1,
     period?: string,
   ) {
+    if (actions.isPending("save")) return;
     Object.assign(
       fixedForm,
       item
@@ -129,6 +141,7 @@ export function useScheduleWorkspace() {
             note: "",
           },
     );
+    editorBaseline.value = editorSnapshot();
     editorOpen.value = true;
   }
 
@@ -168,7 +181,8 @@ export function useScheduleWorkspace() {
   }
 
   function closeEditor() {
-    if (!actions.isPending("save")) editorOpen.value = false;
+    if (actions.isPending("save")) return;
+    unsaved.request(() => { editorOpen.value = false; });
   }
 
   function deleteFixed(item: ScheduleSlot) {
@@ -198,6 +212,7 @@ export function useScheduleWorkspace() {
   }
 
   return {
+    unsaved,
     actions,
     assigneeCandidates,
     closeEditor,

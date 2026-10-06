@@ -195,6 +195,13 @@ export const commandTreePaths: CommandSuggestion[] = uniqueCommandPaths([
   ...parameterSuggestions("attendance-view-range", "/ 查看 值班记录", ATTENDANCE_RANGES, (range) => "查看" + range + "值班记录", MANAGERS),
   suggestion("attendance-view-pending", "/ 查看 值班记录 待审核", "筛选待审核记录", MANAGERS),
   suggestion("attendance-view-incomplete", "/ 查看 值班记录 未签退", "筛选未签退记录", MANAGERS),
+  ...["待审核", "未签退"].flatMap((status) => parameterSuggestions(
+    "attendance-view-" + status + "-range",
+    "/ 查看 值班记录 " + status,
+    ATTENDANCE_RANGES,
+    (range) => "查看" + range + "的" + status + "值班记录",
+    MANAGERS,
+  )),
   suggestion("attendance-search-path", "/ 查找 值班记录", "输入姓名、学号或关键词", MANAGERS),
   ...parameterSuggestions("stats-view-range", "/ 查看 数据统计", STATS_RANGES, (range) => "查看" + range + "时长统计", MANAGERS),
   ...parameterSuggestions("stats-export-range", "/ 导出 数据统计", STATS_RANGES, (range) => "导出" + range + "时长统计", MANAGERS, "confirm"),

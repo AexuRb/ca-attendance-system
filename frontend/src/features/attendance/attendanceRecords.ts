@@ -14,6 +14,7 @@ export interface AttendanceRecordItem {
   checkInStatus: string;
   checkOutStatus: string;
   durationMinutes: number;
+  validHours: number;
   effectiveStatus: string;
 }
 

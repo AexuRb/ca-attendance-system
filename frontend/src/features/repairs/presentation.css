@@ -25,6 +25,8 @@ html:root[data-appearance] .affairs-workspace .repair-status-tabs button::after 
 html:root[data-appearance] .affairs-workspace .repair-workspace-pagination { display:flex; align-items:center; justify-content:space-between; }
 /* Training: a continuous session index and work surface, with all summaries retained. */
 html:root[data-appearance] .training-presentation .mw-results { display:grid; grid-template-columns:minmax(0,1fr); }
+html:root[data-appearance] .training-presentation .training-query-context { grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 16px; min-width:0; padding:8px 24px; border-bottom:1px solid var(--mw-line); color:var(--mw-muted); font:12px/1.7 var(--mw-font); overflow-wrap:anywhere; }
+html:root[data-appearance] .training-presentation .training-query-context [data-query-state] { color:var(--mw-accent); }
 html:root[data-appearance] .training-presentation .training-query-submit { min-width:112px; transition:border-color var(--mw-speed),background-color var(--mw-speed),color var(--mw-speed); }
 html:root[data-appearance] .training-presentation .training-query-submit.has-pending-filters { border-color:var(--mw-accent); color:var(--mw-accent); background:var(--mw-paper); }
 html:root[data-appearance] .training-presentation :is(.training-month-shell,.training-month-ribbon,.training-time-stage,.training-session-overview,.training-participant-section) { min-width:0; margin:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
@@ -55,11 +57,12 @@ html:root[data-appearance] .training-presentation .training-session-heading { mi
 html:root[data-appearance] .training-presentation .training-session-heading h2 { margin:6px 0 10px; font:500 23px/1.5 var(--mw-font); color:var(--mw-ink); overflow-wrap:anywhere; }
 html:root[data-appearance] .training-presentation .training-session-heading :is(time,p) { font:12px/1.8 var(--mw-font); color:var(--mw-muted); }
 html:root[data-appearance] .training-presentation .training-session-facts { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:18px 32px; margin:0; padding:0; border:0; }
-html:root[data-appearance] .training-presentation .training-session-facts div { padding:0; border:0; }
+html:root[data-appearance] .training-presentation .training-session-facts div { display:block; padding:0; border:0; }
 html:root[data-appearance] .training-presentation .training-session-facts dt { display:flex; align-items:center; gap:5px; font:12px/1.6 var(--mw-font); color:var(--mw-muted); }
 html:root[data-appearance] .training-presentation .training-session-facts dt svg { width:13px; height:13px; }
 html:root[data-appearance] .training-presentation .training-session-facts dd { margin:4px 0 0; font:13px/1.7 var(--mw-font); color:var(--mw-ink); }
 html:root[data-appearance] .training-presentation .training-session-overview-actions { grid-column:2; grid-row:1; display:flex; align-items:center; align-self:center; gap:8px; padding:0; }
+html:root[data-appearance] .training-presentation .training-participant-section { display:block; min-height:0; }
 html:root[data-appearance] .training-presentation .training-participant-toolbar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:20px 24px 12px; }
 html:root[data-appearance] .training-presentation .training-participant-title { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; }
 html:root[data-appearance] .training-presentation .training-list-refresh { color:var(--mw-accent); font:12px/1.6 var(--mw-font); }
@@ -102,6 +105,47 @@ html:root[data-appearance=spatial] .training-presentation .training-ribbon-event
 html:root[data-appearance=spatial] .training-presentation .training-ribbon-event:hover { transform:none; }
 html:root[data-appearance=spatial] .training-presentation .training-session-overview { display:flex; flex-direction:column; }
 html:root[data-appearance=spatial] .training-presentation .training-session-overview-actions { align-self:start; }
+/* Desktop training workbench: keep session context while bringing the roster forward. */
+@media(min-width:1181px) {
+ html:root[data-appearance] .training-presentation .mw-heading { padding:14px 24px; }
+ html:root[data-appearance] .training-presentation .mw-heading :is(small,p) { display:none; }
+ html:root[data-appearance] .training-presentation .mw-heading h1 { margin:0; }
+ html:root[data-appearance] .training-presentation .mw-tools { padding:14px 24px; }
+ html:root[data-appearance] .training-presentation .mw-query { padding:12px 24px; }
+ html:root[data-appearance] .training-presentation .training-month-ribbon { padding-block:12px; }
+ html:root[data-appearance] .training-presentation .training-month-summary { margin-top:6px; gap:6px 12px; }
+ html:root[data-appearance] .training-presentation .training-month-summary div { display:flex; align-items:baseline; gap:6px; }
+ html:root[data-appearance] .training-presentation .training-session-overview { padding:16px 24px; gap:12px 24px; }
+ html:root[data-appearance] .training-presentation .training-session-heading h2 { margin:4px 0; }
+ html:root[data-appearance] .training-presentation .training-session-heading p { margin:4px 0 0; }
+ html:root[data-appearance] .training-presentation .training-session-facts { gap:12px 24px; }
+ html:root[data-appearance] .training-presentation .training-session-facts div { display:flex; flex-direction:row; align-items:baseline; justify-content:flex-start; gap:8px; min-width:0; min-height:0; }
+ html:root[data-appearance] .training-presentation .training-session-facts dd { margin:0; white-space:normal; overflow:visible; overflow-wrap:anywhere; text-align:left; }
+ html:root[data-appearance] .training-presentation .training-participant-toolbar { padding:14px 24px 10px; }
+ html:root[data-appearance] .training-presentation .training-participant-search { padding-bottom:12px; }
+ html:root[data-appearance=editorial] .training-presentation .mw-surface { grid-template-columns:200px minmax(0,1fr) auto; gap:16px 24px; padding:22px 24px; }
+ html:root[data-appearance=editorial] .training-presentation .mw-subnav { grid-row:1/3; }
+ html:root[data-appearance=editorial] .training-presentation .mw-heading { grid-column:2; grid-row:1; padding:0; align-self:center; }
+ html:root[data-appearance=editorial] .training-presentation .mw-tools { grid-column:3; grid-row:1; padding:0; }
+ html:root[data-appearance=editorial] .training-presentation .mw-query { grid-column:2/4; grid-row:2; margin:0; padding:12px; }
+ html:root[data-appearance=editorial] .training-presentation .filter-bar { grid-template-columns:minmax(180px,2fr) repeat(2,minmax(130px,1fr)) auto; }
+ html:root[data-appearance=editorial] .training-presentation .filter-bar>label:first-child { grid-column:auto; }
+ html:root[data-appearance=editorial] .training-presentation .training-time-stage { gap:20px; padding-top:16px; }
+ html:root[data-appearance=editorial] .training-presentation .training-session-overview { align-self:start; padding:0 12px 0 0; }
+ html:root[data-appearance=editorial] .training-presentation .training-session-facts { grid-template-columns:minmax(0,1fr); }
+ html:root[data-appearance=spatial] .training-presentation .mw-primary { width:100%; }
+ html:root[data-appearance=spatial] .training-presentation .mw-subnav { padding:10px 20px; }
+ html:root[data-appearance=spatial] .training-presentation .training-session-overview { display:grid; }
+ html:root[data-appearance=spatial] .training-presentation .training-session-overview-actions { align-self:center; }
+}
+@media(min-width:1441px) {
+ html:root[data-appearance] .training-presentation .training-participant-section { display:grid; grid-template-columns:auto minmax(220px,1fr) auto; align-content:start; align-items:center; column-gap:16px; }
+ html:root[data-appearance] .training-presentation .training-participant-toolbar { display:contents; }
+ html:root[data-appearance] .training-presentation .training-participant-title { grid-column:1; grid-row:1; padding:14px 0 14px 24px; }
+ html:root[data-appearance] .training-presentation .training-participant-actions { grid-column:3; grid-row:1; padding:14px 24px 14px 0; }
+ html:root[data-appearance] .training-presentation .training-participant-search { grid-column:2; grid-row:1; padding:14px 0; }
+ html:root[data-appearance] .training-presentation .training-participant-section>:not(.training-participant-toolbar):not(.training-participant-search) { grid-column:1/-1; }
+}
 @media(max-width:1000px) {
  html:root[data-appearance] .training-presentation .training-time-stage { display:block; padding:0; }
  html:root[data-appearance] .training-presentation .training-session-overview { padding:20px; }
@@ -161,7 +205,6 @@ html:root[data-appearance] .training-presentation .training-ribbon-event.active 
 html:root[data-appearance] .training-presentation .training-ribbon-event>span { text-align:left; }
 html:root[data-appearance] .training-presentation .training-month-summary { background:none; border:0; }
 html:root[data-appearance] .training-presentation .training-month-shell { padding:0; }
-html:root[data-appearance] .training-presentation .training-session-facts div { display:block; }
 html:root[data-appearance] .training-presentation .training-participant-row { animation:none; }
 html:root[data-appearance] .training-presentation .training-session-overview { animation:none; }
 html:root[data-appearance] .mw-modal #repair-editor-form .repair-editor-steps { display:flex; gap:12px; padding:0 0 20px; margin:0 0 22px; border-bottom:1px solid var(--mw-line); }
@@ -194,7 +237,6 @@ html:root[data-appearance=spatial] .mw-modal #training-session-editor { padding:
  html:root[data-appearance] .affairs-workspace .repair-ledger-row td.mw-actions-column { position:static; box-shadow:none; }
  html:root[data-appearance] .affairs-workspace .repair-ledger-table th.mw-actions-column { position:static; box-shadow:none; }
 }
-html:root[data-appearance] .training-presentation .training-participant-section { display:block; min-height:0; }
 html:root[data-appearance] .training-presentation .training-participant-actions { display:flex; flex-wrap:wrap; gap:8px; }
 html:root[data-appearance] .training-presentation .training-participant-actions .button { width:auto; min-width:0; white-space:nowrap; }
 html:root[data-appearance] .affairs-detail .repair-detail-drawer { height:auto; grid-template-rows:auto minmax(0,1fr) auto; }

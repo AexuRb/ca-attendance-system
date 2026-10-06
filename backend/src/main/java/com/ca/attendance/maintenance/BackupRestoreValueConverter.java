@@ -40,7 +40,7 @@ final class BackupRestoreValueConverter {
             return toSqlTime(value);
         }
         if (BackupSchema.DATE_TIME_COLUMNS.getOrDefault(table, Set.of()).contains(column)) {
-            return toTimestamp(value);
+            return toSqlDateTime(value);
         }
         if (BackupSchema.JSON_COLUMNS.contains(column) && !(value instanceof String)) {
             return toJson(value);
@@ -84,7 +84,7 @@ final class BackupRestoreValueConverter {
         return JdbcTime.databaseTime(time);
     }
 
-    private Timestamp toTimestamp(Object value) {
+    private Object toSqlDateTime(Object value) {
         if (value instanceof Number number) {
             return new Timestamp(number.longValue());
         }
@@ -99,7 +99,10 @@ final class BackupRestoreValueConverter {
             return Timestamp.valueOf(LocalDateTime.of(date, time));
         }
         if (value instanceof String text) {
-            return Timestamp.valueOf(text.trim().replace('T', ' '));
+            String normalized = text.trim();
+            Timestamp.valueOf(normalized.replace('T', ' '));
+            // SQLite's JDBC Timestamp formatting drops fractions; retain validated backup text.
+            return normalized;
         }
         throw ApiException.badRequest("备份时间格式不正确");
     }

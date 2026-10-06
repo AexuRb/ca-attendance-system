@@ -1,5 +1,6 @@
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from "vue";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import { useSession } from "../../app/session";
 import type { AccountCandidate } from "../accounts/accountCandidates";
 import { del, get, post, put } from "../../shared/api";
@@ -13,6 +14,7 @@ import {
   updateOwnedRouteQuery,
 } from "../../shared/navigation/routeQueryState";
 import { dateRangeError } from "../../shared/validation/dateRange";
+import { createPrivateNavigationState } from "../../shared/navigation/privateNavigationState";
 import {
   attendanceActionAccess,
   attendancePageQuery,
@@ -22,13 +24,29 @@ import {
   type AttendanceActionAccess,
   type AttendanceRecordItem,
   type AttendanceRecordPage,
+  type AttendanceRecordFilters,
 } from "./attendanceRecords";
+
+type TablePosition = { top: number; left: number };
+type HistorySnapshot = { filters: AttendanceRecordFilters; page: number; signature: string; scroll: TablePosition };
+type Query = { filters: AttendanceRecordFilters; page: number; routeMode?: "push" | "replace"; restore?: TablePosition };
+const historyMemory = createPrivateNavigationState<HistorySnapshot>();
+const visitKey = "attendanceVisit";
 
 export function useAttendanceRecordsWorkspace() {
   const { user } = useSession();
   const route = useRoute();
   const router = useRouter();
+  const historyScope = historyMemory.scope();
+  const tableScroll = ref<HTMLElement | null>(null);
+  const bindTableScroll = (element: Element | ComponentPublicInstance | null) => {
+    tableScroll.value = element instanceof HTMLElement ? element : null;
+  };
+  let activeVisit: string | undefined;
+  let active = true;
+  let queryVersion = 0;
   const records = ref<AttendanceRecordItem[]>([]);
+  const hasAppliedQuery = ref(false);
   const total = ref(0);
   const page = ref(1);
   const pageSize = 20;
@@ -42,6 +60,9 @@ export function useAttendanceRecordsWorkspace() {
   const manualCandidates = ref<AccountCandidate[]>([]);
   const selectedMember = ref<AccountCandidate | null>(null);
   const filters = reactive({ from: "", to: "", keyword: "", status: "" });
+  const appliedFilters = ref({ ...filters });
+  const pendingQuery = ref<Query | null>(null);
+  const filtersPending = computed(() => JSON.stringify(filters) !== JSON.stringify(appliedFilters.value));
   const filterError = computed(() => dateRangeError(filters.from, filters.to));
   const displayError = computed(() => filterError.value || listError.value);
   const form = reactive({
@@ -53,6 +74,13 @@ export function useAttendanceRecordsWorkspace() {
     recomputeSnapshot: false,
     reason: "",
   });
+  const editorSnapshot = () => JSON.stringify({ ...form, memberId: selectedMember.value?.id });
+  const editorBaseline = ref("");
+  const unsaved = useUnsavedChanges(() => editorOpen.value && editorSnapshot() !== editorBaseline.value);
+  onBeforeRouteLeave(() => {
+    if (actions.isPending("save")) return false;
+    return new Promise<boolean>((resolve) => unsaved.request(() => resolve(true), () => resolve(false)));
+  });
   const canCreate = computed(() =>
     ["PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
   );
@@ -61,11 +89,39 @@ export function useAttendanceRecordsWorkspace() {
   let routeReady = false;
   let suppressRouteRestore = false;
 
+  const publicSignature = () => routeQuerySignature(route.query, ["from", "to", "status", "page"]);
+  function currentVisit() {
+    const id = router.options?.history.state[visitKey];
+    return typeof id === "string" ? id : undefined;
+  }
+  function historySnapshot() {
+    const id = currentVisit();
+    const saved = id ? historyScope.get(id) : undefined;
+    return saved?.signature === publicSignature() ? saved : undefined;
+  }
+  async function ensureVisit() {
+    if (!router.options || !active) return undefined;
+    if (!currentVisit()) {
+      await router.replace({ query: route.query, state: { [visitKey]: crypto.randomUUID() }, force: true });
+    }
+    return currentVisit();
+  }
+  function rememberTableScroll() {
+    const saved = activeVisit ? historyScope.get(activeVisit) : undefined;
+    if (!saved || !tableScroll.value) return;
+    saved.scroll = { top: tableScroll.value.scrollTop, left: tableScroll.value.scrollLeft };
+  }
+  onBeforeUnmount(() => {
+    rememberTableScroll();
+    active = false;
+  });
+
   watch(
     () => form.checkOutTime,
     (value) => {
       form.checkOutStatus = manualCheckoutStatus(form.checkOutStatus, value);
     },
+    { flush: "sync" },
   );
 
   const totalPages = computed(() =>
@@ -74,11 +130,14 @@ export function useAttendanceRecordsWorkspace() {
 
   onMounted(async () => {
     restoreRouteState(true);
-    const initialPage = positiveRoutePage(route.query.page);
+    const saved = stringRouteQuery(route.query.keyword) ? undefined : historySnapshot();
+    if (saved) Object.assign(filters, saved.filters);
+    const initialPage = saved?.page || positiveRoutePage(route.query.page);
+    // Consume command-provided keywords even when the initial request fails.
+    await updateOwnedRouteQuery(router, route.query, ["keyword"], {}, "replace");
     routeReady = true;
-    await syncRoute(initialPage, "replace");
     await Promise.all([
-      load(initialPage),
+      runQuery({ filters: { ...filters }, page: initialPage, routeMode: "replace", restore: saved?.scroll }),
       canCreate.value ? loadManualCandidates() : undefined,
     ]);
     if (stringRouteQuery(route.query.intent) === "new" && canCreate.value) {
@@ -90,34 +149,63 @@ export function useAttendanceRecordsWorkspace() {
     () => routeQuerySignature(route.query, routeKeys),
     () => {
       if (!routeReady || suppressRouteRestore) return;
+      rememberTableScroll();
+      const saved = historySnapshot();
       restoreRouteState(false);
-      void load(positiveRoutePage(route.query.page));
+      filters.keyword = saved?.filters.keyword ?? appliedFilters.value.keyword;
+      void runQuery({ filters: { ...filters }, page: positiveRoutePage(route.query.page), restore: saved?.scroll });
     },
   );
 
   async function load(target = page.value) {
-    if (filterError.value) return;
-    const query = attendancePageQuery(filters, target, pageSize);
+    return runQuery({ filters: { ...appliedFilters.value }, page: target });
+  }
+
+  async function runQuery(request: Query) {
+    if (dateRangeError(request.filters.from, request.filters.to)) return;
+    rememberTableScroll();
+    const version = ++queryVersion;
+    const query = attendancePageQuery(request.filters, request.page, pageSize);
+    pendingQuery.value = request;
     const value = await listRequest.run(
       (signal) =>
         get<AttendanceRecordPage>(`/api/attendance/page?${query}`, { signal }),
       "值班记录加载失败",
     );
     if (!value) return;
+    activeVisit = undefined;
     records.value = value.items;
     total.value = value.total;
     page.value = value.page;
+    appliedFilters.value = { ...request.filters };
+    hasAppliedQuery.value = true;
+    pendingQuery.value = null;
+    if (request.routeMode) await syncRoute(value.page, request.routeMode, request.filters);
+    const visit = await ensureVisit();
+    await nextTick();
+    if (!active || version !== queryVersion) return;
+    if (request.restore && tableScroll.value) {
+      tableScroll.value.scrollTop = request.restore.top;
+      tableScroll.value.scrollLeft = request.restore.left;
+    }
+    activeVisit = visit;
+    if (visit) historyScope.set(visit, {
+      filters: { ...request.filters }, page: value.page, signature: publicSignature(),
+      scroll: { top: tableScroll.value?.scrollTop || 0, left: tableScroll.value?.scrollLeft || 0 },
+    });
+  }
+
+  async function retryLoad() {
+    await runQuery(pendingQuery.value || { filters: { ...appliedFilters.value }, page: page.value });
   }
 
   async function applyFilters() {
     if (filterError.value) return;
-    await syncRoute(1, "push");
-    await load(1);
+    await runQuery({ filters: { ...filters }, page: 1, routeMode: "push" });
   }
 
   async function setPage(target: number) {
-    await syncRoute(target, "push");
-    await load(target);
+    await runQuery({ filters: { ...appliedFilters.value }, page: target, routeMode: "push" });
   }
 
   function openCreate() {
@@ -128,11 +216,12 @@ export function useAttendanceRecordsWorkspace() {
       checkInTime: localDateTimeInput(new Date()),
       checkOutTime: "",
       checkInStatus: "APPROVED",
-      checkOutStatus: "APPROVED",
+      checkOutStatus: "NOT_SUBMITTED",
       recomputeSnapshot: false,
       reason: "",
     });
     editorOpen.value = true;
+    editorBaseline.value = editorSnapshot();
   }
 
   function openEdit(item: AttendanceRecordItem) {
@@ -143,11 +232,12 @@ export function useAttendanceRecordsWorkspace() {
       checkInTime: toInput(item.checkInTime),
       checkOutTime: toInput(item.checkOutTime),
       checkInStatus: item.checkInStatus,
-      checkOutStatus: item.checkOutStatus,
+      checkOutStatus: manualCheckoutStatus(item.checkOutStatus, toInput(item.checkOutTime)),
       recomputeSnapshot: false,
       reason: "",
     });
     editorOpen.value = true;
+    editorBaseline.value = editorSnapshot();
   }
 
   async function save() {
@@ -232,7 +322,7 @@ export function useAttendanceRecordsWorkspace() {
   }
 
   function closeEditor() {
-    if (!actions.isPending("save")) editorOpen.value = false;
+    if (!actions.isPending("save")) unsaved.request(() => { editorOpen.value = false; });
   }
 
   function localDate(value: Date) {
@@ -251,7 +341,7 @@ export function useAttendanceRecordsWorkspace() {
     }
   }
 
-  async function syncRoute(targetPage: number, mode: "push" | "replace") {
+  async function syncRoute(targetPage: number, mode: "push" | "replace", selected: AttendanceRecordFilters) {
     suppressRouteRestore = true;
     try {
       await updateOwnedRouteQuery(
@@ -259,9 +349,9 @@ export function useAttendanceRecordsWorkspace() {
         route.query,
         routeKeys,
         {
-          from: filters.from,
-          to: filters.to,
-          status: filters.status,
+          from: selected.from,
+          to: selected.to,
+          status: selected.status,
           page: targetPage > 1 ? targetPage : undefined,
         },
         mode,
@@ -273,6 +363,14 @@ export function useAttendanceRecordsWorkspace() {
   }
 
   return {
+    bindTableScroll,
+    tableScroll,
+    rememberTableScroll,
+    appliedFilters,
+    hasAppliedQuery,
+    filtersPending,
+    retryLoad,
+    unsaved,
     actionAccess,
     actions,
     applyFilters,

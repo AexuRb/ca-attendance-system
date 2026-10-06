@@ -3,7 +3,7 @@
     <header class="auth-signal-header">
       <div class="auth-brand-lockup">
         <span class="auth-brand-mark">
-          <img src="/brand/ca-logo-black.png" alt="计算机协会会徽" />
+          <img :src="logoUrl" alt="计算机协会会徽" />
         </span>
         <div>
           <strong>计算机协会</strong>
@@ -13,7 +13,7 @@
       <div class="auth-header-actions">
         <div class="auth-signal-context">
           <i aria-hidden="true"></i>
-          <span>{{ entryMode === 'REMOTE_ADMIN' ? '远程管理入口' : '本机管理后台' }}</span>
+          <span>{{ entryMode === 'UNKNOWN' ? '入口状态待确认' : entryMode === 'REMOTE_ADMIN' ? '远程管理入口' : '本机管理后台' }}</span>
         </div>
         <slot name="header-actions" />
       </div>
@@ -24,7 +24,7 @@
     </section>
 
     <footer class="auth-signal-footer">
-      <span>计算机协会 · {{ entryMode === 'REMOTE_ADMIN' ? '远程管理' : '本机运行' }}</span>
+      <span>计算机协会 · {{ entryMode === 'UNKNOWN' ? '系统连接' : entryMode === 'REMOTE_ADMIN' ? '远程管理' : '本机运行' }}</span>
     </footer>
   </main>
 </template>
@@ -32,11 +32,12 @@
 <script setup lang="ts">
 import { useRoute } from "vue-router";
 
-withDefaults(defineProps<{ entryMode?: 'LOCAL' | 'REMOTE_ADMIN' }>(), {
+withDefaults(defineProps<{ entryMode?: 'LOCAL' | 'REMOTE_ADMIN' | 'UNKNOWN' }>(), {
   entryMode: 'LOCAL',
 });
 
 const route = useRoute();
+const logoUrl = "/brand/ca-logo-black.png";
 </script>
 
 <style src="../features/public/presentation.css"></style>

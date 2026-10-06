@@ -76,7 +76,7 @@
       size="lg"
       @close="closeEditor"
     >
-      <div class="form-grid two">
+      <div class="form-grid two" :inert="actions.isPending('save') ? true : undefined" :aria-busy="actions.isPending('save')">
         <label class="field">
           <span>星期</span>
           <select v-model.number="fixedForm.weekday" name="scheduleWeekday">
@@ -154,6 +154,16 @@
     />
 
     <ConfirmDialog
+      :open="unsaved.confirmOpen.value"
+      title="放弃未保存修改"
+      message="当前排班还有未保存的内容，放弃后无法恢复。"
+      confirm-label="放弃修改"
+      danger
+      @cancel="unsaved.cancel"
+      @confirm="unsaved.discard"
+    />
+
+    <ConfirmDialog
       :open="Boolean(deleteTarget)"
       title="归档固定排班"
       :message="`归档 ${deleteTarget?.weekdayName || ''} ${shortTime(deleteTarget?.startTime)} 的固定排班。`"
@@ -170,7 +180,7 @@ import { Download, Plus, RefreshCw, Upload } from "@lucide/vue";
 import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../features/members/presentation.css";
+import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
 import "../../features/schedule/presentation.css";
 provide(memberPresentationKey, true);
@@ -184,6 +194,7 @@ import ScheduleAssigneePicker from "../../features/schedule/ScheduleAssigneePick
 import { useScheduleWorkspace } from "../../features/schedule/useScheduleWorkspace";
 
 const {
+  unsaved,
   actions,
   assigneeCandidates,
   closeEditor,

@@ -1,4 +1,4 @@
-import { reactive, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { dateRangeError } from "../../shared/validation/dateRange";
 import type {
   RepairFilters,
@@ -38,6 +38,13 @@ interface WorkspaceOptions {
   pageSize?: number;
 }
 
+interface QuerySnapshot {
+  status: RepairStatus;
+  page: number;
+  filters: RepairFilters;
+  mode: "push" | "replace";
+}
+
 export function useRepairWorkspace(options: WorkspaceOptions) {
   const initial = parseRepairWorkspaceQuery(
     options.initialQuery || {},
@@ -50,6 +57,10 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
     to: initial.to,
   });
   const counts = reactive<RepairStatusCounts>(emptyCounts());
+  const appliedFilters = reactive<RepairFilters>(copyFilters(filters));
+  const hasAppliedQuery = ref(false);
+  const pendingQuery = ref<QuerySnapshot | null>(null);
+  const filtersPending = computed(() => JSON.stringify(copyFilters(filters)) !== JSON.stringify(appliedFilters));
   const page = reactive<RepairPageState>(
     createPageState(options.pageSize || DEFAULT_PAGE_SIZE, initial.page),
   );
@@ -58,39 +69,27 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
   let disposed = false;
 
   async function initialize() {
-    if (disposed) return;
-    await loadCurrent(initial.page);
-    if (disposed) return;
-    syncQuery("replace");
+    await loadCurrent({ status: initial.status, page: initial.page, filters: copyFilters(filters), mode: "replace" });
   }
 
   async function applyFilters() {
     if (disposed || dateRangeError(filters.from, filters.to)) return;
-    await loadCurrent(1);
-    if (disposed) return;
-    syncQuery("push");
+    await loadCurrent({ status: activeStatus.value, page: 1, filters: copyFilters(filters), mode: "push" });
   }
 
   async function setStatus(status: RepairStatus) {
-    if (disposed || activeStatus.value === status) return;
-    activeStatus.value = status;
-    await loadCurrent(1);
-    if (disposed) return;
-    syncQuery("push");
+    if (disposed || (activeStatus.value === status && !page.loading && !page.error)) return;
+    await loadCurrent({ status, page: 1, filters: copyFilters(appliedFilters), mode: "push" });
   }
 
   async function setPage(nextPage: number) {
     if (disposed) return;
-    await loadCurrent(normalizePage(nextPage));
-    if (disposed) return;
-    syncQuery("push");
+    await loadCurrent({ status: activeStatus.value, page: normalizePage(nextPage), filters: copyFilters(appliedFilters), mode: "push" });
   }
 
   async function retry() {
     if (disposed) return;
-    await loadCurrent(page.page, false);
-    if (disposed) return;
-    syncQuery("replace");
+    await loadCurrent(pendingQuery.value || { status: activeStatus.value, page: page.page, filters: copyFilters(appliedFilters), mode: "replace" });
   }
 
   async function refreshAfterMutation(
@@ -98,79 +97,80 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
     _nextStatus?: RepairStatus | null,
   ) {
     if (disposed) return;
-    await loadCurrent(page.page, false);
-    if (disposed) return;
-    syncQuery("replace");
+    page.items = [];
+    await loadCurrent({ status: activeStatus.value, page: page.page, filters: copyFilters(appliedFilters), mode: "replace" });
   }
 
   async function restoreQuery(query: RepairWorkspaceQuery) {
     if (disposed) return;
     const restored = parseRepairWorkspaceQuery(query, options.defaults);
-    activeStatus.value = restored.status;
     Object.assign(filters, {
-      keyword: restored.keyword,
+      keyword: query.keyword === undefined ? appliedFilters.keyword : restored.keyword,
       from: restored.from,
       to: restored.to,
     });
-    await loadCurrent(restored.page);
-    if (disposed) return;
-    syncQuery("replace");
+    await loadCurrent({ status: restored.status, page: restored.page, filters: copyFilters(filters), mode: "replace" });
   }
 
   function currentQuery() {
-    return serializeRepairWorkspaceQuery({
-      status: activeStatus.value,
-      page: page.page,
-      ...filters,
-    });
+    return serializeRepairWorkspaceQuery(currentState());
   }
 
-  async function loadCurrent(targetPage: number, clearItems = true): Promise<boolean> {
-    if (disposed || dateRangeError(filters.from, filters.to)) return false;
+  function currentState(): RepairWorkspaceRouteState {
+    return {
+      status: activeStatus.value,
+      page: page.page,
+      ...appliedFilters,
+    };
+  }
+
+  async function loadCurrent(request: QuerySnapshot): Promise<boolean> {
+    if (disposed || dateRangeError(request.filters.from, request.filters.to)) return false;
     controller?.abort();
     controller = new AbortController();
     const requestController = controller;
     const requestVersion = ++version;
-    const requestStatus = activeStatus.value;
-    page.page = normalizePage(targetPage);
-    if (clearItems) page.items = [];
+    pendingQuery.value = request;
     page.loading = true;
     page.error = "";
     try {
       const result = await options.loadPage({
-        status: requestStatus,
-        page: page.page,
+        status: request.status,
+        page: normalizePage(request.page),
         pageSize: page.pageSize,
-        filters: copyFilters(filters),
+        filters: copyFilters(request.filters),
         signal: requestController.signal,
       });
-      if (!isCurrent(requestVersion, requestStatus, requestController)) return false;
+      if (!isCurrent(requestVersion, requestController)) return false;
       if (!result.items.length && result.page > 1 && result.total > 0) {
-        return loadCurrent(lastPage(result));
+        return loadCurrent({ ...request, page: lastPage(result) });
       }
       applyPage(page, result);
       Object.assign(counts, result.statusCounts);
+      activeStatus.value = request.status;
+      Object.assign(appliedFilters, request.filters);
+      hasAppliedQuery.value = true;
+      pendingQuery.value = null;
+      syncQuery(request.mode);
       return true;
     } catch (cause) {
-      if (isCurrent(requestVersion, requestStatus, requestController)) {
+      if (isCurrent(requestVersion, requestController)) {
         page.error = cause instanceof Error ? cause.message : "维修事务加载失败";
       }
       return false;
     } finally {
-      if (isCurrent(requestVersion, requestStatus, requestController)) page.loading = false;
+      if (isCurrent(requestVersion, requestController)) page.loading = false;
     }
   }
 
   function isCurrent(
     requestVersion: number,
-    requestStatus: RepairStatus,
     requestController: AbortController,
   ) {
     return (
       !disposed &&
       requestVersion === version &&
       controller === requestController &&
-      requestStatus === activeStatus.value &&
       !requestController.signal.aborted
     );
   }
@@ -189,6 +189,10 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
   }
 
   return {
+    appliedFilters,
+    hasAppliedQuery,
+    filtersPending,
+    pendingQuery,
     activeStatus,
     filters,
     counts,
@@ -201,6 +205,7 @@ export function useRepairWorkspace(options: WorkspaceOptions) {
     refreshAfterMutation,
     restoreQuery,
     currentQuery,
+    currentState,
     dispose,
   };
 }

@@ -38,8 +38,12 @@
           @input="$emit('update:keyword', ($event.target as HTMLInputElement).value)"
         />
       </label>
-      <button class="button secondary small" type="submit">搜索</button>
+      <button class="button secondary small" type="submit" :disabled="loading">{{ loading ? '搜索中…' : '搜索' }}</button>
     </form>
+
+    <p v-if="keyword.trim() !== resultKeyword" class="training-region-feedback" aria-live="polite">
+      关键词尚未查询；当前结果：{{ resultKeyword || '全部参与记录' }}。翻页沿用当前结果条件。
+    </p>
 
     <div v-if="error" class="training-region-feedback danger" role="alert">
       <span>{{ error }}{{ items.length ? "；下方仍显示上次结果" : "" }}</span>
@@ -64,7 +68,7 @@
         <span>操作</span>
       </div>
 
-      <div class="training-participant-rows">
+      <div :ref="bindScroll" :data-session-id="sessionId" class="training-participant-rows" @scroll="$emit('scroll')">
       <article
         v-for="item in items"
         :key="item.id"
@@ -87,7 +91,7 @@
             type="button"
             :aria-label="`编辑 ${item.name} 的参与记录`"
             title="编辑参与记录"
-            :disabled="deletePendingId === item.id"
+            :disabled="loading || Boolean(error) || deletePendingId === item.id"
             @click="$emit('edit', item)"
           >
             <Pencil aria-hidden="true" />
@@ -97,7 +101,7 @@
             type="button"
             :aria-label="`删除 ${item.name} 的参与记录`"
             title="删除参与记录"
-            :disabled="deletePendingId === item.id"
+            :disabled="loading || Boolean(error) || deletePendingId === item.id"
             @click="$emit('delete', item)"
           >
             <Trash2 aria-hidden="true" />
@@ -109,8 +113,8 @@
 
     <div v-else-if="!loading && !error" class="training-participant-empty">
       <UserRoundSearch aria-hidden="true" />
-      <strong>{{ keyword ? "没有匹配的参与记录" : "暂无参与记录" }}</strong>
-      <span>{{ keyword ? "换个关键词再试试" : "可新增记录或导入名单" }}</span>
+      <strong>{{ resultKeyword ? "没有匹配的参与记录" : "暂无参与记录" }}</strong>
+      <span>{{ resultKeyword ? "换个关键词再试试" : "可新增记录或导入名单" }}</span>
     </div>
 
     <footer v-if="total" class="training-participant-pagination">
@@ -141,7 +145,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type ComponentPublicInstance } from "vue";
 import {
   ChevronLeft,
   ChevronRight,
@@ -163,7 +167,10 @@ const props = defineProps<{
   loading: boolean;
   error: string;
   keyword: string;
+  appliedKeyword?: string;
   deletePendingId?: number | null;
+  sessionId?: number;
+  bindScroll?: (element: Element | ComponentPublicInstance | null) => void;
 }>();
 
 defineEmits<{
@@ -175,11 +182,13 @@ defineEmits<{
   edit: [participant: TrainingParticipant];
   delete: [participant: TrainingParticipant];
   retry: [];
+  scroll: [];
 }>();
 
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(props.total / props.pageSize)),
 );
+const resultKeyword = computed(() => props.appliedKeyword ?? props.keyword.trim());
 
 function hours(value: number | string | null | undefined) {
   return Number(value || 0).toFixed(2).replace(/\.00$/, "");

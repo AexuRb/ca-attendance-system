@@ -12,7 +12,7 @@
         <strong>成员记录</strong>
         <span aria-live="polite">{{ selected.size ? `已选 ${selected.size} 人` : `共 ${total} 人` }}</span>
       </div>
-      <ActionMenu :label="selected.size ? `批量操作，已选 ${selected.size} 人` : '请先选择成员'" trigger-text="批量操作" :disabled="!selected.size">
+      <ActionMenu :label="selected.size ? `批量操作，已选 ${selected.size} 人` : '请先选择成员'" trigger-text="批量操作" :disabled="!selected.size || listLoading || Boolean(listError)">
         <button role="menuitem" type="button" @click="openBulk('ACTIVE')"><Power aria-hidden="true" />批量启用</button>
         <button role="menuitem" type="button" @click="openBulk('DISABLED')"><PowerOff aria-hidden="true" />批量停用</button>
         <div class="member-bulk-menu-divider" role="separator" />
@@ -30,8 +30,8 @@
 
     <div class="mw-member-content" :class="{ 'mw-list-state': !members.length }">
       <div v-if="listError" class="inline-alert danger" role="alert">
-        <span>{{ listError }}</span>
-        <button class="button secondary small" type="button" data-action="retry-members" @click="load()">
+        <span>{{ listError }}{{ members.length ? '；仍显示上次成功结果，重试将沿用失败时的查询条件' : '' }}</span>
+        <button class="button secondary small" type="button" data-action="retry-members" @click="retry()">
           重试
         </button>
       </div>
@@ -45,9 +45,9 @@
           <UserPlus aria-hidden="true" />新增第一位成员
         </button>
       </EmptyState>
-      <MemberRecords v-else-if="members.length" :members="members" :selected="selected" :selectable-ids="selectableIds" :all-selected="allFilteredSelected" :selection-busy="actions.isPending('select-all')" @toggle-all="toggleAll" @toggle-member="toggleMember">
+      <MemberRecords v-else-if="members.length" :bind-scroll="bindTableScroll" :members="members" :selected="selected" :selectable-ids="selectableIds" :all-selected="allFilteredSelected" :selection-busy="actions.isPending('select-all') || listLoading || Boolean(listError)" @toggle-all="toggleAll" @toggle-member="toggleMember" @table-scroll="rememberTableScroll">
         <template #actions="{ member: item }">
-          <MemberRowActions :member="item" :editable="canEdit(item)" :self="item.id === user?.id" :deletable="user?.role === 'ADMIN'" :pending="actions.isPending(`member:${item.id}`)" @edit="openEdit(item)" @toggle-status="toggleStatus(item)" @reset-password="resetTarget = item" @delete="deleteTarget = item" />
+          <MemberRowActions :member="item" :editable="canEdit(item)" :self="item.id === user?.id" :deletable="user?.role === 'ADMIN'" :pending="actions.isPending(`member:${item.id}`) || listLoading || Boolean(listError)" @edit="openEdit(item)" @toggle-status="toggleStatus(item)" @reset-password="resetTarget = item" @delete="deleteTarget = item" />
         </template>
       </MemberRecords>
     </div>
@@ -169,6 +169,7 @@ import MemberWorkspaceShell from "../../features/members/MemberWorkspaceShell.vu
 import MemberRecords from "../../features/members/MemberRecords.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
+import "../../styles/workspace.css";
 import "../../features/members/presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
@@ -185,6 +186,8 @@ import ActionMenu from "../../shared/ui/ActionMenu.vue";
 import { useMemberDirectoryWorkspace } from "../../features/members/useMemberDirectoryWorkspace";
 
 const {
+  bindTableScroll,
+  rememberTableScroll,
   actions,
   applyBulkStatus,
   applyFilters,
@@ -212,7 +215,7 @@ const {
   importResult,
   listError,
   listLoading,
-  load,
+  retry,
   lockEditorAccountControls,
   members,
   openBulk,
