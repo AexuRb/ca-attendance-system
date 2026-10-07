@@ -109,12 +109,12 @@ def main() -> None:
         page.goto(f"{args.base_url}/#/admin/attendance", wait_until="networkidle")
         expect(page.get_by_role("heading", name="值班记录")).to_be_visible(timeout=15_000)
         page.get_by_label("开始日期").fill((date.today() - timedelta(days=8)).isoformat())
-        page.get_by_role("button", name="查询").click()
+        page.locator('.attendance-workspace button[type="submit"]').click()
         page.wait_for_timeout(500)
         if page.get_by_role("button", name="补录记录").count():
             raise AssertionError("部长仍能看到补录记录入口")
         expect(page.locator('button[aria-label^="不可编辑"]').first).to_be_disabled()
-        expect(page.locator('button[aria-label="编辑"]').first).to_be_enabled()
+        expect(page.locator('button[aria-label^="编辑 "]').first).to_be_enabled()
         page.goto(f"{args.base_url}/#/admin/repairs", wait_until="networkidle")
         expect(page.get_by_role("heading", name="维修事务")).to_be_visible(timeout=15_000)
         if page.get_by_role("button", name="导出").count():

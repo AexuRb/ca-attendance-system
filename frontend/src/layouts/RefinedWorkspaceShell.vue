@@ -24,7 +24,7 @@
     </div>
     <main id="admin-main-content" ref="content" class="mw-main" tabindex="-1"><div class="mw-surface">
       <nav class="mw-subnav" aria-label="当前区域导航"><small>{{ sectionLabel }} / 页面导航</small><RouterLink v-for="item in sectionItems" :key="item.name" :to="{name:item.name}">{{ item.label }}</RouterLink></nav>
-      <header class="mw-heading"><slot name="heading"><small>计算机协会 / {{ sectionLabel }}</small><h1>{{ title }}</h1><p>{{ description }}</p></slot></header>
+      <header class="mw-heading"><slot name="heading"><h1>{{ title }}</h1></slot></header>
       <div v-if="$slots.tools" class="mw-tools"><slot name="tools" /></div>
       <aside v-if="$slots.filters" class="mw-query" :aria-label="filterLabel"><slot name="filters" /></aside>
       <section class="mw-results" aria-label="工作内容"><slot /></section>

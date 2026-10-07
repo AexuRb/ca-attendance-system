@@ -414,7 +414,13 @@ public class DutyScheduleImportService {
                                List<ConfiguredPeriod> periods) {
         CellStyle headerStyle = headerStyle(workbook);
         CellStyle textStyle = textStyle(workbook);
+        CellStyle studentNoStyle = textStyle(workbook);
+        studentNoStyle.setDataFormat(workbook.createDataFormat().getFormat("@"));
+        CellStyle noteStyle = textStyle(workbook);
+        noteStyle.setWrapText(true);
+        noteStyle.setVerticalAlignment(VerticalAlignment.TOP);
         Sheet sheet = workbook.createSheet("排班导入");
+        sheet.setDefaultColumnStyle(2, studentNoStyle);
         String[] headers = {"星期", "值班时段", "学号", "姓名"};
         Row header = sheet.createRow(0);
         for (int column = 0; column < headers.length; column++) {
@@ -431,13 +437,13 @@ public class DutyScheduleImportService {
                 row.createCell(2).setCellValue("");
                 row.createCell(3).setCellValue("");
                 for (int column = 0; column < headers.length; column++) {
-                    row.getCell(column).setCellStyle(textStyle);
+                    row.getCell(column).setCellStyle(column == 2 ? studentNoStyle : textStyle);
                 }
             }
         }
         sheet.setColumnWidth(0, 14 * 256);
         sheet.setColumnWidth(1, 20 * 256);
-        sheet.setColumnWidth(2, 20 * 256);
+        sheet.setColumnWidth(2, 36 * 256);
         sheet.setColumnWidth(3, 18 * 256);
         sheet.createFreezePane(0, 1);
 
@@ -445,17 +451,22 @@ public class DutyScheduleImportService {
         List<String> instructions = List.of(
                 "排班导入说明",
                 "1. 每行填写一名值班人员；同一星期和时段需要多人时，请复制该行继续填写。",
-                "2. 学号必填，姓名可不填；填写姓名时必须与成员页面完全一致。",
-                "3. 只能安排当前处于启用状态的部长、会长或管理员账号。",
-                "4. 星期和值班时段只能使用模板中列出的内容。",
-                "5. 预览发现任意错误时，整份文件都不会写入。",
-                "6. 导入只覆盖文件中实际填写了学号的星期和时段，其他现有排班保持不变。"
+                "2. 学号必填（1—32 位数字），姓名可不填；填写姓名时必须与成员页面完全一致。",
+                "3. 学号列已设为文本，请以文本输入或粘贴，核对前导零和长学号是否保持原样。带格式粘贴可能覆盖文本格式，已被转成数字的学号需重新填写。",
+                "4. 只能安排当前处于启用状态的部长、会长或管理员账号。",
+                "5. 模板按下载时启用的星期和时段生成；设置变更后请重新下载。提交仍按当前设置校验，只能使用当前启用的星期和已有启用时段。",
+                "6. 同一星期和时段的本次人员名单将整组替换原有人员，不是追加；其他分组保持不变。",
+                "7. 学号和姓名都未填写的预填行会跳过，不会清空该时段的原排班。同一分组内学号不能重复，同一人可填写在不同分组。",
+                "8. 文件不超过 5 MB，表头后的数据区域最多 1000 行（本模板第 2—1001 行）；中间空白行、未填人员的预填行也占行号范围，请删除范围外的多余行。",
+                "9. 先上传文件查看预览，核对人员和替换分组后再确认导入；任意校验错误都会使整份文件不写入。"
         );
         for (int index = 0; index < instructions.size(); index++) {
             Row row = notes.createRow(index);
             Cell cell = row.createCell(0);
             cell.setCellValue(instructions.get(index));
-            cell.setCellStyle(index == 0 ? headerStyle : textStyle);
+            cell.setCellStyle(index == 0 ? headerStyle : noteStyle);
+            int textWidth = instructions.get(index).codePoints().map(value -> value > 255 ? 2 : 1).sum();
+            row.setHeightInPoints(index == 0 ? 28 : Math.max(32, (float) Math.ceil(textWidth / 68.0) * 16 + 12));
         }
         notes.setColumnWidth(0, 76 * 256);
         workbook.setActiveSheet(0);

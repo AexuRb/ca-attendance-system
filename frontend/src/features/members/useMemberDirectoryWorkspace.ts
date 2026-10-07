@@ -57,6 +57,8 @@ export function useMemberDirectoryWorkspace() {
   let lastQuery: { page: number; filters: DirectoryFilters; mode: "push" | "replace"; restore?: TablePosition } | null = null;
   const editorOpen = ref(false);
   const editorTarget = ref<MemberSummary | null>(null);
+  type ImportPreview = { valid: boolean; created: number; updated: number; errorCount: number; warnings: string[]; errors: string[]; token: string; changes: { studentNo: string; name: string; action: string; fields: { field: string; before: string; after: string }[] }[] };
+  const importPreview = ref<ImportPreview | null>(null);
   const importOpen = ref(false);
   const importFile = ref<File | null>(null);
   const importResult = ref<MemberImportResult | null>(null);
@@ -350,6 +352,7 @@ export function useMemberDirectoryWorkspace() {
   function openImport() {
     importError.value = "";
     importResult.value = null;
+    importPreview.value = null;
     importFile.value = null;
     importOpen.value = true;
   }
@@ -358,28 +361,45 @@ export function useMemberDirectoryWorkspace() {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] || null;
     importResult.value = null;
+    importPreview.value = null;
     importError.value = "";
     if (file) importError.value = excelFileError(file, "成员 Excel 文件");
     importFile.value = importError.value ? null : file;
     if (importError.value) input.value = "";
   }
 
-  async function importMembers() {
+  async function previewMembers() {
     if (!importFile.value) return;
+    await actions.run("import", async () => {
+      importError.value = "";
+      importPreview.value = null;
+      const body = new FormData();
+      body.append("file", importFile.value!);
+      const value = await task.run(() => post<ImportPreview>("/api/users/import/preview", body));
+      if (value) importPreview.value = value;
+      else importError.value = task.error.value;
+    });
+  }
+
+  async function importMembers() {
+    if (!importFile.value || !importPreview.value?.valid) return;
     await actions.run("import", async () => {
       importError.value = "";
       const body = new FormData();
       body.append("file", importFile.value as File);
+      body.append("previewToken", importPreview.value!.token);
       const value = await task.run(
         () => post<MemberImportResult>("/api/users/import", body),
         "成员导入完成",
       );
       if (!value) {
         importError.value = task.error.value;
+        importPreview.value = null;
         return;
       }
       importResult.value = value;
       importFile.value = null;
+      importPreview.value = null;
       await Promise.all([load(1), loadGrades()]);
     });
   }
@@ -514,6 +534,7 @@ export function useMemberDirectoryWorkspace() {
     hasActiveFilters: computed(() => Object.values(activeFilters.value).some(value => value.trim() !== "")),
     gradeChoices,
     grades,
+    importPreview, previewMembers,
     importError,
     importFile,
     importMembers,

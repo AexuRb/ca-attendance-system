@@ -3,6 +3,11 @@ import { buildTodayQuickActions } from "./todayQuickActions";
 import { resolveCommand } from "../../../features/command-center/commandParser";
 
 describe("today quick actions", () => {
+  it("retains the fourth known reminder for the overflow entry", () => {
+    const actions = buildTodayQuickActions({ todayPendingCount: 1, todayOpenCount: 2, ongoingRepairCount: 3 }, 1, true, "ADMIN");
+    expect(actions.map(item => item.id)).toEqual(["reviews", "attendance-open", "schedules", "repairs"]);
+  });
+
   it("prioritizes live attention items", () => {
     const items = buildTodayQuickActions({
       todayPendingCount: 4,

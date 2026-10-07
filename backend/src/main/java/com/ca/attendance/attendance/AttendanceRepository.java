@@ -209,7 +209,17 @@ public class AttendanceRepository {
 
     public AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo, String status,
                                      int page, int pageSize) {
-        SearchQuery query = searchQuery(from, to, studentNo, status);
+        return searchPage(from, to, studentNo, status, page, pageSize, null);
+    }
+
+    public AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo, String status,
+                                     int page, int pageSize, Long userId) {
+        SearchQuery query = searchQuery(from, to, userId == null ? studentNo : null, status);
+        if (userId != null) {
+            var params = new ArrayList<>(query.args());
+            params.add(userId);
+            query = new SearchQuery(query.where() + " AND ar.user_id = ?", params);
+        }
         Long total = jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM attendance_records ar

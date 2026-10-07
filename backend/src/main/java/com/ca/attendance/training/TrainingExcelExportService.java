@@ -65,6 +65,9 @@ public class TrainingExcelExportService {
         CellStyle textStyle = textStyle(workbook);
         CellStyle studentNoStyle = textStyle(workbook);
         studentNoStyle.setDataFormat(workbook.createDataFormat().getFormat("@"));
+        CellStyle noteStyle = textStyle(workbook);
+        noteStyle.setWrapText(true);
+        noteStyle.setVerticalAlignment(VerticalAlignment.TOP);
 
         Sheet dataSheet = workbook.createSheet("参与名单");
         dataSheet.setDefaultColumnStyle(0, studentNoStyle);
@@ -85,33 +88,43 @@ public class TrainingExcelExportService {
                 speaker.getCell(index).setCellStyle(index == 0 ? studentNoStyle : textStyle);
             }
         }
-        setColumnWidths(dataSheet, 18, 18, 12, 28);
+        setColumnWidths(dataSheet, 36, 18, 12, 28);
         dataSheet.createFreezePane(0, 1);
 
         Sheet noteSheet = workbook.createSheet("填写说明");
         Row title = noteSheet.createRow(0);
         title.createCell(0).setCellValue("培训参与名单导入模板");
         title.getCell(0).setCellStyle(titleStyle);
+        title.setHeightInPoints(30);
         List<String> notes = new ArrayList<>();
         if (session == null) {
             notes.add("通用模板：请在培训管理中选择具体培训后导入。");
         } else {
             notes.add("培训：" + session.title() + "（" + session.trainingDate() + "）");
             notes.add("主讲人：" + valueOrDash(session.speaker()));
-            notes.add("默认时长：" + defaultDuration.stripTrailingZeros().toPlainString() + " 小时");
+            notes.add("下载时默认时长：" + defaultDuration.stripTrailingZeros().toPlainString() + " 小时");
+            notes.add("导入前请核对目标培训的标题和日期；旧模板的主讲人、预填时长等信息可能需要更新。");
         }
         notes.add("参与名单工作表第一行为表头，请从第二行开始填写。");
-        notes.add("必填列：姓名。建议同时填写学号，避免同名成员无法匹配。");
-        notes.add("时长可不填；不填时导入会使用该培训的开始/结束时间。");
-        notes.add("时长会计入值班时长，可填写 1、1.5、2 或 2小时。");
-        notes.add("第一条数据建议填写主讲人；当前培训已填写主讲人时会自动预填。");
+        notes.add("姓名必填。学号留空时，姓名必须唯一匹配系统中已有成员；外部人员、重名或无法匹配的主讲人也需补填学号。");
+        notes.add("学号填写 1—32 位数字，以文本输入或粘贴并核对前导零和长学号。带格式粘贴可能覆盖文本格式，已被转成数字的学号需重新填写。");
+        notes.add("填写学号时，已有账号按学号匹配，姓名以系统资料为准；未建档学号保存为培训外部记录，不创建成员账号。");
+        notes.add("当前培训有主讲人时，第一条数据已预填主讲人，会作为参与记录导入。请核对姓名、补填所需学号并检查时长；不登记此人请删除该行。");
+        notes.add("时长单位为小时，可填数字或以 h、H、小时、时结尾，如 1.5 或 2小时；范围 0—999.99，四舍五入保留两位小数。计入培训时长，并纳入合计时长。");
+        notes.add("只有时长留空时，才按导入目标培训当前起止时间计算；无有效起止时间时默认 0，请人工核对。已预填或手填数字不会随培训时间变更自动更新。");
+        notes.add("文件不超过 5 MB，表头后的数据区域最多 3000 行（本模板第 2—3001 行），中间空白行也占行号范围，请删除范围外的多余行。");
+        notes.add("同一文件内学号不能重复；学号留空时姓名不能重复。重复或任意其他校验错误都会使整批不写入，请修正后重新导入。");
+        notes.add("同一培训中已存在的学号会更新姓名、时长和备注（空白备注会清除原备注），不是累加时长；文件未包含的参与记录保持不变。");
         for (int index = 0; index < notes.size(); index++) {
             Row row = noteSheet.createRow(index + 2);
             Cell cell = row.createCell(0);
             cell.setCellValue(notes.get(index));
-            cell.setCellStyle(textStyle);
+            cell.setCellStyle(noteStyle);
+            // Estimate wrapped lines conservatively without relying on fonts installed on the server.
+            int textWidth = notes.get(index).codePoints().map(value -> value > 255 ? 2 : 1).sum();
+            row.setHeightInPoints(Math.max(32, (float) Math.ceil(textWidth / 68.0) * 16 + 12));
         }
-        noteSheet.setColumnWidth(0, 58 * 256);
+        noteSheet.setColumnWidth(0, 76 * 256);
         workbook.setActiveSheet(0);
     }
 

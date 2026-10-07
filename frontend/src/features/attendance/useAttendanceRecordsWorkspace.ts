@@ -15,6 +15,7 @@ import {
 } from "../../shared/navigation/routeQueryState";
 import { dateRangeError } from "../../shared/validation/dateRange";
 import { createPrivateNavigationState } from "../../shared/navigation/privateNavigationState";
+import { statsRecordLinks } from "../stats/statsNavigation";
 import {
   attendanceActionAccess,
   attendancePageQuery,
@@ -38,6 +39,7 @@ export function useAttendanceRecordsWorkspace() {
   const route = useRoute();
   const router = useRouter();
   const historyScope = historyMemory.scope();
+  const statsLinkScope = statsRecordLinks.scope();
   const tableScroll = ref<HTMLElement | null>(null);
   const bindTableScroll = (element: Element | ComponentPublicInstance | null) => {
     tableScroll.value = element instanceof HTMLElement ? element : null;
@@ -59,7 +61,7 @@ export function useAttendanceRecordsWorkspace() {
   const deleteTarget = ref<AttendanceRecordItem | null>(null);
   const manualCandidates = ref<AccountCandidate[]>([]);
   const selectedMember = ref<AccountCandidate | null>(null);
-  const filters = reactive({ from: "", to: "", keyword: "", status: "" });
+  const filters = reactive<AttendanceRecordFilters>({ from: "", to: "", keyword: "", status: "" });
   const appliedFilters = ref({ ...filters });
   const pendingQuery = ref<Query | null>(null);
   const filtersPending = computed(() => JSON.stringify(filters) !== JSON.stringify(appliedFilters.value));
@@ -132,6 +134,9 @@ export function useAttendanceRecordsWorkspace() {
     restoreRouteState(true);
     const saved = stringRouteQuery(route.query.keyword) ? undefined : historySnapshot();
     if (saved) Object.assign(filters, saved.filters);
+    const statsLink = router.options?.history.state.statsRecordLink;
+    const statsContext = typeof statsLink === "string" ? statsLinkScope.get(statsLink) : undefined;
+    if (!saved && statsContext) { filters.keyword = statsContext.keyword; filters.userId = statsContext.userId; }
     const initialPage = saved?.page || positiveRoutePage(route.query.page);
     // Consume command-provided keywords even when the initial request fails.
     await updateOwnedRouteQuery(router, route.query, ["keyword"], {}, "replace");
@@ -199,7 +204,14 @@ export function useAttendanceRecordsWorkspace() {
     await runQuery(pendingQuery.value || { filters: { ...appliedFilters.value }, page: page.value });
   }
 
+  const statsLinkId = router.options?.history.state.statsRecordLink;
+  const statsOrigin = typeof statsLinkId === "string" ? statsLinkScope.get(statsLinkId) : undefined;
+  function returnToStats() {
+    if (statsOrigin) void router.push({ name: "stats", query: { from: statsOrigin.from, to: statsOrigin.to, preset: statsOrigin.preset }, state: { statsVisit: statsLinkId } });
+  }
+
   async function applyFilters() {
+    if (filters.keyword !== appliedFilters.value.keyword) filters.userId = undefined;
     if (filterError.value) return;
     await runQuery({ filters: { ...filters }, page: 1, routeMode: "push" });
   }
@@ -363,6 +375,7 @@ export function useAttendanceRecordsWorkspace() {
   }
 
   return {
+    statsOrigin, returnToStats,
     bindTableScroll,
     tableScroll,
     rememberTableScroll,

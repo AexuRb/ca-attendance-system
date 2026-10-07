@@ -1,9 +1,9 @@
 /* The repeated page class keeps these scoped rules ahead of shared workspace styles in production CSS order. */
 html:root[data-appearance] .schedule-presentation.schedule-presentation .mw-main { container:schedule-main / inline-size; }
-html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-board { container:schedule-board / inline-size; }
+html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-board { container:schedule-board / inline-size; gap:8px; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-scroll-hint { display:none; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-days { padding-block:10px; }
-html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-day { min-height:70px; transition:background-color var(--mw-speed),border-color var(--mw-speed),box-shadow var(--mw-speed); }
+html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-day { min-height:58px; padding-block:10px; transition:background-color var(--mw-speed),border-color var(--mw-speed),box-shadow var(--mw-speed); }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-day:hover { background:color-mix(in srgb,var(--mw-accent) 5%,var(--mw-paper)); }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-day.active { border-color:color-mix(in srgb,var(--mw-accent) 34%,var(--mw-line)); box-shadow:inset 0 -3px 0 var(--mw-accent),0 2px 7px #2436480c; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-day strong { font-size:14px; font-weight:650; }
@@ -12,14 +12,14 @@ html:root[data-appearance] .schedule-presentation.schedule-presentation .schedul
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-day b::after { content:none; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-day b span { font-size:12px; font-weight:500; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-workspace { display:flex; flex-direction:column; }
-html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-summary { order:0; display:block; padding:17px 24px 18px; border-bottom:1px solid var(--mw-line); background:linear-gradient(115deg,color-mix(in srgb,var(--mw-accent) 7%,var(--mw-paper)),var(--mw-soft) 70%); }
+html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-summary { order:0; display:block; padding:10px 20px; border-bottom:1px solid var(--mw-line); background:linear-gradient(115deg,color-mix(in srgb,var(--mw-accent) 7%,var(--mw-paper)),var(--mw-soft) 70%); }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-panel { min-width:0; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-panel h3 { margin:0 0 12px; color:var(--mw-ink); font-size:13px; font-weight:650; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; margin:0; }
-html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-stats>div { min-width:0; padding:2px 16px; border:0; border-left:1px solid var(--mw-line); }
+html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-stats>div { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; min-width:0; padding:2px 16px; border:0; border-left:1px solid var(--mw-line); }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-stats>div:first-child { padding-left:0; border-left:0; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-stats dt { font-size:12px; }
-html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-stats dd { margin-top:4px; color:var(--mw-ink); font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
+html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-stats dd { margin-top:0; color:var(--mw-ink); font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-summary-note { margin:12px 0 0; color:var(--mw-muted); font:12px/1.5 var(--mw-font); }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-main { padding:20px 24px 24px; }
 html:root[data-appearance] .schedule-presentation.schedule-presentation .schedule-focus-header { margin-bottom:12px; }
@@ -86,13 +86,20 @@ html:root[data-appearance=spatial] .schedule-presentation.schedule-presentation 
   html:root[data-appearance=editorial] .schedule-presentation.schedule-presentation .mw-subnav { display:flex; flex-wrap:wrap; gap:5px; padding:10px 14px; border-radius:0; border-inline:0; }
   html:root[data-appearance=editorial] .schedule-presentation.schedule-presentation .mw-subnav small { display:none; }
   html:root[data-appearance=editorial] .schedule-presentation.schedule-presentation .mw-heading,
-  html:root[data-appearance=spatial] .schedule-presentation.schedule-presentation .mw-heading { width:100%; padding:18px 22px 10px; }
+  html:root[data-appearance=spatial] .schedule-presentation.schedule-presentation .mw-heading { width:100%; padding:12px 20px 6px; }
   html:root[data-appearance=editorial] .schedule-presentation.schedule-presentation .mw-tools,
   html:root[data-appearance=spatial] .schedule-presentation.schedule-presentation .mw-tools { width:100%; justify-content:flex-start; align-self:stretch; padding:0 22px 14px; border-bottom:1px solid var(--mw-line); background:transparent; }
   html:root[data-appearance=editorial] .schedule-presentation.schedule-presentation .mw-results,
   html:root[data-appearance=spatial] .schedule-presentation.schedule-presentation .mw-results { width:100%; margin:0; padding:0; }
   html:root[data-appearance=editorial] .schedule-presentation.schedule-presentation .schedule-focus-board { grid-template-columns:minmax(0,1fr); }
   html:root[data-appearance=editorial] .schedule-presentation.schedule-presentation .schedule-focus-days { flex-direction:row; overflow-x:auto; }
+  @media (min-width:701px) {
+    html:root:is([data-appearance=editorial],[data-appearance=spatial]) .schedule-presentation.schedule-presentation .mw-surface { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:0; }
+    html:root:is([data-appearance=editorial],[data-appearance=spatial]) .schedule-presentation.schedule-presentation .mw-subnav { grid-column:1/-1; grid-row:1; }
+    html:root:is([data-appearance=editorial],[data-appearance=spatial]) .schedule-presentation.schedule-presentation .mw-heading { grid-column:1; grid-row:2; width:auto; padding:12px 20px; }
+    html:root:is([data-appearance=editorial],[data-appearance=spatial]) .schedule-presentation.schedule-presentation .mw-tools { grid-column:2; grid-row:2; width:auto; justify-content:flex-end; padding:12px 20px; border:0; }
+    html:root:is([data-appearance=editorial],[data-appearance=spatial]) .schedule-presentation.schedule-presentation .mw-results { grid-column:1/-1; grid-row:3; }
+  }
 }
 
 @container schedule-board (max-width:750px) {

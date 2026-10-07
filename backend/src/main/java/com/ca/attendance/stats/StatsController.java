@@ -37,6 +37,15 @@ public class StatsController {
         return stats.weeklyDetail(from, to);
     }
 
+    @GetMapping("/member-detail")
+    public Map<String, Object> memberDetail(
+            @RequestParam long userId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return stats.memberDetail(userId, from, to);
+    }
+
     @GetMapping("/dashboard")
     public Map<String, Object> dashboard(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date

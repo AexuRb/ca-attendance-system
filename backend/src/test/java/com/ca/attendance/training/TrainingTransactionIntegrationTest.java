@@ -296,6 +296,29 @@ class TrainingTransactionIntegrationTest {
         }
     }
 
+    @Test
+    void templateAndBlankImportDurationDefaultToZeroWithoutSessionTimes() throws Exception {
+        TrainingSessionItem session = trainings.create(new TrainingService.SessionRequest(
+                "事务培训" + "长标题核对".repeat(19), LocalDate.of(2026, 10, 7),
+                null, null, "合成测试地点", "事务测试主讲人", null, "PLANNED"));
+        var template = trainings.exportSessionImportTemplate(session.id());
+        Files.write(STORAGE_ROOT.resolve("training-long-title.xlsx"), template.bytes());
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(template.bytes()));
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            Row speaker = workbook.getSheetAt(0).getRow(1);
+            assertEquals(0.0, speaker.getCell(2).getNumericCellValue());
+            speaker.getCell(0).setBlank();
+            speaker.getCell(0).setCellValue("000001");
+            speaker.getCell(2).setBlank();
+            workbook.write(output);
+            var result = trainings.importParticipants(session.id(), new MockMultipartFile(
+                    "file", "participants.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", output.toByteArray()));
+            assertEquals(1, result.created());
+            assertEquals(0, participantDurationByStudent(session.id(), "000001").compareTo(BigDecimal.ZERO));
+        }
+    }
+
     private TrainingService.SessionRequest sessionRequest(String title) {
         return new TrainingService.SessionRequest(
                 title,

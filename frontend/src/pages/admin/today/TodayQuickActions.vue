@@ -1,7 +1,7 @@
 <template>
   <div class="command-welcome-actions" aria-label="今日快捷操作">
     <button
-      v-for="item in items"
+      v-for="item in items.slice(0, 3)"
       :key="item.id"
       class="command-welcome-action"
       :data-tone="item.tone"
@@ -18,6 +18,10 @@
       <ArrowUpRight aria-hidden="true" />
     </button>
   </div>
+  <details v-if="items.length > 3" class="today-other-actions">
+    <summary>其他待办（{{ items.length - 3 }}）</summary>
+    <button v-for="item in items.slice(3)" :key="item.id" class="button secondary small" type="button" @click="$emit('execute', item.command)">{{ item.label }} · {{ item.detail }}</button>
+  </details>
 </template>
 
 <script setup lang="ts">
@@ -60,3 +64,9 @@ function iconFor(id: string) {
   return icons[id] || ClipboardList;
 }
 </script>
+
+<style scoped>
+.today-other-actions { margin-top: 10px; font-size: 13px; }
+.today-other-actions summary { cursor: pointer; min-height: 34px; padding: 8px 0; }
+.today-other-actions button { margin: 4px 8px 4px 0; white-space: normal; }
+</style>

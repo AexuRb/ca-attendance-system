@@ -13,13 +13,13 @@
 | 布局、样式、交互 | [前端视觉规范](前端视觉规范.md)；命令台改动另读 [命令契约](后台命令台设计规范.md) |
 | 后端与数据库 | [后端说明](../backend/README.md)、[数据库说明](../database/README.md) |
 | 打包/发布、换届 | [发布检查表](发布检查表.md)、[换届交接清单](换届交接清单.md) |
-| 成员导入模板 | [Excel 模板](成员批量导入模板.xlsx)；其他模板从应用下载 |
+| 成员导入模板 | [Excel 模板](成员批量导入模板.xlsx)（2026 年静态基准，年级 1996—2028；跨年或规则变化需重新生成）；其他模板从应用下载 |
 
 ## 按需追溯
 
 - 系统性前端精修：[2026-09-22 现状审计](verification/前端精修现状审计-2026-09-22.md)，包含代表页面基线、问题证据、保留项与后续实施批次。
 - 验证记录：[数据安全](verification/数据安全演练记录.md)、[后台视觉](verification/后台页面视觉验收.md)、[多主题](verification/多主题前端验收记录.md)、[性能](verification/大数据量与性能测试记录.md)、[桌面稳定性](verification/桌面端稳定性测试记录.md)、[2026-08-24 业务验收](verification/业务模块验收记录-2026-08-24.md)。
-- 版本变化：[CHANGELOG](../CHANGELOG.md)、[3.3.2 发布说明](releases/v3.3.2.md)；已发布及旧版本在 `releases/`，审查报告见 [archive](archive/README.md)。
+- 版本变化：[CHANGELOG](../CHANGELOG.md)、[3.3.3 发布说明](releases/v3.3.3.md)；已发布及旧版本在 `releases/`，审查报告见 [archive](archive/README.md)。
 
 历史记录中的状态、授权、待办及测试数量只适用于记录当时，不代表当前指令或本轮验证。运行方法可按需复用，当前未闭环事项以 DEV_STATE.md 为准。
 

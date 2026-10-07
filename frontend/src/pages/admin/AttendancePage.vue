@@ -2,7 +2,7 @@
   <RefinedWorkspaceShell class="daily-workspace attendance-workspace" title="值班记录" description="查看签到、签退与有效时长" section-key="duty" filter-label="筛选值班记录">
     <template #heading><h1>值班记录</h1><p>逐条核对签到、签退与计入时长</p></template>
     <template #tools
-        ><button v-if="canCreate" class="button primary" @click="openCreate">
+        ><button v-if="statsOrigin" class="button secondary" @click="returnToStats">返回统计核对</button><button v-if="canCreate" class="button primary" @click="openCreate">
           <Plus />补录记录
         </button></template>
     <template #filters><form class="mw-filter daily-filter" @submit.prevent="applyFilters">
@@ -320,6 +320,7 @@ import AccountPicker from "../../features/accounts/AccountPicker.vue";
 import { useAttendanceRecordsWorkspace } from "../../features/attendance/useAttendanceRecordsWorkspace";
 
 const {
+  statsOrigin, returnToStats,
   bindTableScroll,
   rememberTableScroll,
   appliedFilters,

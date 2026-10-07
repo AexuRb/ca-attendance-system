@@ -5,9 +5,12 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -19,6 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TrainingExcelExportServiceTest {
+    @TempDir
+    Path tempDirectory;
+
     private final TrainingExcelExportService exports = new TrainingExcelExportService();
 
     @Test
@@ -30,11 +36,22 @@ class TrainingExcelExportServiceTest {
 
         assertEquals("培训名单导入模板.xlsx", generic.filename());
         assertEquals("培训名单导入模板_系统_安全培训_2026-08-15.xlsx", sessionTemplate.filename());
-        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(sessionTemplate.bytes()))) {
+        Path genericFile = tempDirectory.resolve("training-generic.xlsx");
+        Path sessionFile = tempDirectory.resolve("training-template.xlsx");
+        Files.write(genericFile, generic.bytes());
+        Files.write(sessionFile, sessionTemplate.bytes());
+        try (Workbook workbook = WorkbookFactory.create(genericFile.toFile(), null, true)) {
+            assertEquals("参与名单", workbook.getSheetAt(0).getSheetName());
+            assertEquals(0, workbook.getSheetAt(0).getLastRowNum());
+            assertEquals("@", workbook.getSheetAt(0).getColumnStyle(0).getDataFormatString());
+        }
+        try (Workbook workbook = WorkbookFactory.create(sessionFile.toFile(), null, true)) {
             Sheet participants = workbook.getSheet("参与名单");
             assertNotNull(participants);
             assertEquals(4, participants.getRow(0).getLastCellNum());
             assertEquals("学号", participants.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("姓名", participants.getRow(0).getCell(1).getStringCellValue());
+            assertEquals("时长", participants.getRow(0).getCell(2).getStringCellValue());
             assertEquals("备注", participants.getRow(0).getCell(3).getStringCellValue());
             assertEquals("测试主讲人", participants.getRow(1).getCell(1).getStringCellValue());
             assertEquals(2.0, participants.getRow(1).getCell(2).getNumericCellValue());
@@ -47,6 +64,36 @@ class TrainingExcelExportServiceTest {
             assertEquals(1, participants.getPaneInformation().getHorizontalSplitPosition());
             assertEquals("培训参与名单导入模板",
                     workbook.getSheet("填写说明").getRow(0).getCell(0).getStringCellValue());
+        }
+    }
+
+    @Test
+    void filledTemplateKeepsSpeakerDurationAndTextIdsWhileBlankDurationUsesCurrentDefault() throws Exception {
+        var template = exports.generateImportTemplate(session(), new BigDecimal("2.00"));
+        Path filled = tempDirectory.resolve("training-filled.xlsx");
+        String longNumber = "00123456789012345678901234567890";
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(template.bytes()))) {
+            Sheet sheet = workbook.getSheetAt(0);
+            // Reset POI's inline-string cell before simulating a new text entry.
+            sheet.getRow(1).getCell(0).setBlank();
+            sheet.getRow(1).getCell(0).setCellValue("000001");
+            var last = sheet.createRow(3000);
+            last.createCell(0).setCellValue(longNumber);
+            last.createCell(1).setCellValue("边界测试成员");
+            assertEquals("@", last.getCell(0).getCellStyle().getDataFormatString());
+            try (var output = Files.newOutputStream(filled)) {
+                workbook.write(output);
+            }
+        }
+        try (Workbook workbook = WorkbookFactory.create(filled.toFile(), null, true)) {
+            var parsed = new TrainingParticipantImportParser().parse(workbook.getSheetAt(0), new BigDecimal("3.50"));
+            assertTrue(parsed.errors().isEmpty());
+            assertEquals(2, parsed.rows().size());
+            assertEquals("000001", parsed.rows().getFirst().studentNo());
+            assertEquals("主讲人", parsed.rows().getFirst().remark());
+            assertEquals(new BigDecimal("2.00"), parsed.rows().getFirst().durationHours());
+            assertEquals(longNumber, parsed.rows().getLast().studentNo());
+            assertEquals(new BigDecimal("3.50"), parsed.rows().getLast().durationHours());
         }
     }
 

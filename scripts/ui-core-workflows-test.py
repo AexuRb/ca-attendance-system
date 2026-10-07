@@ -438,6 +438,13 @@ def main() -> None:
             page.locator(".account-picker-current", has_text="2025000001")
         ).to_be_visible()
         page.get_by_role("button", name="取消").click()
+        discard = page.get_by_role("dialog", name="放弃未保存修改", exact=True)
+        expect(discard).to_be_visible()
+        discard.get_by_role("button", name="取消", exact=True).click()
+        expect(page.locator(".account-picker-current", has_text="2025000001")).to_be_visible()
+        page.get_by_role("dialog", name="补录值班记录", exact=True).get_by_role("button", name="取消", exact=True).click()
+        discard.get_by_role("button", name="放弃修改", exact=True).click()
+        expect(page.get_by_role("dialog")).to_have_count(0)
         assert_no_page_overflow(page, "desktop attendance")
         page.screenshot(
             path=str(screenshot_dir / "attendance-desktop.png"),
@@ -489,6 +496,13 @@ def main() -> None:
         page.locator(".schedule-visibility-toggle").click()
         expect(page.locator(".schedule-visibility-toggle input")).not_to_be_checked()
         page.get_by_role("button", name="取消").click()
+        expect(discard).to_be_visible()
+        discard.get_by_role("button", name="取消", exact=True).click()
+        expect(page.get_by_text("2 人已选", exact=True)).to_be_visible()
+        expect(page.locator(".schedule-visibility-toggle input")).not_to_be_checked()
+        page.get_by_role("dialog", name="编辑固定排班", exact=True).get_by_role("button", name="取消", exact=True).click()
+        discard.get_by_role("button", name="放弃修改", exact=True).click()
+        expect(page.get_by_role("dialog")).to_have_count(0)
         assert_no_page_overflow(page, "desktop schedules")
         page.screenshot(
             path=str(screenshot_dir / "schedules-desktop.png"),
@@ -521,6 +535,9 @@ def main() -> None:
             page.locator(".account-picker-current", has_text="测试管理员")
         ).to_be_visible()
         page.get_by_role("button", name="取消").click()
+        expect(discard).to_be_visible()
+        discard.get_by_role("button", name="放弃修改", exact=True).click()
+        expect(page.get_by_role("dialog")).to_have_count(0)
         assert_no_page_overflow(page, "desktop repairs")
         page.screenshot(
             path=str(screenshot_dir / "repairs-desktop.png"),

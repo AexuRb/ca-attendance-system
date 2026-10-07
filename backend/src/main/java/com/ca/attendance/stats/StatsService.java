@@ -96,6 +96,36 @@ public class StatsService {
     }
 
     @Transactional(readOnly = true)
+    public Map<String, Object> memberDetail(long userId, LocalDate from, LocalDate to) {
+        requireManager();
+        validateRange(from, to);
+        if (number("SELECT COUNT(*) FROM users WHERE id = ?", userId) == 0) {
+            throw ApiException.notFound("成员不存在");
+        }
+        List<Map<String, Object>> days = new ArrayList<>();
+        Map<String, Map<String, BigDecimal>> cells = new LinkedHashMap<>();
+        jdbc.queryForList("""
+                SELECT duty_date AS dutyDate, SUM(valid_hours) AS hours
+                FROM attendance_records
+                WHERE user_id = ? AND effective_status = 'VALID' AND duty_date BETWEEN ? AND ?
+                GROUP BY duty_date ORDER BY duty_date
+                """, userId, from, to).forEach(row -> {
+            LocalDate date = toLocalDate(row.get("dutyDate"));
+            days.add(Map.of("dutyDate", date.toString(), "weekday", date.getDayOfWeek().getValue(), "weekdayName", weekdayName(date)));
+            cells.put(date.toString(), Map.of(String.valueOf(userId), decimal(row.get("hours"))));
+        });
+        boolean trainingVisible = true; // STATS_VIEW grants only these minimal source fields.
+        List<Map<String, Object>> training = trainingVisible ? jdbc.queryForList("""
+                SELECT s.training_date AS trainingDate, s.title, p.duration_hours AS durationHours
+                FROM training_participants p JOIN training_sessions s ON s.id = p.session_id
+                WHERE p.user_id = ? AND s.status <> 'ARCHIVED' AND p.duration_hours > 0
+                  AND s.training_date BETWEEN ? AND ?
+                ORDER BY s.training_date, s.start_time, s.id
+                """, userId, from, to) : List.of();
+        return Map.of("days", days, "cells", cells, "users", List.of(), "training", training, "trainingVisible", trainingVisible);
+    }
+
+    @Transactional(readOnly = true)
     public Map<String, Object> weeklyDetail(LocalDate from, LocalDate to) {
         requireManager();
         validateRange(from, to);

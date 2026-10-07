@@ -68,6 +68,37 @@ class StatsServiceIntegrationTest {
     }
 
     @Test
+    void memberDetailIsScopedAndExposesOnlyMinimalTrainingSources() {
+        LocalDate date = LocalDate.of(2026, 10, 7);
+        long otherId = insertUser("other-detail", "其他成员", "MEMBER");
+        for (long id : new long[]{memberId, otherId}) {
+            jdbc.update("""
+                    INSERT INTO attendance_records(user_id, student_no_snapshot, name_snapshot, duty_date, duty_weekday,
+                    check_in_time, check_out_time, check_in_status, check_out_status, duration_minutes, valid_hours, effective_status)
+                    VALUES (?, 'synthetic', '合成成员', ?, 3, ?, ?, 'APPROVED', 'APPROVED', 120, 2, 'VALID')
+                    """, id, date, date.atTime(14, 0), date.atTime(16, 0));
+        }
+        long sessionId = requiredId(jdbc.queryForObject("""
+                INSERT INTO training_sessions(title, training_date, status) VALUES ('来源培训', ?, 'COMPLETED') RETURNING id
+                """, Long.class, date));
+        jdbc.update("""
+                INSERT INTO training_participants(session_id, user_id, student_no_snapshot, name_snapshot, duration_hours, remark)
+                VALUES (?, ?, 'member', '合成成员', 1.5, '不应返回的备注')
+                """, sessionId, memberId);
+        AuthContext.set(new AuthUser(otherId, "minister", "部长", Role.MINISTER, Instant.now().plusSeconds(3600)));
+        var detail = stats.memberDetail(memberId, date, date);
+        var cells = (Map<?, ?>) detail.get("cells");
+        assertEquals(java.util.Set.of(String.valueOf(memberId)), ((Map<?, ?>) cells.get(date.toString())).keySet());
+        var training = (List<?>) detail.get("training");
+        assertEquals(1, training.size());
+        assertEquals(java.util.Set.of("trainingDate", "title", "durationHours"), ((Map<?, ?>) training.getFirst()).keySet());
+        assertEquals(0, ((List<?>) stats.memberDetail(otherId, date, date).get("training")).size());
+        assertThrows(ApiException.class, () -> stats.memberDetail(memberId, date, date.plusDays(366)));
+        AuthContext.set(new AuthUser(memberId, "member", "成员", Role.MEMBER, Instant.now().plusSeconds(3600)));
+        assertThrows(ApiException.class, () -> stats.memberDetail(memberId, date, date));
+    }
+
+    @Test
     void summarySeparatesAttendanceAndTrainingTotals() {
         LocalDate date = LocalDate.of(2026, 7, 24);
         jdbc.update("""

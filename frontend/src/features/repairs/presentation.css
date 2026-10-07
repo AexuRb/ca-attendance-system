@@ -30,26 +30,26 @@ html:root[data-appearance] .training-presentation .training-query-context [data-
 html:root[data-appearance] .training-presentation .training-query-submit { min-width:112px; transition:border-color var(--mw-speed),background-color var(--mw-speed),color var(--mw-speed); }
 html:root[data-appearance] .training-presentation .training-query-submit.has-pending-filters { border-color:var(--mw-accent); color:var(--mw-accent); background:var(--mw-paper); }
 html:root[data-appearance] .training-presentation :is(.training-month-shell,.training-month-ribbon,.training-time-stage,.training-session-overview,.training-participant-section) { min-width:0; margin:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
-html:root[data-appearance] .training-presentation .training-month-ribbon { display:grid; grid-template-columns:220px minmax(0,1fr); grid-template-rows:auto auto; align-items:center; gap:8px 18px; padding:14px 24px; background:var(--mw-soft); border-bottom:1px solid var(--mw-line); }
-html:root[data-appearance] .training-presentation .training-month-header { display:block; grid-column:1; grid-row:1; padding:0; }
+html:root[data-appearance] .training-presentation .training-month-ribbon { display:block; gap:8px 18px; padding:14px 24px; background:var(--mw-soft); border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .training-presentation .training-month-header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding:0 0 10px; }
 html:root[data-appearance] .training-presentation .training-month-switcher { display:flex; align-items:center; gap:10px; }
 html:root[data-appearance] .training-presentation .training-month-switcher h2 { margin:0; font:500 14px/1.7 var(--mw-font); color:var(--mw-ink); }
 html:root[data-appearance] .training-presentation .training-month-switcher span { font:12px/1.6 var(--mw-font); color:var(--mw-muted); }
-html:root[data-appearance] .training-presentation .training-month-summary { display:flex; flex-wrap:wrap; gap:12px; margin:12px 0 0; }
+html:root[data-appearance] .training-presentation .training-month-summary { display:flex; flex-wrap:wrap; gap:12px; margin:0; }
 html:root[data-appearance] .training-presentation .training-month-summary div { display:block; padding:0; border:0; }
 html:root[data-appearance] .training-presentation .training-month-summary dt { font:12px/1.6 var(--mw-font); color:var(--mw-muted); }
 html:root[data-appearance] .training-presentation .training-month-summary dd { margin:0; font:500 13px/1.6 var(--mw-font); color:var(--mw-ink); }
-html:root[data-appearance] .training-presentation .training-ribbon-viewport { grid-column:2; grid-row:1/3; min-width:0; overflow:auto; padding:2px; }
+html:root[data-appearance] .training-presentation .training-ribbon-viewport { max-height:300px; grid-column:2; grid-row:1/3; min-width:0; overflow:auto; padding:2px; }
 html:root[data-appearance] .training-presentation .training-ribbon-track { display:flex; gap:12px; width:max-content; min-width:100%; padding:0; border:0; }
 html:root[data-appearance] .training-presentation .training-ribbon-track::before { content:none; }
-html:root[data-appearance] .training-presentation .training-ribbon-event { display:flex; align-items:center; flex:1 0 240px; gap:18px; padding:12px 16px; width:auto; max-width:360px; min-height:72px; background:var(--mw-control); color:var(--mw-ink); border:1px solid var(--mw-line); border-radius:8px; box-shadow:0 1px 2px #24364807; }
+html:root[data-appearance] .training-presentation .training-ribbon-event { display:grid; grid-template-columns:90px minmax(0,1fr) auto; align-items:center; gap:10px; padding:8px 10px; width:100%; max-width:none; min-height:58px; background:var(--mw-control); color:var(--mw-ink); border:1px solid var(--mw-line); border-radius:8px; box-shadow:0 1px 2px #24364807; }
 html:root[data-appearance] .training-presentation .training-ribbon-event::before,html:root[data-appearance] .training-presentation .training-ribbon-event::after { content:none; }
 html:root[data-appearance] .training-presentation .training-ribbon-event.active { border-color:var(--mw-accent); background:var(--mw-paper); box-shadow:inset 3px 0 var(--mw-accent); }
 html:root[data-appearance] .training-presentation .training-ribbon-event time strong { font:300 26px/1.2 var(--mw-font); }
 html:root[data-appearance] .training-presentation .training-ribbon-event time,html:root[data-appearance] .training-presentation .training-ribbon-event:not(:disabled):hover time,html:root[data-appearance] .training-presentation .training-ribbon-event.active time { transform:none; }
 html:root[data-appearance] .training-presentation .training-ribbon-event:hover { background:color-mix(in srgb,var(--mw-accent) 5%,var(--mw-control)); transform:none; }
 html:root[data-appearance] .training-presentation .training-month-switcher .icon-button:not(:disabled):hover { transform:none; }
-html:root[data-appearance] .training-presentation .training-ribbon-event>span strong { font:500 13px/1.65 var(--mw-font); }
+html:root[data-appearance] .training-presentation .training-ribbon-event>span strong { white-space:normal; overflow:visible; overflow-wrap:anywhere; display:block; font:500 13px/1.65 var(--mw-font); }
 html:root[data-appearance] .training-presentation .training-ribbon-event small { font:12px/1.6 var(--mw-font); color:var(--mw-muted); }
 html:root[data-appearance] .training-presentation .training-time-stage { display:block; }
 html:root[data-appearance] .training-presentation .training-session-overview { display:grid; min-height:0; grid-template-columns:minmax(0,1fr) auto; gap:16px 24px; padding:24px; border-bottom:1px solid var(--mw-line); }
@@ -200,7 +200,7 @@ html:root[data-appearance] .training-presentation .training-participant-section 
 html:root[data-appearance] .training-presentation .training-participant-rows { overflow:visible; }
 html:root[data-appearance] .training-presentation .training-session-heading { text-align:left; align-self:stretch; }
 html:root[data-appearance] .training-presentation .training-session-facts { justify-content:flex-start; align-self:stretch; }
-html:root[data-appearance] .training-presentation .training-ribbon-event time { display:flex; flex-direction:column; flex:0 0 36px; align-items:flex-start; justify-content:center; width:36px; height:auto; padding:0; border:0; border-radius:0; background:none; box-shadow:none; color:var(--mw-muted); }
+html:root[data-appearance] .training-presentation .training-ribbon-event time { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; width:auto; height:auto; padding:0; border:0; border-radius:0; background:none; box-shadow:none; color:var(--mw-muted); }
 html:root[data-appearance] .training-presentation .training-ribbon-event.active time { background:none; box-shadow:none; color:var(--mw-accent); }
 html:root[data-appearance] .training-presentation .training-ribbon-event>span { text-align:left; }
 html:root[data-appearance] .training-presentation .training-month-summary { background:none; border:0; }
@@ -251,3 +251,11 @@ html:root[data-appearance] .affairs-detail .repair-detail-body { overflow:auto; 
 @media(min-width:701px) {
  html:root[data-appearance] .mw-modal:has(#training-session-editor) { width:min(860px,100%); }
 }
+
+@media (min-width:1180px) {
+ html:root[data-appearance=classic] .training-presentation .mw-results { grid-template-columns:340px minmax(0,1fr); }
+ html:root[data-appearance=classic] .training-presentation .training-month-ribbon { display:block; padding:16px; }
+ html:root[data-appearance=classic] .training-presentation .training-ribbon-viewport { max-height:65vh; margin-top:12px; }
+}
+html:root[data-appearance=spatial] .training-presentation .training-list-event { grid-template-columns:minmax(0,1fr) auto; }
+html:root[data-appearance=spatial] .training-presentation .training-list-event time { grid-column:1/-1; }

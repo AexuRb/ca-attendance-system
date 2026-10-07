@@ -33,6 +33,7 @@ export interface AttendanceRecordPage {
 }
 
 export interface AttendanceRecordFilters {
+  userId?: number;
   from: string;
   to: string;
   keyword: string;
@@ -51,7 +52,8 @@ export function attendancePageQuery(
     pageSize: String(pageSize),
   });
   const keyword = filters.keyword.trim();
-  if (keyword) query.set("studentNo", keyword);
+  if (filters.userId != null) query.set("userId", String(filters.userId));
+  else if (keyword) query.set("studentNo", keyword);
   if (filters.status) query.set("status", filters.status);
   return query;
 }

@@ -383,6 +383,29 @@ describe("MembersPage applied query", () => {
 });
 
 describe("MembersPage import", () => {
+  it("requires a successful server preview before sending the confirmed file and token", async () => {
+    mocks.apiPost.mockResolvedValueOnce({ valid: true, created: 1, updated: 0, errorCount: 0, errors: [], warnings: [], changes: [], token: 'preview-revision' })
+      .mockResolvedValueOnce({ created: 1, updated: 0, skipped: 0, errors: [] });
+    const wrapper = mount(MembersPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+    await wrapper.get('.mw-tools .mw-button:not(.primary)').trigger('click');
+    const input = wrapper.get('input[type="file"]');
+    const file = new File(['test'], 'members.xlsx');
+    Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
+    await input.trigger('change');
+    await wrapper.get('[role=dialog] footer .button.primary').trigger('click');
+    await flushPromises();
+    expect(mocks.apiPost).toHaveBeenCalledTimes(1);
+    expect(mocks.apiPost.mock.calls[0][0]).toBe('/api/users/import/preview');
+    expect(wrapper.get('[role=dialog] footer .button.primary').text()).toBe('确认整批导入');
+    await wrapper.get('[role=dialog] footer .button.primary').trigger('click');
+    await flushPromises();
+    expect(mocks.apiPost.mock.calls[1][0]).toBe('/api/users/import');
+    expect(mocks.apiPost.mock.calls[1][1].get('previewToken')).toBe('preview-revision');
+    expect(mocks.apiPost.mock.calls[1][1].get('file')).toBe(file);
+    wrapper.unmount();
+  });
+
   it("keeps a row-specific import error visible in the dialog", async () => {
     mocks.apiPost.mockRejectedValue(
       new Error("成员文件校验未通过，未写入任何成员：第 3 行：姓名不能超过 64 个字符"),

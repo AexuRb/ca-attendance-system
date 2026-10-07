@@ -17,7 +17,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,6 +45,7 @@ class DutyScheduleServiceIntegrationTest {
     private DutyScheduleService schedules;
     private DutyPeriodService periods;
     private DutyWeekdayService weekdays;
+    private DutyScheduleImportService imports;
     private long ministerId;
 
     @BeforeEach
@@ -57,6 +66,7 @@ class DutyScheduleServiceIntegrationTest {
         periods.update(List.of(new DutyPeriodService.DutyPeriodRequest("14:00", "16:00")));
         weekdays = new DutyWeekdayService(jdbc, logs);
         schedules = new DutyScheduleService(jdbc, logs, periods);
+        imports = new DutyScheduleImportService(jdbc, logs, periods);
     }
 
     @AfterEach
@@ -160,6 +170,80 @@ class DutyScheduleServiceIntegrationTest {
         assertTrue(schedules.today(monday).isEmpty());
         assertTrue(schedules.week(monday).isEmpty());
         assertEquals(1, schedules.list().size());
+    }
+
+    @Test
+    void generatedTemplatePreservesTextIdsThroughLastAllowedRowAndReplacesOnlyFilledGroup() throws Exception {
+        weekdays.update(List.of(1, 2));
+        String leadingZero = "000001";
+        String longNumber = "00123456789012345678901234567890";
+        insertUser(leadingZero, "文本部长甲", "MINISTER", "ACTIVE");
+        insertUser(longNumber, "文本部长乙", "MINISTER", "ACTIVE");
+        var monday = schedules.create(request(1, "1001"));
+        var tuesday = schedules.create(request(2, "1001"));
+        Path template = tempDirectory.resolve("schedule-template.xlsx");
+        Files.write(template, imports.exportTemplate().bytes());
+
+        byte[] filled;
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(Files.readAllBytes(template)))) {
+            Sheet sheet = workbook.getSheetAt(0);
+            assertEquals("排班导入", sheet.getSheetName());
+            assertEquals(4, sheet.getRow(0).getLastCellNum());
+            assertEquals(List.of("星期", "值班时段", "学号", "姓名"),
+                    java.util.stream.IntStream.range(0, 4)
+                            .mapToObj(i -> sheet.getRow(0).getCell(i).getStringCellValue()).toList());
+            assertEquals(2, sheet.getLastRowNum());
+            assertEquals("星期一", sheet.getRow(1).getCell(0).getStringCellValue());
+            assertEquals("星期二", sheet.getRow(2).getCell(0).getStringCellValue());
+            assertEquals("14:00-16:00", sheet.getRow(1).getCell(1).getStringCellValue());
+            assertEquals("@", sheet.getColumnStyle(2).getDataFormatString());
+            assertEquals("@", sheet.getRow(1).getCell(2).getCellStyle().getDataFormatString());
+            assertEquals("", sheet.getRow(1).getCell(2).getStringCellValue());
+            assertEquals("", sheet.getRow(1).getCell(3).getStringCellValue());
+            assertEquals("", sheet.getRow(2).getCell(2).getStringCellValue());
+            assertEquals("", sheet.getRow(2).getCell(3).getStringCellValue());
+            assertTrue(sheet.getPaneInformation().isFreezePane());
+            assertEquals(1, sheet.getPaneInformation().getHorizontalSplitPosition());
+            sheet.getRow(1).getCell(2).setCellValue(leadingZero);
+            Row last = sheet.createRow(1000);
+            last.createCell(0).setCellValue("星期一");
+            last.createCell(1).setCellValue("14:00-16:00");
+            last.createCell(2).setCellValue(longNumber);
+            assertEquals("@", last.getCell(2).getCellStyle().getDataFormatString());
+            try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                workbook.write(output);
+                filled = output.toByteArray();
+            }
+        }
+        Path filledFile = tempDirectory.resolve("schedule-filled.xlsx");
+        Files.write(filledFile, filled);
+        try (Workbook reopened = WorkbookFactory.create(filledFile.toFile(), null, true)) {
+            assertEquals(leadingZero, reopened.getSheetAt(0).getRow(1).getCell(2).getStringCellValue());
+            assertEquals(longNumber, reopened.getSheetAt(0).getRow(1000).getCell(2).getStringCellValue());
+        }
+        var preview = imports.preview(scheduleFile(filled));
+        assertTrue(preview.valid());
+        assertEquals(2, preview.sourceRows());
+        assertEquals(1, preview.groupCount());
+        imports.importSchedules(scheduleFile(filled));
+        assertEquals(List.of(leadingZero, longNumber), jdbc.queryForList(
+                "SELECT student_no_snapshot FROM duty_schedule_assignees WHERE slot_id = ? ORDER BY sort_order",
+                String.class, monday.id()));
+        assertEquals(List.of("1001"), jdbc.queryForList(
+                "SELECT student_no_snapshot FROM duty_schedule_assignees WHERE slot_id = ?",
+                String.class, tuesday.id()));
+        try (Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(Files.readAllBytes(filledFile)));
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            workbook.getSheetAt(0).createRow(1001).createCell(2).setCellValue("");
+            workbook.write(output);
+            assertTrue(imports.preview(scheduleFile(output.toByteArray())).issues().stream()
+                    .anyMatch(issue -> issue.message().contains("1000")));
+        }
+    }
+
+    private MockMultipartFile scheduleFile(byte[] bytes) {
+        return new MockMultipartFile("file", "schedule.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", bytes);
     }
 
     private DutyScheduleService.SlotRequest request(String studentNo) {

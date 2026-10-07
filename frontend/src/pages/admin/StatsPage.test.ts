@@ -44,6 +44,25 @@ afterEach(() => {
 });
 
 describe("StatsPage request states", () => {
+  it("filters and sorts loaded results without changing the full-range metrics or fetching", async () => {
+    const members = [{ ...row('甲'), userId: 1, studentNo: '9900000001', trainingHours: 5, attendanceHours: 1, totalHours: 6 },
+      { ...row('乙'), userId: 2, studentNo: '9900000002', trainingHours: 1, attendanceHours: 9, totalHours: 10 }];
+    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('weekly-detail') ? { days: [], users: members, cells: {} } : members));
+    const wrapper = mount(StatsPage);
+    await flushPromises();
+    await wrapper.findAll('.segmented button')[1].trigger('click');
+    await flushPromises();
+    const calls = apiGet.mock.calls.length;
+    await wrapper.get('.stats-result-tools select').setValue('training');
+    expect(wrapper.findAll('.stats-ranking-table tbody tr')[0].text()).toContain('甲');
+    await wrapper.get('.stats-result-tools input').setValue('000002');
+    expect(wrapper.findAll('.stats-ranking-table tbody tr')).toHaveLength(1);
+    expect(wrapper.get('.stats-result-tools').text()).toContain('全范围 2 人 · 筛出 1 人');
+    expect(wrapper.get('.workspace-metric-hours').text()).toContain('16');
+    expect(apiGet.mock.calls.length).toBe(calls);
+    wrapper.unmount();
+  });
+
   it("retains successful statistics on failure and retries the captured range without committing draft dates", async () => {
     apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('weekly-detail')
       ? { days: [], users: [row('原结果')], cells: {} } : [row('原结果')]));
@@ -189,8 +208,8 @@ describe("StatsPage request states", () => {
 
   it("opens a member detail from the monthly ranking and loads the applied range", async () => {
     apiGet.mockImplementation((url: string) => Promise.resolve(
-      url.includes("weekly-detail")
-        ? { days: [{ dutyDate: "2026-08-25", weekday: 2, weekdayName: "周二" }, { dutyDate: "2026-09-01", weekday: 2, weekdayName: "周二" }], users: [], cells: { "2026-08-25": { "1": 1 }, "2026-09-01": { "1": 2 } } }
+      url.includes("detail")
+        ? { training: [], trainingVisible: true, days: [{ dutyDate: "2026-08-25", weekday: 2, weekdayName: "周二" }, { dutyDate: "2026-09-01", weekday: 2, weekdayName: "周二" }], users: [], cells: { "2026-08-25": { "1": 1 }, "2026-09-01": { "1": 2 } } }
         : [{ ...row("示例成员"), userId: 1, dutyCount: 1 }],
     ));
     const wrapper = mount(StatsPage);
@@ -204,7 +223,7 @@ describe("StatsPage request states", () => {
     expect(document.body.textContent).toContain("2026-08-25");
     expect(document.body.textContent).toContain("2026年8月");
     expect(document.body.textContent).toContain("2026年9月");
-    expect(apiGet.mock.calls.some(([url]) => String(url).includes("/weekly-detail?from="))).toBe(true);
+    expect(apiGet.mock.calls.some(([url]) => String(url).includes("/member-detail?from="))).toBe(true);
     wrapper.unmount();
   });
 });

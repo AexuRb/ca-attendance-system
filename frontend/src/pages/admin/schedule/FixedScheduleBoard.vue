@@ -3,6 +3,30 @@
     v-if="periods.length && visibleWeekdays.length"
     class="schedule-focus-board"
   >
+    <div class="segmented schedule-view-switch" aria-label="排班视图">
+      <button type="button" :class="{ active: view === 'week' }" :aria-pressed="view === 'week'" @click="view = 'week'">整周概览</button>
+      <button type="button" :class="{ active: view === 'day' }" :aria-pressed="view === 'day'" @click="view = 'day'">按日编辑</button>
+    </div>
+    <div v-if="view === 'week'" class="schedule-week-scroll" tabindex="0" aria-label="整周排班矩阵，可横向滚动">
+      <table class="schedule-week-matrix">
+        <thead><tr><th scope="col">星期 / 时段</th><th v-for="period in periods" :key="periodKey(period)" scope="col">{{ periodKey(period) }}</th></tr></thead>
+        <tbody><tr v-for="day in weekdays" :key="day.value">
+          <th scope="row">{{ day.label }}<small v-if="!day.enabled">未开放</small></th>
+          <td v-for="period in periods" :key="periodKey(period)">
+            <template v-if="slotsFor(day.value, period).length">
+              <button v-for="slot in slotsFor(day.value, period)" :key="slot.id" type="button" class="schedule-week-slot" @click="view = 'day'; selectWeekday(day.value)">
+                <strong>{{ slot.title }}</strong>
+                <span>{{ slot.assignees?.length ? slot.assignees.map(person => person.name).join('、') : '已建排班 · 暂无人' }}</span>
+                <small v-if="!slot.enabled || !day.enabled">签到台隐藏</small>
+              </button>
+            </template>
+            <button v-else-if="day.enabled && !readOnly" class="button text small" type="button" @click="addAt(day.value, period)">未建排班 · 新增</button>
+            <span v-else>{{ day.enabled ? '未建排班' : '未开放' }}</span>
+          </td>
+        </tr></tbody>
+      </table>
+    </div>
+    <template v-if="view === 'day'">
     <nav ref="dayNav" class="schedule-focus-days" aria-label="选择排班星期">
       <button
         v-for="day in visibleWeekdays"
@@ -33,7 +57,6 @@
         :aria-label="`${selectedDay?.label}排班概览`"
       >
         <section class="schedule-focus-panel">
-          <h3>{{ selectedDay?.label }}概览</h3>
           <dl class="schedule-focus-stats">
             <div>
               <dt>固定排班</dt>
@@ -101,6 +124,7 @@
       </section>
     </div>
     </Transition>
+    </template>
   </div>
   <EmptyState
     v-else
@@ -110,12 +134,15 @@
         : '请先在系统设置中添加值班时间段'
     "
     description="完成值班时段和开放星期设置后，即可在这里安排固定排班。"
-  />
+  >
+    <RouterLink v-if="!readOnly" class="button primary" :to="{ path: '/admin/settings', hash: periods.length ? '#settings-weekdays' : '#settings-periods' }">设置值班星期与时段</RouterLink>
+  </EmptyState>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { Plus } from "@lucide/vue";
+import { RouterLink } from "vue-router";
 import EmptyState from "../../../shared/ui/EmptyState.vue";
 import FixedScheduleCard from "./FixedScheduleCard.vue";
 import type { DutyPeriod } from "../../../features/settings/dutyPeriods";
@@ -153,6 +180,7 @@ const visibleWeekdays = computed(() => {
 });
 
 const selectedWeekday = ref(initialWeekday());
+const view = ref<'week' | 'day'>('day');
 const motionDirection = ref(1);
 const dayNav = ref<HTMLElement | null>(null);
 const selectedDay = computed(() =>
@@ -224,6 +252,11 @@ function selectWeekday(weekday: number) {
   emit("weekday-change", weekday);
 }
 
+function addAt(weekday: number, period: DutyPeriod) {
+  selectWeekday(weekday);
+  emit('add', weekday, periodKey(period));
+}
+
 function slotsFor(weekday: number, period: DutyPeriod) {
   const key = periodKey(period);
   return props.slots.filter(
@@ -265,3 +298,14 @@ function shortTime(value?: string) {
   return value?.slice(0, 5) || "";
 }
 </script>
+
+<style scoped>
+.schedule-view-switch { grid-column: 1 / -1; justify-self: start; }
+.schedule-week-scroll { grid-column: 1 / -1; overflow: auto; max-height: 65vh; min-width: 0; }
+.schedule-week-matrix { width: 100%; border-collapse: collapse; font-size: 13px; }
+.schedule-week-matrix th, .schedule-week-matrix td { padding: 12px; min-width: 150px; border: 1px solid var(--border-soft, #dce2e8); vertical-align: top; }
+.schedule-week-matrix th:first-child { position: sticky; left: 0; min-width: 84px; background: var(--admin-surface, white); z-index: 1; }
+.schedule-week-matrix thead th { position: sticky; top: 0; background: var(--admin-surface, white); }
+.schedule-week-matrix small { display: block; font-size: 12px; margin-top: 4px; }
+.schedule-week-slot { display: grid; gap: 6px; width: 100%; text-align: left; padding: 10px; border: 1px solid var(--border-soft, #dce2e8); background: var(--admin-surface, white); color: inherit; cursor: pointer; margin-bottom: 6px; overflow-wrap: anywhere; }
+</style>

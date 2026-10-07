@@ -421,12 +421,18 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public AttendanceRepository.AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo,
                                                           String status, int page, int pageSize) {
+        return searchPage(from, to, studentNo, status, page, pageSize, null);
+    }
+
+    @Transactional(readOnly = true)
+    public AttendanceRepository.AttendancePage searchPage(LocalDate from, LocalDate to, String studentNo,
+                                                          String status, int page, int pageSize, Long userId) {
         RolePermissionPolicy.require(AuthContext.current().role(),
                 RolePermissionPolicy.Permission.ATTENDANCE_MANAGE,
                 "无权查看全部记录");
         validateDateRange(from, to);
         PaginationPolicy.PageRequest paging = PaginationPolicy.normalize(page, pageSize);
-        return records.searchPage(from, to, studentNo, normalizeEffectiveStatusFilter(status), paging.page(), paging.pageSize());
+        return records.searchPage(from, to, studentNo, normalizeEffectiveStatusFilter(status), paging.page(), paging.pageSize(), userId);
     }
 
     public List<UserRepository.UserCandidate> manualCandidates(String keyword) {

@@ -54,6 +54,12 @@
         <span aria-live="polite">当前结果 <strong>{{ loadedRange.from }} — {{ loadedRange.to }}</strong></span>
         <QueryStatus :class="{ 'stats-results-context__pending': rangeDirty && !loading && !loadError }" :loading="loading" :failed="Boolean(loadError)" :dirty="rangeDirty" loading-text="正在更新统计…" failed-text="统计未成功，重试将沿用上次请求日期" dirty-text="日期已修改，点击“统计”应用" />
       </div>
+      <div v-if="loaded && loadedPreset !== 'week'" class="stats-result-tools">
+        <label>结果内查找 <input v-model="keyword" type="search" placeholder="姓名或学号" /></label>
+        <label>排序 <select v-model="sort"><option value="total">合计时长优先</option><option value="duty">值班时长优先</option><option value="training">培训时长优先</option></select></label>
+        <span aria-live="polite">全范围 {{ rows.length }} 人 · 筛出 {{ visibleRows.length }} 人；导出包含全范围成员</span>
+      </div>
+      <p v-if="loaded && hasData && loadedPreset !== 'week' && !visibleRows.length" class="stats-result-tools" role="status">当前结果中没有匹配成员，请调整姓名或学号。</p>
       <LoadingBlock v-if="loading && !loaded" />
       <EmptyState v-else-if="loadError && !loaded" title="统计结果暂不可用" description="请使用上方的重试按钮重新获取统计结果" />
       <EmptyState v-else-if="loaded && !hasData" title="该时间段暂无有效统计" />
@@ -65,7 +71,7 @@
         :disabled="loading || Boolean(loadError)"
         @select-member="openMemberById"
       />
-      <div v-else class="table-shell stats-ranking-table">
+      <div v-else :ref="el => resultScroll = el as HTMLElement | null" class="table-shell stats-ranking-table">
         <table>
         <thead>
           <tr>
@@ -81,7 +87,7 @@
         </thead>
         <tbody>
           <tr
-            v-for="(item, index) in rows"
+            v-for="(item, index) in visibleRows"
             :key="item.userId || item.studentNo"
           >
             <td>
@@ -102,7 +108,7 @@
         </table>
       </div>
       <ol v-if="loadedPreset !== 'week'" class="stats-ranking-mobile" aria-label="成员时长排行">
-        <li v-for="(item, index) in rows" :key="item.userId || item.studentNo" class="stats-ranking-mobile-record">
+        <li v-for="(item, index) in visibleRows" :key="item.userId || item.studentNo" class="stats-ranking-mobile-record">
           <div class="stats-ranking-mobile-record__head">
             <span class="rank" :data-rank="index + 1">{{ index + 1 }}</span>
             <div class="stats-ranking-mobile-record__person"><strong>{{ item.name }}</strong><small>{{ item.studentNo }} · {{ item.grade || '年级未知' }} · {{ roleLabel(item.role) }}</small></div>
@@ -127,6 +133,11 @@
       :to="loadedRange.to"
       :loading="memberDetailLoading"
       :error="memberDetail ? '' : memberDetailError"
+      :has-previous="memberIndex > 0"
+      :has-next="memberIndex >= 0 && memberIndex < visibleRows.length - 1"
+      @previous="adjacentMember(-1)"
+      @next="adjacentMember(1)"
+      @records="openRecords"
       @close="closeMemberDetail"
       @retry="fetchMemberDetail"
     />
@@ -151,6 +162,7 @@ import { effectiveDutyCount } from "../../features/stats/statsSummary";
 import { useStatsWorkspace } from "../../features/stats/useStatsWorkspace";
 
 const {
+  keyword, sort, visibleRows, resultScroll, memberIndex, adjacentMember, openRecords,
   actions,
   applyPreset,
   captureExportButton,

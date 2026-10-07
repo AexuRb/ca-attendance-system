@@ -178,3 +178,10 @@ html:root[data-appearance] .stats-presentation .stats-result-swap-leave-to { opa
 @media (prefers-reduced-motion:reduce) {
   html:root[data-appearance] .stats-presentation :is(.stats-result-swap-enter-active,.stats-result-swap-leave-active) { transition:none; }
 }
+
+html:root[data-appearance] .stats-result-tools { display:flex; flex-wrap:wrap; align-items:end; gap:12px; padding:12px 20px; border-bottom:1px solid var(--mw-line); }
+html:root[data-appearance] .stats-result-tools label { display:grid; gap:4px; font-size:12px; }
+html:root[data-appearance] .stats-result-tools > span { font-size:12px; padding-block:10px; }
+html:root[data-appearance] .stats-detail-navigation { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:12px 0; }
+html:root[data-appearance] .stats-detail-training { margin-top:20px; }
+html:root[data-appearance] .stats-detail-training li { padding:8px 0; overflow-wrap:anywhere; }

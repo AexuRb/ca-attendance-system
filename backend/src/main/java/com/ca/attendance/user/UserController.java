@@ -54,8 +54,14 @@ public class UserController {
     }
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public UserService.ImportResult importMembers(@RequestParam("file") MultipartFile file) {
-        return users.importMembers(file);
+    public UserService.ImportResult importMembers(@RequestParam("file") MultipartFile file,
+                                                   @RequestParam(required = false) String previewToken) {
+        return users.importMembers(file, previewToken);
+    }
+
+    @PostMapping(value = "/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserService.ImportPreview previewImport(@RequestParam("file") MultipartFile file) {
+        return users.previewImport(file);
     }
 
     @PutMapping("/bulk-status")

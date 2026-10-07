@@ -146,6 +146,11 @@ public class UserService {
 
     @Transactional
     public ImportResult importMembers(MultipartFile file) {
+        return importMembers(file, null);
+    }
+
+    @Transactional
+    public ImportResult importMembers(MultipartFile file, String previewToken) {
         AuthUser current = AuthContext.current();
         RolePermissionPolicy.require(current.role(),
                 RolePermissionPolicy.Permission.MEMBERS_MANAGE,
@@ -157,7 +162,11 @@ public class UserService {
             if (sheet == null) {
                 throw ApiException.badRequest("Excel 文件没有工作表");
             }
-            ImportResult result = importMembersFromSheet(sheet, current, new ExcelCellTextReader(workbook));
+            ValidatedImport prepared = validateImportSheet(sheet, current, new ExcelCellTextReader(workbook));
+            if (previewToken != null && !previewToken.equals(importPreview(prepared).token())) {
+                throw ApiException.conflict("成员数据或文件已变化，请重新校验预览后确认");
+            }
+            ImportResult result = applyImport(prepared, current);
             if (!result.errors().isEmpty()) {
                 throw ApiException.badRequest(importFailureMessage("成员文件校验未通过", result.errors()));
             }
@@ -171,6 +180,63 @@ public class UserService {
             throw ApiException.badRequest("Excel 文件读取失败，请确认文件格式正确");
         }
     }
+
+    @Transactional(readOnly = true)
+    public ImportPreview previewImport(MultipartFile file) {
+        AuthUser current = AuthContext.current();
+        RolePermissionPolicy.require(current.role(), RolePermissionPolicy.Permission.MEMBERS_MANAGE,
+                "只有会长或管理员可以批量导入成员");
+        ExcelImportPolicy.validateFile(file, "成员");
+        try (InputStream input = file.getInputStream(); Workbook workbook = WorkbookFactory.create(input)) {
+            if (workbook.getNumberOfSheets() == 0) throw ApiException.badRequest("Excel 文件没有工作表");
+            return importPreview(validateImportSheet(workbook.getSheetAt(0), current, new ExcelCellTextReader(workbook)));
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw ApiException.badRequest("Excel 文件读取失败，请确认文件格式正确");
+        }
+    }
+
+    private ImportPreview importPreview(ValidatedImport prepared) {
+        List<ImportChange> changes = new ArrayList<>();
+        StringBuilder revision = new StringBuilder(prepared.toString());
+        int created = 0;
+        int updated = 0;
+        for (ValidatedImportMember member : prepared.members()) {
+            Map<String, Object> before = member.existing() ? jdbc.queryForMap(
+                    "SELECT id, name, phone, major, grade, qq, role, status, updated_at FROM users WHERE student_no = ?", member.studentNo()) : Map.of();
+            revision.append(before);
+            List<FieldChange> fields = new ArrayList<>();
+            previewField(fields, "姓名", before.get("name"), member.name(), false);
+            previewField(fields, "学院", before.get("major"), member.college(), false);
+            previewField(fields, "年级", before.get("grade"), member.grade(), false);
+            previewField(fields, "电话", before.get("phone"), member.phone(), true);
+            previewField(fields, "QQ", before.get("qq"), member.qq(), true);
+            if (member.existing()) updated++; else created++;
+            changes.add(new ImportChange(member.studentNo(), member.name(), member.existing() ? "更新" : "新增", fields));
+        }
+        String token;
+        try {
+            token = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(revision.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException(ex);
+        }
+        return new ImportPreview(prepared.issues().isEmpty(), created, updated, prepared.skipped() - prepared.warnings().size(), prepared.issues(), changes, token, prepared.warnings());
+    }
+
+    private void previewField(List<FieldChange> fields, String label, Object rawBefore, String after, boolean sensitive) {
+        String before = rawBefore == null ? "" : String.valueOf(rawBefore);
+        if (after == null || before.equals(after)) return;
+        fields.add(new FieldChange(label, sensitive ? (before.isBlank() ? "未填写" : "已填写") : before,
+                sensitive ? "将更新" : after));
+    }
+
+    public record FieldChange(String field, String before, String after) {}
+    public record ImportChange(String studentNo, String name, String action, List<FieldChange> fields) {}
+    public record ImportPreview(boolean valid, int created, int updated, int errorCount, List<String> errors,
+                                List<ImportChange> changes, String token, List<String> warnings) {}
+    private record ValidatedImport(List<ValidatedImportMember> members, int skipped, List<String> issues, List<String> warnings) {}
 
     @Transactional
     public void updateProfile(ProfileRequest request) {
@@ -406,7 +472,7 @@ public class UserService {
         return safetyBackup == null ? text : text + "；停用前自动备份：" + safetyBackup.filename();
     }
 
-    private ImportResult importMembersFromSheet(Sheet sheet, AuthUser current, ExcelCellTextReader reader) {
+    private ValidatedImport validateImportSheet(Sheet sheet, AuthUser current, ExcelCellTextReader reader) {
         int headerRowIndex = findHeaderRow(sheet, reader);
         Map<String, Integer> columns = headerRowIndex >= 0
                 ? readHeaderColumns(sheet.getRow(headerRowIndex), reader)
@@ -414,12 +480,11 @@ public class UserService {
         int startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 2;
         ExcelImportPolicy.validateRowCount(sheet, startRow, "成员");
 
-        int created = 0;
-        int updated = 0;
         int skipped = 0;
         List<String> issues = new ArrayList<>();
         Set<String> seenStudentNos = new LinkedHashSet<>();
         List<ValidatedImportMember> validated = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
 
         for (int i = startRow; i <= sheet.getLastRowNum(); i++) {
             Row row = sheet.getRow(i);
@@ -441,9 +506,12 @@ public class UserService {
             try {
                 studentNo = UserInputPolicy.accountReference(candidate.studentNo());
                 existing = userExists(studentNo);
-                if (!existing) {
-                    studentNo = UserInputPolicy.newStudentNo(studentNo);
+                if (existing && userRole(studentNo) == Role.ADMIN && current.role() != Role.ADMIN) {
+                    skipped++;
+                    warnings.add("第 " + (i + 1) + " 行：管理员账号已跳过，未作修改");
+                    continue;
                 }
+                if (!existing) studentNo = UserInputPolicy.newStudentNo(studentNo);
                 name = UserInputPolicy.name(candidate.name());
                 phone = UserInputPolicy.phone(candidate.phone());
                 college = UserInputPolicy.college(candidate.major());
@@ -459,19 +527,19 @@ public class UserService {
                 addImportIssue(issues, "第 " + (i + 1) + " 行：学号在本次文件中重复");
                 continue;
             }
-
-            if (existing && userRole(studentNo) == Role.ADMIN && current.role() != Role.ADMIN) {
-                skipped++;
-                addImportIssue(issues, "第 " + (i + 1) + " 行：会长不能通过导入修改管理员账号");
-                continue;
-            }
             validated.add(new ValidatedImportMember(studentNo, name, phone, college, grade, qq, existing));
         }
 
-        if (!issues.isEmpty()) {
-            return new ImportResult(0, 0, skipped, issues);
-        }
+        return new ValidatedImport(validated, skipped, issues, warnings);
+    }
 
+    private ImportResult applyImport(ValidatedImport prepared, AuthUser current) {
+        List<ValidatedImportMember> validated = prepared.members();
+        List<String> issues = prepared.issues();
+        int skipped = prepared.skipped();
+        if (!issues.isEmpty()) return new ImportResult(0, 0, skipped, issues);
+        int created = 0;
+        int updated = 0;
         for (ValidatedImportMember member : validated) {
             String studentNo = member.studentNo();
             String name = member.name();
@@ -521,7 +589,7 @@ public class UserService {
             }
         }
 
-        return new ImportResult(created, updated, skipped, issues);
+        return new ImportResult(created, updated, skipped, issues, prepared.warnings());
     }
 
     private String importFailureMessage(String summary, List<String> issues) {
@@ -735,7 +803,10 @@ public class UserService {
     public record BulkStatusResult(int updated, int unchanged, int skipped, List<String> errors, BackupService.BackupItem safetyBackup) {
     }
 
-    public record ImportResult(int created, int updated, int skipped, List<String> errors) {
+    public record ImportResult(int created, int updated, int skipped, List<String> errors, List<String> warnings) {
+        public ImportResult(int created, int updated, int skipped, List<String> errors) {
+            this(created, updated, skipped, errors, List.of());
+        }
     }
 
     private record ValidatedImportMember(String studentNo, String name, String phone, String college,

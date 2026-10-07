@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition :name="memberPresentation ? 'mw-modal' : 'modal'">
-      <div v-if="open" :class="memberPresentation ? 'mw-backdrop mw-scope' : 'modal-backdrop'" @mousedown.self="$emit('close')">
+      <div v-if="open" :class="[memberPresentation ? 'mw-backdrop mw-scope' : 'modal-backdrop', { 'is-side-panel': sidePanel }]" @mousedown.self="$emit('close')">
         <section
           ref="dialog"
           :class="[memberPresentation ? 'mw-modal' : 'modal-shell', size ? `modal-${size}` : '']"
@@ -47,6 +47,7 @@ const props = defineProps<{
   open: boolean;
   title: string;
   eyebrow?: string;
+  sidePanel?: boolean;
   size?: "sm" | "lg" | "xl";
 }>();
 const emit = defineEmits<{ close: [] }>();
@@ -57,3 +58,9 @@ useDialogFocus({
   close: () => emit("close"),
 });
 </script>
+
+<style scoped>
+.is-side-panel { justify-content: flex-end !important; grid-template-rows: minmax(0, 1fr); padding: 12px !important; }
+.is-side-panel > section { height: 100%; max-height: 100% !important; width: min(740px, 100%); margin: 0; }
+@media (max-width: 680px) { .is-side-panel { padding: 4px !important; } .is-side-panel > section { width: 100%; } }
+</style>

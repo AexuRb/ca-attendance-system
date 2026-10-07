@@ -36,9 +36,10 @@ public class AttendanceController {
             @RequestParam(required = false) String studentNo,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize
+            @RequestParam(defaultValue = PaginationPolicy.DEFAULT_PAGE_SIZE_TEXT) int pageSize,
+            @RequestParam(required = false) Long userId
     ) {
-        return attendance.searchPage(from, to, studentNo, status, page, pageSize);
+        return attendance.searchPage(from, to, studentNo, status, page, pageSize, userId);
     }
 
     @GetMapping("/manual-candidates")

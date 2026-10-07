@@ -57,29 +57,17 @@
         class="training-ribbon-viewport"
         @scroll="$emit('scroll')"
       >
-        <div
-          class="training-ribbon-track"
-          :style="{ '--training-event-count': orderedItems.length }"
-        >
-          <button
-            v-for="item in orderedItems"
-            :key="item.id"
-            class="training-ribbon-event"
-            :class="{ active: item.id === selectedId }"
-            type="button"
-            :aria-pressed="item.id === selectedId"
-            @click="$emit('select', item)"
-          >
-            <time :datetime="item.trainingDate">
-              <strong>{{ day(item.trainingDate) }}</strong>
-              <small>{{ weekday(item.trainingDate) }}</small>
-            </time>
-            <span>
-              <strong>{{ item.title }}</strong>
-              <small>{{ item.participantCount || 0 }} 人</small>
-            </span>
+        <p class="training-list-scope">当前页 {{ items.length }} / {{ total }} 场 · 按日期分组；翻页查看其余场次</p>
+        <section v-for="group in dateGroups" :key="group.date" class="training-date-group">
+          <h3>{{ group.date }} · {{ weekday(group.date) }}</h3>
+          <button v-for="item in group.items" :key="item.id" class="training-ribbon-event training-list-event"
+            :class="{ active: item.id === selectedId }" type="button" :aria-pressed="item.id === selectedId"
+            :disabled="loading || Boolean(error)" @click="$emit('select', item)">
+            <time :datetime="item.trainingDate">{{ item.startTime?.slice(0, 5) || '时间未填' }}<template v-if="item.endTime">–{{ item.endTime.slice(0, 5) }}</template></time>
+            <span><strong>{{ item.title }}</strong><small>{{ item.location || '地点未填' }}</small></span>
+            <small>{{ item.participantCount || 0 }} 人</small>
           </button>
-        </div>
+        </section>
       </div>
       <div v-else-if="!loading && !error" class="training-ribbon-empty">
         <CalendarRange aria-hidden="true" />
@@ -149,6 +137,15 @@ const orderedItems = computed(() =>
     ),
   ),
 );
+const dateGroups = computed(() => {
+  const groups = new Map<string, TrainingSession[]>();
+  for (const item of orderedItems.value) {
+    const group = groups.get(item.trainingDate) || [];
+    group.push(item);
+    groups.set(item.trainingDate, group);
+  }
+  return [...groups].map(([date, items]) => ({ date, items }));
+});
 const participantTotal = computed(() =>
   props.items.reduce((sum, item) => sum + Number(item.participantCount || 0), 0),
 );
@@ -179,9 +176,6 @@ watch(
   { deep: true },
 );
 
-function day(value: string) {
-  return value.slice(8, 10) || "--";
-}
 
 function weekday(value: string) {
   const [year = 0, month = 0, dayValue = 0] = value.split("-").map(Number);
@@ -200,3 +194,15 @@ function reducedMotion() {
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 </script>
+
+<style scoped>
+.training-ribbon-viewport { overflow: auto; max-height: 340px; }
+.training-list-scope { font-size: 12px; margin: 0 0 8px; }
+.training-date-group h3 { font-size: 13px; margin: 10px 0 4px; }
+.training-list-event { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto; align-items: center; width: 100%; min-width: 0; min-height: 58px; padding: 8px 12px; gap: 12px; text-align: left; }
+.training-list-event time { font-size: 12px; }
+.training-list-event > span { min-width: 0; }
+.training-list-event > span strong { white-space: normal; overflow: visible; display: block; overflow-wrap: anywhere; }
+.training-list-event small { display: block; font-size: 12px; }
+@media (max-width: 680px) { .training-list-event { grid-template-columns: 86px minmax(0, 1fr) auto; gap: 8px; } }
+</style>

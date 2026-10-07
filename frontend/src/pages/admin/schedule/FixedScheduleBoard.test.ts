@@ -14,6 +14,15 @@ const weekdays = [
 ];
 
 describe("FixedScheduleBoard", () => {
+  it("opens an empty matrix cell with its weekday and period and marks closed days", async () => {
+    const wrapper = mount(FixedScheduleBoard, { props: { periods, weekdays: [...weekdays, { value: 3, label: "星期三", short: "周三", enabled: false }], slots: [] } });
+    await wrapper.get('.schedule-view-switch button').trigger('click');
+    expect(wrapper.get('.schedule-week-matrix').text()).toContain('未开放');
+    await wrapper.get('.schedule-week-matrix td button').trigger('click');
+    expect(wrapper.emitted('add')?.[0]).toEqual([1, '14:00-16:00']);
+    wrapper.unmount();
+  });
+
   it("renders a focused weekday schedule with a contextual action for empty periods", async () => {
     const wrapper = mount(FixedScheduleBoard, {
       props: {

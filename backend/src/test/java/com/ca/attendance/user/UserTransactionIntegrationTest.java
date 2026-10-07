@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -281,13 +282,10 @@ class UserTransactionIntegrationTest {
                 Instant.now().plusSeconds(3600)
         ));
 
-        ApiException exception = assertThrows(ApiException.class, () -> users.importMembers(memberImportFile(
-                "9900000001",
-                "越权修改管理员"
-        )));
-
-        assertTrue(exception.getMessage().contains("管理员"));
-        assertTrue(exception.getMessage().contains("未写入"));
+        var result = users.importMembers(memberImportFile("9900000001", "越权修改管理员"));
+        assertEquals(1, result.skipped());
+        assertEquals(0, result.created() + result.updated());
+        assertTrue(result.warnings().getFirst().contains("管理员"));
         assertEquals("受保护管理员", name(protectedAdminId));
     }
 
@@ -325,22 +323,59 @@ class UserTransactionIntegrationTest {
     }
 
     @Test
-    void presidentMixedRoleImportLeavesAllProfilesUnchanged() throws Exception {
+    void previewRejectsStaleDataAndNeverWrites() throws Exception {
+        long memberId = insertMember("tx-preview", "原成员");
+        var file = memberImportFile("tx-preview", "导入成员");
+        var preview = users.previewImport(file);
+        assertTrue(preview.valid());
+        assertEquals("原成员", name(memberId));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+        jdbc.update("UPDATE users SET name = '并发修改' WHERE id = ?", memberId);
+        assertThrows(ApiException.class, () -> users.importMembers(file, preview.token()));
+        assertEquals("并发修改", name(memberId));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void invalidMemberStillRejectsBatchWhenAdminIsSkipped() throws Exception {
+        long memberId = insertMember("tx-skip-member", "原成员");
+        long presidentId = insertPresident("tx-skip-president", "会长");
+        AuthContext.set(new AuthUser(presidentId, "tx-skip-president", "会长", Role.PRESIDENT, Instant.now().plusSeconds(3600)));
+        var file = memberImportFile(List.of(new String[]{"tx-admin", "管理员"},
+                new String[]{"tx-skip-member", "修改成员"}, new String[]{"bad-new-number", "错误成员"}));
+        var preview = users.previewImport(file);
+        assertFalse(preview.valid());
+        assertEquals(1, preview.warnings().size());
+        assertThrows(ApiException.class, () -> users.importMembers(file, preview.token()));
+        assertEquals("原成员", name(memberId));
+        assertEquals(0, actionCount("IMPORT_USERS"));
+    }
+
+    @Test
+    void presidentMixedRoleImportSkipsAdminsAndImportsValidatedMembers() throws Exception {
         long memberId = insertMember("tx-mixed-import-member", "原成员");
         long protectedId = insertAdmin("tx-mixed-import-admin", "原管理员");
         long presidentId = insertPresident("tx-mixed-import-president", "虚构会长");
         AuthContext.set(new AuthUser(presidentId, "tx-mixed-import-president", "虚构会长",
                 Role.PRESIDENT, Instant.now().plusSeconds(3600)));
-        ApiException error = assertThrows(ApiException.class, () -> users.importMembers(memberImportFile(List.of(
+        var file = memberImportFile(List.of(
                 new String[]{"tx-mixed-import-member", "修改成员"},
                 new String[]{"9900000072", "新成员"},
                 new String[]{"tx-mixed-import-admin", "修改管理员"}
-        ))));
-        assertTrue(error.getMessage().contains("管理员"));
+        ));
+        var preview = users.previewImport(file);
+        assertTrue(preview.valid());
+        assertEquals(1, preview.warnings().size());
         assertEquals("原成员", name(memberId));
-        assertEquals("原管理员", name(protectedId));
-        assertEquals(0, userCount("9900000072"));
         assertEquals(0, actionCount("IMPORT_USERS"));
+        var result = users.importMembers(file, preview.token());
+        assertEquals(1, result.skipped());
+        assertEquals(1, result.created());
+        assertEquals(1, result.updated());
+        assertEquals("修改成员", name(memberId));
+        assertEquals("原管理员", name(protectedId));
+        assertEquals(1, userCount("9900000072"));
+        assertEquals(1, actionCount("IMPORT_USERS"));
     }
 
     @Test

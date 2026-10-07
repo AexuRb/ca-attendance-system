@@ -87,15 +87,30 @@
       :open="importOpen"
       title="批量导入成员"
       eyebrow="EXCEL IMPORT"
-      size="sm"
+      size="lg"
       @close="closeImport"
     >
-      <div class="upload-zone">
+      <div class="upload-zone" :class="{ 'has-import-preview': importPreview }">
         <Upload />
         <strong>选择成员 Excel</strong>
         <p>支持 .xlsx 与 .xls 文件</p>
-        <input name="memberImportFile" type="file" accept=".xlsx,.xls" @change="pickFile" />
+        <input name="memberImportFile" :disabled="actions.isPending('import')" type="file" accept=".xlsx,.xls" @change="pickFile" />
       </div>
+      <p v-if="importFile" class="member-import-filename">已选择：{{ importFile.name }}</p>
+      <section v-if="importPreview" class="member-import-preview" aria-label="服务端校验预览">
+        <p aria-live="polite">预计新增 {{ importPreview.created }}，更新 {{ importPreview.updated }}，错误 {{ importPreview.errorCount }} 行。{{ importPreview.valid ? '请核对差异后确认整批导入。' : '校验未通过，整个文件不会写入。' }}</p>
+        <ul v-if="importPreview.warnings.length"><li v-for="warning in importPreview.warnings" :key="warning">{{ warning }}</li></ul>
+        <p>空白可选字段保留原资料；电话和 QQ 仅提示变更。确认时再次校验。</p>
+        <div class="member-import-preview-scroll" tabindex="0">
+          <p v-if="importPreview.errorCount > importPreview.errors.length">下方展示前 {{ importPreview.errors.length }} 条错误，请修正文件后重新校验。</p>
+          <ul v-if="importPreview.errors.length" class="result-issues"><li v-for="issue in importPreview.errors" :key="issue">{{ issue }}</li></ul>
+          <article v-for="change in importPreview.changes" :key="change.studentNo">
+            <strong>{{ change.action }} · {{ change.name }} · {{ change.studentNo }}</strong>
+            <ul v-if="change.fields.length"><li v-for="field in change.fields" :key="field.field">{{ field.field }}：{{ field.before || '未填写' }} → {{ field.after }}</li></ul>
+            <p v-else>导入字段与现有资料一致</p>
+          </article>
+        </div>
+      </section>
       <div v-if="importResult" class="result-note">
         新增 {{ importResult.created }}，更新 {{ importResult.updated }}，跳过
         {{ importResult.skipped }}
@@ -117,9 +132,9 @@
         <button
           class="button primary"
           :disabled="!importFile || actions.isPending('import')"
-          @click="importMembers"
+          @click="importPreview?.valid ? importMembers() : previewMembers()"
         >
-          开始导入
+          {{ actions.isPending('import') ? '处理中…' : importPreview?.valid ? '确认整批导入' : '服务端校验预览' }}
         </button>
       </template>
     </ModalDialog>
@@ -208,6 +223,7 @@ const {
   hasActiveFilters,
   gradeChoices,
   grades,
+  importPreview, previewMembers,
   importError,
   importFile,
   importMembers,
@@ -240,3 +256,12 @@ const {
   user,
 } = useMemberDirectoryWorkspace();
 </script>
+
+<style scoped>
+.member-import-preview { font-size: 13px; }
+.member-import-filename { padding: 8px 0; overflow-wrap: anywhere; }
+.upload-zone.has-import-preview { min-height: 88px; padding: 12px; }
+.member-import-preview-scroll { max-height: 42vh; overflow: auto; padding: 8px; }
+.member-import-preview article { padding: 10px 0; border-bottom: 1px solid var(--border-soft, #dce2e8); }
+.member-import-preview li { margin: 4px 0; overflow-wrap: anywhere; }
+</style>

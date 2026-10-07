@@ -12,6 +12,9 @@ import {
 import { dateRangeError } from "../../shared/validation/dateRange";
 import type { StatsSummaryRow } from "./statsSummary";
 import type { WeeklyStatsDetail } from "./weeklyStats";
+import { statsVisits, statsRecordLinks } from "./statsNavigation";
+
+export type MemberStatsDetail = WeeklyStatsDetail & { training: { trainingDate: string; title: string; durationHours: number }[]; trainingVisible: boolean };
 
 type StatsPreset = "week" | "month" | "year" | "custom";
 type StatsQuery = { from: string; to: string; preset: StatsPreset };
@@ -23,6 +26,31 @@ export function useStatsWorkspace() {
   const actions = usePendingActions();
   const route = useRoute();
   const router = useRouter();
+  const visitScope = statsVisits.scope();
+  const recordScope = statsRecordLinks.scope();
+  const keyword = ref("");
+  const sort = ref("total");
+  const resultScroll = ref<HTMLElement | null>(null);
+  const visibleRows = computed(() => {
+    const query = loadedPreset.value === "week" ? "" : keyword.value.trim().toLocaleLowerCase();
+    const value = (row: StatsSummaryRow) => Number(sort.value === "duty" ? row.attendanceHours ?? row.dutyHours ?? 0 : sort.value === "training" ? row.trainingHours ?? 0 : row.totalHours ?? 0);
+    return rows.value.filter(row => !query || `${row.name} ${row.studentNo}`.toLocaleLowerCase().includes(query))
+      .slice().sort((a, b) => value(b) - value(a) || a.studentNo.localeCompare(b.studentNo));
+  });
+  const memberIndex = computed(() => visibleRows.value.findIndex(row => row.userId === selectedMember.value?.userId));
+  function adjacentMember(direction: number) {
+    const member = visibleRows.value[memberIndex.value + direction];
+    if (member) void openMemberDetail(member);
+  }
+  async function openRecords(day?: string) {
+    if (selectedMember.value?.userId == null) return;
+    const id = crypto.randomUUID();
+    visitScope.set(id, { keyword: keyword.value, sort: sort.value, memberId: selectedMember.value.userId,
+      pageTop: window.scrollY, top: resultScroll.value?.scrollTop || 0, left: resultScroll.value?.scrollLeft || 0 });
+    recordScope.set(id, { keyword: selectedMember.value.studentNo, userId: selectedMember.value.userId, ...loadedRange.value, preset: loadedPreset.value });
+    await router.replace({ query: route.query, state: { statsVisit: id }, force: true });
+    await router.push({ name: "attendance", query: { from: day || loadedRange.value.from, to: day || loadedRange.value.to }, state: { statsRecordLink: id } });
+  }
   const { loading, error: loadError } = request;
   const rows = ref<StatsSummaryRow[]>([]);
   const weeklyDetail = ref<WeeklyStatsDetail>({ days: [], users: [], cells: {} });
@@ -31,8 +59,7 @@ export function useStatsWorkspace() {
   const loadedPreset = ref<StatsPreset>("week");
   let pendingQuery: { snapshot: StatsQuery; mode: "push" | "replace" } | null = null;
   const selectedMember = ref<StatsSummaryRow | null>(null);
-  const memberDetail = ref<WeeklyStatsDetail | null>(null);
-  const cachedDetail = ref<WeeklyStatsDetail | null>(null);
+  const memberDetail = ref<MemberStatsDetail | null>(null);
   const from = ref("");
   const to = ref("");
   const preset = ref<StatsPreset>("week");
@@ -72,6 +99,19 @@ export function useStatsWorkspace() {
     restoreRouteState();
     routeReady = true;
     await load();
+    const visit = router.options?.history.state.statsVisit;
+    const saved = typeof visit === "string" ? visitScope.get(visit) : undefined;
+    if (saved) {
+      keyword.value = saved.keyword;
+      sort.value = saved.sort;
+      window.scrollTo({ top: saved.pageTop });
+      if (saved.memberId != null) openMemberById(saved.memberId);
+      await nextTick();
+      if (resultScroll.value) {
+        resultScroll.value.scrollTop = saved.top;
+        resultScroll.value.scrollLeft = saved.left;
+      }
+    }
     if (stringRouteQuery(route.query.intent) === "export") {
       void nextTick(() => exportButton.value?.focus());
     }
@@ -111,7 +151,6 @@ export function useStatsWorkspace() {
     if (!value) return;
     rows.value = value.summary;
     weeklyDetail.value = value.weekly || { days: [], users: [], cells: {} };
-    cachedDetail.value = value.weekly;
     loadedRange.value = { from: snapshot.from, to: snapshot.to };
     loadedPreset.value = snapshot.preset;
     loaded.value = true;
@@ -144,8 +183,8 @@ export function useStatsWorkspace() {
   async function openMemberDetail(member: StatsSummaryRow) {
     if (loading.value || loadError.value) return;
     selectedMember.value = member;
-    memberDetail.value = cachedDetail.value;
-    if (!cachedDetail.value) await fetchMemberDetail();
+    memberDetail.value = null;
+    await fetchMemberDetail();
   }
 
   function openMemberById(userId: number) {
@@ -156,14 +195,15 @@ export function useStatsWorkspace() {
   async function fetchMemberDetail() {
     if (!selectedMember.value) return;
     const snapshot = { ...loadedRange.value };
-    const query = new URLSearchParams(snapshot);
+    const userId = selectedMember.value.userId;
+    if (userId == null) return;
+    const query = new URLSearchParams({ ...snapshot, userId: String(userId) });
     const value = await detailRequest.run(
-      signal => get<WeeklyStatsDetail>(`/api/stats/weekly-detail?${query}`, { signal }),
+      signal => get<MemberStatsDetail>(`/api/stats/member-detail?${query}`, { signal }),
       "成员详情加载失败",
     );
-    if (!value || !selectedMember.value ||
+    if (!value || selectedMember.value?.userId !== userId ||
       snapshot.from !== loadedRange.value.from || snapshot.to !== loadedRange.value.to) return;
-    cachedDetail.value = value;
     memberDetail.value = value;
   }
 
@@ -235,6 +275,7 @@ export function useStatsWorkspace() {
   }
 
   return {
+    keyword, sort, visibleRows, resultScroll, memberIndex, adjacentMember, openRecords,
     actions,
     applyPreset,
     captureExportButton,

@@ -14,29 +14,30 @@ export function buildTodayQuickActions(
   const open = dashboard?.todayOpenCount || 0;
   const repairs = dashboard?.ongoingRepairCount || 0;
   const dateLabel = date === "今天" ? "今日" : date;
+  const canManage = ["MINISTER", "PRESIDENT", "ADMIN"].includes(role);
 
-  if (pending) items.push({
+  if (canManage && pending) items.push({
     id: "reviews",
     command: "/ 打开 签到审核",
     label: "处理待审核记录",
     detail: `${dateLabel} ${pending} 条提醒 · 完整队列`,
     tone: "amber",
   });
-  if (open) items.push({
+  if (canManage && open) items.push({
     id: "attendance-open",
     command: "/ 查看 值班记录 未签退 " + date,
     label: `查看 ${open} 条未签退记录`,
     detail: `${dateLabel} · 值班记录`,
     tone: "red",
   });
-  if (canSchedule && missingScheduleCount) items.push({
+  if (canSchedule && ["PRESIDENT", "ADMIN"].includes(role) && missingScheduleCount) items.push({
     id: "schedules",
     command: "/ 打开 排班管理",
     label: `补充 ${missingScheduleCount} 个排班时段`,
     detail: "固定周表",
     tone: "red",
   });
-  if (repairs) items.push({
+  if (canManage && repairs) items.push({
     id: "repairs",
     command: "/ 查看 维修事务 进行中",
     label: `查看 ${repairs} 项维修事务`,
@@ -55,7 +56,7 @@ export function buildTodayQuickActions(
       tone: command.execution === "confirm" ? "amber" : "blue",
     });
   }
-  return items.slice(0, 3);
+  return items;
 }
 
 function shortCommandLabel(command: string): string {
