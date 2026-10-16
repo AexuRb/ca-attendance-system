@@ -1,48 +1,17 @@
 <template>
-  <RefinedWorkspaceShell class="data-center-page system-workspace" :class="{ 'backup-workspace': tab === 'backups', 'data-finish-workspace': tab !== 'backups' }" title="数据与备份" description="本机数据的导出、恢复与维护" section-key="system">
-
-    <div class="data-center-tabs page-tabs" role="tablist" aria-label="数据中心功能">
-      <button
-        id="data-tab-export"
-        type="button"
-        :class="{ active: tab === 'export' }"
-        role="tab"
-        aria-controls="data-panel-export"
-        :aria-selected="tab === 'export'"
-        :tabindex="tab === 'export' ? 0 : -1"
-        @click="selectTab('export')"
-        @keydown="onTabKeydown($event, 'export')"
-      >
-        <FileSpreadsheet aria-hidden="true" />自定义导出
-      </button>
-      <button
-        id="data-tab-backups"
-        type="button"
-        :class="{ active: tab === 'backups' }"
-        role="tab"
-        aria-controls="data-panel-backups"
-        :aria-selected="tab === 'backups'"
-        :tabindex="tab === 'backups' ? 0 : -1"
-        @click="selectTab('backups')"
-        @keydown="onTabKeydown($event, 'backups')"
-      >
-        <DatabaseBackup aria-hidden="true" />本机备份
-      </button>
-      <button
-        v-if="canViewRecycle"
-        id="data-tab-recycle"
-        type="button"
-        :class="{ active: tab === 'recycle' }"
-        role="tab"
-        aria-controls="data-panel-recycle"
-        :aria-selected="tab === 'recycle'"
-        :tabindex="tab === 'recycle' ? 0 : -1"
-        @click="selectTab('recycle')"
-        @keydown="onTabKeydown($event, 'recycle')"
-      >
-        <ArchiveRestore aria-hidden="true" />维修回收站
-      </button>
-    </div>
+  <ExpandedWorkspaceShell
+    class="data-center-page system-workspace"
+    :data-unified="tab === 'import' || tab === 'export' ? 'true' : undefined"
+    :class="{ 'overview-import': tab === 'import', 'overview-export': tab === 'export', 'overview-backups backup-workspace': tab === 'backups', 'overview-recycle': tab === 'recycle', 'data-finish-workspace': tab === 'recycle' }"
+    :current-page="tab === 'recycle' ? 'repairs' : tab === 'import' || tab === 'export' ? 'data-center' : tab">
+    <template #heading>
+      <h1 :id="`data-${tab}-title`" tabindex="-1">{{ tab === 'import' || tab === 'export' ? '数据中心' : tab === 'backups' ? '备份与恢复' : '维修回收站' }}</h1>
+      <nav v-if="tab === 'import' || tab === 'export'" class="data-center-subpages data-mode-switch" aria-label="数据中心操作模式">
+        <RouterLink :to="{ name: 'data', query: { tab: 'import' } }" :aria-current="tab === 'import' ? 'page' : undefined">数据导入</RouterLink>
+        <RouterLink :to="{ name: 'data', query: { tab: 'export' } }" :aria-current="tab === 'export' ? 'page' : undefined">数据导出</RouterLink>
+      </nav>
+      <RouterLink v-if="tab === 'recycle'" class="button secondary" :to="{ name: 'repairs' }"><ArrowLeft aria-hidden="true" />返回维修事务</RouterLink>
+    </template>
 
     <div v-if="activeLoadError" class="inline-alert danger" role="alert">
       <span>{{ activeLoadError }}</span>
@@ -50,20 +19,22 @@
     </div>
 
     <Transition name="data-panel-swap" mode="out-in">
+    <DataImportWorkspace v-if="tab === 'import'" />
     <section
-      v-if="tab === 'export'"
+      v-else-if="tab === 'export'"
       id="data-panel-export"
       class="data-tab-panel"
-      role="tabpanel"
-      aria-labelledby="data-tab-export"
+      role="region"
+      aria-labelledby="data-export-title"
       tabindex="0"
     >
       <DataExportWorkspace
         :options="options"
         :request="request"
         :preview="preview"
-        :summary="summary"
         :date-error="exportDateError"
+        :action-error="exportActionError"
+        :route-source="exportRouteSource"
         :preview-pending="actions.isPending('preview')"
         :export-pending="actions.isPending('export')"
         @select-source="selectSource"
@@ -81,8 +52,8 @@
       v-else-if="tab === 'backups'"
       id="data-panel-backups"
       class="data-tab-panel"
-      role="tabpanel"
-      aria-labelledby="data-tab-backups"
+      role="region"
+      aria-labelledby="data-backups-title"
       tabindex="0"
     >
       <BackupWorkspace
@@ -104,8 +75,8 @@
       v-else
       id="data-panel-recycle"
       class="data-tab-panel"
-      role="tabpanel"
-      aria-labelledby="data-tab-recycle"
+      role="region"
+      aria-labelledby="data-recycle-title"
       tabindex="0"
     >
       <RepairRecycleWorkspace
@@ -122,6 +93,7 @@
 
     <ConfirmDialog
       :open="createBackupOpen"
+      backdrop-class="backup-refined-backdrop"
       title="创建本机备份"
       message="系统将创建当前业务数据的完整本机备份。"
       confirm-label="创建备份"
@@ -131,6 +103,7 @@
     />
     <ConfirmDialog
       :open="Boolean(deleteBackupTarget)"
+      backdrop-class="backup-refined-backdrop"
       title="删除备份"
       :message="`永久删除备份 ${deleteBackupTarget?.filename || ''}。`"
       confirm-label="删除备份"
@@ -139,39 +112,35 @@
       @cancel="deleteBackupTarget = null"
       @confirm="deleteBackup"
     />
-    <ConfirmDialog
-      :open="Boolean(purgeTarget)"
-      title="彻底删除维修事务"
-      :message="`请输入编号 ${purgeTarget?.caseNo || ''} 以确认，系统会先自动备份。`"
-      confirm-label="彻底删除"
-      danger
-      require-reason
-      :pending="actions.isPending('purge-repair')"
-      @cancel="purgeTarget = null"
-      @confirm="purgeRepair"
-    />
+    <RecyclePurgeDialog :item="purgeTarget" :pending="actions.isPending('purge-repair')"
+      @cancel="purgeTarget = null" @confirm="purgeRepair" />
     <RestoreBackupDialog
       :open="Boolean(restoreTarget)"
+      backdrop-class="backup-refined-backdrop"
       :file="restoreTarget"
       :busy="actions.isPending('restore-backup')"
       @cancel="restoreTarget = null"
       @confirm="restoreBackup"
     />
-  </RefinedWorkspaceShell>
+  </ExpandedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
-import { ArchiveRestore, DatabaseBackup, FileSpreadsheet } from "@lucide/vue";
-import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { ArrowLeft } from "@lucide/vue";
+import { RouterLink } from "vue-router";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/settings/presentation.css";
+import "../../features/today/overview-presentation.css";
 provide(memberPresentationKey, true);
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import RestoreBackupDialog from "../../features/maintenance/RestoreBackupDialog.vue";
+import DataImportWorkspace from "./data-center/DataImportWorkspace.vue";
 import DataExportWorkspace from "./data-center/DataExportWorkspace.vue";
 import BackupWorkspace from "./data-center/BackupWorkspace.vue";
+import RecyclePurgeDialog from "./data-center/RecyclePurgeDialog.vue";
 import RepairRecycleWorkspace from "./data-center/RepairRecycleWorkspace.vue";
 import { useDataCenterWorkspace } from "../../features/maintenance/useDataCenterWorkspace";
 
@@ -180,6 +149,8 @@ const {
   options,
   request,
   preview,
+  exportActionError,
+  exportRouteSource,
   summary,
   backups,
   recycle,
@@ -196,8 +167,6 @@ const {
   backupRequest,
   recycleRequest,
   actions,
-  selectTab,
-  onTabKeydown,
   retryActiveTab,
   selectSource,
   updateFilter,
@@ -219,3 +188,11 @@ const {
 </script>
 
 <style src="../../features/maintenance/presentation.css"></style>
+
+<style src="../../features/maintenance/backup-presentation.css"></style>
+
+<style src="../../features/maintenance/recycle-presentation.css"></style>
+
+<style src="../../features/maintenance/import-presentation.css"></style>
+
+<style src="../../features/maintenance/unified-presentation.css"></style>

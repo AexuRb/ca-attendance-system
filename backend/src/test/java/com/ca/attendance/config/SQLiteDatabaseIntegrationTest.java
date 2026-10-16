@@ -671,7 +671,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void customExportsUseRoleScopedSourcesAndRequestedFieldOrder() throws Exception {
         OperationLogService logs = new OperationLogService(jdbc, objectMapper);
-        CustomExportService exports = new CustomExportService(jdbc, logs);
+        CustomExportService exports = new CustomExportService(jdbc, logs, new com.ca.attendance.stats.StatsService(jdbc, logs));
         long presidentId = requiredId(jdbc.queryForObject("""
                 INSERT INTO users (student_no, name, password_hash, role, status, must_change_password)
                 VALUES ('20249999', '导出测试会长', 'test-hash', 'PRESIDENT', 'ACTIVE', 0)
@@ -687,7 +687,7 @@ class SQLiteDatabaseIntegrationTest {
 
         AuthContext.set(new AuthUser(adminId, "admin", "管理员", Role.ADMIN, Instant.now().plusSeconds(3600)));
         CustomExportService.ExportOptions adminOptions = exports.options();
-        assertEquals(6, adminOptions.sources().size());
+        assertEquals(7, adminOptions.sources().size());
         for (CustomExportService.SourceOption source : adminOptions.sources()) {
             List<String> fields = source.fields().stream()
                     .filter(CustomExportService.FieldOption::defaultSelected)

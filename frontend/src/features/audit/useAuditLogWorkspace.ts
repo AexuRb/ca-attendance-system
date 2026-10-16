@@ -1,12 +1,12 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { del, downloadBlob, get } from "../../shared/api";
+import { downloadBlob, get } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { positiveRoutePage, routeQuerySignature, stringRouteQuery, updateOwnedRouteQuery } from "../../shared/navigation/routeQueryState";
 import { dateRangeError } from "../../shared/validation/dateRange";
-import { auditActionLabel, auditActionOptions, auditTargetLabel, buildAuditDiff } from "./logDisplay";
+import { auditActionLabel, auditActionOptions, auditActionTone, auditSummary, auditTargetLabel, buildAuditDiff } from "./logDisplay";
 import type { OperationLog, OperationLogPage } from "./logTypes";
 
 type LogFilters = { keyword: string; actionType: string; from: string; to: string };
@@ -25,8 +25,6 @@ export function useAuditLogWorkspace() {
   const page = ref(1);
   const pageSize = 20;
   const detail = ref<OperationLog | null>(null);
-  const clearOpen = ref(false);
-  const justCleared = ref(false);
   const filters = reactive<LogFilters>({ keyword: "", actionType: "", from: "", to: "" });
   const appliedFilters = ref<LogFilters>({ ...filters });
   const filtersPending = computed(() => JSON.stringify(filters) !== JSON.stringify(appliedFilters.value));
@@ -78,7 +76,6 @@ export function useAuditLogWorkspace() {
       return false;
     }
     items.value = value.items;
-    if (value.items.length) justCleared.value = false;
     total.value = value.total;
     page.value = value.page;
     appliedFilters.value = { ...request.filters };
@@ -101,19 +98,6 @@ export function useAuditLogWorkspace() {
     });
   }
 
-  async function clearLogs() {
-    await actions.run("clear", async () => {
-      const cleared = await task.run(() => del("/api/logs"), "日志已清空，安全备份已创建");
-      if (cleared === undefined) return;
-      clearOpen.value = false;
-      justCleared.value = true;
-      items.value = [];
-      total.value = 0;
-      page.value = 1;
-      await runQuery({ filters: { ...appliedFilters.value }, page: 1, routeMode: "replace" });
-    });
-  }
-
   function params(value: Record<string, string | number | null | undefined>) {
     const query = new URLSearchParams();
     Object.entries(value).forEach(([key, entry]) => entry !== "" && entry != null && query.set(key, String(entry)));
@@ -123,8 +107,7 @@ export function useAuditLogWorkspace() {
   const date = (value: string) => value?.slice(0, 10);
   const time = (value: string) => value?.slice(11, 16);
   const actionLabel = auditActionLabel;
-  const actionTone = (value: string): "neutral" | "info" | "success" | "danger" =>
-    value?.includes("DELETE") ? "danger" : value?.includes("CREATE") ? "success" : value?.includes("UPDATE") ? "info" : "neutral";
+  const actionTone = auditActionTone;
   const targetLabel = auditTargetLabel;
   function pretty(value?: string) {
     if (!value) return "无";
@@ -140,7 +123,7 @@ export function useAuditLogWorkspace() {
     await runQuery({ filters: { ...filters }, page: 1, routeMode: "push" });
   }
   async function setPage(target: number) {
-    await runQuery({ filters: { ...appliedFilters.value }, page: target, routeMode: "push" });
+    return runQuery({ filters: { ...appliedFilters.value }, page: target, routeMode: "push" });
   }
   function restoreRouteState(includeSensitiveKeyword: boolean) {
     filters.actionType = stringRouteQuery(route.query.actionType);
@@ -164,8 +147,8 @@ export function useAuditLogWorkspace() {
   }
 
   return {
-    actionLabel, actionTone, actions, applyFilters, auditActionOptions, clearLogs, clearOpen,
+    actionLabel, actionTone, auditSummary, actions, applyFilters, auditActionOptions,
     date, detail, detailRows, displayError, exportLogs, exportReady, filterError, filters, filtersPending, appliedFilters, loaded, items, listError,
-    hasAppliedFilters, justCleared, listLoading, load, page, pretty, retryLoad, setPage, targetLabel, time, total, totalPages,
+    hasAppliedFilters, listLoading, load, page, pretty, retryLoad, setPage, targetLabel, time, total, totalPages,
   };
 }

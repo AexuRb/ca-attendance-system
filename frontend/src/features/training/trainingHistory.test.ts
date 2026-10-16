@@ -17,7 +17,7 @@ let wrapper: VueWrapper;
 const page = defineComponent({
   setup() {
     workspace = useTrainingManagementWorkspace();
-    return () => h("div", [
+    return () => h("div", { ref: workspace.bindWorkspaceScroll, class: "training-test-workspace" }, [
       h(TrainingMonthRibbon, { label: "合成月份", selectedId: workspace.selected.value?.id || null,
         ...workspace.sessionState, bindScroll: workspace.bindRibbonScroll, restoringHistory: workspace.restoringHistory.value, onScroll: workspace.rememberScroll }),
       workspace.selected.value && h(TrainingParticipantList, { ...workspace.participantState, keyword: workspace.participantKeyword.value,
@@ -104,6 +104,16 @@ describe("training private history context", () => {
     expect(lastParticipantQuery().searchParams.get("keyword")).toBe("名单条件");
     expect(workspace.sessionOpen.value || workspace.participantOpen.value || workspace.importOpen.value).toBe(false);
     expect(location.href + JSON.stringify(window.history.state) + JSON.stringify(localStorage) + JSON.stringify(sessionStorage)).not.toMatch(/场次条件|名单条件|场次草稿|名单草稿/);
+  });
+
+  it("restores the whole workspace position after returning from another page", async () => {
+    await query();
+    const area = wrapper.get('.training-test-workspace').element as HTMLElement;
+    area.scrollTop = 620;
+    area.dispatchEvent(new Event('scroll'));
+    await navigate('/elsewhere');
+    await back();
+    expect((wrapper.get('.training-test-workspace').element as HTMLElement).scrollTop).toBe(620);
   });
 
   it("retries the complete history context when the session directory fails", async () => {

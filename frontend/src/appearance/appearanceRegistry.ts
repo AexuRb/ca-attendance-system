@@ -3,6 +3,7 @@ import type { AppearanceId } from "./appearanceTypes";
 export interface AppearanceDefinition {
   id: AppearanceId;
   domValue: string;
+  palette: string;
   themeColor: string;
   implemented: boolean;
   load?: () => Promise<unknown>;
@@ -12,28 +13,51 @@ export const appearanceRegistry: Record<AppearanceId, AppearanceDefinition> = {
   CLASSIC: {
     id: "CLASSIC",
     domValue: "classic",
-    themeColor: "#eef6fa",
+    palette: "mist",
+    themeColor: "#EEF2F6",
     implemented: true,
     load: () => import("../appearances/classic/index"),
   },
   EDITORIAL: {
     id: "EDITORIAL",
     domValue: "editorial",
-    themeColor: "#faf9f5",
+    palette: "sand",
+    themeColor: "#F5F1E9",
     implemented: true,
     load: () => import("../appearances/editorial/index"),
   },
   SPATIAL: {
     id: "SPATIAL",
     domValue: "spatial",
-    themeColor: "#f5f5f7",
+    palette: "sky",
+    themeColor: "#EDF3F9",
     implemented: true,
     load: () => import("../appearances/spatial/index"),
+  },
+  PINE: {
+    id: "PINE", domValue: "classic", palette: "pine",
+    themeColor: "#EEF3EF", implemented: true,
+    load: () => import("../appearances/classic/index"),
+  },
+  VIOLET: {
+    id: "VIOLET", domValue: "spatial", palette: "violet",
+    themeColor: "#F2EFF6", implemented: true,
+    load: () => import("../appearances/spatial/index"),
+  },
+  GRAPHITE: {
+    id: "GRAPHITE", domValue: "classic", palette: "graphite",
+    themeColor: "#EFF1F3", implemented: true,
+    load: () => import("../appearances/classic/index"),
+  },
+  ROSE: {
+    id: "ROSE", domValue: "editorial", palette: "rose",
+    themeColor: "#F6F0F2", implemented: true,
+    load: () => import("../appearances/editorial/index"),
   },
 };
 
 export function normalizeAppearanceId(value: unknown): AppearanceId {
-  return typeof value === "string" && value in appearanceRegistry
+  return typeof value === "string" && Object.hasOwn(appearanceRegistry, value)
     ? (value as AppearanceId)
     : "CLASSIC";
 }
@@ -53,6 +77,7 @@ export async function activateAppearance(
 
 export function applyAppearanceAttributes(definition: AppearanceDefinition) {
   document.documentElement.dataset.appearance = definition.domValue;
+  document.documentElement.dataset.palette = definition.palette;
   const themeColor = document.querySelector<HTMLMetaElement>(
     'meta[name="theme-color"]',
   );

@@ -48,7 +48,7 @@ export function repairAgeDays(
   const started = parseLocalDate(repair.receivedAt);
   const ended =
     repair.status !== "REPAIRING"
-      ? parseLocalDate(repair.completedAt || repair.updatedAt)
+      ? parseLocalDate(repair.status === "CANCELED" ? repair.updatedAt : repair.completedAt || repair.updatedAt)
       : now;
   if (!started || !ended) return 0;
   return Math.max(0, Math.floor((daySerial(ended) - daySerial(started)) / DAY_MS));
@@ -63,7 +63,7 @@ export function repairAgeLabel(
 ): string {
   const days = repairAgeDays(repair, now);
   if (repair.status === "COMPLETED") return `处理历时 ${days} 天`;
-  if (repair.status === "CANCELED") return `流程历时 ${days} 天`;
+  if (repair.status === "CANCELED") return `受理至更新 ${days} 天`;
   return days ? `已受理 ${days} 天` : "今日受理";
 }
 

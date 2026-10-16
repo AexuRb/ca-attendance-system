@@ -5,7 +5,12 @@ import SchedulePage from "./SchedulePage.vue";
 import { useScheduleWorkspace } from "../../features/schedule/useScheduleWorkspace";
 
 const apiGet = vi.fn();
-const controls = vi.hoisted(() => ({ post: vi.fn(), leave: vi.fn() }));
+const controls = vi.hoisted(() => ({ post: vi.fn(), leave: vi.fn(), role: "ADMIN" }));
+vi.mock("../../app/session", () => ({ useSession: () => ({
+  user: { value: { role: controls.role } },
+  state: { access: { kioskAvailable: true } },
+  logout: vi.fn(),
+}) }));
 
 vi.mock("vue-router", () => ({
   RouterLink: { template: "<a><slot /></a>" },
@@ -27,9 +32,30 @@ afterEach(() => {
   controls.post.mockReset();
   controls.leave.mockReset();
   document.body.innerHTML = "";
+  controls.role = "ADMIN";
 });
 
 describe("SchedulePage request states", () => {
+  it("loads minister overview without editing data or entry points", async () => {
+    controls.role = "MINISTER";
+    const { wrapper, workspace: w } = harness();
+    await flushPromises();
+    expect(w.canManage.value).toBe(false);
+    expect(apiGet.mock.calls.map(([url]) => url)).toEqual([
+      '/api/schedules', '/api/public/duty-periods', '/api/public/duty-weekdays',
+    ]);
+    w.openFixed(null);
+    await w.saveFixed();
+    await w.downloadImportTemplate();
+    expect(w.editorOpen.value).toBe(false);
+    expect(controls.post).not.toHaveBeenCalled();
+    wrapper.unmount();
+    const page = mount(SchedulePage);
+    await flushPromises();
+    expect(page.text()).not.toContain('新增排班');
+    expect(page.find('.action-menu').exists()).toBe(false);
+    page.unmount();
+  });
   function harness() {
     apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('duty-periods')
       ? [{ startTime: '09:00', endTime: '10:00', enabled: true }] : []));

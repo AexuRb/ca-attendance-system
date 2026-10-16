@@ -32,6 +32,13 @@ const routes: RouteRecordRaw[] = [
     path: "/password",
     name: "password",
     component: () => import("../pages/auth/PasswordPage.vue"),
+    meta: { auth: true },
+  },
+  {
+    path: "/credits/edit",
+    name: "credits-editor",
+    component: () => import("../pages/auth/CreditsEditorPage.vue"),
+    meta: { auth: true, roles: ["ADMIN"] },
   },
   {
     path: "/admin",
@@ -67,7 +74,7 @@ const routes: RouteRecordRaw[] = [
         path: "schedules",
         name: "schedules",
         component: () => import("../pages/admin/SchedulePage.vue"),
-        meta: { roles: ["PRESIDENT", "ADMIN"] },
+        meta: { roles: ["MINISTER", "PRESIDENT", "ADMIN"] },
       },
       {
         path: "members",

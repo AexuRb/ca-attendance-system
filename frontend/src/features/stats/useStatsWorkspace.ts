@@ -28,14 +28,10 @@ export function useStatsWorkspace() {
   const router = useRouter();
   const visitScope = statsVisits.scope();
   const recordScope = statsRecordLinks.scope();
-  const keyword = ref("");
-  const sort = ref("total");
   const resultScroll = ref<HTMLElement | null>(null);
   const visibleRows = computed(() => {
-    const query = loadedPreset.value === "week" ? "" : keyword.value.trim().toLocaleLowerCase();
-    const value = (row: StatsSummaryRow) => Number(sort.value === "duty" ? row.attendanceHours ?? row.dutyHours ?? 0 : sort.value === "training" ? row.trainingHours ?? 0 : row.totalHours ?? 0);
-    return rows.value.filter(row => !query || `${row.name} ${row.studentNo}`.toLocaleLowerCase().includes(query))
-      .slice().sort((a, b) => value(b) - value(a) || a.studentNo.localeCompare(b.studentNo));
+    const value = (row: StatsSummaryRow) => Number(row.totalHours ?? 0);
+    return rows.value.slice().sort((a, b) => value(b) - value(a) || a.studentNo.localeCompare(b.studentNo));
   });
   const memberIndex = computed(() => visibleRows.value.findIndex(row => row.userId === selectedMember.value?.userId));
   function adjacentMember(direction: number) {
@@ -45,8 +41,10 @@ export function useStatsWorkspace() {
   async function openRecords(day?: string) {
     if (selectedMember.value?.userId == null) return;
     const id = crypto.randomUUID();
-    visitScope.set(id, { keyword: keyword.value, sort: sort.value, memberId: selectedMember.value.userId,
-      pageTop: window.scrollY, top: resultScroll.value?.scrollTop || 0, left: resultScroll.value?.scrollLeft || 0 });
+    const page = resultScroll.value?.closest<HTMLElement>(".overview-content");
+    const table = resultScroll.value?.querySelector<HTMLElement>(".table-shell, .weekly-stats-table");
+    visitScope.set(id, { memberId: selectedMember.value.userId,
+      pageTop: page?.scrollTop ?? window.scrollY, left: table?.scrollLeft || 0 });
     recordScope.set(id, { keyword: selectedMember.value.studentNo, userId: selectedMember.value.userId, ...loadedRange.value, preset: loadedPreset.value });
     await router.replace({ query: route.query, state: { statsVisit: id }, force: true });
     await router.push({ name: "attendance", query: { from: day || loadedRange.value.from, to: day || loadedRange.value.to }, state: { statsRecordLink: id } });
@@ -102,15 +100,13 @@ export function useStatsWorkspace() {
     const visit = router.options?.history.state.statsVisit;
     const saved = typeof visit === "string" ? visitScope.get(visit) : undefined;
     if (saved) {
-      keyword.value = saved.keyword;
-      sort.value = saved.sort;
-      window.scrollTo({ top: saved.pageTop });
       if (saved.memberId != null) openMemberById(saved.memberId);
       await nextTick();
-      if (resultScroll.value) {
-        resultScroll.value.scrollTop = saved.top;
-        resultScroll.value.scrollLeft = saved.left;
-      }
+      const page = resultScroll.value?.closest<HTMLElement>(".overview-content");
+      if (page) page.scrollTop = saved.pageTop;
+      else window.scrollTo({ top: saved.pageTop });
+      const table = resultScroll.value?.querySelector<HTMLElement>(".table-shell, .weekly-stats-table");
+      if (table) table.scrollLeft = saved.left;
     }
     if (stringRouteQuery(route.query.intent) === "export") {
       void nextTick(() => exportButton.value?.focus());
@@ -275,7 +271,7 @@ export function useStatsWorkspace() {
   }
 
   return {
-    keyword, sort, visibleRows, resultScroll, memberIndex, adjacentMember, openRecords,
+    visibleRows, resultScroll, memberIndex, adjacentMember, openRecords,
     actions,
     applyPreset,
     captureExportButton,

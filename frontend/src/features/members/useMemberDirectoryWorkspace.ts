@@ -93,7 +93,8 @@ export function useMemberDirectoryWorkspace() {
   function rememberTableScroll() {
     const saved = activeVisit ? historyScope.get(activeVisit) : undefined;
     if (!saved || !tableScroll.value) return;
-    saved.scroll = { top: tableScroll.value.scrollTop, left: tableScroll.value.scrollLeft };
+    const page = tableScroll.value.closest<HTMLElement>(".overview-content") || tableScroll.value;
+    saved.scroll = { top: page.scrollTop, left: tableScroll.value.scrollLeft };
   }
   onBeforeUnmount(() => {
     rememberTableScroll();
@@ -170,13 +171,14 @@ export function useMemberDirectoryWorkspace() {
     await nextTick();
     if (!active || version !== queryVersion) return;
     if (restore && tableScroll.value) {
-      tableScroll.value.scrollTop = restore.top;
+      const page = tableScroll.value.closest<HTMLElement>(".overview-content") || tableScroll.value;
+      page.scrollTop = restore.top;
       tableScroll.value.scrollLeft = restore.left;
     }
     activeVisit = visit;
     if (visit) historyScope.set(visit, {
       filters: { ...requestFilters }, page: value.page, signature: publicSignature(),
-      scroll: { top: tableScroll.value?.scrollTop || 0, left: tableScroll.value?.scrollLeft || 0 },
+      scroll: { top: (tableScroll.value?.closest<HTMLElement>(".overview-content") || tableScroll.value)?.scrollTop || 0, left: tableScroll.value?.scrollLeft || 0 },
     });
   }
 
@@ -350,11 +352,7 @@ export function useMemberDirectoryWorkspace() {
   }
 
   function openImport() {
-    importError.value = "";
-    importResult.value = null;
-    importPreview.value = null;
-    importFile.value = null;
-    importOpen.value = true;
+    void router.replace({ name: "data", query: { tab: "import", kind: "members" } });
   }
 
   function pickFile(event: Event) {

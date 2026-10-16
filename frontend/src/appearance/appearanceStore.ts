@@ -46,7 +46,7 @@ export async function initializeAppearance(
   try {
     active = await activate(resolved);
   } catch {
-    state.error = "界面资源加载失败，已使用经典界面";
+    state.error = "主题资源加载失败，已使用雾蓝配色";
     active = appearanceRegistry.CLASSIC;
     try {
       active = await activate(appearanceRegistry.CLASSIC);
@@ -81,14 +81,14 @@ export async function changeGlobalAppearance(
 ) {
   const target = resolveAppearance(appearance);
   if (target.id !== appearance) {
-    throw new Error("所选界面当前不可用");
+    throw new Error("所选配色当前不可用");
   }
 
   await preload(target);
   const saved = await update(target.id);
   const resolved = resolveAppearance(saved.appearance);
   if (resolved.id !== target.id) {
-    throw new Error("界面设置未正确保存，请刷新后重试");
+    throw new Error("配色未正确保存，请刷新后重试");
   }
 
   applyAppearanceAttributes(resolved);

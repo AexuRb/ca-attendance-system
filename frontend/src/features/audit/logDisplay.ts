@@ -1,3 +1,5 @@
+import type { OperationLog } from "./logTypes";
+
 export interface AuditTarget {
   targetType?: string;
   targetId?: number;
@@ -31,7 +33,8 @@ const actionLabels: Record<string, string> = {
   UPDATE_DUTY_WEEKDAYS: "调整值班星期",
   UPDATE_DUTY_PERIODS: "调整值班时间段",
   UPDATE_ATTENDANCE_POLICY: "调整有效时长规则",
-  UPDATE_UI_APPEARANCE: "切换全局界面",
+  UPDATE_UI_APPEARANCE: "切换主题配色",
+  UPDATE_ACKNOWLEDGEMENTS: "编辑鸣谢",
   REVIEW_ATTENDANCE: "审核值班记录",
   BULK_REVIEW_ATTENDANCE: "批量审核值班记录",
   MANUAL_CREATE_ATTENDANCE: "补录值班记录",
@@ -64,9 +67,14 @@ const actionLabels: Record<string, string> = {
   SEED_DEMO_DATA: "初始化演示数据",
 };
 
-export const auditActionOptions = Object.entries(actionLabels).map(
-  ([value, label]) => ({ value, label }),
-);
+// These values describe EXPORT_DATA payloads, rather than action_type filters.
+const exportDetailKinds = new Set([
+  "ATTENDANCE_STATS", "REPAIR_CASES", "TRAINING_SESSION", "TRAINING_SUMMARY",
+]);
+
+export const auditActionOptions = Object.entries(actionLabels)
+  .filter(([value]) => !exportDetailKinds.has(value))
+  .map(([value, label]) => ({ value, label }));
 
 const targetLabels: Record<string, string> = {
   users: "成员账号",
@@ -85,6 +93,11 @@ const targetLabels: Record<string, string> = {
 };
 
 const fieldLabels: Record<string, string> = {
+  intro: "感谢语",
+  contributors: "贡献信息",
+  contribution: "贡献",
+  revision: "内容版本",
+  appearance: "主题配色",
   id: "编号",
   userId: "成员编号",
   studentNo: "学号",
@@ -153,6 +166,13 @@ const fieldLabels: Record<string, string> = {
 };
 
 const valueLabels: Record<string, string> = {
+  CLASSIC: "雾蓝",
+  SPATIAL: "晴空",
+  EDITORIAL: "暖砂",
+  PINE: "松绿",
+  VIOLET: "雾紫",
+  GRAPHITE: "石墨",
+  ROSE: "蔷薇",
   ACTIVE: "启用",
   DISABLED: "停用",
   MEMBER: "成员",
@@ -196,6 +216,29 @@ export function auditActionLabel(value?: string) {
 export function auditTargetLabel(target: AuditTarget) {
   const label = targetLabels[target.targetType || ""] || target.targetType || "系统";
   return `${label}${target.targetId ? ` #${target.targetId}` : ""}`;
+}
+
+export function auditActionTone(value: string): "neutral" | "danger" {
+  return /(?:DELETE|PURGE|FAILURE|LOCKED)/.test(value) ? "danger" : "neutral";
+}
+
+export function auditSummary(item: OperationLog): string {
+  if (item.actionType === "LOCAL_LOGIN_SUCCESS") return "登录本机后台";
+  if (item.actionType === "REMOTE_LOGIN_SUCCESS") return "登录远程后台";
+  if (item.actionType.includes("UPDATE")) {
+    const rows = buildAuditDiff(item.beforeData, item.afterData);
+    if (rows.length === 1) {
+      const row = rows[0]!;
+      if (row.before.length + row.after.length <= 48) {
+        return `${row.label}：${row.before} → ${row.after}`;
+      }
+    }
+    if (rows.length) {
+      const fields = rows.slice(0, 3).map(row => row.label).join("、");
+      return `修改${fields}${rows.length > 3 ? `等 ${rows.length} 项` : ""}`;
+    }
+  }
+  return item.reason?.trim() || "—";
 }
 
 export function buildAuditDiff(beforeData?: string, afterData?: string) {

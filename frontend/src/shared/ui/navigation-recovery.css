@@ -1,0 +1,99 @@
+/* Recovery dialogs share the Spatial composition in every appearance. */
+html:root[data-appearance] .navigation-recovery-backdrop {
+  --recovery-ink: #293541;
+  --recovery-muted: #657583;
+  --recovery-line: #d6dfe7;
+  --recovery-paper: #fff;
+  --recovery-soft: #f5f7fa;
+  --recovery-accent: #30669c;
+  background: #21344f38;
+  backdrop-filter: blur(3px);
+  font: 15px/1.7 "Noto Sans SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+html:root[data-appearance="editorial"] .navigation-recovery-backdrop {
+  --recovery-ink: #39382f;
+  --recovery-muted: #777368;
+  --recovery-line: #e0d9cd;
+  --recovery-paper: #fffefa;
+  --recovery-soft: #f7f4ee;
+  --recovery-accent: #a65d42;
+}
+html:root[data-appearance="spatial"] .navigation-recovery-backdrop {
+  --recovery-ink: #2b3641;
+  --recovery-muted: #667787;
+  --recovery-line: #d9e1e9;
+  --recovery-soft: #f6f8fb;
+  --recovery-accent: #087bcf;
+}
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(560px, 100%);
+  border: 1px solid var(--recovery-line);
+  border-radius: 20px;
+  background: var(--recovery-paper);
+  color: var(--recovery-ink);
+  font: inherit;
+  box-shadow: 0 24px 72px #21344f26, 0 3px 12px #21344f0a;
+}
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell::before { content: none; }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-header {
+  grid-column: 1;
+  grid-row: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 0;
+  padding: 24px 28px;
+  border-color: var(--recovery-line);
+  border-right: 0;
+  border-bottom: 1px solid var(--recovery-line);
+  background: linear-gradient(120deg, var(--recovery-paper), var(--recovery-soft));
+}
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--recovery-ink);
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-header h2 svg { flex: none; width: 22px; height: 22px; color: #b56b4a; }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-header .icon-button { flex: none; width: 36px; min-height: 36px; padding: 0; border-radius: 8px; color: var(--recovery-muted); }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-body { grid-column: 1; grid-row: 2; padding: 24px 28px; font: inherit; color: var(--recovery-ink); scrollbar-gutter: auto; }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .recovery-copy { display: grid; gap: 8px; }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .recovery-copy p { margin: 0; }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .recovery-detail { color: var(--recovery-muted); }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-footer { grid-column: 1; grid-row: 3; flex-wrap: nowrap; gap: 10px; padding: 20px 28px 24px; border-color: var(--recovery-line); background: var(--recovery-paper); }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .button {
+  justify-content: center;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+  white-space: nowrap;
+  transform: none;
+  box-shadow: none;
+}
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .button.primary { background: var(--recovery-accent); color: #fff; }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .button.secondary { border-color: var(--recovery-line); background: var(--recovery-paper); color: var(--recovery-ink); }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .recovery-dismiss { margin-right: auto; padding-inline: 0; color: var(--recovery-muted); }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .button:hover:not(:disabled) { filter: brightness(.97); }
+html:root[data-appearance] .navigation-recovery-backdrop .modal-shell :is(.button,.icon-button):focus-visible { outline: 2px solid color-mix(in srgb, var(--recovery-accent) 38%, transparent); outline-offset: 3px; }
+@media (max-width: 600px) {
+  html:root[data-appearance] .navigation-recovery-backdrop { padding: 20px; }
+  html:root[data-appearance] .navigation-recovery-backdrop .modal-shell :is(.modal-header,.modal-body,.modal-footer) { padding-inline: 20px; }
+  html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-header h2 { font-size: 22px; gap: 10px; }
+  html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .modal-footer { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html:root[data-appearance] .navigation-recovery-backdrop .modal-shell .recovery-dismiss { order: 1; grid-column: 1 / -1; width: 100%; margin: 0; }
+}

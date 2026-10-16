@@ -53,7 +53,7 @@ def collect_metrics(page: Any, selector: str) -> dict[str, Any]:
           const clientWidth = root.clientWidth;
           let overlappingCells = 0;
           document.querySelectorAll(selector).forEach(row => {
-            const cells = [...row.querySelectorAll(':scope > td')]
+            const cells = [...row.children]
               .slice(0, 5)
               .filter(cell => {
                 const style = getComputedStyle(cell);
@@ -118,6 +118,7 @@ def audit_large_dataset(
     if not training_page["items"]:
         raise AssertionError("large training session was not found")
     large_training_id = training_page["items"][0]["id"]
+    large_training_date = training_page["items"][0]["trainingDate"]
 
     screenshot_root = Path(screenshot_directory).resolve()
     screenshot_root.mkdir(parents=True, exist_ok=True)
@@ -155,9 +156,10 @@ def audit_large_dataset(
 
                 training_route = (
                     f"{base_url}/#/admin/trainings?sessionId={large_training_id}"
-                    f"&from={from_date}&to={to_date}&page=1"
+                    f"&from={large_training_date}&to={large_training_date}&sessionPage=1"
                 )
                 page.goto(training_route, wait_until="domcontentloaded")
+                page.locator(f'.training-participant-rows[data-session-id="{large_training_id}"]').wait_for(timeout=30_000)
                 page.locator(TRAINING_ROW_SELECTOR).first.wait_for(timeout=30_000)
                 training_metrics = collect_metrics(page, TRAINING_ROW_SELECTOR)
                 validate_metrics(training_metrics, row_limit=30)

@@ -6,7 +6,7 @@
       <div class="stats-detail-navigation">
         <button class="button secondary small" :disabled="!hasPrevious" @click="$emit('previous')">上一位</button>
         <button class="button secondary small" :disabled="!hasNext" @click="$emit('next')">下一位</button>
-        <button class="button primary small" @click="$emit('records')">查看此范围值班记录</button>
+        <button data-button-kind="entry" class="button primary small" @click="$emit('records')">查看此范围值班记录</button>
         <small>从值班记录返回可恢复当前统计定位</small>
       </div>
       <dl class="stats-detail-summary">

@@ -1,12 +1,12 @@
 <template>
-  <MemberWorkspaceShell class="members-page member-workspace">
-    <template #tools>
-      <button class="mw-button" @click="openImport"><Upload />批量导入</button>
-      <button class="mw-button primary" @click="openCreate"><UserPlus />新增成员</button>
+  <ExpandedWorkspaceShell class="overview-members members-page member-workspace" current-page="members" @scroll.capture="rememberTableScroll">
+    <template #heading>
+      <h1>成员名册</h1>
+      <div class="members-page-actions">
+      <button data-button-kind="soft" class="mw-button primary workspace-create-button" @click="openCreate"><UserPlus />新增成员</button>
+      </div>
     </template>
-    <template #filters>
       <MemberFilters inline v-model:keyword="filters.keyword" v-model:role="filters.role" v-model:status="filters.status" v-model:grade="filters.grade" :grades="grades" :applied-filters="appliedFilters" @submit="applyFilters" />
-    </template>
     <div v-if="members.length" class="member-result-toolbar" :class="{ 'has-selection': selected.size }">
       <div class="member-result-summary">
         <strong>成员记录</strong>
@@ -39,9 +39,9 @@
       <EmptyState
         v-else-if="!members.length && !listError"
         :title="hasActiveFilters || total > 0 ? '没有符合条件的成员' : '尚未添加成员'"
-        :description="hasActiveFilters || total > 0 ? '调整或清除上方筛选条件后重新查询。' : '新增成员建立名册，也可以通过上方的批量导入添加。'"
+        :description="hasActiveFilters || total > 0 ? '调整或清除上方筛选条件后重新查询。' : '新增成员建立名册，也可以在数据中心批量导入。'"
       >
-        <button v-if="!hasActiveFilters && !total" class="button secondary" type="button" @click="openCreate">
+        <button data-button-kind="entry" v-if="!hasActiveFilters && !total" class="button secondary" type="button" @click="openCreate">
           <UserPlus aria-hidden="true" />新增第一位成员
         </button>
       </EmptyState>
@@ -73,6 +73,7 @@
     </div>
 
     <MemberEditorDialog
+      backdrop-class="members-refined-backdrop"
       :open="editorOpen"
       :member="editorTarget"
       :operator-role="user?.role"
@@ -83,63 +84,8 @@
       @save="saveMember"
     />
 
-    <ModalDialog
-      :open="importOpen"
-      title="批量导入成员"
-      eyebrow="EXCEL IMPORT"
-      size="lg"
-      @close="closeImport"
-    >
-      <div class="upload-zone" :class="{ 'has-import-preview': importPreview }">
-        <Upload />
-        <strong>选择成员 Excel</strong>
-        <p>支持 .xlsx 与 .xls 文件</p>
-        <input name="memberImportFile" :disabled="actions.isPending('import')" type="file" accept=".xlsx,.xls" @change="pickFile" />
-      </div>
-      <p v-if="importFile" class="member-import-filename">已选择：{{ importFile.name }}</p>
-      <section v-if="importPreview" class="member-import-preview" aria-label="服务端校验预览">
-        <p aria-live="polite">预计新增 {{ importPreview.created }}，更新 {{ importPreview.updated }}，错误 {{ importPreview.errorCount }} 行。{{ importPreview.valid ? '请核对差异后确认整批导入。' : '校验未通过，整个文件不会写入。' }}</p>
-        <ul v-if="importPreview.warnings.length"><li v-for="warning in importPreview.warnings" :key="warning">{{ warning }}</li></ul>
-        <p>空白可选字段保留原资料；电话和 QQ 仅提示变更。确认时再次校验。</p>
-        <div class="member-import-preview-scroll" tabindex="0">
-          <p v-if="importPreview.errorCount > importPreview.errors.length">下方展示前 {{ importPreview.errors.length }} 条错误，请修正文件后重新校验。</p>
-          <ul v-if="importPreview.errors.length" class="result-issues"><li v-for="issue in importPreview.errors" :key="issue">{{ issue }}</li></ul>
-          <article v-for="change in importPreview.changes" :key="change.studentNo">
-            <strong>{{ change.action }} · {{ change.name }} · {{ change.studentNo }}</strong>
-            <ul v-if="change.fields.length"><li v-for="field in change.fields" :key="field.field">{{ field.field }}：{{ field.before || '未填写' }} → {{ field.after }}</li></ul>
-            <p v-else>导入字段与现有资料一致</p>
-          </article>
-        </div>
-      </section>
-      <div v-if="importResult" class="result-note">
-        新增 {{ importResult.created }}，更新 {{ importResult.updated }}，跳过
-        {{ importResult.skipped }}
-        <ul v-if="importResult.errors?.length" class="result-issues">
-          <li v-for="issue in importResult.errors" :key="issue">{{ issue }}</li>
-        </ul>
-      </div>
-      <div v-if="importError" class="form-error member-import-error" role="alert">
-        {{ importError }}
-      </div>
-      <template #footer>
-        <a
-          class="button secondary"
-          href="/templates/member-import-template.xlsx"
-          download="成员批量导入模板.xlsx"
-        >
-          <Download />下载模板
-        </a>
-        <button
-          class="button primary"
-          :disabled="!importFile || actions.isPending('import')"
-          @click="importPreview?.valid ? importMembers() : previewMembers()"
-        >
-          {{ actions.isPending('import') ? '处理中…' : importPreview?.valid ? '确认整批导入' : '服务端校验预览' }}
-        </button>
-      </template>
-    </ModalDialog>
-
     <BulkMemberStatusDialog
+      backdrop-class="members-refined-backdrop"
       :open="bulkOpen"
       :count="selected.size"
       :status="bulkTargetStatus"
@@ -149,6 +95,7 @@
     />
 
     <MemberPasswordResetDialog
+      backdrop-class="members-refined-backdrop"
       :open="Boolean(resetTarget)"
       :member="resetTarget"
       :busy="actions.isPending('reset-password')"
@@ -156,6 +103,7 @@
       @confirm="resetPassword"
     />
     <ConfirmDialog
+      backdrop-class="members-refined-backdrop"
       :open="Boolean(deleteTarget)"
       title="删除成员"
       :message="`仅可永久删除从未参与业务的空白账号。将删除 ${deleteTarget?.name || ''} 的账号，系统会先自动备份；如已有历史记录，请改为停用账号。`"
@@ -166,31 +114,30 @@
       @cancel="deleteTarget = null"
       @confirm="remove"
     />
-  </MemberWorkspaceShell>
+  </ExpandedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
 import {
   ChevronLeft,
   ChevronRight,
-  Download,
   Power,
   PowerOff,
-  Upload,
   UserPlus,
   X,
 } from "@lucide/vue";
-import MemberWorkspaceShell from "../../features/members/MemberWorkspaceShell.vue";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import MemberRecords from "../../features/members/MemberRecords.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/members/presentation.css";
+import "../../features/today/overview-presentation.css";
+import "../../features/members/refined-presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 
-import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import MemberEditorDialog from "../../features/members/MemberEditorDialog.vue";
 import MemberPasswordResetDialog from "../../features/members/MemberPasswordResetDialog.vue";
@@ -213,7 +160,6 @@ const {
   clearSelection,
   closeBulk,
   closeEditor,
-  closeImport,
   closeReset,
   deleteTarget,
   editorOpen,
@@ -223,12 +169,6 @@ const {
   hasActiveFilters,
   gradeChoices,
   grades,
-  importPreview, previewMembers,
-  importError,
-  importFile,
-  importMembers,
-  importOpen,
-  importResult,
   listError,
   listLoading,
   retry,
@@ -237,10 +177,8 @@ const {
   openBulk,
   openCreate,
   openEdit,
-  openImport,
   page,
   allFilteredSelected,
-  pickFile,
   remove,
   resetPassword,
   resetTarget,

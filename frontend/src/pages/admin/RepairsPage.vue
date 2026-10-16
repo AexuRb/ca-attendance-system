@@ -1,31 +1,22 @@
 <template>
-  <RefinedWorkspaceShell class="affairs-workspace repair-presentation" title="维修事务" description="从受理到完成，保留每次处理记录" section-key="work" filter-label="筛选维修事务">
-    <template #tools
-        ><button
-          :ref="captureExportButton"
-          v-if="canExport"
-          class="button secondary"
-          :disabled="exportDisabled"
-          title="按已查询的日期与关键词导出全部状态，不受当前页限制"
-          @click="exportCases"
-        >
-          <Download />{{ isPending('export-repairs') ? "正在导出" : "导出全部状态" }}</button
-        ><button v-if="canManage" class="button primary" @click="openEditor()">
+  <ExpandedWorkspaceShell class="affairs-workspace repair-presentation overview-repairs" current-page="repairs" @scroll.capture="rememberTableScroll">
+    <template #heading><h1>维修事务</h1><div class="repair-page-actions">
+        <button v-if="canViewRecycle" class="button secondary" type="button" @click="openRecycle"><ArchiveRestore />维修回收站</button><button data-button-kind="soft" v-if="canManage" class="button primary workspace-create-button" @click="openEditor()">
           <Plus />新建维修
-        </button></template>
-    <template #filters><form class="filter-bar repair-query-bar" @submit.prevent="load">
+        </button></div></template>
+    <form class="filter-bar repair-query-bar" aria-label="筛选维修事务" @submit.prevent="load">
       <label class="filter-grow"><span>关键词</span><input v-model.trim="filters.keyword" type="search" name="repair-search" placeholder="编号、联系人、设备或故障" autocomplete="off" /></label>
       <label><span>开始日期</span><input v-model="filters.from" name="repairFrom" type="date" /></label>
       <label><span>结束日期</span><input v-model="filters.to" name="repairTo" type="date" /></label>
       <button class="button secondary" type="submit" :disabled="repairPage.loading"><Search aria-hidden="true" />{{ repairPage.loading ? '查询中…' : filtersPending ? '更新结果' : '查询' }}</button>
-    </form></template>
+    </form>
     <div v-if="filterError" class="inline-alert danger" role="alert">
       {{ filterError }}
     </div>
 
-    <div class="repair-query-context">
+    <div v-if="filtersPending || repairPage.loading || repairPage.error || !hasAppliedQuery" class="repair-query-context">
       <span aria-live="polite"><template v-if="hasAppliedQuery">当前结果：{{ appliedFilters.from || '不限开始日期' }} — {{ appliedFilters.to || '不限结束日期' }}<template v-if="appliedFilters.keyword"> · 关键词：{{ appliedFilters.keyword }}</template></template><template v-else>尚无成功查询结果</template></span>
-      <QueryStatus :as="repairPage.loading || repairPage.error ? 'strong' : 'span'" :loading="repairPage.loading" :failed="Boolean(repairPage.error)" :dirty="filtersPending" :loading-text="`正在查询${pendingQuery?.status === 'COMPLETED' ? '已完成' : pendingQuery?.status === 'CANCELED' ? '已取消' : '进行中'}记录`" failed-text="查询未成功，重试将沿用上次请求条件" dirty-text="筛选已修改，查询后生效；翻页和导出仍沿用当前结果条件" />
+      <QueryStatus :as="repairPage.loading || repairPage.error ? 'strong' : 'span'" :loading="repairPage.loading" :failed="Boolean(repairPage.error)" :dirty="filtersPending" :loading-text="`正在查询${pendingQuery?.status === 'COMPLETED' ? '已完成' : pendingQuery?.status === 'CANCELED' ? '已取消' : '进行中'}记录`" failed-text="查询未成功，重试将沿用上次请求条件" dirty-text="筛选已修改，查询后生效；翻页仍沿用当前结果条件" />
     </div>
 
     <RepairStatusTabs
@@ -55,6 +46,7 @@
         @view="detailTarget = $event"
         @preview="preview"
         @process="openEditor($event, 2)"
+        @edit="openEditor($event)"
         @delete="requestDelete"
         @toggle-phone="togglePhone"
         @retry="retry"
@@ -86,6 +78,7 @@
 
     <RepairDetailDrawer
       :open="Boolean(detailTarget)"
+      backdrop-class="repairs-refined-detail"
       :item="detailTarget"
       :phone-visible="Boolean(detailTarget && phoneVisible(detailTarget.id))"
       :can-manage="canManage && !repairPage.loading && !repairPage.error"
@@ -104,6 +97,7 @@
     />
     <RepairEditorDialog
       :open="editorOpen"
+      backdrop-class="repairs-refined-backdrop"
       :form="form"
       :handler="selectedHandler"
       :candidates="handlerCandidates"
@@ -115,8 +109,9 @@
     />
     <ConfirmDialog
       :open="Boolean(deleteTarget)"
+      backdrop-class="repairs-refined-backdrop"
       title="移入维修回收站"
-      :message="`将 ${deleteTarget?.caseNo || ''} 移入回收站，管理员可在数据页面恢复。`"
+      :message="`将 ${deleteTarget?.caseNo || ''} 移入回收站，管理员可通过维修回收站入口恢复。`"
       confirm-label="移入回收站"
       danger
       :pending="isPending('delete-repair')"
@@ -124,6 +119,7 @@
       @confirm="remove"
     />
     <AgreementDialog
+      backdrop-class="repairs-agreement-backdrop mw-scope"
       :open="agreementOpen"
       :case-no="agreementTarget?.caseNo"
       :html="agreementHtml"
@@ -134,6 +130,7 @@
     />
     <ConfirmDialog
       :open="unsaved.confirmOpen.value"
+      backdrop-class="repairs-refined-backdrop"
       title="放弃未保存修改"
       message="当前维修事务还有未保存的内容，放弃后无法恢复。"
       confirm-label="放弃修改"
@@ -141,23 +138,26 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-  </RefinedWorkspaceShell>
+  </ExpandedWorkspaceShell>
 </template>
 <script setup lang="ts">
 import {
   ArrowLeft,
   ArrowRight,
-  Download,
+  ArchiveRestore,
   Plus,
   Search,
 } from "@lucide/vue";
-import { provide } from "vue";
-import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { computed, provide } from "vue";
+import { useRouter } from "vue-router";
+import { useSession } from "../../app/session";
+import { canViewRepairRecycleBin } from "../../features/maintenance/dataPermissions";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import QueryStatus from "../../shared/ui/QueryStatus.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
-import "../../features/repairs/presentation.css";
-import "../../features/repairs/repair-page-polish.css";
+import "../../features/today/overview-presentation.css";
+import "../../features/repairs/refined-presentation.css";
 provide(memberPresentationKey, true);
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import AgreementDialog from "../../shared/ui/AgreementDialog.vue";
@@ -174,7 +174,6 @@ const {
   hasAppliedQuery,
   filtersPending,
   pendingQuery,
-  exportDisabled,
   editorInitialStep,
   detailPosition,
   detailCanPrevious,
@@ -198,7 +197,6 @@ const {
   form,
   canManage,
   canDelete,
-  canExport,
   repairTotalPages,
   filterError,
   unsaved,
@@ -216,10 +214,15 @@ const {
   preview,
   loadAgreement,
   closeAgreement,
-  exportCases,
   phoneVisible,
   togglePhone,
-  captureExportButton,
 } = useRepairManagementWorkspace();
+
+const { user } = useSession();
+const router = useRouter();
+const canViewRecycle = computed(() => canViewRepairRecycleBin(user.value?.role));
+function openRecycle() {
+  if (canViewRecycle.value) void router.push({ name: "data", query: { tab: "recycle" } });
+}
 
 </script>

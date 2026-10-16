@@ -1,0 +1,1 @@
+import{N as e,_t as t,v as n,w as r}from"./vue-router-DyCa9V42.js";var i=[`data-tone`],a=r({__name:`StatusBadge`,props:{label:{},tone:{}},setup(r){return(a,o)=>(e(),n(`span`,{class:`status-badge`,"data-tone":r.tone},t(r.label),9,i))}});export{a as t};

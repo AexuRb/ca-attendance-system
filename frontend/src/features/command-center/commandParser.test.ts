@@ -96,12 +96,12 @@ describe("command center parser", () => {
       kind: "resolved",
       execution: "confirm",
       target: {
-        name: "repairs",
+        name: "data",
         query: {
+          tab: "export", source: "repairs",
           status: "COMPLETED",
           from: "2026-08-01",
           to: "2026-08-28",
-          intent: "export",
         },
       },
     });
@@ -135,16 +135,16 @@ describe("command center parser", () => {
       kind: "resolved",
       execution: "confirm",
       target: {
-        name: "trainings",
-        query: { from: "2026-01-01", to: "2026-12-31", intent: "export" },
+        name: "data",
+        query: { tab: "export", source: "training", from: "2026-01-01", to: "2026-12-31" },
       },
     });
     expect(resolveCommand("/ 导出 操作日志 今天", "ADMIN", now)).toMatchObject({
       kind: "resolved",
       execution: "confirm",
       target: {
-        name: "logs",
-        query: { from: "2026-08-28", to: "2026-08-28", intent: "export" },
+        name: "data",
+        query: { tab: "export", source: "logs", from: "2026-08-28", to: "2026-08-28" },
       },
     });
   });

@@ -1,0 +1,228 @@
+/* Approved seven-palette contract. Independent visual detail lives in refinements.css. */
+/* Semantic states live in shared-design.css; these are decorative/action colors. */
+:root[data-palette="mist"], [data-palette-preview="mist"] {
+  --theme-canvas: #EEF2F6;
+  --theme-glow: #DCE7F2;
+  --theme-corner: #E8EDF4;
+  --theme-workspace: #F7F9FC;
+  --theme-accent: #30669C;
+  --theme-hover: #275683;
+  --theme-ink: #293541;
+  --theme-muted: #55636F;
+  --theme-line: #D6DFE7;
+  --theme-tint: #E7EFF7;
+  --theme-bubble: #EAF1F8;
+  --theme-composer: #EDF3F8;
+}
+:root[data-palette="sand"], [data-palette-preview="sand"] {
+  --theme-canvas: #F5F1E9;
+  --theme-glow: #EBDDC3;
+  --theme-corner: #F0E6D9;
+  --theme-workspace: #FCFAF6;
+  --theme-accent: #995338;
+  --theme-hover: #83462F;
+  --theme-ink: #39382F;
+  --theme-muted: #685E50;
+  --theme-line: #E0D9CD;
+  --theme-tint: #F4EDDF;
+  --theme-bubble: #F5EEE3;
+  --theme-composer: #F3EDE2;
+}
+:root[data-palette="sky"], [data-palette-preview="sky"] {
+  --theme-canvas: #EDF3F9;
+  --theme-glow: #D4E7F8;
+  --theme-corner: #EAE4F4;
+  --theme-workspace: #F8FBFF;
+  --theme-accent: #126AA8;
+  --theme-hover: #0D578D;
+  --theme-ink: #2B3641;
+  --theme-muted: #4D647A;
+  --theme-line: #D9E1E9;
+  --theme-tint: #E4F0FB;
+  --theme-bubble: #E7F2FC;
+  --theme-composer: #ECF4FC;
+}
+:root[data-palette="pine"], [data-palette-preview="pine"] {
+  --theme-canvas: #EEF3EF;
+  --theme-glow: #DCEADD;
+  --theme-corner: #E6EEEA;
+  --theme-workspace: #F8FBF8;
+  --theme-accent: #39725C;
+  --theme-hover: #2E5F4C;
+  --theme-ink: #2B3931;
+  --theme-muted: #53665B;
+  --theme-line: #D5E1D9;
+  --theme-tint: #E4EFE8;
+  --theme-bubble: #E8F2EB;
+  --theme-composer: #EBF3EE;
+}
+:root[data-palette="violet"], [data-palette-preview="violet"] {
+  --theme-canvas: #F2EFF6;
+  --theme-glow: #E7DFF0;
+  --theme-corner: #E4E7F2;
+  --theme-workspace: #FBF9FD;
+  --theme-accent: #735B96;
+  --theme-hover: #614B80;
+  --theme-ink: #383241;
+  --theme-muted: #655B71;
+  --theme-line: #DDD6E6;
+  --theme-tint: #EDE6F4;
+  --theme-bubble: #F0EAF7;
+  --theme-composer: #F1EDF7;
+}
+:root[data-palette="graphite"], [data-palette-preview="graphite"] {
+  --theme-canvas: #EFF1F3;
+  --theme-glow: #DFE4E9;
+  --theme-corner: #E8EBEF;
+  --theme-workspace: #FAFBFC;
+  --theme-accent: #526478;
+  --theme-hover: #425365;
+  --theme-ink: #303840;
+  --theme-muted: #5C6772;
+  --theme-line: #D6DDE3;
+  --theme-tint: #E6EBF0;
+  --theme-bubble: #EAF0F4;
+  --theme-composer: #EDF1F5;
+}
+:root[data-palette="rose"], [data-palette-preview="rose"] {
+  --theme-canvas: #F6F0F2;
+  --theme-glow: #EEDDE3;
+  --theme-corner: #EFE6EC;
+  --theme-workspace: #FCF9FA;
+  --theme-accent: #8E526A;
+  --theme-hover: #804A61;
+  --theme-ink: #3E3339;
+  --theme-muted: #705D67;
+  --theme-line: #E4D7DD;
+  --theme-tint: #F1E4EA;
+  --theme-bubble: #F5EAF0;
+  --theme-composer: #F4E9EE;
+}
+
+/* Legacy aliases keep every reviewed page on its approved composition. A
+ * layered paint bridge also covers lazy dialogs without stylesheet-order races.
+ * Setup is intentionally excluded: it keeps its fixed Spatial presentation.
+ */
+@layer ui-palette {
+  :root[data-palette] {
+    --canvas: var(--theme-canvas) !important;
+    --surface: #fff !important;
+    --surface-soft: var(--theme-workspace) !important;
+    --surface-blue: var(--theme-tint) !important;
+    --line: var(--theme-line) !important;
+    --line-strong: var(--theme-line) !important;
+    --line-soft: color-mix(in srgb, var(--theme-line) 55%, white) !important;
+    --ink-950: var(--theme-ink) !important;
+    --ink-900: var(--theme-ink) !important;
+    --ink-850: var(--theme-ink) !important;
+    --ink-800: var(--theme-ink) !important;
+    --ink-700: var(--theme-muted) !important;
+    --ink-600: var(--theme-muted) !important;
+    --ink-500: var(--theme-muted) !important;
+    --blue-800: var(--theme-hover) !important;
+    --blue-700: var(--theme-accent) !important;
+    --blue-600: var(--theme-accent) !important;
+    --blue-500: var(--theme-accent) !important;
+    --blue-300: color-mix(in srgb, var(--theme-accent) 40%, white) !important;
+    --blue-200: color-mix(in srgb, var(--theme-accent) 25%, white) !important;
+    --blue-100: var(--theme-tint) !important;
+    --blue-50: var(--theme-bubble) !important;
+    --primary: var(--theme-accent) !important;
+    --primary-focus: var(--theme-accent) !important;
+    --primary-active: var(--theme-hover) !important;
+    --primary-on-dark: var(--theme-accent) !important;
+    --focus-ring: var(--theme-accent) !important;
+    --muted: var(--theme-muted) !important;
+    --admin-canvas: var(--theme-canvas) !important;
+    --admin-surface: #fff !important;
+    --admin-surface-subtle: var(--theme-workspace) !important;
+    --admin-line: var(--theme-line) !important;
+    --admin-blue: var(--theme-accent) !important;
+    --admin-blue-deep: var(--theme-hover) !important;
+    --admin-blue-soft: var(--theme-tint) !important;
+    --foundation-ink: var(--theme-ink) !important;
+    --foundation-muted: var(--theme-muted) !important;
+    --foundation-line: var(--theme-line) !important;
+    --foundation-paper: #fff !important;
+    --foundation-soft: var(--theme-workspace) !important;
+    --foundation-accent: var(--theme-accent) !important;
+  }
+
+  :root[data-palette] :where(.overview-shell, .mw-scope, .modal-backdrop, .settings-appearance-preview),
+  [data-palette-preview] {
+    --mw-ink: var(--theme-ink) !important;
+    --mw-muted: var(--theme-muted) !important;
+    --mw-line: var(--theme-line) !important;
+    --mw-accent: var(--theme-accent) !important;
+    --mw-paper: #fff !important;
+    --mw-control: #fff !important;
+    --mw-soft: var(--theme-composer) !important;
+    --mw-danger: var(--ui-danger) !important;
+    --overview-background: radial-gradient(ellipse at 5% 0%, var(--theme-glow), transparent 65%), radial-gradient(ellipse at 100% 100%, var(--theme-corner), transparent 60%), var(--theme-canvas) !important;
+    --overview-drawer: var(--theme-canvas) !important;
+    --overview-surface-center: var(--theme-tint) !important;
+    --overview-surface-corner: var(--theme-corner) !important;
+    --overview-chat: var(--theme-bubble) !important;
+    --overview-selected: var(--theme-tint) !important;
+    --overview-control: var(--theme-composer) !important;
+    --sample-center: var(--theme-tint) !important;
+    --sample-corner: var(--theme-corner) !important;
+    --sample-hover: var(--theme-hover) !important;
+  }
+  :root[data-palette] :where(.public-presentation) {
+    --pub-ink: var(--theme-ink) !important;
+    --pub-muted: var(--theme-muted) !important;
+    --pub-line: var(--theme-line) !important;
+    --pub-paper: #fff !important;
+    --pub-soft: var(--theme-composer) !important;
+    --pub-accent: var(--theme-accent) !important;
+    background: radial-gradient(ellipse at 5% 0%, var(--theme-glow), transparent 65%), radial-gradient(ellipse at 100% 100%, var(--theme-corner), transparent 60%), var(--theme-canvas) !important;
+  }
+  :root[data-palette] :where(.navigation-recovery-backdrop) {
+    --recovery-ink: var(--theme-ink) !important;
+    --recovery-muted: var(--theme-muted) !important;
+    --recovery-line: var(--theme-line) !important;
+    --recovery-paper: #fff !important;
+    --recovery-soft: var(--theme-composer) !important;
+    --recovery-accent: var(--theme-accent) !important;
+  }
+  :root[data-palette] :where(.review-dialog-backdrop, .overview-reviews) {
+    --review-ink: var(--theme-ink) !important;
+    --review-muted: var(--theme-muted) !important;
+    --review-line: var(--theme-line) !important;
+    --review-accent: var(--theme-accent) !important;
+  }
+  :root[data-palette] :where(.stats-refined-detail-backdrop) {
+    --stats-card-fill: var(--theme-bubble) !important;
+    --stats-card-muted: var(--theme-muted) !important;
+    --stats-card-hover-fill: color-mix(in srgb, var(--theme-accent) 9%, transparent) !important;
+  }
+  :root[data-palette] :where(.today-conversation .command-composer) {
+    background: var(--theme-composer) !important;
+  }
+  :root[data-palette] :where(.profile-record-scroll tbody tr:hover, .profile-mobile-record:hover) {
+    background: color-mix(in srgb, var(--theme-accent) 5%, transparent) !important;
+  }
+  :root[data-palette][data-appearance="spatial"] :where(.profile-record-scroll tbody tr:hover) {
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 28%, transparent) !important;
+  }
+  :root[data-palette][data-appearance="editorial"] :where(.profile-mobile-record:hover) {
+    box-shadow: inset 2px 0 0 color-mix(in srgb, var(--theme-accent) 38%, transparent) !important;
+  }
+  /* Keep each family's hover shape, but derive its paint from this palette. */
+  :root[data-palette] :where(.profile-stat:hover) {
+    background: color-mix(in srgb, var(--theme-accent) 9%, transparent) !important;
+  }
+  :root[data-palette][data-appearance="editorial"] :where(.profile-stat:hover) {
+    box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--theme-accent) 42%, transparent) !important;
+  }
+  :root[data-palette][data-appearance="spatial"] :where(.profile-stat:hover) {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-accent) 20%, transparent) !important;
+  }
+  :root[data-palette][data-appearance="editorial"] :where(.stats-refined-detail-backdrop) {
+    --stats-card-hover-shadow: inset 0 -2px 0 color-mix(in srgb, var(--theme-accent) 42%, transparent) !important;
+  }
+  :root[data-palette][data-appearance="spatial"] :where(.stats-refined-detail-backdrop) {
+    --stats-card-hover-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-accent) 20%, transparent) !important;
+  }
+}

@@ -6,7 +6,6 @@
           <div>
             <p v-if="!refined" class="eyebrow">ATTENDANCE POLICY</p>
             <h2>有效时长规则</h2>
-            <span v-if="refined">时长认定遵循现有审核规则。</span>
             <span v-if="refined && policyDirty" class="sw-section-status" role="status">时长规则未保存</span>
           </div>
           <button
@@ -39,17 +38,17 @@
               role="switch"
               :checked="policy.requireDutyDay"
               :disabled="!canEditPolicy"
-              aria-label="强制值班日"
+              :aria-label="refined ? '只统计值班日内的时长' : '强制值班日'"
               @change="updatePolicy('requireDutyDay', checkedValue($event))"
             />
             <span class="duty-policy-icon">
               <CalendarCheck2 aria-hidden="true" />
             </span>
             <span class="duty-policy-copy">
-              <strong>强制值班日</strong>
-              <small>非开放日不计时</small>
+              <strong>{{ refined ? '只统计值班日内的时长' : '强制值班日' }}</strong>
+              <small>{{ refined ? (policy.requireDutyDay ? '非值班日不计入有效时长。' : '不限制值班日期，仍按签到审核规则计时。') : '非开放日不计时' }}</small>
             </span>
-            <span class="duty-policy-state">
+            <span v-if="!refined" class="duty-policy-state">
               {{ policy.requireDutyDay ? "已限制" : "已放开" }}
             </span>
           </label>
@@ -68,21 +67,22 @@
               role="switch"
               :checked="policy.requireDutyPeriod"
               :disabled="!canEditPolicy"
-              aria-label="强制值班时段"
+              :aria-label="refined ? '只统计时段内的时长' : '强制值班时段'"
               @change="updatePolicy('requireDutyPeriod', checkedValue($event))"
             />
             <span class="duty-policy-icon">
               <Clock3 aria-hidden="true" />
             </span>
             <span class="duty-policy-copy">
-              <strong>强制值班时段</strong>
-              <small>时段外不计时</small>
+              <strong>{{ refined ? '只统计时段内的时长' : '强制值班时段' }}</strong>
+              <small>{{ refined ? (policy.requireDutyPeriod ? '仅启用时段内的时间计入有效时长。' : '不限制值班时段，仍按签到审核规则计时。') : '时段外不计时' }}</small>
             </span>
-            <span class="duty-policy-state">
+            <span v-if="!refined" class="duty-policy-state">
               {{ policy.requireDutyPeriod ? "已限制" : "已放开" }}
             </span>
           </label>
         </div>
+        <p v-if="policySaveError" class="form-error settings-save-error" role="alert">{{ policySaveError }}</p>
       </section>
 
       <section :id="refined ? 'settings-periods' : undefined" class="duty-period-panel" :class="{ 'sw-section sw-periods': refined }">
@@ -90,20 +90,26 @@
           <div>
             <p v-if="!refined" class="eyebrow">PERIOD EDITOR</p>
             <h2>{{ refined ? '值班时间段' : '编辑时间段' }}</h2>
-            <span v-if="refined">选择时段后编辑起止时间。</span>
           </div>
-          <button class="button secondary small" type="button" @click="addPeriod">
+          <div class="settings-section-actions">
+          <button data-button-kind="soft" class="button secondary small" type="button" @click="addPeriod">
             <Plus aria-hidden="true" />新增时段
           </button>
+          <button
+            class="button primary duty-save-button duty-save-periods"
+            :class="{ dirty: periodsDirty }"
+            type="button"
+            :disabled="!periodsDirty || Boolean(periodError) || periodsPending"
+            :title="periodsDirty ? '有未保存修改' : undefined"
+            @click="$emit('save-periods')"
+          >
+            <Save aria-hidden="true" />
+            {{ periodsPending ? "正在保存" : "保存时间段" }}
+          </button>
+          </div>
         </div>
 
         <template v-if="refined && periods.length">
-          <div class="duty-period-overview" aria-label="时间段概览">
-            <div><span>计时时长</span><strong>{{ enabledDuration }}</strong></div>
-            <div><span>启用时段</span><strong>{{ enabledCount }} <small>段</small></strong></div>
-            <div><span>计时覆盖</span><strong>{{ coverageRange }}</strong></div>
-          </div>
-
           <div class="duty-rail-caption">
             <strong>日内时间尺 · 06:00—24:00</strong>
             <span>时段宽度按持续时间等比显示</span>
@@ -144,7 +150,8 @@
                 :aria-label="`${compactRange(block.period)}，${periodIssues[block.index]?.short || (block.period.enabled ? '启用' : '停用')}`"
                 @click="selectPeriod(block.index, true)"
               >
-                {{ compactRange(block.period) }}
+                <span>{{ block.period.startTime.slice(0, 5) }}</span>
+                <span>{{ block.period.endTime.slice(0, 5) }}</span>
               </button>
             </div>
           </div>
@@ -288,22 +295,13 @@
           <span>{{ selectedIssue?.message || periodError }}</span>
         </div>
 
+        <p v-if="periodSaveError" class="form-error settings-save-error" role="alert">{{ periodSaveError }}</p>
         <div class="duty-period-footer">
           <span>
             共 {{ periods.length }} 个时间段
             <em v-if="periodsDirty" class="duty-dirty-state">未保存</em>
           </span>
-          <button
-            class="button primary duty-save-button"
-            :class="{ dirty: periodsDirty }"
-            type="button"
-            :disabled="Boolean(periodError) || periodsPending"
-            :title="periodsDirty ? '有未保存修改' : undefined"
-            @click="$emit('save-periods')"
-          >
-            <Save aria-hidden="true" />
-            {{ periodsPending ? "正在保存" : "保存时间段" }}
-          </button>
+
         </div>
       </section>
     </aside>
@@ -418,6 +416,8 @@ const props = defineProps<{
   policy: AttendancePolicy;
   canEditPolicy: boolean;
   periodError: string;
+  periodSaveError?: string;
+  policySaveError?: string;
   policyDirty: boolean;
   periodsDirty: boolean;
   policyPending: boolean;
@@ -438,26 +438,7 @@ const selectedPeriod = computed(() => props.periods[selectedIndex.value] ?? null
 const enabledCount = computed(() => props.periods.filter((period) => period.enabled).length);
 const periodIssues = computed(() => findPeriodIssues(props.periods));
 const selectedIssue = computed(() => periodIssues.value[selectedIndex.value] ?? null);
-const enabledDuration = computed(() => {
-  const minutes = props.periods.reduce((total, period) => {
-    if (!period.enabled) return total;
-    const start = toMinutes(period.startTime);
-    const end = toMinutes(period.endTime);
-    return start === null || end === null || end <= start ? total : total + end - start;
-  }, 0);
-  const hours = (minutes / 60).toFixed(1).replace(".0", "");
-  return `${hours} 小时`;
-});
-const coverageRange = computed(() => {
-  const valid = props.periods.flatMap((period) => {
-    if (!period.enabled) return [];
-    const start = toMinutes(period.startTime);
-    const end = toMinutes(period.endTime);
-    return start === null || end === null || end <= start ? [] : [{ start, end }];
-  });
-  if (!valid.length) return "—";
-  return `${formatMinutes(Math.min(...valid.map((period) => period.start)))}—${formatMinutes(Math.max(...valid.map((period) => period.end)))}`;
-});
+
 
 watch(
   () => props.periods.length,
@@ -562,10 +543,6 @@ function toMinutes(value: string) {
   return (hour ?? 0) * 60 + (minute ?? 0);
 }
 
-function formatMinutes(value: number) {
-  return `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-}
-
 interface PeriodIssue {
   short: "不完整" | "时间错误" | "重复" | "冲突";
   message: string;
@@ -652,7 +629,7 @@ const railBlocks = computed(() => {
       laneCount: lane.laneCount,
       style: {
         "--rail-left": `${railInsetPercent + ((start - railStartMinutes) / railSpanMinutes) * railUsablePercent}%`,
-        "--rail-width": `${Math.max(7.5, ((end - start) / railSpanMinutes) * railUsablePercent)}%`,
+        "--rail-width": `${((end - start) / railSpanMinutes) * railUsablePercent}%`,
         "--rail-lane": String(lane.laneIndex),
       },
     }];

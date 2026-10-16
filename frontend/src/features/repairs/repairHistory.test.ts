@@ -15,14 +15,15 @@ vi.mock("../../app/session", () => ({ useSession: () => ({ user: ref({ id: 1, na
 let workspace: ReturnType<typeof useRepairManagementWorkspace>;
 let router: Router;
 let wrapper: VueWrapper;
+let useMainScroll = false;
 const page = defineComponent({ setup() {
   workspace = useRepairManagementWorkspace();
-  return () => h(RepairLedgerTable, {
+  return () => h("main", { class: useMainScroll ? "overview-content" : undefined }, [h(RepairLedgerTable, {
     items: workspace.repairPage.items, status: workspace.activeStatus.value,
     loading: workspace.repairPage.loading, error: workspace.repairPage.error,
     revealedPhones: workspace.revealedPhones.value, canManage: true, canDelete: true,
     bindScroll: workspace.bindTableScroll, onScroll: workspace.rememberTableScroll,
-  });
+  })]);
 } });
 async function navigate(url: string) { await router.push(url); await flushPromises(); }
 async function back() {
@@ -42,6 +43,7 @@ function repair(id: number, status: RepairStatus): RepairCase {
   return { id, caseNo: `DEMO-${id}`, agreementType: "REPAIR", ownerName: "合成联系人", ownerPhone: "13800005678", deviceType: "合成设备", faultDescription: "演示故障", dataBackupConfirmed: true, riskAcknowledged: true, privacyAcknowledged: true, status, receivedAt: "2026-08-01T14:00:00" };
 }
 beforeEach(async () => {
+  useMainScroll = false;
   clearPrivateNavigationState();
   window.history.replaceState({}, "", "/#/elsewhere");
   api.get.mockResolvedValue([]);
@@ -63,6 +65,18 @@ beforeEach(async () => {
 afterEach(() => { wrapper.unmount(); router.options.history.destroy(); api.get.mockReset(); api.request.mockReset(); clearPrivateNavigationState(); });
 
 describe("repair private history context", () => {
+  it("restores the whole workspace position when its ledger has no vertical scroller", async () => {
+    await navigate("/elsewhere");
+    useMainScroll = true;
+    await navigate("/repairs");
+    await query();
+    wrapper.get<HTMLElement>(".overview-content").element.scrollTop = 480;
+    workspace.rememberTableScroll();
+    await navigate("/elsewhere");
+    await back();
+    expect(wrapper.get<HTMLElement>(".overview-content").element.scrollTop).toBe(480);
+    expect(workspace.filters.keyword).toBe("成功条件");
+  });
   it("restores successful keyword, range, status and page without drafts", async () => {
     await query(); await workspace.setStatus("COMPLETED"); await workspace.setPage(2); await flushPromises();
     workspace.tableScroll.value!.scrollTop = 480;

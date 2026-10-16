@@ -25,8 +25,8 @@ it("reports failed loading without changing the current route or exposing diagno
   await expect(router.push("/test-failed")).rejects.toThrow("private diagnostic details");
   await flushPromises();
   expect(router.currentRoute.value.path).toBe("/test-stable");
-  expect(document.body.textContent).toContain("页面未能打开");
-  expect(document.body.textContent).toContain("当前页面与输入已保留。");
+  expect(document.body.textContent).toContain("页面加载失败");
+  expect(document.body.textContent).toContain("当前页面和未保存的输入已保留。");
   expect(document.body.textContent).not.toContain("private diagnostic details");
   expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
   expect(notify).not.toHaveBeenCalled();

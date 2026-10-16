@@ -1,5 +1,6 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { useSession } from "../../app/session";
 import { del, downloadBlob, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
@@ -16,6 +17,8 @@ import { schedulePayload } from "./scheduleEditor";
 import type { ScheduleEditorForm, ScheduleSlot } from "./scheduleTypes";
 
 export function useScheduleWorkspace() {
+  const { user } = useSession();
+  const canManage = computed(() => user.value?.role === "PRESIDENT" || user.value?.role === "ADMIN");
   const task = useAsyncTask();
   const route = useRoute();
   const router = useRouter();
@@ -74,7 +77,7 @@ export function useScheduleWorkspace() {
 
   onMounted(async () => {
     await loadBase();
-    if (route.query.intent === "import") importOpen.value = true;
+    if (canManage.value && route.query.intent === "import") await router.replace({ name: "data", query: { tab: "import", kind: "schedules" } });
   });
 
   async function loadBase() {
@@ -82,11 +85,11 @@ export function useScheduleWorkspace() {
       (signal) =>
         Promise.all([
           get<ScheduleSlot[]>("/api/schedules", { signal }),
-          get<DutyPeriod[]>("/api/settings/duty-periods", { signal }),
-          get<DutyWeekdaySetting[]>("/api/settings/weekdays", { signal }),
-          get<ScheduleAssigneeOption[]>("/api/schedules/assignee-candidates", {
+          get<DutyPeriod[]>(canManage.value ? "/api/settings/duty-periods" : "/api/public/duty-periods", { signal }),
+          get<DutyWeekdaySetting[]>(canManage.value ? "/api/settings/weekdays" : "/api/public/duty-weekdays", { signal }),
+          canManage.value ? get<ScheduleAssigneeOption[]>("/api/schedules/assignee-candidates", {
             signal,
-          }),
+          }) : Promise.resolve([] as ScheduleAssigneeOption[]),
         ]),
       "排班数据加载失败",
     );
@@ -106,6 +109,7 @@ export function useScheduleWorkspace() {
     weekday = weekdays.value.find((day) => day.enabled)?.value || 1,
     period?: string,
   ) {
+    if (!canManage.value) return;
     if (actions.isPending("save")) return;
     Object.assign(
       fixedForm,
@@ -146,6 +150,7 @@ export function useScheduleWorkspace() {
   }
 
   async function downloadImportTemplate() {
+    if (!canManage.value) return;
     await actions.run("template", async () => {
       const blob = await task.run(
         () => get<Blob>("/api/schedules/import-template"),
@@ -166,6 +171,7 @@ export function useScheduleWorkspace() {
   }
 
   async function saveFixed() {
+    if (!canManage.value) return;
     await actions.run("save", async () => {
       const payload = schedulePayload(fixedForm);
       const saved = fixedForm.id
@@ -186,10 +192,12 @@ export function useScheduleWorkspace() {
   }
 
   function deleteFixed(item: ScheduleSlot) {
+    if (!canManage.value) return;
     deleteTarget.value = item;
   }
 
   async function confirmDeleteFixed() {
+    if (!canManage.value) return;
     const target = deleteTarget.value;
     if (!target) return;
     await actions.run("archive", async () => {
@@ -212,6 +220,7 @@ export function useScheduleWorkspace() {
   }
 
   return {
+    canManage,
     unsaved,
     actions,
     assigneeCandidates,

@@ -107,8 +107,8 @@ class ExportAuditIntegrationTest {
                 new RepairAgreementService(),
                 new RepairExcelExportService()
         );
-        operationLogs = new OperationLogQueryService(jdbc, backups, audit);
-        customExports = new CustomExportService(jdbc, audit);
+        operationLogs = new OperationLogQueryService(jdbc, audit);
+        customExports = new CustomExportService(jdbc, audit, stats);
         DutyPeriodService dutyPeriods = new DutyPeriodService(jdbc, objectMapper, audit);
         dutyPeriods.update(List.of(new DutyPeriodService.DutyPeriodRequest("14:00", "16:00")));
         scheduleImports = new DutyScheduleImportService(jdbc, audit, dutyPeriods);

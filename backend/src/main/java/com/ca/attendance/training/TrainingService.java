@@ -254,6 +254,26 @@ public class TrainingService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public ImportPreview previewParticipants(long sessionId, MultipartFile file) {
+        requireManageTrainings(AuthContext.current());
+        ensureSessionExists(sessionId);
+        ExcelImportPolicy.validateFile(file, "培训名单");
+        try (InputStream input = file.getInputStream(); Workbook workbook = WorkbookFactory.create(input)) {
+            if (workbook.getNumberOfSheets() == 0) throw ApiException.badRequest("Excel 文件没有工作表");
+            PreparedImport prepared = prepareImport(sessionId, workbook.getSheetAt(0));
+            List<ImportPreviewRow> rows = prepared.rows().stream().map(row -> new ImportPreviewRow(
+                    row.row(), row.values().studentNo(), row.values().name(), row.values().durationHours(), row.values().remark()
+            )).toList();
+            return new ImportPreview(prepared.errors().isEmpty() && !rows.isEmpty(),
+                    rows.size() + prepared.skipped(), prepared.skipped(), prepared.errors(), rows);
+        } catch (ApiException | DataAccessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw ApiException.badRequest("Excel 文件读取失败，请确认文件格式正确");
+        }
+    }
+
     public ExportFile exportSessionImportTemplate(long sessionId) {
         AuthUser current = AuthContext.current();
         requireManageTrainings(current);
@@ -311,24 +331,8 @@ public class TrainingService {
     }
 
     private ImportResult importSheet(long sessionId, Sheet sheet, long operatorId) {
-        TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
-        BigDecimal defaultDuration = defaultDurationHours(session);
-        TrainingParticipantImportParser.ParseResult parsed = participantImports.parse(sheet, defaultDuration);
-        List<ParticipantValues> valuesToWrite = new ArrayList<>();
-        List<String> errors = new ArrayList<>(parsed.errors());
-        int skipped = parsed.skipped();
-        for (TrainingParticipantImportParser.ParsedRow row : parsed.rows()) {
-            try {
-                valuesToWrite.add(importParticipantValues(row));
-            } catch (ApiException ex) {
-                skipped++;
-                addIssue(errors, "第 " + row.rowNumber() + " 行：" + ex.getMessage());
-            }
-        }
-        if (!errors.isEmpty()) {
-            return new ImportResult(0, 0, skipped, errors);
-        }
-
+        PreparedImport prepared = prepareImport(sessionId, sheet);
+        if (!prepared.errors().isEmpty()) return new ImportResult(0, 0, prepared.skipped(), prepared.errors());
         int created = 0;
         int updated = 0;
         Set<String> existingStudentNumbers = new HashSet<>(jdbc.queryForList(
@@ -336,7 +340,8 @@ public class TrainingService {
                 String.class,
                 sessionId
         ));
-        for (ParticipantValues values : valuesToWrite) {
+        for (PreparedImportRow row : prepared.rows()) {
+            ParticipantValues values = row.values();
             if (existingStudentNumbers.contains(values.studentNo())) {
                 updated++;
             } else {
@@ -344,8 +349,31 @@ public class TrainingService {
             }
             upsertParticipant(sessionId, values, operatorId);
         }
-        return new ImportResult(created, updated, skipped, errors);
+        return new ImportResult(created, updated, prepared.skipped(), prepared.errors());
     }
+
+    private PreparedImport prepareImport(long sessionId, Sheet sheet) {
+        TrainingSessionItem session = findSession(sessionId).orElseThrow(() -> ApiException.notFound("培训不存在"));
+        BigDecimal defaultDuration = defaultDurationHours(session);
+        TrainingParticipantImportParser.ParseResult parsed = participantImports.parse(sheet, defaultDuration);
+        List<PreparedImportRow> rows = new ArrayList<>();
+        List<String> errors = new ArrayList<>(parsed.errors());
+        int skipped = parsed.skipped();
+        for (TrainingParticipantImportParser.ParsedRow row : parsed.rows()) {
+            try {
+                rows.add(new PreparedImportRow(row.rowNumber(), importParticipantValues(row)));
+            } catch (ApiException ex) {
+                skipped++;
+                addIssue(errors, "第 " + row.rowNumber() + " 行：" + ex.getMessage());
+            }
+        }
+        return new PreparedImport(rows, skipped, errors);
+    }
+
+    public record ImportPreview(boolean valid, int sourceRows, int errorCount, List<String> errors, List<ImportPreviewRow> rows) {}
+    public record ImportPreviewRow(int row, String studentNo, String name, BigDecimal durationHours, String remark) {}
+    private record PreparedImportRow(int row, ParticipantValues values) {}
+    private record PreparedImport(List<PreparedImportRow> rows, int skipped, List<String> errors) {}
 
     private ParticipantValues importParticipantValues(TrainingParticipantImportParser.ParsedRow row) {
         String studentNo = row.studentNo();

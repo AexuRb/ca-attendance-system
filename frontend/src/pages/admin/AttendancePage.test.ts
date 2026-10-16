@@ -53,7 +53,7 @@ describe("AttendancePage manual editing", () => {
     await wrapper.get('[name="attendanceTo"]').setValue('2026-08-31');
     await wrapper.get('[name="attendanceKeyword"]').setValue('空结果成员');
     await wrapper.get('[name="attendanceStatus"]').setValue('INVALID');
-    await wrapper.get('form.daily-filter').trigger('submit');
+    await wrapper.get('form[aria-label="筛选值班记录"]').trigger('submit');
     await flushPromises();
     const range = wrapper.get('.attendance-results-summary__range').text();
     expect(range).toContain('2026-08-01 — 2026-08-31');
@@ -68,7 +68,7 @@ describe("AttendancePage manual editing", () => {
     expect(wrapper.get('.attendance-results-summary__range').text()).toBe(range);
     expect(wrapper.get('.attendance-query-status').text()).toContain('筛选已修改');
     apiGet.mockRejectedValueOnce(new Error('空结果后的失败查询'));
-    await wrapper.get('form.daily-filter').trigger('submit');
+    await wrapper.get('form[aria-label="筛选值班记录"]').trigger('submit');
     await flushPromises();
     expect(wrapper.get('.attendance-results-summary__range').text()).toBe(range);
     expect(wrapper.get('.attendance-query-status').text()).toContain('查询未成功');
@@ -130,6 +130,23 @@ describe("AttendancePage manual editing", () => {
     wrapper.unmount();
   });
 
+  it("keeps the actual checkout date visible when it differs from the duty date", async () => {
+    apiGet.mockResolvedValue({ items: [{
+      id: 9, userId: 4, userRole: "MEMBER", name: "测试成员", studentNo: "20260009",
+      dutyDate: "2026-09-28", checkInTime: "2026-09-28T23:00:00", checkOutTime: "2026-09-29T01:20:00",
+      effectiveStatus: "VALID", durationMinutes: 140, validHours: 2,
+    }], total: 1, page: 1, pageSize: 20 });
+    const wrapper = mount(AttendancePage);
+    await flushPromises();
+    const checkout = wrapper.findAll(".attendance-clock")[1]!;
+    expect(checkout.get("time").text()).toBe("01:20");
+    expect(checkout.get("small").text()).toBe("2026-09-29");
+    expect(checkout.get("time").attributes("datetime")).toBe("2026-09-29T01:20:00");
+    expect(checkout.get("time").attributes("title")).toBe("2026-09-29 01:20");
+    expect(wrapper.findAll(".attendance-mobile-record__times>div")[1]!.text()).toContain("2026-09-29");
+    wrapper.unmount();
+  });
+
   it("opens a clean editor and submits an unsigned-out supplement as not submitted", async () => {
     mockRecords();
     apiPost.mockResolvedValue({});
@@ -182,7 +199,7 @@ describe("AttendancePage manual editing", () => {
     apiGet.mockRejectedValueOnce(new Error("测试查询失败"));
     await wrapper.get('[name="attendanceFrom"]').setValue("2026-01-01");
     await wrapper.get('[name="attendanceKeyword"]').setValue("已提交成员");
-    await wrapper.get("form.daily-filter").trigger("submit");
+    await wrapper.get('form[aria-label="筛选值班记录"]').trigger("submit");
     await flushPromises();
     expect(wrapper.get(".attendance-results-summary__range").text()).toBe(previousSummary);
     expect(wrapper.get('[role="alert"]').text()).toContain("保留上次成功查询");
@@ -353,7 +370,7 @@ describe("AttendancePage manual editing", () => {
     const dates = wrapper.findAll('input[type="date"]');
     await dates[0].setValue("2026-08-22");
     await dates[1].setValue("2026-08-21");
-    await wrapper.get("form.daily-filter").trigger("submit");
+    await wrapper.get('form[aria-label="筛选值班记录"]').trigger("submit");
 
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "开始日期不能晚于结束日期",

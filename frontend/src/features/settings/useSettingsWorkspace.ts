@@ -24,6 +24,9 @@ import {
 
 export function useSettingsWorkspace() {
   const task = useAsyncTask();
+  const weekdayTask = useAsyncTask();
+  const periodTask = useAsyncTask();
+  const policyTask = useAsyncTask();
   const route = useRoute();
   const loadRequest = useLatestRequest();
   const actions = usePendingActions();
@@ -103,8 +106,9 @@ export function useSettingsWorkspace() {
   }
 
   async function saveWeekdays() {
+    if (!weekdaysDirty.value) return;
     await actions.run("weekdays", async () => {
-      const saved = await task.run(
+      const saved = await weekdayTask.run(
         () =>
           put("/api/settings/weekdays", {
             enabledWeekdays: weekdays.value
@@ -118,9 +122,9 @@ export function useSettingsWorkspace() {
   }
 
   async function savePeriods() {
-    if (periodError.value) return;
+    if (!periodsDirty.value || periodError.value) return;
     await actions.run("periods", async () => {
-      const saved = await task.run(
+      const saved = await periodTask.run(
         () =>
           put<DutyPeriod[]>("/api/settings/duty-periods", {
             periods: periods.value.map((item) => ({
@@ -144,9 +148,9 @@ export function useSettingsWorkspace() {
   }
 
   async function saveAttendancePolicy() {
-    if (!canEditAttendancePolicy.value) return;
+    if (!canEditAttendancePolicy.value || !policyDirty.value) return;
     await actions.run("policy", async () => {
-      const saved = await task.run(
+      const saved = await policyTask.run(
         () =>
           put<AttendancePolicy>(
             "/api/settings/attendance-policy",
@@ -167,7 +171,7 @@ export function useSettingsWorkspace() {
     await actions.run("appearance", async () => {
       const saved = await task.run(
         () => changeGlobalAppearance(appearanceDraft.value),
-        "全局界面已更新",
+        "主题配色已更新",
       );
       if (saved) {
         appearanceDraft.value = saved.id;
@@ -201,6 +205,9 @@ export function useSettingsWorkspace() {
 
   return {
     actions,
+    weekdaySaveError: weekdayTask.error,
+    periodSaveError: periodTask.error,
+    policySaveError: policyTask.error,
     appearanceDraft,
     appearanceDirty,
     appearanceError,

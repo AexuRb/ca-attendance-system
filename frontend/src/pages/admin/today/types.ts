@@ -32,4 +32,5 @@ export interface TodayQuickAction {
   label: string;
   detail: string;
   tone: TodayQuickActionTone;
+  primary?: boolean;
 }

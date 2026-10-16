@@ -1,11 +1,13 @@
 <template>
-  <RefinedWorkspaceShell class="daily-workspace attendance-workspace" title="值班记录" description="查看签到、签退与有效时长" section-key="duty" filter-label="筛选值班记录">
-    <template #heading><h1>值班记录</h1><p>逐条核对签到、签退与计入时长</p></template>
-    <template #tools
-        ><button v-if="statsOrigin" class="button secondary" @click="returnToStats">返回统计核对</button><button v-if="canCreate" class="button primary" @click="openCreate">
-          <Plus />补录记录
-        </button></template>
-    <template #filters><form class="mw-filter daily-filter" @submit.prevent="applyFilters">
+  <ExpandedWorkspaceShell class="overview-attendance" current-page="attendance">
+    <template #heading>
+      <h1>值班记录</h1>
+      <div class="attendance-page-actions">
+        <button v-if="statsOrigin" class="button secondary" @click="returnToStats">返回统计核对</button>
+        <button data-button-kind="soft" v-if="canCreate" class="button primary workspace-create-button" @click="openCreate"><Plus aria-hidden="true" />补录记录</button>
+      </div>
+    </template>
+    <form class="attendance-filter" aria-label="筛选值班记录" @submit.prevent="applyFilters">
       <label
         ><span>开始日期</span
         ><input v-model="filters.from" name="attendanceFrom" type="date" /></label
@@ -30,7 +32,7 @@
           <option value="INVALID">无效</option>
         </select></label
       ><button class="button secondary" type="submit" :disabled="listLoading"><Search />{{ listLoading ? '查询中…' : filtersPending ? '更新结果' : '查询' }}</button>
-    </form></template>
+    </form>
     <div v-if="displayError" class="inline-alert danger" role="alert">
       <span>{{ displayError }}{{ listError && records.length ? '；下方保留上次成功查询的结果' : '' }}</span>
       <button
@@ -56,16 +58,17 @@
       <button class="button secondary small" type="button" data-action="adjust-attendance-filters" @click="keywordInput?.focus()">调整筛选</button>
     </EmptyState>
     <template v-else-if="records.length">
-    <div :ref="bindTableScroll" class="mw-table-scroll attendance-table-scroll" tabindex="0" aria-label="值班记录，可横向滚动" @scroll.passive="rememberTableScroll">
+    <div :ref="bindTableScroll" class="mw-table-scroll attendance-table-scroll" role="region" tabindex="0" aria-label="值班记录列表" @scroll.passive="rememberTableScroll">
       <table class="mw-table attendance-table">
+        <colgroup><col class="attendance-col-person" /><col class="attendance-col-date" /><col class="attendance-col-time" /><col class="attendance-col-time" /><col class="attendance-col-duration" /><col class="attendance-col-status" /><col class="attendance-col-actions" /></colgroup>
         <thead>
           <tr>
-            <th>{{ editorial ? "成员与日期" : "成员" }}</th>
-            <th v-if="!editorial">日期</th>
-            <th>{{ editorial ? "签到 / 签退" : "签到" }}</th>
-            <th v-if="!editorial">签退</th>
-            <th>{{ editorial ? "认定结果" : "计入时长" }}</th>
-            <th v-if="!editorial">状态</th>
+            <th scope="col">成员 / 学号</th>
+            <th scope="col">值班日期</th>
+            <th scope="col">签到</th>
+            <th scope="col">签退</th>
+            <th scope="col">计入时长</th>
+            <th scope="col">状态</th>
             <th class="align-right mw-actions-column">操作</th>
           </tr>
         </thead>
@@ -73,17 +76,16 @@
           <tr v-for="item in records" :key="item.id">
             <td class="daily-person">
               <strong>{{ item.name }}</strong
-              ><small>{{ item.studentNo }}</small><small v-if="editorial">日期 {{ item.dutyDate }}</small>
+              ><small>{{ item.studentNo }}</small>
             </td>
-            <td v-if="!editorial" class="attendance-date"><time :datetime="item.dutyDate">{{ item.dutyDate }}</time></td>
-            <td><div class="daily-times"><span><small v-if="editorial">签到</small><time v-if="item.checkInTime" :datetime="item.checkInTime">{{ dateTime(item.checkInTime) }}</time><span v-else>—</span></span><span v-if="editorial"><small>签退</small><time v-if="item.checkOutTime" :datetime="item.checkOutTime">{{ dateTime(item.checkOutTime) }}</time><span v-else>—</span></span></div></td>
-            <td v-if="!editorial" class="attendance-clock"><time v-if="item.checkOutTime" :datetime="item.checkOutTime">{{ dateTime(item.checkOutTime) }}</time><span v-else>—</span></td>
+            <td class="attendance-date"><time :datetime="item.dutyDate">{{ item.dutyDate }}</time></td>
+            <td class="attendance-clock"><template v-if="item.checkInTime"><time :datetime="item.checkInTime" :title="dateTime(item.checkInTime)">{{ dateTime(item.checkInTime).slice(11) }}</time><small v-if="item.checkInTime.slice(0, 10) !== item.dutyDate">{{ item.checkInTime.slice(0, 10) }}</small></template><span v-else>—</span></td>
+            <td class="attendance-clock"><template v-if="item.checkOutTime"><time :datetime="item.checkOutTime" :title="dateTime(item.checkOutTime)">{{ dateTime(item.checkOutTime).slice(11) }}</time><small v-if="item.checkOutTime.slice(0, 10) !== item.dutyDate">{{ item.checkOutTime.slice(0, 10) }}</small></template><span v-else>—</span></td>
             <td class="daily-outcome">
               <strong>{{ item.validHours ?? '—' }} 小时</strong>
               <small>有效分钟 {{ item.durationMinutes ?? '—' }}</small>
-              <StatusBadge v-if="editorial" :label="statusLabel(item.effectiveStatus)" :tone="statusTone(item.effectiveStatus)" />
             </td>
-            <td v-if="!editorial">
+            <td>
               <StatusBadge
                 :label="statusLabel(item.effectiveStatus)"
                 :tone="statusTone(item.effectiveStatus)"
@@ -128,7 +130,6 @@
           </tr>
         </tbody>
       </table>
-    </div>
     <ol class="attendance-mobile-list" aria-label="值班记录">
       <li v-for="item in records" :key="item.id" class="attendance-mobile-record">
         <div class="attendance-mobile-record__head">
@@ -142,12 +143,12 @@
         <div class="attendance-mobile-record__times">
           <div>
             <small>签到</small>
-            <time v-if="item.checkInTime" :datetime="item.checkInTime">{{ dateTime(item.checkInTime) }}</time>
+            <template v-if="item.checkInTime"><time :datetime="item.checkInTime" :title="dateTime(item.checkInTime)">{{ dateTime(item.checkInTime).slice(11) }}</time><small v-if="item.checkInTime.slice(0, 10) !== item.dutyDate">{{ item.checkInTime.slice(0, 10) }}</small></template>
             <span v-else>—</span>
           </div>
           <div>
             <small>签退</small>
-            <time v-if="item.checkOutTime" :datetime="item.checkOutTime">{{ dateTime(item.checkOutTime) }}</time>
+            <template v-if="item.checkOutTime"><time :datetime="item.checkOutTime" :title="dateTime(item.checkOutTime)">{{ dateTime(item.checkOutTime).slice(11) }}</time><small v-if="item.checkOutTime.slice(0, 10) !== item.dutyDate">{{ item.checkOutTime.slice(0, 10) }}</small></template>
             <span v-else>—</span>
           </div>
         </div>
@@ -171,6 +172,7 @@
         <p v-if="!actionAccess(item).allowed" class="attendance-action-reason">{{ actionAccess(item).reason }}</p>
       </li>
     </ol>
+    </div>
     </template>
     <div v-if="total" class="pagination">
       <span>共 {{ total }} 条记录</span>
@@ -194,6 +196,7 @@
     </div>
     <ModalDialog
       :open="editorOpen"
+      backdrop-class="attendance-dialog-backdrop"
       :title="editing ? '修改值班记录' : '补录值班记录'"
       size="lg"
       @close="closeEditor"
@@ -269,6 +272,7 @@
       >
     </ModalDialog>
     <ConfirmDialog
+      backdrop-class="attendance-dialog-backdrop"
       :open="unsaved.confirmOpen.value"
       title="放弃未保存修改"
       message="当前值班记录还有未保存的内容，放弃后无法恢复。"
@@ -278,6 +282,7 @@
       @confirm="unsaved.discard"
     />
     <ConfirmDialog
+      backdrop-class="attendance-dialog-backdrop"
       :open="Boolean(deleteTarget)"
       title="删除值班记录"
       :message="`将删除 ${deleteTarget?.name || ''} 在 ${deleteTarget?.dutyDate || ''} 的值班记录，系统会先自动备份。`"
@@ -288,7 +293,7 @@
       @cancel="deleteTarget = null"
       @confirm="remove"
     />
-  </RefinedWorkspaceShell>
+  </ExpandedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
@@ -300,16 +305,14 @@ import {
   Search,
   Trash2,
 } from "@lucide/vue";
-import { computed, provide, ref } from "vue";
-import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { provide, ref } from "vue";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
-import { useAppearance } from "../../appearance/appearanceStore";
 import "../../styles/workspace.css";
-import "../../features/attendance/presentation.css";
+import "../../features/today/overview-presentation.css";
+import "../../features/attendance/records-presentation.css";
 import QueryStatus from "../../shared/ui/QueryStatus.vue";
 provide(memberPresentationKey, true);
-const { state: appearance } = useAppearance();
-const editorial = computed(() => appearance.active === "EDITORIAL");
 const keywordInput = ref<HTMLInputElement | null>(null);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";

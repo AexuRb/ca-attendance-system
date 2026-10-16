@@ -71,6 +71,27 @@ describe("training workspace route state", () => {
 });
 
 describe("training workspace requests", () => {
+  it("requests eight sessions per page including the final partial page", async () => {
+    const records = Array.from({ length: 17 }, (_, index) => session(index + 1));
+    const calls: Array<{ page: number; pageSize: number }> = [];
+    const workspace = useTrainingWorkspace({
+      defaults,
+      loadSessions: async ({ page, pageSize }) => {
+        calls.push({ page, pageSize });
+        return pageResult(records.slice((page - 1) * pageSize, page * pageSize), records.length, page, pageSize);
+      },
+      loadParticipants: async () => pageResult([], 0, 1, 20),
+    });
+    await workspace.initialize();
+    expect(workspace.sessions.items).toHaveLength(8);
+    await workspace.setSessionPage(2);
+    expect(workspace.sessions.items).toHaveLength(8);
+    await workspace.setSessionPage(3);
+    expect(workspace.sessions.items).toHaveLength(1);
+    expect(workspace.sessions.hasMore).toBe(false);
+    expect(calls).toEqual([{ page: 1, pageSize: 8 }, { page: 2, pageSize: 8 }, { page: 3, pageSize: 8 }]);
+  });
+
   it("keeps participant drafts out of paging and refresh, and retries the failed snapshot", async () => {
     const calls: Array<{ keyword: string; page: number }> = [];
     let fail = false;

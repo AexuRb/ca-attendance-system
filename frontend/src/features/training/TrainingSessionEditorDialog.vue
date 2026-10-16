@@ -1,5 +1,6 @@
 <template>
   <ModalDialog
+    backdrop-class="training-refined-backdrop"
     :open="open"
     :title="form.id ? '编辑培训' : '新建培训'"
     size="lg"

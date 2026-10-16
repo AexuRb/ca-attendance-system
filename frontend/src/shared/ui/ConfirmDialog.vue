@@ -2,8 +2,8 @@
   <ModalDialog :open="open" :title="title" size="sm" @close="cancel">
     <p class="confirm-copy">{{ message }}</p>
     <label v-if="requireReason" class="field">
-      <span>操作原因</span>
-      <textarea v-model="reason" name="confirmReason" rows="3" placeholder="请说明原因" autofocus />
+      <span>{{ reasonLabel || "操作原因" }}</span>
+      <textarea v-model="reason" name="confirmReason" rows="3" :placeholder="reasonPlaceholder || '请说明原因'" autofocus />
     </label>
     <template #footer>
       <button
@@ -12,7 +12,7 @@
         :disabled="pending"
         @click="cancel"
       >
-        取消
+        {{ cancelLabel || "取消" }}
       </button>
       <button
         class="button"
@@ -35,8 +35,11 @@ const props = defineProps<{
   title: string;
   message: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   danger?: boolean;
   requireReason?: boolean;
+  reasonLabel?: string;
+  reasonPlaceholder?: string;
   pending?: boolean;
   pendingLabel?: string;
 }>();

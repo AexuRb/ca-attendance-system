@@ -2,44 +2,15 @@
   <section class="training-participant-section" aria-labelledby="participant-title" :aria-busy="loading">
     <header class="training-participant-toolbar">
       <div class="training-participant-title">
-        <h2 id="participant-title">参与名单</h2>
+        <h2 id="participant-title">参与名单 <small>{{ total }} 人</small></h2>
         <span v-if="loading && items.length" class="training-list-refresh" role="status">正在更新…</span>
       </div>
-      <div class="training-participant-actions">
-        <button
-          class="button secondary small"
-          type="button"
-          data-action="import-participants"
-          @click="$emit('import')"
-        >
-          <Upload aria-hidden="true" />导入名单
-        </button>
-        <button
-          class="button primary small"
-          type="button"
-          data-action="add-participant"
-          @click="$emit('add')"
-        >
-          <Plus aria-hidden="true" />新增记录
-        </button>
-      </div>
+      <form class="training-participant-search" @submit.prevent="$emit('search')">
+        <label><span class="sr-only">搜索参与名单</span><Search aria-hidden="true" /><input :value="keyword" name="participant-search" type="search" placeholder="搜索姓名、学号或备注" autocomplete="off" @input="$emit('update:keyword', ($event.target as HTMLInputElement).value)" /></label>
+        <button class="button" data-button-kind="action" type="submit" :disabled="loading">{{ loading ? '搜索中…' : '搜索' }}</button>
+      </form>
+      <div class="training-participant-actions"><button data-button-kind="soft" class="button" type="button" data-action="add-participant" @click="$emit('add')"><Plus aria-hidden="true" />新增记录</button></div>
     </header>
-
-    <form class="training-participant-search" @submit.prevent="$emit('search')">
-      <Search aria-hidden="true" />
-      <label>
-        <span class="sr-only">搜索参与名单</span>
-        <input
-          :value="keyword"
-          name="participant-search"
-          type="search"
-          placeholder="搜索姓名、学号或备注"
-          autocomplete="off"
-          @input="$emit('update:keyword', ($event.target as HTMLInputElement).value)"
-        />
-      </label>
-      <button class="button secondary small" type="submit" :disabled="loading">{{ loading ? '搜索中…' : '搜索' }}</button>
-    </form>
 
     <p v-if="keyword.trim() !== resultKeyword" class="training-region-feedback" aria-live="polite">
       关键词尚未查询；当前结果：{{ resultKeyword || '全部参与记录' }}。翻页沿用当前结果条件。
@@ -59,62 +30,25 @@
       正在加载参与名单…
     </p>
 
-    <template v-if="items.length">
-      <div class="training-participant-columns" aria-hidden="true">
-        <span></span>
-        <span>成员</span>
-        <span>培训时长</span>
-        <span>备注</span>
-        <span>操作</span>
-      </div>
-
-      <div :ref="bindScroll" :data-session-id="sessionId" class="training-participant-rows" @scroll="$emit('scroll')">
-      <article
-        v-for="item in items"
-        :key="item.id"
-        class="training-participant-row"
-      >
-        <span class="training-participant-avatar" aria-hidden="true">{{ item.name.slice(0, 1) }}</span>
-        <div class="training-participant-identity">
-          <strong>{{ item.name }}</strong>
-          <span>{{ item.studentNo || "未关联账号" }}</span>
-        </div>
-        <strong class="training-participant-duration">{{ hours(item.durationHours) }} h</strong>
-        <details v-if="item.remark" class="training-participant-remark">
-          <summary>查看备注</summary>
-          <p>{{ item.remark }}</p>
-        </details>
-        <span v-else class="training-participant-remark-empty">无备注</span>
-        <div class="training-participant-row-actions">
-          <button
-            class="icon-button"
-            type="button"
-            :aria-label="`编辑 ${item.name} 的参与记录`"
-            title="编辑参与记录"
-            :disabled="loading || Boolean(error) || deletePendingId === item.id"
-            @click="$emit('edit', item)"
-          >
-            <Pencil aria-hidden="true" />
-          </button>
-          <button
-            class="icon-button danger-ghost"
-            type="button"
-            :aria-label="`删除 ${item.name} 的参与记录`"
-            title="删除参与记录"
-            :disabled="loading || Boolean(error) || deletePendingId === item.id"
-            @click="$emit('delete', item)"
-          >
-            <Trash2 aria-hidden="true" />
-          </button>
-        </div>
-      </article>
-      </div>
-    </template>
+    <div v-if="items.length" :ref="bindScroll" :data-session-id="sessionId" class="training-participant-rows" role="region" aria-label="培训参与记录" tabindex="0" @scroll="$emit('scroll')">
+      <table class="training-record-table">
+        <thead><tr class="training-participant-columns"><th scope="col">成员</th><th scope="col">计入时长</th><th scope="col">备注</th><th scope="col">操作</th></tr></thead>
+        <tbody><tr v-for="item in items" :key="item.id" class="training-participant-row">
+          <td class="training-participant-identity"><strong>{{ item.name }}</strong><span>{{ item.studentNo || '未关联账号' }}</span></td>
+          <td class="training-participant-duration">{{ hours(item.durationHours) }} <small>小时</small></td>
+          <td class="training-participant-remark">{{ item.remark || '—' }}</td>
+          <td><div class="training-participant-row-actions">
+            <button class="icon-button" type="button" :aria-label="`编辑 ${item.name} 的参与记录`" title="编辑参与记录" :disabled="loading || Boolean(error) || deletePendingId === item.id" @click="$emit('edit', item)"><Pencil aria-hidden="true" /></button>
+            <button class="icon-button danger-ghost" type="button" :aria-label="`删除 ${item.name} 的参与记录`" title="删除参与记录" :disabled="loading || Boolean(error) || deletePendingId === item.id" @click="$emit('delete', item)"><Trash2 aria-hidden="true" /></button>
+          </div></td>
+        </tr></tbody>
+      </table>
+    </div>
 
     <div v-else-if="!loading && !error" class="training-participant-empty">
       <UserRoundSearch aria-hidden="true" />
       <strong>{{ resultKeyword ? "没有匹配的参与记录" : "暂无参与记录" }}</strong>
-      <span>{{ resultKeyword ? "换个关键词再试试" : "可新增记录或导入名单" }}</span>
+      <span>{{ resultKeyword ? "换个关键词再试试" : "可从上方新增参与记录" }}</span>
     </div>
 
     <footer v-if="total" class="training-participant-pagination">
@@ -124,7 +58,7 @@
           class="button secondary small"
           type="button"
           aria-label="上一页参与名单"
-          :disabled="page <= 1 || loading"
+          :disabled="page <= 1 || loading || Boolean(error)"
           @click="$emit('page', page - 1)"
         >
           <ChevronLeft aria-hidden="true" />上一页
@@ -134,7 +68,7 @@
           class="button secondary small"
           type="button"
           aria-label="下一页参与名单"
-          :disabled="!hasMore || loading"
+          :disabled="!hasMore || loading || Boolean(error)"
           @click="$emit('page', page + 1)"
         >
           下一页<ChevronRight aria-hidden="true" />
@@ -153,7 +87,6 @@ import {
   Plus,
   Search,
   Trash2,
-  Upload,
   UserRoundSearch,
 } from "@lucide/vue";
 import type { TrainingParticipant } from "./trainingTypes";
@@ -178,7 +111,6 @@ defineEmits<{
   search: [];
   page: [page: number];
   add: [];
-  import: [];
   edit: [participant: TrainingParticipant];
   delete: [participant: TrainingParticipant];
   retry: [];

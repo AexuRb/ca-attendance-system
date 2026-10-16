@@ -49,86 +49,64 @@
       </aside>
     </div>
 
-    <div class="data-frame data-recycle-table-frame">
+    <div ref="listFrame" class="data-frame data-recycle-table-frame">
       <header class="data-table-toolbar">
         <div>
           <h2>删除档案</h2>
-          <span>共 {{ items.length }} 项</span>
+          <span aria-live="polite">{{ query ? `匹配 ${filteredItems.length} 项 / 全部 ${items.length} 项` : `共 ${items.length} 项` }}</span>
         </div>
         <label class="data-search-field">
           <Search aria-hidden="true" />
-          <input
-            v-model.trim="query"
-            name="repair-recycle-search"
-            aria-label="搜索回收站维修事务"
-            autocomplete="off"
-            placeholder="搜索维修编号或设备…"
-          />
+          <input v-model.trim="query" name="repair-recycle-search" aria-label="搜索回收站维修事务"
+            autocomplete="off" placeholder="搜索编号、设备或送修人…" />
         </label>
       </header>
-
       <LoadingBlock v-if="loading" label="正在加载回收站" />
       <EmptyState v-else-if="!filteredItems.length" :title="emptyTitle" />
-      <div v-else class="table-shell data-recycle-table">
-        <table>
-          <thead>
-            <tr>
-              <th>维修编号</th>
-              <th>设备</th>
-              <th>删除时间</th>
-              <th>删除人</th>
-              <th class="align-right">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in filteredItems" :key="item.id">
-              <td><strong>{{ item.caseNo }}</strong></td>
-              <td>
-                <div class="data-device-cell">
-                  <Wrench aria-hidden="true" />
-                  <span>
-                    <strong>{{ deviceName(item) }}</strong>
-                    <small>{{ item.deviceType || "未填写设备类型" }}</small>
-                  </span>
-                </div>
-              </td>
-              <td>{{ item.deletedAt ? dateTime(item.deletedAt) : "—" }}</td>
-              <td>{{ item.deletedByName || "—" }}</td>
-              <td class="align-right row-actions">
-                <button
-                  class="icon-button"
-                  title="恢复维修事务"
-                  :aria-label="`恢复维修事务：${item.caseNo}`"
-                  type="button"
-                  :disabled="isRestorePending(item.id)"
-                  @click="$emit('restore', item)"
-                >
-                  <ArchiveRestore aria-hidden="true" />
-                </button>
-                <button
-                  v-if="canPurge"
-                  class="icon-button danger-ghost"
-                  type="button"
-                  title="彻底删除"
-                  :aria-label="`彻底删除维修事务：${item.caseNo}`"
-                  @click="$emit('request-purge', item)"
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <template v-else>
+        <ul class="recycle-records" aria-label="回收站维修档案">
+          <li v-for="item in pageItems" :key="item.id" class="recycle-record">
+            <div class="recycle-record-main">
+              <button class="recycle-device" type="button" :aria-label="`查看回收站详情：${item.caseNo}`" @click="detail = item">
+                {{ deviceName(item) }}
+              </button>
+              <div class="recycle-identity"><span>{{ item.ownerName || '未填写送修人' }}</span><span class="recycle-case-number">{{ item.caseNo }}</span></div>
+              <p class="recycle-fault" :title="item.faultDescription">{{ item.faultDescription || '未填写故障描述' }}</p>
+            </div>
+            <div class="recycle-record-meta">
+              <span class="recycle-original-status">原状态 · {{ statusLabel(item.status) }}</span>
+              <time :datetime="item.deletedAt">{{ repairDateTime(item.deletedAt) }}</time>
+              <span class="recycle-deleted-by">{{ item.deletedByName || '未记录删除人' }} · 删除</span>
+            </div>
+            <div class="recycle-record-actions">
+              <button class="icon-button" title="恢复维修事务" :aria-label="`恢复维修事务：${item.caseNo}`"
+                type="button" :disabled="isRestorePending(item.id)" @click="$emit('restore', item)"><ArchiveRestore aria-hidden="true" /></button>
+              <button v-if="canPurge" class="icon-button danger-ghost" type="button" title="彻底删除"
+                :aria-label="`彻底删除维修事务：${item.caseNo}`" @click="$emit('request-purge', item)"><Trash2 aria-hidden="true" /></button>
+            </div>
+          </li>
+        </ul>
+        <nav class="recycle-pagination" aria-label="回收站分页">
+          <span>第 {{ page }} / {{ pageCount }} 页 · 每页 {{ pageSize }} 项</span>
+          <div>
+            <button class="button secondary" type="button" :disabled="page <= 1" @click="changePage(page - 1)">上一页</button>
+            <button class="button secondary" type="button" :disabled="page >= pageCount" @click="changePage(page + 1)">下一页</button>
+          </div>
+        </nav>
+      </template>
     </div>
+    <RecycleDetailDialog :item="detail" @close="detail = null" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { ArchiveRestore, RefreshCw, Search, Trash2, Wrench } from "@lucide/vue";
+import { computed, nextTick, ref, watch } from "vue";
+import { ArchiveRestore, RefreshCw, Search, Trash2 } from "@lucide/vue";
 import EmptyState from "../../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../../shared/ui/LoadingBlock.vue";
+import RecycleDetailDialog from "./RecycleDetailDialog.vue";
+import { repairDateTime } from "../../../features/repairs/repairDisplay";
+import { statusLabel } from "./recycleDisplay";
 import type { RecycledRepairCase } from "../../../features/maintenance/dataCenterTypes";
 
 const props = defineProps<{
@@ -154,6 +132,22 @@ const filteredItems = computed(() => {
       .includes(term),
   );
 });
+const pageSize = 20;
+const page = ref(1);
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / pageSize)));
+const pageItems = computed(() => filteredItems.value.slice((page.value - 1) * pageSize, page.value * pageSize));
+const detail = ref<RecycledRepairCase | null>(null);
+const listFrame = ref<HTMLElement | null>(null);
+watch(query, () => { page.value = 1; });
+watch(pageCount, (count) => { page.value = Math.min(page.value, count); });
+watch(() => props.items, (items) => {
+  if (detail.value) detail.value = items.find(item => item.id === detail.value?.id) || null;
+});
+async function changePage(value: number) {
+  page.value = value;
+  await nextTick();
+  listFrame.value?.scrollIntoView?.({ block: "start" });
+}
 const emptyTitle = computed(() =>
   props.items.length ? "没有匹配的维修事务" : "回收站为空",
 );

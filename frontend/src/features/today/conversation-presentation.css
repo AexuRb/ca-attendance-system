@@ -1,0 +1,152 @@
+/* Today content only. All themes share spacing, alignment and interaction geometry. */
+html:root[data-appearance] .overview-today .overview-content {
+  display: flex; flex-direction: column; padding: 24px 0 20px;
+}
+html:root[data-appearance] .overview-today .overview-workspace {
+  display: flow-root; flex: 1; width: calc(100% - 48px); height: auto; min-height: 0; margin-inline: auto; border: 0; border-radius: 0; box-shadow: none; background: transparent;
+  container: today-workspace / inline-size;
+}
+html:root[data-appearance] .overview-today .overview-page-heading {
+  position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+/* Fit the approved two-column composition to its actual workspace, including
+   a docked browser. Window width alone must not push desktop tasks below it. */
+html:root[data-appearance] .today-workbench { display: grid; grid-template-columns: minmax(0, 1fr) clamp(224px, 22cqw, 280px); gap: clamp(16px, 2cqw, 24px); width: 100%; height: 100%; min-height: 0; margin: 0; }
+html:root[data-appearance] .overview-shell .today-workbench .daily-command.today-conversation { width: 100%; max-width: none; height: 100%; margin: 0; padding: 0; }
+html:root[data-appearance] .today-context-rail { min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+html:root[data-appearance] .today-rail-tasks { display: grid; gap: 12px; }
+html:root[data-appearance] .today-task-entry { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto 16px; grid-template-rows: 28px 18px; align-items: center; gap: 4px 8px; width: 100%; min-height: 80px; padding: 14px 16px; text-align: left; color: var(--mw-ink); background: var(--overview-chat); border: 1px solid transparent; border-radius: 14px; }
+html:root[data-appearance] .today-task-entry:hover:not(:disabled) { border-color: color-mix(in srgb, var(--mw-accent) 30%, var(--mw-line)); background: color-mix(in srgb, var(--mw-accent) 8%, var(--overview-chat)); }
+html:root[data-appearance] .today-task-entry:disabled { cursor: default; }
+html:root[data-appearance] .today-task-icon { grid-column: 1; grid-row: 1; width: 20px; height: 20px; color: var(--mw-accent); }
+html:root[data-appearance] .today-task-label { grid-column: 2; grid-row: 1; font: 500 16px/26px var(--mw-font); }
+html:root[data-appearance] .today-task-count { grid-column: 3; grid-row: 1; font: 600 24px/28px var(--mw-font); font-variant-numeric: tabular-nums; }
+html:root[data-appearance] .today-task-entry small { grid-column: 2 / 4; grid-row: 2; color: var(--mw-muted); font: 400 13px/18px var(--mw-font); }
+html:root[data-appearance] .today-task-arrow { grid-column: 4; grid-row: 1; width: 16px; height: 16px; justify-self: end; color: var(--mw-muted); }
+html:root[data-appearance] .today-context-rail button:focus-visible { outline: 2px solid var(--mw-accent); outline-offset: -2px; }
+html:root[data-appearance] .today-rail-common { margin-top: 28px; }
+html:root[data-appearance] .today-context-rail .today-command-shortcuts { display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; gap: 8px; margin: 0; }
+html:root[data-appearance] .today-context-rail .today-command-shortcuts button { justify-content: flex-start; width: 100%; min-height: 44px; padding: 9px 12px; border-color: transparent; background: transparent; box-shadow: none; }
+html:root[data-appearance] .today-context-rail .today-command-shortcuts button:hover:not(:disabled) { border-color: transparent; background: var(--overview-chat); color: var(--mw-accent); }
+html:root[data-appearance] .today-context-rail .today-shortcut-arrow { margin-left: auto; width: 14px; height: 14px; }
+html:root[data-appearance] .today-rail-error { display: grid; gap: 12px; padding: 16px; border-radius: 12px; background: var(--overview-chat); color: var(--mw-danger, #ad4d36); font: 400 14px/24px var(--mw-font); }
+html:root[data-appearance] .today-rail-error p { margin: 0; }
+html:root[data-appearance] .today-rail-error button { justify-self: start; }
+html:root[data-appearance] .today-schedule-link { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; border: 0; padding: 6px 2px; background: transparent; color: var(--mw-muted); text-align: left; font: 400 13px/22px var(--mw-font); }
+html:root[data-appearance] .today-schedule-link svg { flex: 0 0 16px; width: 16px; height: 16px; margin-top: 3px; }
+html:root[data-appearance] .overview-shell .daily-command.today-conversation {
+  width: min(100%, 1072px); max-width: 1072px; height: 100%; min-height: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(142px, 1fr) auto;
+  margin: 0 auto; padding: 0 36px 8px; gap: 24px;
+  justify-content: flex-start; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none;
+}
+
+html:root[data-appearance] .today-command-stage { grid-row: 1; min-height: 142px; overflow: hidden; }
+html:root[data-appearance] .today-conversation .command-composer-zone { grid-row: 2; }
+html:root[data-appearance] .today-important {
+  min-height: 34px; display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 4px 28px;
+}
+html:root[data-appearance] .today-important-action {
+  display: inline-flex; align-items: center; gap: 10px; padding: 5px 0; border: 0;
+  background: transparent; color: var(--mw-muted); font-size: 16px; line-height: 24px;
+}
+html:root[data-appearance] .today-important-action strong { color: var(--mw-ink); font-weight: 600; }
+html:root[data-appearance] .today-important-action svg { width: 14px; height: 14px; }
+html:root[data-appearance] .today-important-action:hover { color: var(--mw-accent); }
+html:root[data-appearance] .today-data-loading { color: var(--mw-muted); font-size: 14px; }
+html:root[data-appearance] .today-data-error { display: flex; align-items: center; gap: 10px; color: var(--mw-danger, #ad4d36); font-size: 14px; flex-wrap: wrap; }
+html:root[data-appearance] .today-data-error svg { width: 18px; height: 18px; }
+html:root[data-appearance] .today-data-error button { padding: 4px 10px; border: 1px solid var(--mw-line); background: var(--mw-paper); border-radius: 6px; color: var(--mw-ink); }
+html:root[data-appearance] .overview-shell .today-conversation .command-console-shell { transform: none; box-shadow: none; }
+html:root[data-appearance] .overview-shell .today-conversation .command-composer {
+  padding: 8px 22px; grid-template-columns: minmax(0, 1fr) 40px; gap: 8px 16px;
+  border: 1px solid var(--mw-line); border-radius: 18px; background: var(--overview-chat);
+  box-shadow: 0 6px 22px #24364806, inset 0 1px #ffffff80;
+}
+html:root[data-appearance] .overview-shell .today-conversation .command-composer:focus-within { border-color: color-mix(in srgb, var(--mw-accent) 55%, var(--mw-line)); box-shadow: 0 6px 22px #24364806, 0 0 0 2px color-mix(in srgb, var(--mw-accent) 8%, transparent); }
+html:root[data-appearance] .today-conversation .command-composer-shortcuts { grid-column: 1 / -1; grid-row: 1; padding-bottom: 14px; border-bottom: 1px solid var(--mw-line); }
+html:root[data-appearance] .overview-shell.mw-scope .today-conversation .command-composer textarea { grid-column: 1 / -1; grid-row: 1; --command-input-max-height: 128px; min-height: 34px; font: 400 18px/1.8 var(--mw-font); padding: 0; }
+html:root[data-appearance] .overview-shell .today-conversation .command-composer-mode { grid-column: 1; grid-row: 2; font: 400 12px/1.6 var(--mw-font); min-width: 0; color: var(--mw-muted); }
+html:root[data-appearance] .today-conversation .command-composer-mode i { display: none; }
+html:root[data-appearance] .today-conversation:not(.is-engaged) .command-composer-mode { visibility: hidden; }
+html:root[data-appearance] .overview-shell .today-conversation .command-composer-send { grid-column: 2; grid-row: 2; width: 40px; height: 40px; padding: 10px; border-radius: 11px; background: linear-gradient(160deg, color-mix(in srgb, var(--mw-accent) 88%, white), var(--mw-accent)); border: 1px solid var(--mw-accent); box-shadow: inset 0 1px #ffffff50, 0 2px 4px #24364816; transform: none; }
+html:root[data-appearance] .overview-shell .today-conversation .command-composer-send svg { width: 20px; height: 20px; transform: none; }
+html:root[data-appearance] .overview-shell .today-conversation .command-composer-send:disabled { background: var(--mw-soft); border-color: var(--mw-line); color: var(--mw-muted); opacity: 1; box-shadow: none; }
+html:root[data-appearance] .today-command-shortcuts { margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px; }
+html:root[data-appearance] .today-command-shortcuts button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 40px; padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--mw-ink) 12%, var(--mw-line)); border-radius: 8px; background: var(--mw-soft); color: var(--mw-ink); font-size: 14px; font-weight: 500; line-height: 24px; box-shadow: 0 1px 2px #24364808, inset 0 1px #ffffff60; }
+html:root[data-appearance] .today-command-shortcuts svg { width: 16px; height: 16px; color: var(--mw-muted); }
+html:root[data-appearance] .today-command-shortcuts button:hover { color: var(--mw-accent); background: color-mix(in srgb, var(--mw-accent) 5%, var(--mw-paper)); border-color: color-mix(in srgb, var(--mw-accent) 45%, var(--mw-line)); }
+html:root[data-appearance] .today-command-shortcuts button:disabled { opacity: .6; box-shadow: none; cursor: wait; }
+html:root[data-appearance] .today-command-error { display: flex; align-items: flex-start; gap: 8px; margin: 12px 4px 0; color: var(--mw-danger, #ad4d36); font-size: 14px; overflow-wrap: anywhere; }
+html:root[data-appearance] .today-command-error svg { flex: 0 0 18px; width: 18px; height: 18px; margin-top: 2px; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-option:active { transform: none; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-panel.is-embedded { position: relative; inset: auto; margin: 8px 0 0; max-height: 310px; transform: none; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-panel.is-embedded.is-upward { position: absolute; inset: auto 0 calc(100% + 8px); margin: 0; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-head { height: 52px; min-height: 52px; padding: 8px 16px; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-option { height: 56px; min-height: 56px; padding: 6px 16px; background: var(--mw-control); }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-option:hover { padding-left: 16px; background: var(--mw-soft); }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-option.active { padding-left: 16px; background: color-mix(in srgb, var(--mw-accent) 11%, var(--mw-control)); box-shadow: inset 3px 0 var(--mw-accent); }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-option strong { font-size: 14px; font-weight: 600; line-height: 20px; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-option small { margin-top: 2px; font-size: 12px; line-height: 18px; color: var(--mw-muted); }
+html:root[data-appearance] .overview-shell .today-conversation .command-option-hint { color: var(--mw-muted); gap: 12px; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-options { scrollbar-color: color-mix(in srgb, var(--mw-ink) 30%, var(--mw-line)) transparent; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-footer { display: flex; align-items: center; gap: 20px; height: 32px; min-height: 32px; flex-shrink: 0; padding: 0 16px; border-top: 1px solid var(--mw-line); background: var(--mw-soft); color: var(--mw-muted); font-size: 12px; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-panel.is-compact .command-suggestion-footer { display: none; }
+html:root[data-appearance] .overview-shell .today-conversation .command-suggestion-panel.is-compact .command-suggestion-head { height: 28px; min-height: 28px; padding: 2px 10px; }
+html:root[data-appearance] .today-conversation button { transition: color 140ms, background-color 140ms, border-color 140ms; }
+html:root[data-appearance] .today-conversation button:active { transform: none; }
+html:root[data-appearance] .today-conversation button:focus-visible { outline: 2px solid var(--mw-accent); outline-offset: 3px; }
+html:root[data-appearance] .overview-shell .today-dialogue-log { display: flex; flex-direction: column; height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 0 8px 0 0; }
+html:root[data-appearance] .overview-shell .today-dialogue-log > * { flex-shrink: 0; }
+/* Auto space collapses when history overflows, keeping its first reply reachable. */
+html:root[data-appearance] .overview-shell .today-entry-message { margin-top: auto; }
+html:root[data-appearance] .overview-shell .today-dialogue-log.is-welcome-only { display: grid; grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr); justify-items: center; padding: 0; }
+html:root[data-appearance] .overview-shell .today-entry-message.is-welcome { grid-row: 2; width: fit-content; max-width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: center; }
+html:root[data-appearance] .overview-shell .today-entry-message.is-welcome > p { margin: 0; font: 500 28px/1.6 var(--mw-font); }
+html:root[data-appearance] .overview-shell .today-system-message { width: fit-content; max-width: min(900px, 100%); padding: 18px 22px; border: 1px solid transparent; border-radius: 16px 16px 16px 4px; background: var(--overview-chat); box-shadow: none; color: var(--mw-ink); }
+html:root[data-appearance] .overview-shell .today-system-message > p { margin: 8px 0 0; font-size: 18px; line-height: 1.8; overflow-wrap: anywhere; }
+html:root[data-appearance] .overview-shell .today-system-message > small { display: block; margin-top: 8px; color: var(--mw-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+html:root[data-appearance] .overview-shell .today-system-message > :first-child { margin-top: 0; }
+html:root[data-appearance] .overview-shell .today-entry-message > small { margin-top: 0; font-size: 13px; }
+html:root[data-appearance] .overview-shell .today-message-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+html:root[data-appearance] .overview-shell .today-message-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; padding: 8px 14px; min-height: 40px; border: 1px solid var(--mw-line); border-radius: 8px; background: var(--mw-paper); color: var(--mw-ink); font-size: 14px; line-height: 22px; white-space: normal; text-align: left; overflow-wrap: anywhere; }
+html:root[data-appearance] .overview-shell .today-message-actions button svg { width: 15px; height: 15px; color: var(--mw-muted); }
+html:root[data-appearance] .overview-shell .today-message-actions button:hover { border-color: var(--mw-accent); color: var(--mw-accent); }
+html:root[data-appearance] .overview-shell .today-message-actions button.is-primary { color: var(--mw-accent); border-color: color-mix(in srgb, var(--mw-accent) 30%, var(--mw-line)); background: color-mix(in srgb, var(--mw-accent) 7%, var(--mw-paper)); font-weight: 500; }
+html:root[data-appearance] .overview-shell .today-message-actions button.is-primary:hover { border-color: var(--mw-accent); background: color-mix(in srgb, var(--mw-accent) 12%, var(--mw-paper)); }
+html:root[data-appearance] .overview-shell .today-message-actions button.is-primary svg { color: currentColor; }
+html:root[data-appearance] .overview-shell .today-message-actions button:disabled { opacity: .6; cursor: wait; }
+html:root[data-appearance] .overview-shell .today-conversation-turn { margin-top: 28px; }
+html:root[data-appearance] .overview-shell .today-user-message { width: fit-content; max-width: 85%; margin: 0 0 20px auto; padding: 10px 16px; border-radius: 12px 12px 3px 12px; background: var(--overview-selected); color: var(--mw-ink); font-size: 16px; line-height: 1.7; overflow-wrap: anywhere; white-space: pre-wrap; }
+html:root[data-appearance] .overview-shell .today-system-message.is-error > p, html:root[data-appearance] .overview-shell .today-system-message > p.today-navigation-error { color: var(--mw-danger, #ad4d36); }
+html:root[data-appearance] .overview-shell .today-system-message > p.today-schedule-notice { font-size: 14px; color: var(--mw-muted); }
+html:root[data-appearance] .overview-shell .today-system-message > small.today-query-scope { margin-top: 12px; font-size: 13px; }
+html:root[data-appearance] .overview-shell .today-system-message > p.today-query-summary { margin-top: 4px; }
+html:root[data-appearance] .overview-shell .today-query-summary strong { font-weight: 600; }
+@media (max-width: 900px) {
+  html:root[data-appearance] .overview-shell .daily-command.today-conversation { padding: 0 28px 16px; }
+  html:root[data-appearance] .today-important { justify-content: flex-start; }
+}
+@container today-workspace (max-width: 580px) {
+  html:root[data-appearance] .today-workbench { grid-template-columns: minmax(0, 1fr); height: auto; }
+  html:root[data-appearance] .overview-shell .today-workbench .daily-command.today-conversation { height: clamp(320px, calc(100dvh - var(--overview-header-height) - 160px), 640px); }
+  html:root[data-appearance] .today-context-rail { overflow: visible; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+  html:root[data-appearance] .today-rail-common { margin-top: 0; }
+}
+@media (max-width: 550px) {
+  html:root[data-appearance] .overview-today .overview-workspace { width: calc(100% - 32px); }
+}
+@media (max-width: 520px) {
+  html:root[data-appearance] .overview-shell .today-system-message { padding: 14px 16px; }
+  html:root[data-appearance] .overview-shell .daily-command.today-conversation { min-height: 0; padding: 0 20px 16px; gap: 24px; }
+  html:root[data-appearance] .today-important { justify-content: flex-start; gap: 0 16px; }
+  html:root[data-appearance] .today-important-action { font-size: 13px; gap: 6px; }
+  html:root[data-appearance] .overview-shell .today-conversation .command-composer { padding: 8px 16px; }
+  html:root[data-appearance] .overview-shell.mw-scope .today-conversation .command-composer textarea { font-size: 16px; }
+  html:root[data-appearance] .today-command-shortcuts { gap: 8px; justify-content: flex-start; }
+  html:root[data-appearance] .today-command-shortcuts button { padding: 7px 10px; }
+  html:root[data-appearance] .today-context-rail { grid-template-columns: minmax(0, 1fr); }
+  html:root[data-appearance] .overview-shell .today-conversation .command-option-hint span { display: inline; }
+}

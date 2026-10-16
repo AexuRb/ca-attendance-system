@@ -39,10 +39,11 @@ describe("repair display helpers", () => {
           status: "CANCELED",
           receivedAt: "2026-07-20T18:00:00",
           updatedAt: "2026-07-22T09:00:00",
+          completedAt: "2026-07-21T09:00:00",
         },
         new Date("2026-08-20T08:00:00"),
       ),
-    ).toBe("流程历时 2 天");
+    ).toBe("受理至更新 2 天");
   });
 
   it("maps current and stored agreement types consistently", () => {

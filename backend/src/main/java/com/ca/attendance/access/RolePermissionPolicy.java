@@ -33,6 +33,7 @@ public final class RolePermissionPolicy {
                 Permission.ATTENDANCE_MANAGE,
                 Permission.REPAIR_MANAGE,
                 Permission.STATS_VIEW,
+                Permission.SCHEDULE_VIEW,
                 Permission.STATS_EXPORT);
         grant(grants, LEADERS,
                 Permission.ATTENDANCE_CREATE,
@@ -66,6 +67,7 @@ public final class RolePermissionPolicy {
         MEMBERS_MANAGE,
         MEMBERS_DELETE,
         SCHEDULE_MANAGE,
+        SCHEDULE_VIEW,
         DUTY_SETTINGS_MANAGE,
         TRAINING_MANAGE,
         REPAIR_MANAGE,

@@ -60,7 +60,7 @@ public class DutyScheduleService {
 
     public List<DutyScheduleSlotItem> list() {
         AuthUser current = AuthContext.current();
-        requireManage(current);
+        RolePermissionPolicy.require(current.role(), RolePermissionPolicy.Permission.SCHEDULE_VIEW, "无权查看排班");
         return slots("""
                 WHERE s.status = 'ACTIVE'
                 ORDER BY s.weekday, COALESCE(s.start_time, '00:00:00'), s.id

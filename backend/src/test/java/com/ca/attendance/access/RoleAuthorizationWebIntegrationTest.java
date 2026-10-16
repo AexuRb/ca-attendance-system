@@ -110,6 +110,7 @@ class RoleAuthorizationWebIntegrationTest {
     @Test
     void ministerReceivesOperationalAccessWithoutPrivateManagementAccess() throws Exception {
         for (String path : new String[]{
+                "/api/schedules",
                 "/api/attendance/page?from=2026-08-01&to=2026-08-10",
                 "/api/stats/summary?from=2026-08-01&to=2026-08-10",
                 "/api/repairs?from=2026-08-01&to=2026-08-10"
@@ -120,7 +121,7 @@ class RoleAuthorizationWebIntegrationTest {
         for (String path : new String[]{
                 "/api/users/page",
                 "/api/users/selection",
-                "/api/schedules",
+                "/api/schedules/assignee-candidates",
                 "/api/trainings/page",
                 "/api/maintenance/summary",
                 "/api/settings/attendance-policy",

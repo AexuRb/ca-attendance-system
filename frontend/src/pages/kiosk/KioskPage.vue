@@ -36,6 +36,8 @@
 </template>
 
 <style src="../../features/public/presentation.css"></style>
+<style src="../../features/kiosk/kiosk-presentation.css"></style>
+<style src="../../features/kiosk/kiosk-flow.css"></style>
 
 <script setup lang="ts">
 import { computed } from "vue";

@@ -6,7 +6,7 @@ import { router } from "./router";
 
 const expectedRoutes: Record<Role, string[]> = {
   MEMBER: ["profile"],
-  MINISTER: ["today", "reviews", "attendance", "stats", "profile", "repairs"],
+  MINISTER: ["today", "reviews", "attendance", "stats", "schedules", "profile", "repairs"],
   PRESIDENT: [
     "today",
     "reviews",

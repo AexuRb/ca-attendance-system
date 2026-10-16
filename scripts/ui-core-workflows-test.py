@@ -282,7 +282,7 @@ def login(page, base_url: str, account: str, password: str) -> None:
     page.locator("input[name='username']").fill(account)
     page.locator("input[name='password']").fill(password)
     page.locator(".auth-form button[type='submit']").click()
-    expect(page.locator(".mw-main")).to_be_visible(timeout=15_000)
+    expect(page.locator("#overview-content")).to_be_visible(timeout=15_000)
 
 
 def main() -> None:
@@ -365,8 +365,8 @@ def main() -> None:
         expect(page.get_by_role("table").get_by_text("陈测试", exact=True)).to_be_visible()
         expect(page.get_by_role("table").get_by_text("1.5 小时", exact=True)).to_be_visible()
         page.get_by_role("button", name="修改密码").click()
-        expect(page.get_by_role("heading", name="修改登录密码")).to_be_visible()
-        page.get_by_role("button", name="取消").click()
+        expect(page.get_by_role("heading", name="修改密码", exact=True)).to_be_visible()
+        page.get_by_role("button", name="返回个人资料", exact=True).click()
         assert_no_page_overflow(page, "desktop profile")
         page.screenshot(
             path=str(screenshot_dir / "profile-desktop.png"), full_page=True
@@ -384,7 +384,7 @@ def main() -> None:
             f"{args.base_url.rstrip('/')}/#/admin/stats",
             wait_until="networkidle",
         )
-        expect(page.get_by_role("heading", name="值班统计")).to_be_visible()
+        expect(page.get_by_role("heading", name="数据统计", exact=True)).to_be_visible()
         expect(page.get_by_text("2025级", exact=True)).to_be_visible()
         page.get_by_role("button", name="本周", exact=True).click()
         expect(page.get_by_text("星期一", exact=True)).to_be_visible()
@@ -485,6 +485,7 @@ def main() -> None:
             wait_until="networkidle",
         )
         expect(page.get_by_role("heading", name="排班管理")).to_be_visible()
+        page.get_by_role("button", name="按日编辑", exact=True).click()
         expect(page.get_by_text("张部长", exact=True)).to_be_visible()
         page.locator("button[title='编辑排班']").click()
         expect(page.get_by_label("搜索排班人员")).to_be_visible()

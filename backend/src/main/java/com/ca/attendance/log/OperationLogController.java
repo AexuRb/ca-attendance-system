@@ -1,7 +1,6 @@
 package com.ca.attendance.log;
 
 import com.ca.attendance.common.PaginationPolicy;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -47,8 +46,5 @@ public class OperationLogController {
                 .body(file.bytes());
     }
 
-    @DeleteMapping
-    public OperationLogQueryService.ClearResult clear() {
-        return logs.clear();
-    }
+
 }

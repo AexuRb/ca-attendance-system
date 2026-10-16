@@ -10,7 +10,7 @@
     </div>
     <strong class="review-state-action__time">{{ time }}</strong>
     <div v-if="actionable" class="review-state-action__actions">
-      <button
+      <button data-button-kind="action"
         class="review-state-action__approve"
         type="button"
         :disabled="disabled || actionPending"
@@ -20,7 +20,7 @@
         <LoaderCircle v-if="actionPending" class="spin" aria-hidden="true" />
         {{ actionPending ? "处理中" : "通过" }}
       </button>
-      <button
+      <button data-button-kind="action" data-button-tone="danger"
         class="review-state-action__reject"
         type="button"
         :disabled="disabled || actionPending"

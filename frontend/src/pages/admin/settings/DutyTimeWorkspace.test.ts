@@ -48,17 +48,55 @@ describe("DutyTimeWorkspace", () => {
     expect(wrapper.findAll(".duty-calendar-compact-row")).toHaveLength(2);
   });
 
-  it("summarizes and proportionally positions refined duty periods", async () => {
+  it("proportionally positions refined duty periods", async () => {
     const wrapper = mountWorkspace();
     await wrapper.setProps({ refined: true });
 
-    expect(wrapper.get(".duty-period-overview").text()).toContain("2 小时");
-    expect(wrapper.get(".duty-period-overview").text()).toContain("14:00—16:00");
+    expect(wrapper.find(".duty-period-overview").exists()).toBe(false);
     expect(wrapper.findAll(".duty-period-cards .duty-period-tab")).toHaveLength(2);
     const blocks = wrapper.findAll(".duty-rail-block");
     expect(blocks).toHaveLength(2);
     expect(blocks[0]?.attributes("style")).toContain("--rail-left");
     expect(blocks[0]?.attributes("style")).toContain("--rail-width");
+  });
+
+  it("keeps adjacent short periods proportional without visual overlap", async () => {
+    const wrapper = mountWorkspace();
+    await wrapper.setProps({
+      refined: true,
+      periods: [
+        { startTime: "14:00", endTime: "15:00", enabled: true },
+        { startTime: "15:00", endTime: "16:00", enabled: true },
+        { startTime: "16:00", endTime: "18:00", enabled: true },
+      ],
+    });
+    const blocks = wrapper.findAll(".duty-rail-block");
+    const percentage = (index: number, property: string) =>
+      parseFloat((blocks[index]!.element as HTMLElement).style.getPropertyValue(property));
+    const firstWidth = percentage(0, "--rail-width");
+    expect(firstWidth).toBeCloseTo((60 / 1080) * 95.2);
+    expect(percentage(0, "--rail-left") + firstWidth).toBeCloseTo(percentage(1, "--rail-left"));
+    expect(percentage(2, "--rail-width")).toBeCloseTo(firstWidth * 2);
+    expect(blocks[0]!.attributes("aria-label")).toContain("14:00—15:00");
+    wrapper.unmount();
+  });
+
+  it("allows saving only changed, valid periods and keeps errors local", async () => {
+    const wrapper = mountWorkspace();
+    const save = wrapper.get<HTMLButtonElement>(".duty-save-periods");
+    expect(save.element.disabled).toBe(true);
+    await save.trigger("click");
+    expect(wrapper.emitted("save-periods")).toBeUndefined();
+    await wrapper.setProps({ periodsDirty: true });
+    expect(save.element.disabled).toBe(false);
+    await save.trigger("click");
+    expect(wrapper.emitted("save-periods")).toHaveLength(1);
+    await wrapper.setProps({ periodsPending: true });
+    expect(save.element.disabled).toBe(true);
+    await wrapper.setProps({ periodsPending: false, periodSaveError: "时段保存失败" });
+    expect(wrapper.get(".settings-save-error").text()).toBe("时段保存失败");
+    expect(wrapper.props("periods")).toEqual(periods);
+    wrapper.unmount();
   });
 
   it("emits a policy update without mutating the prop", async () => {
@@ -133,7 +171,7 @@ describe("DutyTimeWorkspace", () => {
 
     expect(wrapper.get(".duty-period-form").classes()).not.toContain("invalid");
     expect(wrapper.get(".duty-period-error").text()).toContain("重叠");
-    expect(wrapper.get<HTMLButtonElement>(".duty-period-footer button").element.disabled).toBe(
+    expect(wrapper.get<HTMLButtonElement>(".duty-save-periods").element.disabled).toBe(
       true,
     );
   });

@@ -16,7 +16,7 @@
         />
         <Info v-else aria-hidden="true" />
         <span>{{ toast.message }}</span>
-        <button
+        <button data-button-kind="icon"
           class="toast-dismiss"
           type="button"
           :aria-label="`关闭通知：${toast.message}`"

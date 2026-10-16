@@ -1,17 +1,12 @@
 <template>
-  <AuthLayout :entry-mode="state.access.mode">
-    <template #header-actions>
-      <RouterLink v-if="state.access.kioskAvailable" class="auth-header-back" to="/">
-        <ArrowUpRight aria-hidden="true" /><span>返回签到台</span>
-      </RouterLink>
-    </template>
+  <AuthLayout :entry-mode="state.access.mode" large-brand>
     <form class="auth-form" @submit.prevent="submit">
       <div class="auth-heading">
-        <h2>登录后台</h2>
-        <p>{{ state.access.mode === 'REMOTE_ADMIN' ? '仅会长和管理员可通过远程入口登录' : '使用学号或管理员账号进入对应工作区' }}</p>
+        <h2>{{ state.access.mode === 'REMOTE_ADMIN' ? '远程登录' : '登录后台' }}</h2>
+        <p>{{ state.access.mode === 'REMOTE_ADMIN' ? '仅限会长和管理员' : '使用学号登录' }}</p>
       </div>
       <div class="field">
-        <label for="login-account">账号</label>
+        <label for="login-account">学号</label>
         <div class="input-with-icon">
           <UserRound aria-hidden="true" /><input
             id="login-account"
@@ -20,7 +15,7 @@
             name="username"
             autocomplete="username"
             required
-            placeholder="学号或管理员账号"
+            placeholder="输入学号"
           />
         </div>
       </div>
@@ -34,8 +29,8 @@
             :type="showPassword ? 'text' : 'password'"
             autocomplete="current-password"
             required
-            placeholder="请输入密码"
-          /><button
+            placeholder="输入密码"
+          /><button data-button-kind="icon"
             class="input-icon-button"
             type="button"
             :aria-label="showPassword ? '隐藏密码' : '显示密码'"
@@ -56,7 +51,7 @@
         <Transition name="auth-feedback-swap">
           <p v-if="error" key="error" class="form-error" role="alert">{{ error }}</p>
           <p v-else-if="sessionNotice" key="session" class="auth-session-notice" role="status">{{ sessionNotice }}</p>
-          <p v-else key="hint" class="auth-remember-hint">{{ rememberHint }}</p>
+          <p v-else-if="rememberHint" key="hint" class="auth-remember-hint">{{ rememberHint }}</p>
         </Transition>
       </div>
       <button class="button primary auth-submit" type="submit" :disabled="busy">
@@ -66,6 +61,9 @@
           <LogIn v-else />
         </span>
       </button>
+      <RouterLink data-button-kind="entry" v-if="state.access.kioskAvailable" class="auth-kiosk-return" to="/">
+        <ArrowLeft aria-hidden="true" /><span>返回签到台</span>
+      </RouterLink>
     </form>
   </AuthLayout>
 </template>
@@ -74,7 +72,7 @@
 import { computed, nextTick, onMounted, reactive, ref } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import {
-  ArrowUpRight,
+  ArrowLeft,
   Eye,
   EyeOff,
   LoaderCircle,
@@ -102,11 +100,11 @@ const busy = ref(false);
 const error = ref("");
 const accountInput = ref<HTMLInputElement>();
 const rememberLabel = isDesktopCredentialMode()
-  ? "记住账号和密码"
-  : "记住账号";
+  ? "记住学号和密码"
+  : "记住学号";
 const rememberHint = isDesktopCredentialMode()
   ? "记住的登录信息仅用于此设备"
-  : "浏览器仅保存账号，不保存密码";
+  : "";
 const sessionNotice = computed(() => {
   if (route.query.reason === "restored") return "数据已恢复，请重新登录";
   if (route.query.reason === "expired") return "登录状态已失效，请重新登录";

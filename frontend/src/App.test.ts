@@ -50,8 +50,8 @@ describe("public and authenticated route boundary", () => {
     const wrapper = mount(App, { attachTo: document.body, global: { plugins: [router] } });
     try {
       await flushPromises();
-      expect(wrapper.text()).toContain("暂时无法连接系统");
-      expect(wrapper.text()).toContain("入口状态待确认");
+      expect(wrapper.get(".startup-status .auth-heading h2").text()).toBe("系统连接失败");
+      expect(wrapper.get(".auth-signal-context").text()).toContain("系统连接");
       expect(wrapper.text()).not.toContain("初始化本机");
       expect(wrapper.text()).not.toContain("synthetic private");
       expect(loadSetup).not.toHaveBeenCalled();

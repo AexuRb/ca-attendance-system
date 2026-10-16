@@ -694,9 +694,7 @@ try {
     Add-Result "操作日志查询/导出" "total=$($logs.total)"
 
     if (-not $SkipRestore) {
-        $clearResult = Invoke-Json DELETE "/api/logs"
-        Remember-Backup $clearResult.safetyBackup
-        Assert-True ($clearResult.deleted -ge 0) "日志清理返回异常"
+        Invoke-Json DELETE "/api/logs" -ExpectedStatus @(405) | Out-Null
         $restoreResult = Invoke-Upload "/api/maintenance/backups/restore" $baselinePath
         $script:BaselineRestored = $true
         Remember-Backup $restoreResult.safetyBackup
@@ -705,7 +703,7 @@ try {
         $script:AdminToken = $loginAfterRestore.token
         $restoredSearch = @(Invoke-Json GET "/api/users?keyword=$suffix")
         Assert-True ($restoredSearch.Count -eq 0) "恢复基线后仍能查到烟测用户"
-        Add-Result "日志清空/备份恢复/令牌重登" "restoredRows=$($restoreResult.totalRows)"
+        Add-Result "日志清空入口已移除/备份恢复/令牌重登" "restoredRows=$($restoreResult.totalRows)"
     }
 
     $testBackupNames = @(

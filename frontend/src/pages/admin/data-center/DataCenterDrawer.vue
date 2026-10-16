@@ -11,7 +11,7 @@
         v-if="open || !compact"
         :id="resolvedPanelId"
         ref="dialog"
-        :class="[panelClass, { open, 'refined-data-drawer': refined, 'export-detail mw-scope': refined && panelClass === 'data-config-drawer', 'bw-detail mw-scope': refined && panelClass === 'data-backup-drawer' }]"
+        :class="[panelClass, surfaceClass, { open, 'refined-data-drawer': refined, 'export-detail mw-scope': refined && panelClass === 'data-config-drawer', 'bw-detail mw-scope': refined && panelClass === 'data-backup-drawer' }]"
         :role="compact ? 'dialog' : 'complementary'"
         :aria-modal="compact ? 'true' : undefined"
         :aria-hidden="open ? undefined : 'true'"
@@ -61,20 +61,23 @@ import { useDialogFocus } from "../../../shared/ui/useDialogFocus";
 import { memberPresentationKey } from "../../../shared/ui/presentation";
 const refined = inject(memberPresentationKey, false);
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean;
   eyebrow: string;
   title: string;
   closeLabel: string;
   panelClass: string;
   panelId?: string;
-}>();
+  surfaceClass?: string;
+  modal?: boolean;
+}>(), { modal: undefined });
 
 const emit = defineEmits<{ close: [] }>();
 const titleId = `data-drawer-${useId()}`;
 const generatedPanelId = `data-panel-${useId()}`;
 const resolvedPanelId = computed(() => props.panelId || generatedPanelId);
-const compact = ref(false);
+const responsiveCompact = ref(false);
+const compact = computed(() => props.modal ?? responsiveCompact.value);
 const dialog = ref<HTMLElement | null>(null);
 const modalOpen = computed(() => props.open && compact.value);
 let mediaQuery: MediaQueryList | null = null;
@@ -87,7 +90,7 @@ useDialogFocus({
 });
 
 function syncCompactMode(event?: MediaQueryListEvent) {
-  compact.value = event?.matches ?? mediaQuery?.matches ?? false;
+  responsiveCompact.value = event?.matches ?? mediaQuery?.matches ?? false;
 }
 
 onMounted(() => {
@@ -104,7 +107,7 @@ watch(
         document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null;
-    } else if (!open && wasOpen && !compact.value && desktopReturnFocus?.isConnected) {
+    } else if (!open && wasOpen && desktopReturnFocus?.isConnected) {
       const target = desktopReturnFocus;
       desktopReturnFocus = null;
       void nextTick(() => target.focus());

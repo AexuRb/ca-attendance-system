@@ -3,7 +3,7 @@
     <div class="section-brand-copy">
       <small>COMPUTER ASSOCIATION</small>
       <strong>协会管理后台</strong>
-      <button
+      <button data-button-kind="icon"
         type="button"
         class="section-collapse"
         title="收起二级导航"

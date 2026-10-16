@@ -1,18 +1,17 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useSession } from "../../app/session";
-import { get, put, setToken } from "../../shared/api";
+import { get, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
-import { notify } from "../../shared/composables/useToast";
 import { dateRangeError } from "../../shared/validation/dateRange";
 import { focusFirstInvalid, validateProfileInput, type InputErrors } from "../../shared/validation/userInput";
 import { attendanceStatusMeta, totalAttendanceHours, type AttendanceProfileRecord, type TrainingProfileRecord } from "./profileRecords";
 
 export function useProfileWorkspace() {
   const router = useRouter();
-  const { state, user, refreshUser } = useSession();
+  const { user, refreshUser } = useSession();
   const task = useAsyncTask();
   const actions = usePendingActions();
   const busy = computed(() => actions.isPending("save-profile"));
@@ -24,7 +23,6 @@ export function useProfileWorkspace() {
   const appliedRange = ref<{ from: string; to: string } | null>(null);
   const recordsReady = ref(false);
   const activeRecordTab = ref<"attendance" | "training">("attendance");
-  const passwordOpen = ref(false);
   const from = ref(`${new Date().getFullYear()}-01-01`);
   const to = ref(localDate(new Date()));
   const profile = reactive({ phone: "", qq: "", major: "", grade: "" });
@@ -84,12 +82,8 @@ export function useProfileWorkspace() {
     });
   }
 
-  async function passwordChanged() {
-    passwordOpen.value = false;
-    notify("密码修改成功，请使用新密码登录", "success");
-    setToken("");
-    state.user = null;
-    await router.replace({ name: "login", query: { reason: "password-changed" } });
+  function openPassword() {
+    void router.push({ name: "password" });
   }
 
   function retryFailedLoad() {
@@ -121,7 +115,7 @@ export function useProfileWorkspace() {
   return {
     activeRecordTab, activeRecords, appliedRange, attendanceHours, attendanceNote, attendanceRecords,
     attendanceStatusMeta, busy, captureProfileForm, clock, filterError, from, loadRecords,
-    number, pageError, passwordChanged, passwordOpen, profile, profileErrors, rangeChanged, recordsError,
+    number, openPassword, pageError, profile, profileErrors, rangeChanged, recordsError,
     recordsLoading, recordsReady, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
     trainingHours, trainingRecords, user,
   };

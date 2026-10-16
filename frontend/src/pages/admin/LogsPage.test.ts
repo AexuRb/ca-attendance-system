@@ -56,6 +56,36 @@ afterEach(() => {
 });
 
 describe("LogsPage request states", () => {
+  it("returns to result start only after a successful page change", async () => {
+    const scroll = vi.fn();
+    mocks.get.mockResolvedValueOnce({ ...page("第一页"), total: 41 })
+      .mockRejectedValueOnce(new Error("翻页失败"))
+      .mockResolvedValueOnce({ ...page("第二页"), total: 41, page: 2 });
+    const wrapper = mount(LogsPage);
+    await flushPromises();
+    Object.defineProperty(wrapper.get('.audit-results').element, 'scrollIntoView', { value: scroll });
+    await wrapper.findAll('.pagination button')[1]!.trigger('click');
+    await flushPromises();
+    expect(scroll).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain('第一页');
+    await wrapper.findAll('.pagination button')[1]!.trigger('click');
+    await flushPromises();
+    expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'instant' });
+    expect(wrapper.text()).toContain('第二页');
+    wrapper.unmount();
+  });
+
+  it("shows event time without an oversized comparison empty state", async () => {
+    mocks.get.mockResolvedValue({ ...page('操作人'), items: [{ ...page('操作人').items[0], actionType: 'LOCAL_LOGIN_SUCCESS' }] });
+    const wrapper = mount(LogsPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+    await wrapper.get('.audit-records article .icon-button').trigger('click');
+    expect(wrapper.get('.audit-detail-surface').text()).toContain('2026-08-21 12:00:00');
+    expect(wrapper.get('.audit-event-note').text()).toContain('登录事件');
+    expect(wrapper.find('.audit-detail-surface .empty-state').exists()).toBe(false);
+    expect(wrapper.find('.audit-raw-details').exists()).toBe(true);
+    wrapper.unmount();
+  });
   it("keeps applied conditions after a failed history navigation and retries its original snapshot", async () => {
     mocks.get.mockResolvedValueOnce({ ...page("旧范围"), total: 21 })
       .mockRejectedValueOnce(new Error("历史查询失败"))
@@ -67,7 +97,7 @@ describe("LogsPage request states", () => {
     testRoute.query = { actionType: "UPDATE_USER" };
     await flushPromises();
     expect(wrapper.text()).toContain("旧范围");
-    expect(wrapper.get(".mw-tools .button.secondary").attributes("disabled")).toBeDefined();
+    expect(wrapper.find(".logs-page-actions .button.secondary").exists()).toBe(false);
     await wrapper.findAll(".pagination button")[1]!.trigger("click");
     await flushPromises();
     expect(String(mocks.get.mock.lastCall?.[0])).not.toContain("actionType=");
@@ -78,22 +108,19 @@ describe("LogsPage request states", () => {
     await flushPromises();
     expect(String(mocks.get.mock.lastCall?.[0])).toContain("actionType=DELETE_USER");
     expect(wrapper.text()).toContain("重试范围");
-    expect(wrapper.get(".mw-tools .button.secondary").attributes("disabled")).toBeUndefined();
+    expect(wrapper.find(".logs-page-actions .button.secondary").exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it("prevents exports until the first query succeeds", async () => {
+  it("keeps the removed export action absent during and after loading", async () => {
     const pending = deferred<ReturnType<typeof page>>();
     mocks.get.mockReturnValueOnce(pending.promise);
     const wrapper = mount(LogsPage);
     await flushPromises();
-    const button = wrapper.get(".mw-tools .button.secondary");
-    expect(button.attributes("disabled")).toBeDefined();
-    await button.trigger("click");
+    expect(wrapper.find(".logs-page-actions .button.secondary").exists()).toBe(false);
     expect(mocks.get).toHaveBeenCalledTimes(1);
     pending.resolve(page("加载完成"));
     await flushPromises();
-    expect(button.attributes("disabled")).toBeUndefined();
     wrapper.unmount();
   });
   it("offers readable operation types instead of a free-form code field", async () => {
@@ -126,18 +153,14 @@ describe("LogsPage request states", () => {
     wrapper.unmount();
   });
 
-  it("keeps the clear confirmation open when deletion fails", async () => {
+  it("does not expose the removed clear action or its confirmation", async () => {
     mocks.get.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });
-    mocks.del.mockRejectedValue(new Error("清空失败"));
     const wrapper = mount(LogsPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    await wrapper.get(".mw-tools .button.danger").trigger("click");
-    await wrapper.get(".mw-modal-foot .button.danger").trigger("click");
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("清空操作日志");
-    expect(mocks.get).toHaveBeenCalledTimes(1);
-    expect(mocks.notify).toHaveBeenCalledWith("清空失败", "danger");
+    expect(wrapper.find('[aria-label="日志更多操作"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("清空日志");
+    expect(wrapper.text()).not.toContain("备份并清空");
+    expect(mocks.del).not.toHaveBeenCalled();
     wrapper.unmount();
   });
 
@@ -158,7 +181,7 @@ describe("LogsPage request states", () => {
     wrapper.unmount();
   });
 
-  it("uses applied filters for pagination and export until the next query succeeds", async () => {
+  it("uses applied filters for pagination until the next query succeeds", async () => {
     mocks.get.mockImplementation((url: string) => {
       if (url.startsWith("/api/logs/export")) return Promise.resolve(new Blob(["fixture"]));
       const requestedPage = Number(new URL(url, "http://localhost").searchParams.get("page") || 1);
@@ -175,10 +198,7 @@ describe("LogsPage request states", () => {
     expect(String(mocks.get.mock.lastCall?.[0])).toContain("page=2");
     expect(String(mocks.get.mock.lastCall?.[0])).not.toContain("keyword=");
 
-    await wrapper.get(".mw-tools .button.secondary").trigger("click");
-    await flushPromises();
-    expect(String(mocks.get.mock.lastCall?.[0])).toContain("/api/logs/export?");
-    expect(String(mocks.get.mock.lastCall?.[0])).not.toContain("keyword=");
+    expect(wrapper.find(".logs-page-actions .button.secondary").exists()).toBe(false);
 
     await wrapper.get("form.filter-bar").trigger("submit");
     await flushPromises();

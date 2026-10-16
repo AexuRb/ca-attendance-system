@@ -16,7 +16,7 @@ html:root[data-appearance="editorial"] .public-presentation {
 }
 html:root[data-appearance="spatial"] .public-presentation {
   --pub-ink: #2b3641; --pub-muted: #667787; --pub-line: #d9e1e9;
-  --pub-soft: #f6f8fb; --pub-accent: #087bcf; --pub-radius: 20px; --pub-speed: 180ms;
+  --pub-soft: #f6f8fb; --pub-accent: #087bcf; --pub-radius:20px; --pub-speed: 180ms;
   background: radial-gradient(ellipse at 5% 0%, #ccdfef, transparent 65%), radial-gradient(ellipse at 100% 100%, #dedceb, transparent 60%), #f0f4f8;
 }
 html:root[data-appearance] .public-presentation :is(input,button) { font: inherit; }

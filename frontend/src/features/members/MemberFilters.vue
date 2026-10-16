@@ -105,7 +105,7 @@
           {{ filter.label }}<X aria-hidden="true" />
         </button>
       </div>
-      <button class="mw-filter-reset" type="button" :disabled="!activeFilters.length" @click="clearAll">清除</button>
+      <button data-button-kind="action" class="mw-filter-reset" type="button" :disabled="!activeFilters.length" @click="clearAll">清除</button>
     </div>
     <div
       v-else-if="activeFilters.length"

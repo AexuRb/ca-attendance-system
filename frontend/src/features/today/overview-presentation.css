@@ -1,0 +1,149 @@
+/* Shared opt-in shell; themes change color, type and background only. */
+html:root[data-appearance] .overview-shell {
+  --overview-background: radial-gradient(ellipse at 10% 0%, #dce6f0, transparent 65%), #eef2f6;
+  --overview-sidebar: transparent;
+  --overview-drawer: #e6edf4;
+  --overview-surface-center: #e7eff7;
+  --overview-surface-corner: #edf0f6;
+  --overview-surface: radial-gradient(ellipse 62% 64% at 26% 55%, var(--overview-surface-center), transparent 72%), radial-gradient(ellipse 48% 52% at 90% 8%, var(--overview-surface-corner), transparent 76%), #fff;
+  --overview-chat: #eef3f8;
+  --overview-group: color-mix(in srgb, #fff 78%, transparent);
+  --overview-account-surface: color-mix(in srgb, #fff 92%, transparent);
+  --overview-control: color-mix(in srgb, var(--mw-paper) 58%, transparent);
+  --overview-hover: color-mix(in srgb, var(--mw-paper) 45%, transparent);
+  --mw-ink: #293541;
+  --mw-accent: #30669c;
+  --mw-line: #d6dfe7;
+  --mw-muted: #55636f;
+  --overview-selected: #dce7f3;
+  --overview-density: var(--overview-window-density, 1);
+  --overview-header-height: calc(96px + 32px * var(--overview-density));
+  --overview-nav-padding: calc(8px + 8px * var(--overview-density));
+  --overview-brand-top: calc(12px + 24px * var(--overview-density));
+  --overview-account-lift: calc(12px + 12px * var(--overview-density));
+  --mw-font: "Noto Sans SC", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  display: grid; grid-template-columns: 256px minmax(0, 1fr); grid-template-rows: var(--overview-header-height) minmax(0, 1fr);
+  height: 100dvh; min-height: 0; overflow: hidden; background: var(--overview-background);
+  font: 400 16px/1.6 var(--mw-font); color: var(--mw-ink);
+}
+html:root[data-appearance="editorial"] .overview-shell {
+  --overview-surface-center: #f4eddf; --overview-surface-corner: #f1e8dc;
+  --overview-chat: #f3ece1;
+  --overview-background: radial-gradient(ellipse at 8% 0%, #e9ddc6, transparent 65%), #f5f2e9;
+  --overview-drawer: #eee6d8; --overview-selected: #e6d7c5; --mw-line: #e0d9cd; --mw-ink: #39382f;
+  --mw-muted: #685e50; --mw-accent: #9d583d;
+  --mw-font: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+}
+html:root[data-appearance="spatial"] .overview-shell {
+  --overview-surface-center: #e4f0fb; --overview-surface-corner: #eee9f7;
+  --overview-chat: #eaf2fb;
+  --overview-background: radial-gradient(ellipse at 5% 0%, #ccdfef, transparent 65%), radial-gradient(ellipse at 100% 100%, #dedceb, transparent 60%), #f0f4f8;
+  --overview-drawer: #dfeaf4; --overview-selected: #d4e7fb; --mw-line: #d9e1e9; --mw-ink: #2b3641;
+  --mw-muted: #4d647a; --mw-accent: #126aa8;
+}
+html:root[data-appearance] .overview-shell :is(button, a, textarea) { font-family: var(--mw-font); }
+html:root[data-appearance] .overview-sidebar {
+  grid-row: 2; grid-column: 1; display: flex; flex-direction: column; min-height: 0; background: var(--overview-sidebar);
+  border-right: 0; z-index: 45;
+}
+html:root[data-appearance] .overview-brand { display: flex; align-items: center; gap: 16px; min-width: 0; height: 100%; padding: var(--overview-brand-top) 8px calc(12px + 8px * var(--overview-density)) 22px; }
+html:root[data-appearance] .overview-brand img { width: 64px; height: 64px; flex-shrink: 0; object-fit: contain; }
+html:root[data-appearance] .overview-brand strong { display: block; font-size: 24px; font-weight: 600; white-space: nowrap; }
+html:root[data-appearance] .overview-navigation { flex: 1; min-height: 0; overflow: auto; padding: var(--overview-nav-padding) 14px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--mw-muted) 10%, transparent) transparent; scrollbar-gutter: stable; }
+html:root[data-appearance] .overview-navigation:is(:hover, :focus-within) { scrollbar-color: color-mix(in srgb, var(--mw-muted) 30%, transparent) transparent; }
+/* Keep the same card edge when replacing the native 10px gutter with 6px. */
+@supports selector(::-webkit-scrollbar) {
+  html:root[data-appearance] .overview-navigation { padding-right: 18px; scrollbar-width: auto; scrollbar-color: auto; }
+  html:root[data-appearance] .overview-navigation:is(:hover, :focus-within) { scrollbar-color: auto; }
+  html:root[data-appearance] .overview-navigation::-webkit-scrollbar { width: 6px; }
+  html:root[data-appearance] .overview-navigation::-webkit-scrollbar-track { background: transparent; }
+  html:root[data-appearance] .overview-navigation::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  html:root[data-appearance] .overview-navigation::-webkit-scrollbar-thumb { border-radius: 6px; background: color-mix(in srgb, var(--mw-muted) 10%, transparent); }
+  html:root[data-appearance] .overview-navigation:is(:hover, :focus-within)::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--mw-muted) 30%, transparent); }
+}
+html:root[data-appearance] .overview-nav-group { padding: calc(4px + 4px * var(--overview-density)); border: 0; border-radius: 14px; background: var(--overview-group); box-shadow: none; }
+html:root[data-appearance] .overview-nav-group + .overview-nav-group { margin-top: calc(6px + 4px * var(--overview-density)); }
+html:root[data-appearance] .overview-nav-group h2 { padding: 0 16px calc(7px * var(--overview-density)); color: color-mix(in srgb, var(--mw-ink) 70%, var(--mw-muted)); font: 500 14px/20px var(--mw-font); letter-spacing: .08em; }
+html:root[data-appearance] .overview-nav-group a {
+  position: relative; display: flex; align-items: center; gap: 12px; height: calc(32px + 8px * var(--overview-density)); padding: 0 16px;
+  margin-bottom: calc(1px + 2px * var(--overview-density)); border-radius: 10px; color: var(--mw-ink); font-size: 16px; font-weight: 400;
+  text-decoration: none; transition: color 150ms, background 150ms;
+}
+html:root[data-appearance] .overview-nav-group a svg { width: 18px; height: 18px; color: var(--mw-muted); }
+html:root[data-appearance] .overview-nav-group a:last-child { margin-bottom: 0; }
+html:root[data-appearance] .overview-nav-group a:hover { background: var(--overview-hover); }
+html:root[data-appearance] .overview-nav-group a.is-current { background: #fff; color: var(--mw-accent); box-shadow: 0 1px 3px #24364814; }
+html:root[data-appearance] .overview-nav-group a.is-current svg { color: var(--mw-accent); }
+html:root[data-appearance] .overview-account { position: relative; isolation: isolate; display: flex; align-items: center; gap: 10px; margin: 0 0 var(--overview-account-lift); padding: calc(8px + 12px * var(--overview-density)) 30px; min-height: calc(64px + 24px * var(--overview-density)); border-top: 0; flex-shrink: 0; }
+/* Match the thin-scrollbar navigation cards; move the whole account together. */
+html:root[data-appearance] .overview-account::before { content: ""; position: absolute; inset: 8px 24px 8px 14px; z-index: -1; border-radius: 14px; background: var(--overview-account-surface); box-shadow: none; pointer-events: none; }
+html:root[data-appearance] .overview-account-icon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: color-mix(in srgb, var(--mw-paper) 70%, transparent); color: var(--mw-muted); }
+html:root[data-appearance] .overview-account-icon svg { width: 20px; height: 20px; }
+html:root[data-appearance] .overview-account > div { flex: 1; min-width: 0; }
+html:root[data-appearance] .overview-account strong { display: block; font-size: 16px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html:root[data-appearance] .overview-account small { display: block; font-size: 12px; }
+html:root[data-appearance] .overview-account button { display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; width: 36px; height: 36px; background: var(--overview-control); border: 0; border-radius: 10px; color: var(--mw-muted); font-size: 13px; white-space: nowrap; }
+html:root[data-appearance] .overview-account button:hover { background: var(--overview-selected); color: var(--mw-accent); }
+html:root[data-appearance] .overview-topbar { grid-column: 1 / -1; grid-row: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-width: 0; border-bottom: 0; background: transparent; z-index: 50; }
+html:root[data-appearance] .overview-topbar-actions { display: flex; align-items: center; align-self: start; justify-content: flex-end; height: 72px; margin-top: var(--overview-brand-top); gap: 20px; min-width: 0; padding-right: 32px; }
+html:root[data-appearance] .overview-topbar .mw-header-action { height: 44px; padding: 0 18px; gap: 10px; border-color: var(--mw-line); background: var(--overview-control); box-shadow: none; font-size: 18px; border-radius: 10px; }
+html:root[data-appearance] .overview-topbar .mw-header-action svg { width: 20px; height: 20px; }
+html:root[data-appearance] .overview-topbar .mw-header-action:hover,
+html:root[data-appearance] .overview-menu-toggle:hover { background: var(--overview-selected); color: var(--mw-accent); transform: none; }
+html:root[data-appearance] .overview-shell :is(.overview-nav-group a, .mw-header-action, .overview-account button, .overview-menu-toggle) { transition: color 140ms, background-color 140ms, box-shadow 140ms; transform: none; }
+html:root[data-appearance] .overview-shell :is(.overview-nav-group a, .mw-header-action, .overview-account button, .overview-menu-toggle):focus-visible { outline: 2px solid color-mix(in srgb, var(--mw-accent) 60%, transparent); outline-offset: 2px; }
+html:root[data-appearance] .overview-shell :is(.overview-nav-group a, .mw-header-action, .overview-account button, .overview-menu-toggle):active { background: color-mix(in srgb, var(--overview-selected) 85%, var(--mw-accent)); color: var(--mw-accent); transform: none; }
+html:root[data-appearance] .overview-shell .overview-nav-group a:active { background: color-mix(in srgb, var(--mw-accent) 4%, #fff); box-shadow: none; }
+html:root[data-appearance] .overview-service-alert { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ad4d36; }
+html:root[data-appearance] .overview-content { grid-column: 2; grid-row: 2; align-self: start; height: calc(100% - var(--overview-nav-padding) - 8px - var(--overview-account-lift)); min-width: 0; min-height: 0; overflow: auto; margin: var(--overview-nav-padding) 32px calc(8px + var(--overview-account-lift)) 8px; padding: 32px 0 24px; border-radius: 20px; background: var(--overview-surface); box-shadow: 0 8px 24px #2436480a; outline: none; scrollbar-gutter: stable; }
+html:root[data-appearance] .overview-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; margin-bottom: 24px; }
+html:root[data-appearance] .overview-page-heading h1 { font: 600 30px/1.4 var(--mw-font); letter-spacing: 0; }
+html:root[data-appearance] .overview-page-heading time { color: var(--mw-muted); font-size: 14px; }
+html:root[data-appearance] .overview-workspace { background: transparent; border: 0; border-radius: 0; min-height: 390px; box-shadow: none; }
+html:root[data-appearance] .overview-shell .daily-command { width: 100%; margin: 0; align-items: stretch; padding: 30px 32px; gap: 32px; min-height: 0; }
+html:root[data-appearance] .overview-shell.mw-scope .daily-command .command-composer-zone { position: relative; inset: auto; transform: none; transition: none; }
+html:root[data-appearance] .overview-shell .daily-command .command-console-shell { padding: 0; }
+html:root[data-appearance] .overview-shell .daily-command-label { font-size: 16px; font-weight: 500; margin-bottom: 16px; color: var(--mw-ink); }
+html:root[data-appearance] .overview-shell .daily-command-label kbd { font-weight: 400; color: var(--mw-muted); padding: 2px 8px; border-radius: 5px; }
+html:root[data-appearance] .overview-shell .daily-command .command-composer { padding: 16px 20px; grid-template-columns: minmax(0, 1fr) 44px; }
+html:root[data-appearance] .overview-shell.mw-scope .daily-command .command-composer textarea { --command-input-max-height: 168px; min-height: 52px; padding: 2px 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; font: 400 18px/1.8 var(--mw-font); transition: color 150ms; }
+html:root[data-appearance] .overview-shell.mw-scope .daily-command .command-composer textarea:focus { border: 0; outline: none; box-shadow: none; }
+html:root[data-appearance] .overview-shell .daily-command .command-composer-mode { font-size: 12px; }
+html:root[data-appearance] .overview-shell .daily-command .command-composer-send { width: 44px; height: 44px; }
+html:root[data-appearance] .overview-shell .daily-shortcuts { border-top: 1px solid var(--mw-line); padding: 26px 0 0; }
+html:root[data-appearance] .overview-shell .daily-shortcuts-head { min-height: 26px; margin-bottom: 16px; }
+html:root[data-appearance] .overview-shell .daily-shortcuts-head small { font-size: 16px; font-weight: 500; color: var(--mw-ink); }
+html:root[data-appearance] .overview-shell .daily-command .command-welcome-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+html:root[data-appearance] .overview-shell .daily-command .command-welcome-action { flex-direction: row; flex-wrap: nowrap; text-align: left; min-height: 100px; padding: 20px; box-shadow: none; background: var(--mw-paper); }
+html:root[data-appearance] .overview-shell .daily-command .command-welcome-action > svg { display: block; }
+html:root[data-appearance] .overview-shell .daily-command .command-welcome-action-copy strong { font: 500 16px/1.6 var(--mw-font); }
+html:root[data-appearance] .overview-shell .daily-command .command-welcome-action-copy small { font: 400 12px/1.6 var(--mw-font); margin-top: 5px; }
+html:root[data-appearance] .overview-shell .daily-command .command-welcome-action-icon { width: 40px; height: 40px; flex-basis: 40px; border: 0; border-radius: 8px; background: var(--mw-soft); box-shadow: none; }
+html:root[data-appearance] .overview-shell .daily-shortcuts-skeleton i { min-height: 100px; }
+html:root[data-appearance] .overview-menu-toggle, html:root[data-appearance] .overview-backdrop { display: none; }
+html:root[data-appearance] .overview-skip { position: fixed; top: 8px; left: 272px; z-index: 70; padding: 8px 16px; background: var(--mw-paper); color: var(--mw-accent); transform: translateY(-150%); }
+html:root[data-appearance] .overview-skip:focus { transform: none; }
+@media (max-width: 1200px) {
+  html:root[data-appearance] .overview-shell .daily-command .command-welcome-actions { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  html:root[data-appearance] .overview-shell { --overview-density: 1; --overview-header-height: 64px; grid-template-columns: minmax(0, 1fr); }
+  html:root[data-appearance] .overview-sidebar { position: fixed; inset: var(--overview-header-height) auto 0 0; width: 256px; visibility: hidden; background: var(--overview-drawer); }
+  html:root[data-appearance] .overview-shell.menu-open .overview-sidebar { visibility: visible; }
+  html:root[data-appearance] .overview-backdrop { display: block; position: fixed; inset: var(--overview-header-height) 0 0; z-index: 40; border: 0; background: #172b4359; }
+  html:root[data-appearance] .overview-menu-toggle { display: grid; place-items: center; width: 32px; height: 36px; border: 1px solid var(--mw-line); border-radius: 10px; background: var(--mw-paper); color: var(--mw-ink); }
+  html:root[data-appearance] .overview-topbar { display: flex; gap: 8px; padding: 0 12px; }
+  html:root[data-appearance] .overview-brand { flex: 1; gap: 8px; padding: 0; }
+  html:root[data-appearance] .overview-brand strong { min-width: 0; font-size: 18px; overflow: hidden; text-overflow: ellipsis; }
+  html:root[data-appearance] .overview-content { grid-column: 1; margin: 16px 16px calc(8px + var(--overview-account-lift)); padding: 32px 0 16px; }
+  html:root[data-appearance] .overview-shell .daily-command { padding: 24px 20px; }
+  html:root[data-appearance] .overview-service-alert { position: fixed; right: 16px; bottom: 16px; padding: 8px 12px; background: var(--mw-paper); border: 1px solid var(--mw-line); border-radius: 6px; z-index: 35; }
+  html:root[data-appearance] .overview-topbar .mw-header-action { width: 40px; height: 40px; padding: 8px; }
+  html:root[data-appearance] .overview-topbar .mw-header-action span { display: none; }
+  html:root[data-appearance] .overview-topbar-actions { align-self: center; height: 40px; margin-top: 0; gap: 6px; padding: 0; }
+  html:root[data-appearance] .overview-page-heading h1 { font-size: 26px; }
+  html:root[data-appearance] .overview-skip { left: 16px; }
+}
+@media (max-width: 700px) {
+  html:root[data-appearance] .overview-brand img { width: 56px; height: 56px; }
+}

@@ -1,0 +1,9 @@
+/* A fixed decorative emblem never affects document flow, hit testing or focus. */
+.emblem-transition-image { position:fixed; top:0; left:0; z-index:90; display:block; margin:0; padding:0; border:0; object-fit:contain; pointer-events:none; user-select:none; transform-origin:0 0; will-change:transform; }
+html[data-emblem-transition] img[data-emblem-suppressed] { opacity:0 !important; }
+html[data-emblem-transition] :is(.route-enter-active,.route-enter-from,.route-enter-to) { transition:none !important; transform:none !important; opacity:1 !important; }
+html[data-emblem-transition] .route-leave-active { transition:opacity 120ms ease-out !important; transform:none !important; }
+@media(prefers-reduced-motion:reduce) {
+  .emblem-transition-image { display:none; }
+  html[data-emblem-transition] img[data-emblem-suppressed] { opacity:1 !important; }
+}

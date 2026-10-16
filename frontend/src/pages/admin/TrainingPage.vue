@@ -1,18 +1,9 @@
 <template>
-  <RefinedWorkspaceShell class="affairs-workspace training-presentation" title="培训记录" description="管理培训安排与参与记录" section-key="work" filter-label="筛选培训记录">
-    <template #tools
-        ><button
-          :ref="captureExportButton"
-          class="button secondary"
-          :disabled="isPending('export-summary') || !summaryExportReady"
-          :title="summaryExportTitle"
-          @click="exportSummary"
-        >
-          <Download />{{ isPending('export-summary') ? "正在导出" : "导出统计" }}</button
-        ><button class="button primary" @click="openSession()">
-          <Plus />新建培训
-        </button></template>
-    <template #filters><form class="filter-bar" @submit.prevent="applyFilters">
+  <ExpandedWorkspaceShell class="overview-training training-presentation" current-page="trainings">
+    <template #heading><h1>培训记录</h1><div class="training-page-tools">
+      <button data-button-kind="soft" class="button primary workspace-create-button" @click="openSession()"><Plus />新建培训</button>
+    </div></template>
+    <section class="training-query" aria-label="筛选培训记录"><form class="filter-bar" @submit.prevent="applyFilters">
       <label class="filter-grow"
         ><span>关键词</span
         ><input
@@ -31,8 +22,8 @@
       <div v-if="filterError" class="inline-alert danger" role="alert">
         {{ filterError }}
       </div>
-    </template>
-    <div class="training-query-context">
+    </section>
+    <div v-show="sessionState.loading || sessionState.error || filtersPending" class="training-query-context">
       <span v-if="hasAppliedSessionQuery" class="training-applied-filters">
         已查询：{{ appliedFilters.from }} 至 {{ appliedFilters.to }} · {{ sessionState.total }} 场
         <template v-if="appliedFilters.keyword"> · 场次关键词：{{ appliedFilters.keyword }}</template>
@@ -43,10 +34,11 @@
         :dirty="filtersPending"
         :loading-text="hasAppliedSessionQuery ? '正在查询场次，暂示上次结果' : '正在查询场次'"
         :failed-text="hasAppliedSessionQuery ? '场次查询未成功，暂示上次结果；重试沿用上次请求条件' : '场次查询未成功，重试沿用上次请求条件'"
-        dirty-text="筛选已修改，查询后生效；导出仍使用已查询条件"
+        dirty-text="筛选已修改，查询后生效"
         :idle-text="hasAppliedSessionQuery ? '' : '尚无成功场次查询'"
       />
     </div>
+    <div :ref="bindWorkspaceScroll" class="training-workbench" :class="{ 'is-empty': !sessions.length }">
     <TrainingMonthRibbon
       :label="trainingRangeTitle"
       :items="sessions"
@@ -62,17 +54,13 @@
       @scroll="rememberScroll"
       @select="selectSession"
       @page="setSessionPage"
-      @shift-month="shiftVisibleMonth"
       @retry="retrySessions"
     />
 
-    <Transition name="training-stage-swap" mode="out-in">
-      <section v-if="selected" :key="selected.id" class="training-time-stage">
+      <section v-if="selected" class="training-time-stage">
         <TrainingSessionHeader
           :session="selected"
-          :export-pending="isPending('export-session')"
           :archive-pending="isPending('archive-session')"
-          @export="downloadSession"
           @edit="openSession(selected)"
           @archive="deleteTarget = selected"
         />
@@ -93,7 +81,6 @@
           @search="searchParticipants"
           @page="setParticipantPage"
           @add="openParticipant()"
-          @import="openImport"
           @edit="openParticipant"
           @delete="participantDeleteTarget = $event"
           @retry="retryParticipants"
@@ -105,7 +92,7 @@
       >
         <EmptyState title="请选择培训场次" />
       </div>
-    </Transition>
+    </div>
 
     <TrainingSessionEditorDialog
       :open="sessionOpen"
@@ -123,16 +110,9 @@
       @close="closeParticipant"
       @save="saveParticipant"
     />
-    <TrainingImportDialog
-      :open="importOpen"
-      :pending="isPending('import-participants')"
-      :template-pending="isPending('export-template')"
-      :error="importError"
-      @close="importOpen = false"
-      @import="importParticipants"
-      @template="downloadTemplate"
-    />
+
     <ConfirmDialog
+      backdrop-class="training-refined-backdrop"
       :open="Boolean(deleteTarget)"
       title="归档培训"
       :message="`归档培训“${deleteTarget?.title || ''}”，该场次将不再出现在列表中。`"
@@ -142,6 +122,7 @@
       @confirm="archiveSession"
     />
     <ConfirmDialog
+      backdrop-class="training-refined-backdrop"
       :open="Boolean(participantDeleteTarget)"
       title="删除参与记录"
       :message="`删除 ${participantDeleteTarget?.name || ''} 的培训记录。`"
@@ -152,6 +133,7 @@
       @confirm="deleteParticipant"
     />
     <ConfirmDialog
+      backdrop-class="training-refined-backdrop"
       :open="unsaved.confirmOpen.value"
       title="放弃未保存修改"
       message="当前表单还有未保存的内容，放弃后无法恢复。"
@@ -160,20 +142,19 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-  </RefinedWorkspaceShell>
+  </ExpandedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
 import {
-  Download,
   Plus,
   Search,
 } from "@lucide/vue";
 import { provide } from "vue";
-import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
-import "../../features/repairs/presentation.css";
+import "../../features/today/overview-presentation.css";
 provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import QueryStatus from "../../shared/ui/QueryStatus.vue";
@@ -181,13 +162,13 @@ import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
 import TrainingParticipantList from "../../features/training/TrainingParticipantList.vue";
 import TrainingParticipantEditorDialog from "../../features/training/TrainingParticipantEditorDialog.vue";
 import TrainingSessionEditorDialog from "../../features/training/TrainingSessionEditorDialog.vue";
-import TrainingImportDialog from "../../features/training/TrainingImportDialog.vue";
 import TrainingSessionHeader from "../../features/training/TrainingSessionHeader.vue";
 import TrainingMonthRibbon from "../../features/training/TrainingMonthRibbon.vue";
 import { useTrainingManagementWorkspace } from "../../features/training/useTrainingManagementWorkspace";
 
 const {
   restoringHistory,
+  bindWorkspaceScroll,
   bindRibbonScroll,
   bindParticipantScroll,
   rememberScroll,
@@ -205,13 +186,9 @@ const {
   participants,
   filterError,
   filtersPending,
-  summaryExportReady,
-  summaryExportTitle,
   trainingRangeTitle,
   sessionOpen,
   participantOpen,
-  importOpen,
-  importError,
   deleteTarget,
   participantDeleteTarget,
   sessionForm,
@@ -225,20 +202,15 @@ const {
   searchParticipants,
   retrySessions,
   retryParticipants,
-  shiftVisibleMonth,
   openSession,
   closeSession,
   saveSession,
   archiveSession,
   openParticipant,
   closeParticipant,
-  openImport,
   saveParticipant,
   deleteParticipant,
-  importParticipants,
-  downloadTemplate,
-  downloadSession,
-  exportSummary,
-  captureExportButton,
 } = useTrainingManagementWorkspace();
 </script>
+
+<style src="../../features/training/refined-presentation.css"></style>

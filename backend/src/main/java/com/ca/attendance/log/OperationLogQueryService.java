@@ -6,7 +6,6 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.ExportRowLimit;
 import com.ca.attendance.common.PaginationPolicy;
 import com.ca.attendance.common.SqlLike;
-import com.ca.attendance.maintenance.BackupService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,7 +30,6 @@ import static com.ca.attendance.common.JdbcTime.localDateTime;
 @Service
 public class OperationLogQueryService {
     private final JdbcTemplate jdbc;
-    private final BackupService backups;
     private final OperationLogService logs;
 
     private final RowMapper<LogItem> mapper = (rs, rowNum) -> new LogItem(
@@ -48,9 +46,8 @@ public class OperationLogQueryService {
             localDateTime(rs, "created_at")
     );
 
-    public OperationLogQueryService(JdbcTemplate jdbc, BackupService backups, OperationLogService logs) {
+    public OperationLogQueryService(JdbcTemplate jdbc, OperationLogService logs) {
         this.jdbc = jdbc;
-        this.backups = backups;
         this.logs = logs;
     }
 
@@ -84,14 +81,6 @@ public class OperationLogQueryService {
                 """, mapper, dataArgs.toArray());
 
         return new LogPage(items, totalRows, resolvedPage, paging.pageSize());
-    }
-
-    @Transactional
-    public ClearResult clear() {
-        requireOperationLogs("只有管理员可以清空操作日志");
-        BackupService.BackupItem safetyBackup = backups.create();
-        int deleted = jdbc.update("DELETE FROM operation_logs");
-        return new ClearResult(deleted, safetyBackup);
     }
 
     public ExportFile export(String keyword, String actionType, String from, String to) {
@@ -286,9 +275,6 @@ public class OperationLogQueryService {
         RolePermissionPolicy.require(AuthContext.current().role(),
                 RolePermissionPolicy.Permission.OPERATION_LOGS,
                 message);
-    }
-
-    public record ClearResult(int deleted, BackupService.BackupItem safetyBackup) {
     }
 
     public record ExportFile(String filename, byte[] bytes, int rowCount) {

@@ -1,0 +1,1 @@
+import{N as e,X as t,g as n,n as r,w as i}from"./vue-router-DyCa9V42.js";var a=i({__name:`AdminLayout`,setup(i){return(i,a)=>(e(),n(t(r)))}});export{a as default};

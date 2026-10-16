@@ -9,12 +9,14 @@
       <component :is="Component" />
     </Transition>
   </RouterView>
+  <EmblemTransition />
   <ToastHost />
   <NavigationRecoveryDialog />
 </template>
 
 <script setup lang="ts">
 import { RouterView } from "vue-router";
+import EmblemTransition from "./shared/ui/EmblemTransition.vue";
 import ToastHost from "./shared/ui/ToastHost.vue";
 import LoginPage from "./pages/auth/LoginPage.vue";
 import { useSession } from "./app/session";

@@ -82,7 +82,11 @@ public class AppearanceService {
     public enum Appearance {
         CLASSIC,
         EDITORIAL,
-        SPATIAL
+        SPATIAL,
+        PINE,
+        VIOLET,
+        GRAPHITE,
+        ROSE
     }
 
     public record AppearanceSetting(Appearance appearance, int version) {

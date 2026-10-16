@@ -90,4 +90,28 @@ describe("DataCenterDrawer", () => {
     expect(document.body.style.overflow).toBe("");
     wrapper.unmount();
   });
+
+  it("returns focus to the opener after an open inline panel becomes a compact dialog", async () => {
+    const matchMedia = stubCompactViewport(false);
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const wrapper = mount(DataCenterDrawer, {
+      attachTo: document.body,
+      props: { open: false, eyebrow: "导出配置", title: "调整条件与字段",
+        closeLabel: "收起导出配置", panelClass: "data-config-drawer" },
+      slots: { default: "<input aria-label='关键词'>" },
+    });
+    await wrapper.setProps({ open: true });
+    (wrapper.get('input').element as HTMLInputElement).focus();
+    const media = matchMedia.mock.results[0]!.value;
+    const onChange = media.addEventListener.mock.calls[0]![1] as (event: { matches: boolean }) => void;
+    onChange({ matches: true });
+    await flushPromises();
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    await wrapper.setProps({ open: false });
+    await flushPromises();
+    expect(document.activeElement).toBe(opener);
+    wrapper.unmount();
+  });
 });

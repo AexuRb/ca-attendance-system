@@ -70,7 +70,7 @@ export const adminNavigation: AdminNavSection[] = [
         name: "schedules",
         label: "排班管理",
         icon: CalendarDays,
-        roles: ["PRESIDENT", "ADMIN"],
+        roles: ["MINISTER", "PRESIDENT", "ADMIN"],
       },
     ],
   },

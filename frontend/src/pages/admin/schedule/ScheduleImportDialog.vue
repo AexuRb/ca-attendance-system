@@ -17,7 +17,7 @@
           />
         </span>
       </label>
-      <button
+      <button data-button-kind="action"
         class="button secondary"
         :disabled="busy || !file"
         @click="previewFile"

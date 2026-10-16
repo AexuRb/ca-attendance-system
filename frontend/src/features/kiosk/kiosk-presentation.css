@@ -1,0 +1,121 @@
+/* The kiosk uses one Classic composition across all appearances. */
+html:root[data-appearance] .public-presentation.public-kiosk { --pub-radius:12px; padding:28px 40px; animation:none; transform:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .public-kiosk-shell { display:grid; grid-template-columns:minmax(0,1fr); max-width:1480px; padding-top:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-header { position:static; display:flex; align-items:center; justify-content:space-between; grid-column:1; grid-row:1; margin:0 0 24px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand { display:flex; align-items:center; gap:16px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand-mark,
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand img { width:64px; height:64px; flex-shrink:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand strong { font-size:24px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-header-actions { align-items:center; gap:36px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-clock { font-size:38px; line-height:1.1; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-time>span { font-size:16px; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-service { font-size:14px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-stage { grid-column:1; grid-row:2; margin:0; border-radius:var(--pub-radius) var(--pub-radius) 0 0; box-shadow:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-state { width:100%; max-width:none; margin:0; min-height:260px; padding:28px 40px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-state h1 { font-size:38px; line-height:1.25; letter-spacing:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-input-state { justify-content:center; min-height:300px; gap:16px; padding-top:40px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-input-state>:is(.kiosk-signal-terminal-head,.kiosk-signal-form,.kiosk-focus-feedback) { width:100%; max-width:1080px; margin:0 auto; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-terminal-head { text-align:left; margin:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-input-state .kiosk-signal-terminal-head { display:block; text-align:center; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-input-state .kiosk-signal-terminal-head h1 { width:100%; max-width:none; text-align:center; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row { gap:12px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row input { height:60px; padding:0 20px; font-size:21px; border-radius:8px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row input:focus { border-color:var(--pub-accent); outline:2px solid color-mix(in srgb,var(--pub-accent) 16%,transparent); outline-offset:0; box-shadow:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button { position:relative; width:168px; min-width:168px; height:60px; padding:0 32px; font:inherit; font-size:18px; font-weight:500; line-height:1.5; border-radius:8px; border:1px solid color-mix(in srgb,var(--pub-accent) 82%,#000); background:linear-gradient(180deg,color-mix(in srgb,var(--pub-accent) 86%,#fff),var(--pub-accent) 48%,color-mix(in srgb,var(--pub-accent) 88%,#000)); box-shadow:inset 0 1px #ffffff45,0 4px 0 color-mix(in srgb,var(--pub-accent) 68%,#000),0 8px 16px #162b4020; transition:box-shadow .16s ease,transform .16s ease,opacity .16s ease; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button:hover:not(:disabled) { background:linear-gradient(180deg,color-mix(in srgb,var(--pub-accent) 78%,#fff),var(--pub-accent) 48%,color-mix(in srgb,var(--pub-accent) 88%,#000)); box-shadow:inset 0 1px #ffffff55,0 4px 0 color-mix(in srgb,var(--pub-accent) 68%,#000),0 10px 20px #162b4028; transform:translateY(-1px); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button:active:not(:disabled) { transform:translateY(2px); box-shadow:inset 0 1px 3px #00000018,0 1px 0 color-mix(in srgb,var(--pub-accent) 68%,#000),0 3px 7px #162b4018; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button:focus-visible { outline:3px solid color-mix(in srgb,var(--pub-accent) 40%,transparent); outline-offset:4px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button:disabled:not([aria-busy="true"]) { opacity:.8; box-shadow:inset 0 1px #ffffff45,0 2px 0 color-mix(in srgb,var(--pub-accent) 68%,#000); cursor:not-allowed; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button>span { font-size:inherit; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button>svg { position:absolute; right:16px; width:18px; height:18px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button[aria-busy="true"]>svg { left:14px; right:auto; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-feedback { display:flex; flex-direction:column; gap:6px; min-height:36px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-feedback :is(.kiosk-focus-hint,.kiosk-focus-error) { font-size:16px; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-feedback .kiosk-focus-error { display:flex; align-items:center; gap:6px; min-height:20px; padding:0; border:0; background:none; animation:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-feedback .kiosk-focus-error svg { width:16px; height:16px; flex-shrink:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-band { display:grid; grid-template-columns:minmax(0,1fr); align-items:stretch; justify-content:normal; grid-column:1; grid-row:3; margin:0; padding:18px 24px; gap:12px; border:1px solid var(--pub-line); border-top:0; border-radius:0; background:var(--pub-paper); backdrop-filter:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-caption { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-caption h2 { font-size:20px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-caption>span { font-size:14px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-track { grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; margin:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift { min-height:112px; align-content:start; gap:10px 8px; padding:12px 16px; border:0; border-left:1px solid var(--pub-line); border-radius:0; background:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift:first-child { border-left:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift>time { font-size:16px; letter-spacing:0; font-family:inherit; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift>span { font-size:14px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift .kiosk-shift-names { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 10px; font-size:18px; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift>:is(time,span) { line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-shift-names>span { display:block; color:var(--pub-ink); font-size:inherit; overflow-wrap:normal; word-break:keep-all; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift.current { border-color:var(--pub-line); background:color-mix(in srgb,var(--pub-accent) 8%,var(--pub-paper)); box-shadow:inset 0 3px var(--pub-accent); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift.current>:is(time,span) { color:var(--pub-accent); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift.next>span { color:var(--pub-accent); font-weight:600; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift.completed>:is(time,span) { color:var(--pub-muted); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week { grid-column:1; grid-row:4; margin:0; padding:14px 24px; gap:8px; border:1px solid var(--pub-line); border-top:0; border-radius:0 0 var(--pub-radius) var(--pub-radius); background:var(--pub-soft); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-title { font-size:16px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article { grid-template-columns:auto auto; justify-content:center; text-align:center; padding:6px 8px; gap:2px 6px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article>span { font-size:14px; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-week-date { display:block; font-size:12px; line-height:1.5; color:var(--pub-muted); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article strong { grid-column:1/-1; font-size:20px; line-height:1.5; margin:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article small { margin-left:4px; font-size:12px; font-weight:400; color:var(--pub-muted); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article.today { background:color-mix(in srgb,var(--pub-accent) 7%,var(--pub-paper)); animation:none; transform:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-admin { min-height:44px; padding:8px 16px; border:1px solid var(--pub-line); border-radius:7px; gap:7px; color:var(--pub-ink); font-size:16px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-admin:hover { border-color:var(--pub-accent); color:var(--pub-accent); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-admin svg { width:16px; height:16px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-member-ticket strong { font-size:30px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-member-ticket>div>span { font-size:20px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-choice-list strong { font-size:24px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-choice-list small { font-size:18px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-choice-list>button { min-height:88px; }
+html:root[data-appearance] .public-presentation.public-kiosk :is(.kiosk-focus-primary,.kiosk-focus-secondary),
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-action-row :is(.kiosk-focus-primary,.kiosk-focus-secondary) { min-height:64px; height:auto; font:inherit; font-size:20px; font-weight:500; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk :is(.kiosk-focus-choice-intro,.kiosk-focus-confirm-note) { font-size:18px; }
+@media(max-width:1000px) {
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-track { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift:nth-child(3) { border-left:0; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift:nth-child(n+3) { border-top:1px solid var(--pub-line); }
+}
+@media(max-width:700px) {
+  html:root[data-appearance] .public-presentation.public-kiosk { padding:20px 16px 32px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .public-kiosk-shell { display:flex; padding-top:0; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-header { order:0; margin-bottom:18px; gap:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand strong { font-size:18px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand-mark,
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand img { width:56px; height:56px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-header-actions { gap:12px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-clock { font-size:26px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-time>span { font-size:12px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-service { font-size:12px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-state { padding:24px 20px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-state h1 { font-size:30px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-input-state { min-height:0; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-feedback { min-height:54px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-feedback :is(.kiosk-focus-hint,.kiosk-focus-error) { font-size:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row input { font-size:18px; height:56px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button { width:124px; min-width:124px; padding:0 24px; height:56px; font-size:16px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button>svg { right:10px; width:15px; height:15px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button[aria-busy="true"]>svg { left:7px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-band { padding:20px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-caption { flex-wrap:wrap; gap:4px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-caption h2 { font-size:18px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-caption>span { font-size:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift { padding:12px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift .kiosk-shift-names { font-size:18px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week { margin:0; padding:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article { grid-template-columns:minmax(0,1fr); padding:8px 4px; gap:4px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article>span { font-size:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-week-date { font-size:12px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article strong { font-size:20px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article small { font-size:12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button { transition:none; }
+}
+@media(max-width:560px) {
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-track { grid-template-columns:minmax(0,1fr); }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift { border-left:0; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift+.kiosk-signal-shift { border-top:1px solid var(--pub-line); }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row { flex-direction:column; align-items:stretch; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row input { flex:auto; width:100%; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-query-row button { width:100%; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days { grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px 0; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article:nth-child(5) { border-left:0; }
+}

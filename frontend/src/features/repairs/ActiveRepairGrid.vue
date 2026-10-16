@@ -36,7 +36,7 @@
             <dd>
               <span>{{ item.ownerName }}</span>
               <span>{{ displayPhone(item) }}</span>
-              <button
+              <button data-button-kind="icon"
                 class="repair-phone-toggle"
                 type="button"
                 :aria-label="phoneVisible(item.id) ? '隐藏完整电话' : '显示完整电话'"

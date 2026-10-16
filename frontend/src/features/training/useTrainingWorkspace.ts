@@ -8,7 +8,7 @@ import type {
   TrainingWorkspaceRouteState,
 } from "./trainingTypes";
 
-const SESSION_PAGE_SIZE = 20;
+const SESSION_PAGE_SIZE = 8;
 const PARTICIPANT_PAGE_SIZE = 20;
 
 type QueryValue = string | null | undefined | Array<string | null>;

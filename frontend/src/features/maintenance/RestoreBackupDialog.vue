@@ -1,6 +1,7 @@
 <template>
   <ModalDialog
     :open="open"
+    :backdrop-class="backdropClass"
     title="恢复本机备份"
     size="sm"
     @close="cancel"
@@ -52,6 +53,7 @@ const props = defineProps<{
   open: boolean;
   file: File | null;
   busy: boolean;
+  backdropClass?: string;
 }>();
 const emit = defineEmits<{ cancel: []; confirm: [] }>();
 

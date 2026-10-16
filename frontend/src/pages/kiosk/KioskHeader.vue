@@ -2,7 +2,7 @@
   <header class="kiosk-focus-header">
     <div class="kiosk-focus-brand">
       <span class="kiosk-focus-brand-mark">
-        <img :src="logoPath" alt="计算机协会会徽" />
+        <img :src="logoPath" data-shared-emblem="small" width="890" height="892" alt="计算机协会会徽" />
       </span>
       <div>
         <strong>计算机协会值班签到台</strong>
@@ -11,6 +11,7 @@
 
     <div class="kiosk-focus-header-actions">
       <ServiceStatus
+        v-if="!online"
         class="kiosk-focus-service"
         :online="online"
         online-label="本机服务正常"
@@ -29,7 +30,7 @@ import { computed } from "vue";
 import ServiceStatus from "../../shared/ui/ServiceStatus.vue";
 
 const props = defineProps<{ online: boolean; now: Date }>();
-const logoPath = "/brand/ca-logo-black.png";
+const logoPath = "/brand/ca-logo-transparent.svg";
 
 const clock = computed(() =>
   new Intl.DateTimeFormat("zh-CN", {

@@ -1,5 +1,8 @@
 <template>
-  <RefinedWorkspaceShell class="settings-page system-workspace settings-workspace" title="系统设置" description="设置外观、开放日期与有效时长规则" section-key="system">
+  <ExpandedWorkspaceShell class="settings-page system-workspace settings-workspace overview-settings" current-page="settings">
+    <template #heading><h1>系统设置</h1>
+      <button v-if="canEditAppearance" class="button secondary small" type="button" aria-label="查看鸣谢" @click="credits = true"><HeartHandshake aria-hidden="true" />鸣谢</button>
+    </template>
     <div v-if="loadError" class="inline-alert danger" role="alert">
       <span>{{ loadError }}</span>
       <button class="button secondary small" type="button" data-action="retry-settings" @click="loadSettings">
@@ -13,13 +16,13 @@
       :can-edit="canEditAppearance"
       :pending="actions.isPending('appearance')"
       :error="appearanceError"
+      confirm-backdrop-class="settings-refined-backdrop"
       @save="saveAppearance"
     />
     <section id="settings-weekdays" class="sw-section sw-weekdays">
       <div class="sw-heading">
         <div>
           <h2>值班星期</h2>
-          <span>未开放日仍可签到签退，计时遵循审核与下方规则。</span>
           <span v-if="weekdaysDirty" class="sw-section-status" role="status">星期设置未保存</span>
         </div>
         <button class="button primary small" :disabled="!weekdaysDirty || actions.isPending('weekdays')" @click="saveWeekdays">
@@ -27,6 +30,7 @@
         </button>
       </div>
       <WeekdayCalendarSelector :days="weekdays" @toggle="toggleWeekday" />
+      <p v-if="weekdaySaveError" class="form-error settings-save-error" role="alert">{{ weekdaySaveError }}</p>
     </section>
     <DutyTimeWorkspace
       refined
@@ -34,6 +38,8 @@
       v-model:policy="attendancePolicy"
       :can-edit-policy="canEditAttendancePolicy"
       :period-error="periodError"
+      :period-save-error="periodSaveError"
+      :policy-save-error="policySaveError"
       :policy-dirty="policyDirty"
       :periods-dirty="periodsDirty"
       :policy-pending="actions.isPending('policy')"
@@ -43,6 +49,7 @@
     />
     <ConfirmDialog
       :open="unsaved.confirmOpen.value"
+      backdrop-class="settings-refined-backdrop"
       title="放弃未保存修改"
       message="系统设置还有未保存的修改，离开后将无法恢复。"
       confirm-label="放弃修改"
@@ -50,22 +57,26 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-  </RefinedWorkspaceShell>
+    <CreditsDialog v-if="canEditAppearance" :open="credits" backdrop-class="settings-refined-backdrop" @close="credits = false" />
+  </ExpandedWorkspaceShell>
 </template>
 <script setup lang="ts">
-import { Save } from "@lucide/vue";
-import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
-import { provide } from "vue";
+import { HeartHandshake, Save } from "@lucide/vue";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
+import { provide, ref } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
-import "../../features/settings/presentation.css";
+import "../../features/today/overview-presentation.css";
+import "../../features/settings/refined-presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import CreditsDialog from "../../shared/ui/CreditsDialog.vue";
 import DutyTimeWorkspace from "./settings/DutyTimeWorkspace.vue";
 import WeekdayCalendarSelector from "./settings/WeekdayCalendarSelector.vue";
 import AppearanceSelector from "./settings/AppearanceSelector.vue";
 import { useSettingsWorkspace } from "../../features/settings/useSettingsWorkspace";
+const credits = ref(false);
 
 const {
   actions,
@@ -79,6 +90,9 @@ const {
   loading,
   loadSettings,
   periodError,
+  periodSaveError,
+  policySaveError,
+  weekdaySaveError,
   periods,
   periodsDirty,
   policyDirty,

@@ -84,9 +84,7 @@ describe("TrainingPage details", () => {
     expect(wrapper.get('button[data-action="add-participant"]').text()).toContain(
       "新增记录",
     );
-    expect(wrapper.get('button[data-action="import-participants"]').text()).toContain(
-      "导入",
-    );
+    expect(wrapper.find('button[data-action="import-participants"]').exists()).toBe(false);
 
     const more = wrapper.get('.training-session-overview button[aria-haspopup="menu"]');
     expect(more.attributes("aria-label")).toContain("更多操作");
@@ -94,7 +92,7 @@ describe("TrainingPage details", () => {
     expect(wrapper.get(".training-overview-edit").text()).toContain("编辑培训");
     await more.trigger("click");
     await flushPromises();
-    expect(document.body.textContent).toContain("导出名单");
+    expect(document.body.textContent).not.toContain("导出名单");
     expect(document.body.textContent).toContain("归档培训");
 
     const participantRows = wrapper.findAll(".training-participant-row");

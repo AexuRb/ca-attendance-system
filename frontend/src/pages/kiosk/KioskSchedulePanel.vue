@@ -32,12 +32,24 @@
         v-for="(slot, index) in todaySchedule.slots"
         :key="slot.key || `${slot.startTime}-${slot.endTime}`"
         class="kiosk-signal-shift"
-        :class="{ current: isCurrentShift(slot.startTime, slot.endTime) }"
+        :class="{
+          current: isCurrentShift(slot.startTime, slot.endTime),
+          next: shiftState(slot.startTime, slot.endTime, index) === '下一时段',
+          completed: shiftState(slot.startTime, slot.endTime, index) === '已结束',
+        }"
         :style="{ '--shift-index': index }"
       >
         <i aria-hidden="true"></i>
         <time>{{ shortTime(slot.startTime) }}–{{ shortTime(slot.endTime) }}</time>
-        <strong>{{ assigneeNames(slot.assignees) }}</strong>
+        <strong class="kiosk-shift-names">
+          <template v-if="slot.assignees?.length">
+            <span
+              v-for="(person, personIndex) in slot.assignees"
+              :key="`${person.studentNo}-${personIndex}`"
+            >{{ person.name }}</span>
+          </template>
+          <span v-else>待安排</span>
+        </strong>
         <span>{{ shiftState(slot.startTime, slot.endTime, index) }}</span>
       </article>
     </div>
@@ -78,10 +90,6 @@ const nextShiftIndex = computed(() => {
 
 function shortTime(value?: string) {
   return value?.slice(0, 5) || "--:--";
-}
-
-function assigneeNames(assignees: ScheduleDay["slots"][number]["assignees"]) {
-  return assignees?.map((person) => person.name).join("、") || "待安排";
 }
 
 function shiftState(start: string | undefined, end: string | undefined, index: number) {

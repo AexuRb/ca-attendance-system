@@ -1,46 +1,23 @@
 <template>
-  <RefinedWorkspaceShell class="support-workspace schedule-presentation" title="排班管理" description="按星期安排固定值班时段" section-key="duty" filter-label="筛选排班管理">
-    <template #tools>
-        <button
-          class="button primary"
+  <ExpandedWorkspaceShell class="overview-schedule schedule-presentation" current-page="schedules">
+    <template #heading>
+      <h1>排班管理</h1>
+      <div class="schedule-page-actions">
+        <button data-button-kind="soft"
+          v-if="canManage"
+          class="button primary workspace-create-button"
           :disabled="loading || Boolean(loadError) || actions.isPending('save') || !periods.length"
           :title="!periods.length ? '请先在系统设置中添加值班时段' : loadError ? '请先重试加载排班' : '新增固定排班'"
           @click="openFixed(null)"
         >
           <Plus />新增排班
         </button>
-        <ActionMenu label="导入排班" trigger-text="导入">
-          <button
-            role="menuitem"
-            type="button"
-            :disabled="actions.isPending('template')"
-            @click="downloadImportTemplate"
-          >
-            <Download aria-hidden="true" />下载导入模板
-          </button>
-          <button
-            role="menuitem"
-            type="button"
-            :disabled="loading || Boolean(loadError)"
-            @click="importOpen = true"
-          >
-            <Upload aria-hidden="true" />批量导入
-          </button>
-        </ActionMenu>
-        <button
-          class="icon-button"
-          type="button"
-          aria-label="刷新排班"
-          title="刷新排班"
-          :disabled="loading"
-          @click="loadBase"
-        >
-          <RefreshCw aria-hidden="true" />
-        </button>
-      </template>
+
+      </div>
+    </template>
 
     <div v-if="loadError && slots.length" class="inline-alert danger schedule-stale-alert" role="alert">
-      <span>{{ loadError }}。当前显示上次加载的排班，刷新成功后可继续编辑。</span>
+      <span>{{ loadError }}。当前显示上次加载的排班，重试成功后可继续编辑。</span>
       <button class="button secondary small" type="button" data-action="retry-schedule" @click="loadBase">
         重试
       </button>
@@ -64,6 +41,7 @@
       :weekdays="weekdays"
       :preferred-weekday="preferredWeekday"
       :read-only="Boolean(loadError)"
+      :overview-only="!canManage"
       @edit="openFixed"
       @archive="deleteFixed"
       @add="(weekday, period) => openFixed(null, weekday, period)"
@@ -71,6 +49,7 @@
     />
 
     <ModalDialog
+      backdrop-class="schedule-refined-backdrop"
       :open="editorOpen"
       :title="fixedForm.id ? '编辑固定排班' : '新增固定排班'"
       size="lg"
@@ -147,13 +126,10 @@
       </template>
     </ModalDialog>
 
-    <ScheduleImportDialog
-      :open="importOpen"
-      @close="importOpen = false"
-      @imported="loadBase"
-    />
+
 
     <ConfirmDialog
+      backdrop-class="schedule-refined-backdrop"
       :open="unsaved.confirmOpen.value"
       title="放弃未保存修改"
       message="当前排班还有未保存的内容，放弃后无法恢复。"
@@ -164,6 +140,7 @@
     />
 
     <ConfirmDialog
+      backdrop-class="schedule-refined-backdrop"
       :open="Boolean(deleteTarget)"
       title="归档固定排班"
       :message="`归档 ${deleteTarget?.weekdayName || ''} ${shortTime(deleteTarget?.startTime)} 的固定排班。`"
@@ -172,28 +149,29 @@
       @cancel="deleteTarget = null"
       @confirm="confirmDeleteFixed"
     />
-  </RefinedWorkspaceShell>
+  </ExpandedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
-import { Download, Plus, RefreshCw, Upload } from "@lucide/vue";
-import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import { Plus } from "@lucide/vue";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
 import "../../features/schedule/presentation.css";
+import "../../features/today/overview-presentation.css";
+import "../../features/schedule/refined-presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
-import ActionMenu from "../../shared/ui/ActionMenu.vue";
 import FixedScheduleBoard from "./schedule/FixedScheduleBoard.vue";
-import ScheduleImportDialog from "./schedule/ScheduleImportDialog.vue";
 import ScheduleAssigneePicker from "../../features/schedule/ScheduleAssigneePicker.vue";
 import { useScheduleWorkspace } from "../../features/schedule/useScheduleWorkspace";
 
 const {
+  canManage,
   unsaved,
   actions,
   assigneeCandidates,
@@ -201,10 +179,8 @@ const {
   confirmDeleteFixed,
   deleteFixed,
   deleteTarget,
-  downloadImportTemplate,
   editorOpen,
   fixedForm,
-  importOpen,
   loadBase,
   loadError,
   loading,

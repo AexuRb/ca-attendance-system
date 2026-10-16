@@ -1,18 +1,25 @@
 <template>
-  <AuthLayout>
+  <main class="setup-page" data-auth-page="setup">
+    <div class="setup-context" aria-hidden="true"></div>
+    <section class="setup-stage" aria-label="初始化本机">
+      <div class="setup-brand">
+        <img :src="logoUrl" data-shared-emblem="large" width="890" height="892" alt="计算机协会会徽" />
+        <strong>计算机协会</strong>
+        <span>值班管理系统</span>
+      </div>
     <form
       ref="formElement"
-      class="auth-form auth-form--setup"
+      class="setup-form"
       novalidate
       @submit.prevent="submit"
     >
-      <div class="auth-heading">
+      <div class="setup-heading">
         <h2>初始化本机</h2>
-        <p>创建首个管理员账号，完成后即可进入后台</p>
+        <p>创建管理员账号</p>
       </div>
-      <div class="field">
+      <div class="setup-field">
         <label for="setup-account">管理员账号</label>
-        <div class="input-with-icon">
+        <div class="setup-input">
           <UserRound aria-hidden="true" />
           <input
             id="setup-account"
@@ -25,16 +32,16 @@
             pattern="[0-9]{6,32}"
             minlength="6"
             maxlength="32"
-            placeholder="6 至 32 位数字"
+            placeholder="6–32 位数字"
             :aria-invalid="Boolean(errors.account)"
           />
         </div>
-        <small v-if="errors.account" class="field-error" role="alert">{{ errors.account }}</small>
-        <small v-else class="auth-field-hint">首位管理员将使用此账号登录</small>
+        <small v-if="errors.account" class="setup-field-error" role="alert">{{ errors.account }}</small>
+        <small v-else aria-hidden="true"></small>
       </div>
-      <div class="field">
+      <div class="setup-field">
         <label for="setup-name">姓名</label>
-        <div class="input-with-icon">
+        <div class="setup-input">
           <IdCard aria-hidden="true" />
           <input
             id="setup-name"
@@ -47,12 +54,12 @@
             :aria-invalid="Boolean(errors.name)"
           />
         </div>
-        <small v-if="errors.name" class="field-error" role="alert">{{ errors.name }}</small>
-        <small v-else class="auth-field-hint">后台将显示这个姓名</small>
+        <small v-if="errors.name" class="setup-field-error" role="alert">{{ errors.name }}</small>
+        <small v-else aria-hidden="true"></small>
       </div>
-      <div class="field">
+      <div class="setup-field">
         <label for="setup-password">初始密码</label>
-        <div class="input-with-icon">
+        <div class="setup-input">
           <LockKeyhole aria-hidden="true" />
           <input
             id="setup-password"
@@ -63,11 +70,11 @@
             required
             minlength="6"
             maxlength="64"
-            placeholder="至少 6 位"
+            placeholder="设置密码"
             :aria-invalid="Boolean(errors.password)"
           />
-          <button
-            class="input-icon-button"
+          <button data-button-kind="icon"
+            class="setup-password-toggle"
             type="button"
             :aria-label="showPassword ? '隐藏初始密码' : '显示初始密码'"
             @click="showPassword = !showPassword"
@@ -75,12 +82,12 @@
             <EyeOff v-if="showPassword" /><Eye v-else />
           </button>
         </div>
-        <small v-if="errors.password" class="field-error" role="alert">{{ errors.password }}</small>
-        <small v-else class="auth-field-hint">长度为 6 至 64 个字符</small>
+        <small v-if="errors.password" class="setup-field-error" role="alert">{{ errors.password }}</small>
+        <small v-else>6–64 个字符</small>
       </div>
-      <div class="field">
+      <div class="setup-field">
         <label for="setup-confirmation">确认密码</label>
-        <div class="input-with-icon">
+        <div class="setup-input">
           <ShieldCheck aria-hidden="true" />
           <input
             id="setup-confirmation"
@@ -94,8 +101,8 @@
             placeholder="再次输入密码"
             :aria-invalid="Boolean(errors.confirmation)"
           />
-          <button
-            class="input-icon-button"
+          <button data-button-kind="icon"
+            class="setup-password-toggle"
             type="button"
             :aria-label="showConfirmation ? '隐藏确认密码' : '显示确认密码'"
             @click="showConfirmation = !showConfirmation"
@@ -103,24 +110,25 @@
             <EyeOff v-if="showConfirmation" /><Eye v-else />
           </button>
         </div>
-        <small v-if="errors.confirmation" class="field-error" role="alert">{{ errors.confirmation }}</small>
-        <small v-else class="auth-field-hint">请与初始密码保持一致</small>
+        <small v-if="errors.confirmation" class="setup-field-error" role="alert">{{ errors.confirmation }}</small>
+        <small v-else aria-hidden="true"></small>
       </div>
-      <div class="auth-feedback-slot">
-        <Transition name="auth-feedback-swap">
-          <p v-if="error" key="error" class="form-error" role="alert">{{ error }}</p>
-          <p v-else key="hint" class="auth-action-hint">请妥善保存首位管理员的登录信息</p>
+      <div class="setup-feedback">
+        <Transition name="setup-feedback-swap">
+          <p v-if="error" key="error" class="setup-form-error" role="alert">{{ error }}</p>
         </Transition>
       </div>
-      <button class="button primary auth-submit" type="submit" :disabled="busy">
-        <span>{{ busy ? "正在初始化" : "创建本地系统" }}</span>
-        <span class="auth-submit-icon" aria-hidden="true">
+      <button data-button-kind="action" class="setup-submit" type="submit" :disabled="busy">
+        <span>{{ busy ? "正在初始化" : "完成初始化" }}</span>
+        <span class="setup-submit-icon" aria-hidden="true">
           <LoaderCircle v-if="busy" class="spin" />
           <DatabaseZap v-else />
         </span>
       </button>
     </form>
-  </AuthLayout>
+    </section>
+    <footer class="setup-footer">计算机协会 · 本机运行</footer>
+  </main>
 </template>
 
 <script setup lang="ts">
@@ -136,7 +144,6 @@ import {
   ShieldCheck,
   UserRound,
 } from "@lucide/vue";
-import AuthLayout from "../../layouts/AuthLayout.vue";
 import { useSession } from "../../app/session";
 import {
   focusFirstInvalid,
@@ -145,6 +152,7 @@ import {
   type InputErrors,
 } from "../../shared/validation/userInput";
 const { initialize } = useSession();
+const logoUrl = "/brand/ca-logo-transparent.svg";
 const router = useRouter();
 const form = reactive({ account: "", name: "", password: "" });
 const confirmation = ref("");
@@ -199,4 +207,4 @@ async function submit() {
 }
 </script>
 
-<style src="../../features/auth/setup-password-presentation.css"></style>
+<style src="../../features/auth/setup-presentation.css"></style>

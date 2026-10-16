@@ -5,6 +5,10 @@ import { initializeAppearance } from "./appearance/appearanceStore";
 import { useSession } from "./app/session";
 import { setUnauthorizedHandler } from "./shared/api";
 import { createNavigationRecovery, navigationRecoveryKey } from "./app/navigationRecovery";
+import "./appearance/shared-design.css";
+import "./appearance/refinements.css";
+import "./appearance/palettes.css";
+import "./shared/ui/buttons.css";
 
 async function start() {
   await initializeAppearance();

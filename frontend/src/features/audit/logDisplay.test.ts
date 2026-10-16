@@ -1,17 +1,43 @@
 import { describe, expect, it } from "vitest";
 import {
   auditActionLabel,
+  auditActionTone,
+  auditSummary,
+  auditActionOptions,
   auditTargetLabel,
   buildAuditDiff,
 } from "./logDisplay";
 
 describe("audit log display", () => {
+  it("summarizes only recorded changes and retains reasons without a diff", () => {
+    const item = { id: 1, actionType: 'UPDATE_UI_APPEARANCE', createdAt: '2026-10-15T09:00:00', beforeData: '{"appearance":"CLASSIC"}', afterData: '{"appearance":"SPATIAL"}', reason: '原始原因' };
+    expect(auditSummary(item)).toBe('主题配色：雾蓝 → 晴空');
+    expect(auditSummary({ ...item, beforeData: undefined, afterData: undefined })).toBe('原始原因');
+    expect(auditSummary({ ...item, actionType: 'LOCAL_LOGIN_SUCCESS' })).toBe('登录本机后台');
+    expect(auditSummary({ ...item, actionType: 'LOCAL_LOGIN_FAILURE' })).toBe('原始原因');
+    expect(auditSummary({ ...item, beforeData: undefined, afterData: undefined, reason: '' })).toBe('—');
+    expect(buildAuditDiff(item.beforeData, item.afterData)[0]?.label).toBe('主题配色');
+  });
+
+  it("uses neutral ordinary actions and emphasizes destructive or failed events", () => {
+    for (const type of ['CREATE_USER', 'UPDATE_USER', 'LOCAL_LOGIN_SUCCESS', 'RESTORE_REPAIR_CASE']) expect(auditActionTone(type)).toBe('neutral');
+    for (const type of ['DELETE_USER', 'PURGE_REPAIR_CASE', 'LOCAL_LOGIN_FAILURE', 'REMOTE_LOGIN_LOCKED']) expect(auditActionTone(type)).toBe('danger');
+  });
+  it("offers log actions without confusing them with export payload categories", () => {
+    const values = auditActionOptions.map((option) => option.value);
+    expect(values).toContain("UPDATE_UI_APPEARANCE");
+    expect(values).toContain("EXPORT_DATA");
+    for (const kind of ["ATTENDANCE_STATS", "REPAIR_CASES", "TRAINING_SESSION", "TRAINING_SUMMARY"]) {
+      expect(values).not.toContain(kind);
+      expect(auditActionLabel(kind)).not.toBe("业务操作");
+    }
+  });
   it("translates compound operation and target names", () => {
     expect(auditActionLabel("CREATE_DUTY_SCHEDULE")).toBe("新增排班");
     expect(auditActionLabel("UPDATE_ATTENDANCE_POLICY")).toBe(
       "调整有效时长规则",
     );
-    expect(auditActionLabel("UPDATE_UI_APPEARANCE")).toBe("切换全局界面");
+    expect(auditActionLabel("UPDATE_UI_APPEARANCE")).toBe("切换主题配色");
     expect(
       auditTargetLabel({ targetType: "duty_schedule_slots", targetId: 12 }),
     ).toBe("固定排班 #12");

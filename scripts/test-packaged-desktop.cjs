@@ -72,12 +72,16 @@ async function login() {
 
 async function changeTheme(theme) {
   await navigate('/admin/settings');
-  if (await page.locator('html').getAttribute('data-appearance') !== theme) {
-    await page.locator(`.appearance-choice.is-${theme}`).click();
-    await page.getByRole('button', { name: '应用界面', exact: true }).click();
+  const labels = { classic: '雾蓝', editorial: '暖砂', spatial: '晴空', pine: '松绿', violet: '雾紫', graphite: '石墨', rose: '蔷薇' };
+  const palettes = { classic: 'mist', editorial: 'sand', spatial: 'sky', pine: 'pine', violet: 'violet', graphite: 'graphite', rose: 'rose' };
+  const families = { classic: 'classic', editorial: 'editorial', spatial: 'spatial', pine: 'classic', violet: 'spatial', graphite: 'classic', rose: 'editorial' };
+  if (await page.locator('html').getAttribute('data-palette') !== palettes[theme]) {
+    await page.getByRole('radio', { name: new RegExp(`^${labels[theme]} `) }).click();
+    await page.getByRole('button', { name: '应用配色', exact: true }).click();
     await page.getByRole('button', { name: '确认应用', exact: true }).click();
   }
-  await expect(page.locator('html')).toHaveAttribute('data-appearance', theme);
+  await expect(page.locator('html')).toHaveAttribute('data-appearance', families[theme]);
+  await expect(page.locator('html')).toHaveAttribute('data-palette', palettes[theme]);
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 
@@ -153,7 +157,11 @@ async function createTraining(theme) {
   await app.evaluate(({ session }, target) => {
     session.defaultSession.once('will-download', (_event, item) => item.setSavePath(target));
   }, destination);
-  await page.getByRole('button', { name: '导出统计', exact: true }).click();
+  await navigate('/admin/data?tab=export');
+  await page.locator('button[data-source="training"]').click();
+  await page.getByRole('button', { name: '生成预览', exact: true }).click();
+  await expect(page.getByRole('button', { name: '导出 Excel', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '导出 Excel', exact: true }).click();
   await expect.poll(() => fs.existsSync(destination) ? fs.statSync(destination).size : 0).toBeGreaterThan(100);
   expect(fs.readFileSync(destination).subarray(0, 2).toString()).toBe('PK');
   results.push(`${theme}: training persisted after reload and Excel downloaded`);
@@ -169,16 +177,16 @@ async function run() {
   await page.locator('#setup-name').fill('隔离验收管理员');
   await page.locator('#setup-password').fill(password);
   await page.locator('#setup-confirmation').fill(password);
-  await page.getByRole('button', { name: '创建本地系统', exact: true }).click();
+  await page.getByRole('button', { name: '完成初始化', exact: true }).click();
   await expect(page).toHaveURL(/#\/admin\/today/);
   results.push('Fresh packaged database initialized through desktop UI');
-  for (const theme of ['classic', 'editorial', 'spatial']) {
+  for (const theme of ['classic', 'editorial', 'spatial', 'pine', 'violet', 'graphite', 'rose']) {
     await changeTheme(theme);
     await createRepair(theme);
     await createTraining(theme);
     await checkZoom(theme);
     await navigate('/');
-    await expect(page.locator('.public-kiosk-shell')).toBeVisible();
+    await expect(page.locator('.public-kiosk')).toBeVisible();
     await screenshot(`${theme}-kiosk`);
     await page.evaluate(() => localStorage.removeItem('ca_attendance_token'));
     await navigate('/login');
@@ -196,11 +204,11 @@ async function run() {
   await released();
   await launch();
   await login();
-  await expect(page.locator('html')).toHaveAttribute('data-appearance', 'spatial');
+  await expect(page.locator('html')).toHaveAttribute('data-palette', 'rose');
   await navigate('/admin/repairs');
-  await expect(page.getByText('桌面验收-spatial', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('桌面验收-rose', { exact: true }).first()).toBeVisible();
   await navigate('/admin/trainings');
-  await expect(page.getByText('桌面验收培训-spatial', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('桌面验收培训-rose', { exact: true }).first()).toBeVisible();
   results.push('Restart retains database and global appearance');
   expect(pageErrors).toEqual([]);
   expect(visualIssues, 'Profile controls must remain inside their visible containers').toEqual([]);

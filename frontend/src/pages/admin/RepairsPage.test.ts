@@ -14,6 +14,7 @@ const apiGet = vi.fn();
 const apiPut = vi.fn();
 const routerReplace = vi.fn();
 const routerPush = vi.fn();
+const sessionRole = vi.hoisted(() => ({ value: "ADMIN" }));
 
 vi.mock("../../shared/api", () => ({
   api: (...args: unknown[]) => apiRequest(...args),
@@ -26,7 +27,7 @@ vi.mock("../../shared/api", () => ({
 
 vi.mock("../../app/session", () => ({
   useSession: () => ({
-    user: ref({ id: 1, name: "管理员", role: "ADMIN" }), state: { access: { kioskAvailable: true } }, logout: vi.fn(),
+    user: ref({ id: 1, name: "管理员", role: sessionRole.value }), state: { access: { kioskAvailable: true } }, logout: vi.fn(),
   }),
 }));
 
@@ -43,10 +44,27 @@ afterEach(() => {
   apiPut.mockReset();
   routerReplace.mockReset();
   routerPush.mockReset();
+  sessionRole.value = "ADMIN";
   document.body.innerHTML = "";
 });
 
 describe("RepairsPage workspace", () => {
+  it("opens the existing recycle tab only for administrators", async () => {
+    apiGet.mockResolvedValue([]);
+    apiRequest.mockResolvedValue(repairPage("REPAIRING", 1, 0, 0));
+    for (const role of ["ADMIN", "PRESIDENT", "MINISTER"]) {
+      sessionRole.value = role;
+      const wrapper = mount(RepairsPage);
+      await flushPromises();
+      const recycle = wrapper.findAll(".repair-page-actions button").find(button => button.text().includes("维修回收站"));
+      expect(Boolean(recycle)).toBe(role === "ADMIN");
+      if (recycle) {
+        await recycle.trigger("click");
+        expect(routerPush).toHaveBeenCalledWith({ name: "data", query: { tab: "recycle" } });
+      }
+      wrapper.unmount();
+    }
+  });
   it("browses only the current page and remasks phone numbers between records", async () => {
     apiGet.mockResolvedValue([]);
     apiRequest.mockResolvedValue(repairPage("REPAIRING", 1, 2, 2));
@@ -87,10 +105,13 @@ describe("RepairsPage workspace", () => {
     expect(drawer.props("item").id).toBe(1);
     drawer.vm.$emit("process", original);
     await flushPromises();
+    editor.props('form').completedAt = '2026-10-14T15:00';
     apiPut.mockRejectedValueOnce(new Error("保存失败"));
     editor.vm.$emit("save");
     await flushPromises();
     expect(editor.props("open")).toBe(true);
+    expect(apiPut).toHaveBeenLastCalledWith('/api/repairs/1', expect.objectContaining({ status: 'REPAIRING', completedAt: null }));
+    expect(editor.props('form').completedAt).toBe('2026-10-14T15:00');
     const saved = { ...original, status: "COMPLETED", serviceDescription: "已更换配件", completedAt: "2026-08-13T14:00:00" };
     apiPut.mockResolvedValueOnce(saved);
     apiRequest.mockResolvedValueOnce(repairPage("REPAIRING", 1, 0, 0));
@@ -197,11 +218,9 @@ describe("RepairsPage workspace", () => {
     });
     await flushPromises();
 
-    const previewButtons = wrapper.findAll(
-      '.repair-ledger-actions button[title="查看协议"]',
-    );
-    await previewButtons[0].trigger("click");
-    await previewButtons[1].trigger("click");
+    const ledger = wrapper.findComponent({ name: 'RepairLedgerTable' });
+    ledger.vm.$emit('preview', ledger.props('items')[0]);
+    ledger.vm.$emit('preview', ledger.props('items')[1]);
     resolveSecond("<p>第二份协议</p>");
     await flushPromises();
     expect(wrapper.get(".agreement-probe").text()).toContain("PAGE-REPAIRING-2");
@@ -211,14 +230,14 @@ describe("RepairsPage workspace", () => {
     await flushPromises();
     expect(wrapper.get(".agreement-probe").text()).not.toContain("第一份旧协议");
     expect(wrapper.get(".agreement-probe").text()).toContain("第二份协议");
+    wrapper.unmount();
   });
 
-  it("rejects an invalid draft query while exporting only the last applied range across all statuses", async () => {
+  it("rejects an invalid draft query without offering the removed export action", async () => {
     apiGet.mockResolvedValue([]);
     apiRequest.mockResolvedValue(repairPage("REPAIRING", 1, 0, 0));
     const wrapper = mount(RepairsPage);
     await flushPromises();
-    const initialParams = new URL(String(apiRequest.mock.calls[0]?.[0]), "http://localhost").searchParams;
     apiRequest.mockClear();
 
     const dates = wrapper.findAll('input[type="date"]');
@@ -230,17 +249,8 @@ describe("RepairsPage workspace", () => {
     expect(wrapper.get('[role="alert"]').text()).toContain(
       "开始日期不能晚于结束日期",
     );
-    expect(wrapper.get(".mw-tools .button.secondary").text()).toContain("导出全部状态");
+    expect(wrapper.find('[data-action="export-repairs"]').exists()).toBe(false);
     expect(apiRequest).not.toHaveBeenCalled();
-
-    await wrapper.get(".mw-tools .button.secondary").trigger("click");
-    await flushPromises();
-    expect(apiRequest).not.toHaveBeenCalled();
-    const exportCall = apiGet.mock.calls.find(([url]) => String(url).startsWith("/api/repairs/export?"));
-    const exported = new URL(String(exportCall?.[0]), "http://localhost").searchParams;
-    expect(exported.get("from")).toBe(initialParams.get("from"));
-    expect(exported.get("to")).toBe(initialParams.get("to"));
-    expect(exported.get("status")).toBe("ALL");
     wrapper.unmount();
   });
 });

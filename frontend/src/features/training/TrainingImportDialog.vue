@@ -1,5 +1,6 @@
 <template>
   <ModalDialog
+    backdrop-class="training-refined-backdrop"
     :open="open"
     title="导入参与名单"
     size="sm"

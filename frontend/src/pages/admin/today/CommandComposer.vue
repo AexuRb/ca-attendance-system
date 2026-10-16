@@ -4,6 +4,7 @@
     :class="[`is-${state}`, { 'is-command': mode === 'command', 'panel-open': open }]"
   >
     <div class="command-composer">
+      <div v-if="$slots.shortcuts" class="command-composer-shortcuts"><slot name="shortcuts" /></div>
       <textarea
         :id="inputId"
         ref="textarea"
@@ -17,7 +18,7 @@
         aria-controls="today-command-suggestions"
         :aria-expanded="open"
         :aria-activedescendant="activeDescendant"
-        placeholder="输入 / 进入命令模式"
+        :placeholder="placeholder || '输入 / 进入命令模式'"
         @focus="$emit('focus')"
         @input="updateValue"
         @click="emitCaret"
@@ -36,7 +37,7 @@
           <i aria-hidden="true"></i>
           {{ statusMessage }}
         </span>
-        <button
+        <button data-button-kind="icon"
           class="command-composer-send"
           type="button"
           :disabled="disabled"
@@ -65,6 +66,7 @@ const props = defineProps<{
   disabled: boolean;
   activeDescendant?: string;
   inputId?: string;
+  placeholder?: string;
 }>();
 const emit = defineEmits<{
   "update:modelValue": [value: string];
@@ -77,8 +79,8 @@ const emit = defineEmits<{
 
 const textarea = ref<HTMLTextAreaElement | null>(null);
 const submitLabel = computed(() => {
-  if (props.state === "executable" || props.state === "extensible") return "执行命令";
-  if (props.state === "search") return "打开匹配功能";
+  if (props.state === "executable" || props.state === "extensible") return "发送操作";
+  if (props.state === "search") return "发送操作";
   if (props.state === "invalid") return "检查命令";
   return "补全命令";
 });

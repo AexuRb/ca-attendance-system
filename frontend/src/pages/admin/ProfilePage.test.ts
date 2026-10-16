@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import ProfilePasswordDialog from "../../features/profile/ProfilePasswordDialog.vue";
 import ProfilePage from "./ProfilePage.vue";
 
 const mocks = vi.hoisted(() => ({
@@ -9,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   put: vi.fn(),
   post: vi.fn(),
   replace: vi.fn(),
+  push: vi.fn(),
   notify: vi.fn(),
   refreshUser: vi.fn(),
 }));
@@ -22,7 +22,7 @@ vi.mock("../../shared/api", () => ({
 vi.mock("../../shared/composables/useToast", () => ({ notify: mocks.notify }));
 vi.mock("vue-router", () => ({
   RouterLink: { template: "<a><slot /></a>" },
-  useRouter: () => ({ replace: mocks.replace }),
+  useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
 }));
 vi.mock("../../app/session", () => ({
   useSession: () => ({
@@ -72,21 +72,14 @@ describe("ProfilePage request states", () => {
     wrapper.unmount();
   });
 
-  it("announces a successful password change before returning to login", async () => {
+  it("opens the standalone password page from the profile entry", async () => {
     installLoads();
     const wrapper = mount(ProfilePage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    wrapper.findComponent(ProfilePasswordDialog).vm.$emit("changed");
-    await flushPromises();
+    await wrapper.get('.profile-password-action').trigger('click');
 
-    expect(mocks.notify).toHaveBeenCalledWith(
-      "密码修改成功，请使用新密码登录",
-      "success",
-    );
-    expect(mocks.replace).toHaveBeenCalledWith({
-      name: "login",
-      query: { reason: "password-changed" },
-    });
+    expect(mocks.push).toHaveBeenCalledWith({ name: 'password' });
+    expect(wrapper.find('input[name="oldPassword"]').exists()).toBe(false);
     wrapper.unmount();
   });
 
@@ -113,7 +106,7 @@ describe("ProfilePage request states", () => {
     await flushPromises();
 
     expect(wrapper.get(".profile-record-error").text()).toContain("下方保留上次结果");
-    expect(wrapper.get(".profile-summary").text()).toContain("统计范围");
+    expect(wrapper.get(".profile-range-panel").text()).toContain("当前范围");
     expect(wrapper.get(".profile-record-scroll tbody tr").text()).toContain("2026-09-20");
     wrapper.unmount();
   });

@@ -59,11 +59,12 @@ describe("navigation failure recovery", () => {
     await flushPromises();
     expect(wrapper.find('input').element.value).toBe("合成未保存输入");
     expect(context.router.currentRoute.value.path).toBe("/source");
-    expect(document.body.textContent).toContain("页面未能打开");
+    expect(document.body.textContent).toContain("页面加载失败");
+    expect(document.activeElement).toBe(button("重试加载"));
     expect(document.body.textContent).not.toContain("synthetic private error");
     expect(document.body.textContent).not.toContain("合成条件");
     context.loader.mockResolvedValue({ template: "<main>目标页</main>" });
-    button("重试打开").click();
+    button("重试加载").click();
     await flushPromises();
     expect(context.router.currentRoute.value.query).toEqual({ from: "2026-10-02", keyword: "合成条件", page: "2" });
     expect(wrapper.text()).toContain("目标页");
@@ -76,21 +77,22 @@ describe("navigation failure recovery", () => {
     await mountSource(context);
     await context.router.push("/target?keyword=secret&participantKeyword=private&intent=new&from=2026-10-02&page=2").catch(() => {});
     await flushPromises();
-    button("重试打开").click();
+    button("重试加载").click();
     await flushPromises();
     expect(document.querySelectorAll('[role=dialog]')).toHaveLength(1);
+    expect(document.activeElement).toBe(button("重试加载"));
     expect(context.reloadDocument).not.toHaveBeenCalled();
     button("重新加载应用").click();
     await flushPromises();
-    expect(document.body.textContent).toContain("未保存的输入和内存中的搜索条件");
+    expect(document.body.textContent).toContain("未保存的输入和当前搜索条件将被清除");
     expect(document.activeElement).toBe(button("取消"));
     button("取消").click();
     await flushPromises();
     expect(context.reloadDocument).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(button("重试打开"));
+    expect(document.activeElement).toBe(button("重试加载"));
     button("重新加载应用").click();
     await flushPromises();
-    button("确认重新加载").click();
+    button("重新加载").click();
     expect(context.reloadDocument).toHaveBeenCalledExactlyOnceWith("/target?from=2026-10-02&page=2");
   });
 
@@ -100,8 +102,11 @@ describe("navigation failure recovery", () => {
     cleanups.push(() => wrapper.unmount());
     await context.router.push("/target").catch(() => {});
     await flushPromises();
-    expect(document.body.textContent).toContain("页面未能打开");
-    expect(document.body.textContent).toContain("页面资源暂时无法加载");
+    expect(document.body.textContent).toContain("页面加载失败");
+    expect(document.body.textContent).toContain("页面暂时无法加载");
+    expect(document.body.textContent).not.toContain("输入已保留");
+    expect(button("关闭")).toBeDefined();
+    expect(document.activeElement).toBe(button("重试加载"));
     expect(button("重新加载应用")).toBeDefined();
   });
 

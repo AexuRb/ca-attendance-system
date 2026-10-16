@@ -79,6 +79,9 @@ export function resolveCommand(
   if (!object.roles.includes(role)) {
     return { kind: "forbidden", message: "当前角色无权使用“" + object.canonical + "”。" };
   }
+  if (role === "MINISTER" && (action === "导出" || action === "导入" || (action === "新建" && object.canonical === "值班记录"))) {
+    return { kind: "forbidden", message: action === "导出" ? "数据中心暂未向当前角色开放导出。" : "当前角色无权执行此操作。" };
+  }
   return resolveAction(action, object, tokens.slice(1 + parsedObject.consumed), now);
 }
 
@@ -103,7 +106,8 @@ function openCommand(object: CommandObjectDefinition, args: string[]): CommandRe
   if (args.length) return extraArguments(args);
   const query: Query = {};
   if (object.canonical === "维修事务") query.status = "REPAIRING";
-  if (object.canonical === "自定义导出") query.tab = "export";
+  if (object.canonical === "数据中心" || object.canonical === "数据导入") query.tab = "import";
+  if (object.canonical === "数据导出") query.tab = "export";
   if (object.canonical === "维修回收站") query.tab = "recycle";
   if (object.canonical === "备份管理") query.tab = "backups";
   return resolved(
@@ -250,6 +254,16 @@ function intentCommand(
   if (!supported.includes(object.canonical)) {
     return invalid("暂不支持“" + actionLabel + " " + object.canonical + "”。");
   }
+  if (intent === "import") {
+    const kinds: Record<string, string> = { 排班管理: "schedules", 成员名册: "members", 培训记录: "training" };
+    return resolved(
+      "/ 导入 " + object.canonical,
+      "已准备" + object.canonical + "导入",
+      "prefill",
+      "data",
+      { tab: "import", kind: kinds[object.canonical]! },
+    );
+  }
   const query: Query = { intent };
   if (object.canonical === "维修事务") query.status = "REPAIRING";
   const label = displayObjectForIntent(object.canonical);
@@ -274,7 +288,7 @@ function exportCommand(
   }
   if (object.canonical === "维修事务") {
     const remaining = [...args];
-    const query: Query = { status: "REPAIRING", intent: "export" };
+    const query: Query = { tab: "export", source: "repairs", status: "REPAIRING" };
     const status = repairStatus(remaining[0]);
     if (status) {
       query.status = status;
@@ -289,7 +303,7 @@ function exportCommand(
       "/ 导出 维修事务 " + statusLabel + " " + range.label,
       "已准备" + statusLabel + "维修导出",
       "confirm",
-      object.routeName,
+      "data",
       query,
     );
   }
@@ -316,7 +330,7 @@ function settingCommand(object: CommandObjectDefinition, args: string[]): Comman
 
 function createCommand(object: CommandObjectDefinition, args: string[]): CommandResolution {
   if (args.length) return extraArguments(args);
-  if (object.canonical !== "数据与备份") return invalid("暂不支持创建“" + object.canonical + "”。");
+  if (object.canonical !== "备份管理" && object.canonical !== "数据中心") return invalid("暂不支持创建“" + object.canonical + "”。");
   return resolved(
     "/ 创建 备份",
     "已打开备份确认",
@@ -348,8 +362,8 @@ function exportRangeRoute(
     "/ 导出 " + object.canonical + " " + range.label,
     "已准备" + range.label + object.canonical + "导出",
     "confirm",
-    object.routeName,
-    { from: range.from, to: range.to, intent: "export" },
+    "data",
+    { tab: "export", source: ({ 数据统计: "stats", 培训记录: "training", 操作日志: "logs" } as Record<string, string>)[object.canonical]!, from: range.from, to: range.to },
   );
 }
 

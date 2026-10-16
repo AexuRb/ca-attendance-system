@@ -10,7 +10,7 @@ SQLite 由后端内嵌使用，不需要安装数据库服务或手工执行 SQL
 - V8 引入持久化维修编号序列，永久删除后不复用编号。
 - V9 增加有效时长限制快照并重算旧记录。
 - V10 归一历史培训参与状态，保留原有时长，培训按 `duration_hours` 统计。
-- V11 添加全局外观设置 `UI_APPEARANCE`，默认 `CLASSIC`，不清空业务数据。
+- V11 添加全局外观设置 `UI_APPEARANCE`，默认 `CLASSIC`，不清空业务数据。现兼容 `CLASSIC / EDITORIAL / SPATIAL`，并支持 `PINE / VIOLET / GRAPHITE / ROSE`；仅扩展原文本设置的允许值，不改表结构或新增迁移。
 
 [schema.sql](schema.sql) 是供阅读和脚本测试使用的表结构副本，不是运行时迁移入口，也不替代迁移中的设置数据初始化。不要手工执行它来升级既有数据库。
 

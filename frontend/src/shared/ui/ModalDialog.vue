@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition :name="memberPresentation ? 'mw-modal' : 'modal'">
-      <div v-if="open" :class="[memberPresentation ? 'mw-backdrop mw-scope' : 'modal-backdrop', { 'is-side-panel': sidePanel }]" @mousedown.self="$emit('close')">
+      <div v-if="open" :class="[memberPresentation ? 'mw-backdrop mw-scope' : 'modal-backdrop', backdropClass, { 'is-side-panel': sidePanel }]" @mousedown.self="$emit('close')">
         <section
           ref="dialog"
           :class="[memberPresentation ? 'mw-modal' : 'modal-shell', size ? `modal-${size}` : '']"
@@ -13,7 +13,7 @@
           <header :class="memberPresentation ? 'mw-modal-head' : 'modal-header'">
             <div>
               <p v-if="eyebrow && !memberPresentation" class="eyebrow">{{ eyebrow }}</p>
-              <h2 :id="titleId">{{ title }}</h2>
+              <h2 :id="titleId" :tabindex="titleInteractive ? 0 : undefined" @click="$emit('title-activate')" @keydown.enter.prevent="$emit('title-activate')" @keydown.space.prevent="$emit('title-activate')"><slot name="title-icon" />{{ title }}</h2>
             </div>
             <button
               class="icon-button"
@@ -49,8 +49,10 @@ const props = defineProps<{
   eyebrow?: string;
   sidePanel?: boolean;
   size?: "sm" | "lg" | "xl";
+  backdropClass?: string;
+  titleInteractive?: boolean;
 }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; 'title-activate': [] }>();
 const dialog = ref<HTMLElement | null>(null);
 useDialogFocus({
   root: dialog,

@@ -182,7 +182,8 @@ export function useRepairManagementWorkspace() {
     if (!active || leavingPage || route.name !== "repairs" || version !== syncVersion) return;
     const saved = pendingRestore;
     if (saved && (Object.keys(saved.state) as Array<keyof RepairWorkspaceRouteState>).every(key => saved.state[key] === state[key]) && tableScroll.value) {
-      tableScroll.value.scrollTop = saved.scroll.top;
+      const mainScroll = tableScroll.value.closest<HTMLElement>(".overview-content") || tableScroll.value;
+      mainScroll.scrollTop = saved.scroll.top;
       tableScroll.value.scrollLeft = saved.scroll.left;
     }
     pendingRestore = undefined;
@@ -210,7 +211,8 @@ export function useRepairManagementWorkspace() {
     finally { suppressRouteRestore = false; }
   }
   function tablePosition(): TablePosition {
-    return { top: tableScroll.value?.scrollTop || 0, left: tableScroll.value?.scrollLeft || 0 };
+    const mainScroll = tableScroll.value?.closest<HTMLElement>(".overview-content") || tableScroll.value;
+    return { top: mainScroll?.scrollTop || 0, left: tableScroll.value?.scrollLeft || 0 };
   }
   function rememberTableScroll() {
     const saved = activeVisit ? historyScope.get(activeVisit) : undefined;
@@ -307,7 +309,7 @@ export function useRepairManagementWorkspace() {
       handlerName: selectedHandler.value?.name || null,
       ownerOrg: null,
       deviceSerial: null,
-      completedAt: form.completedAt || null,
+      completedAt: form.status === "COMPLETED" ? form.completedAt || null : null,
     };
     const value = await actions.run("save-repair", () =>
       form.id

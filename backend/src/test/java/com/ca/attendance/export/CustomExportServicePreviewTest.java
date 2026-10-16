@@ -46,7 +46,7 @@ class CustomExportServicePreviewTest {
         }
         when(jdbc.queryForList(anyString(), any(Object[].class))).thenReturn(databaseRows);
 
-        CustomExportService service = new CustomExportService(jdbc, logs);
+        CustomExportService service = new CustomExportService(jdbc, logs, new com.ca.attendance.stats.StatsService(jdbc, logs));
         CustomExportService.ExportPreview preview = service.preview(new CustomExportService.ExportRequest(
                 "members",
                 List.of("studentNo"),

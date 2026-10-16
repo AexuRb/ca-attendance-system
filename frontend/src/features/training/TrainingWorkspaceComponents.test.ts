@@ -78,7 +78,7 @@ describe("TrainingSessionHeader", () => {
     await flushPromises();
 
     const menu = document.querySelector('[role="menu"]') as HTMLElement;
-    expect(menu.textContent).toContain("导出名单");
+    expect(menu.textContent).not.toContain("导出名单");
     expect(menu.textContent).toContain("归档培训");
     wrapper.unmount();
   });
@@ -103,15 +103,14 @@ describe("TrainingParticipantList", () => {
     await wrapper.get("form").trigger("submit");
     await wrapper.get('button[aria-label="下一页参与名单"]').trigger("click");
     await wrapper.get('button[data-action="add-participant"]').trigger("click");
-    await wrapper.get('button[data-action="import-participants"]').trigger("click");
+    expect(wrapper.find('button[data-action="import-participants"]').exists()).toBe(false);
 
     expect(wrapper.emitted("update:keyword")?.at(-1)).toEqual(["主讲人"]);
     expect(wrapper.emitted("search")).toHaveLength(1);
     expect(wrapper.emitted("page")?.[0]).toEqual([2]);
     expect(wrapper.emitted("add")).toHaveLength(1);
-    expect(wrapper.emitted("import")).toHaveLength(1);
     expect(wrapper.findAll(".training-participant-row")).toHaveLength(2);
-    expect(wrapper.get("details").text()).toContain("负责演示");
+    expect(wrapper.findAll(".training-participant-remark")[0].text()).toContain("负责演示");
   });
 
   it("does not confuse empty, loading and failed participant states", async () => {

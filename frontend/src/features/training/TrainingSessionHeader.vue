@@ -5,46 +5,13 @@
         {{ readableDate(session.trainingDate) }} · {{ timeRange(session) }}
       </time>
       <h2 id="training-session-title">{{ session.title }}</h2>
-      <p v-if="session.description">{{ session.description }}</p>
     </div>
 
-    <dl class="training-session-facts">
-      <div>
-        <dt><UserRound aria-hidden="true" />主讲人</dt>
-        <dd>{{ session.speaker || "未填写" }}</dd>
-      </div>
-      <div>
-        <dt><MapPin aria-hidden="true" />培训地点</dt>
-        <dd>{{ session.location || "未填写" }}</dd>
-      </div>
-      <div>
-        <dt><Clock3 aria-hidden="true" />培训时长</dt>
-        <dd>{{ duration(session) }}</dd>
-      </div>
-      <div>
-        <dt><UsersRound aria-hidden="true" />参与人数</dt>
-        <dd>{{ session.participantCount || 0 }} 人</dd>
-      </div>
-      <div>
-        <dt><TimerReset aria-hidden="true" />累计时长</dt>
-        <dd>{{ hours(session.totalDurationHours) }} 小时</dd>
-      </div>
-    </dl>
-
     <div class="training-session-overview-actions">
-      <button class="button training-overview-edit" type="button" @click="$emit('edit')">
+      <button data-button-kind="entry" class="button training-overview-edit" type="button" @click="$emit('edit')">
         <Pencil aria-hidden="true" />编辑培训
       </button>
       <ActionMenu :label="`${session.title}的更多操作`">
-        <button
-          role="menuitem"
-          type="button"
-          :disabled="exportPending"
-          @click="$emit('export')"
-        >
-          <LoaderCircle v-if="exportPending" class="spin" aria-hidden="true" />
-          <Download v-else aria-hidden="true" />{{ exportPending ? "正在导出" : "导出名单" }}
-        </button>
         <button
           class="danger-text"
           role="menuitem"
@@ -56,30 +23,47 @@
         </button>
       </ActionMenu>
     </div>
+
+    <p v-if="session.description" class="training-session-description">{{ session.description }}</p>
+    <dl class="training-session-facts">
+      <div>
+        <dt>主讲人</dt>
+        <dd>{{ session.speaker || "未填写" }}</dd>
+      </div>
+      <div>
+        <dt>培训地点</dt>
+        <dd>{{ session.location || "未填写" }}</dd>
+      </div>
+      <div>
+        <dt>培训时长</dt>
+        <dd>{{ duration(session) }}</dd>
+      </div>
+      <div>
+        <dt>参与人数</dt>
+        <dd>{{ session.participantCount || 0 }} 人</dd>
+      </div>
+      <div>
+        <dt>累计时长</dt>
+        <dd>{{ hours(session.totalDurationHours) }} 小时</dd>
+      </div>
+    </dl>
+
   </aside>
 </template>
 
 <script setup lang="ts">
 import {
   Archive,
-  Clock3,
-  Download,
-  MapPin,
-  LoaderCircle,
   Pencil,
-  TimerReset,
-  UserRound,
-  UsersRound,
 } from "@lucide/vue";
 import ActionMenu from "../../shared/ui/ActionMenu.vue";
 import type { TrainingSession } from "./trainingTypes";
 
 defineProps<{
   session: TrainingSession;
-  exportPending?: boolean;
   archivePending?: boolean;
 }>();
-defineEmits<{ export: []; edit: []; archive: [] }>();
+defineEmits<{ edit: []; archive: [] }>();
 
 function readableDate(value: string) {
   const [year, month, day] = value.split("-");

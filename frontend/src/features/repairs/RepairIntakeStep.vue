@@ -11,7 +11,7 @@
             <option value="CANCELED">已取消</option>
           </select>
         </label>
-        <label class="field">
+        <label class="field" :class="{ 'span-2': form.status !== 'COMPLETED' }">
           <span>受理时间</span>
           <input
             v-model="form.receivedAt"
@@ -21,7 +21,7 @@
           />
           <small v-if="errors.receivedAt" class="field-error" role="alert">{{ errors.receivedAt }}</small>
         </label>
-        <label class="field">
+        <label v-if="form.status === 'COMPLETED'" class="field">
           <span>完成时间</span>
           <input
             v-model="form.completedAt"
@@ -31,7 +31,7 @@
           />
           <small v-if="errors.completedAt" class="field-error" role="alert">{{ errors.completedAt }}</small>
         </label>
-        <div class="field span-2">
+        <div class="field span-2 repair-handler-field">
           <span>负责人账号</span>
           <AccountPicker
             :model-value="handler"

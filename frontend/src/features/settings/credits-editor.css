@@ -1,0 +1,39 @@
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"]{display:grid;grid-template-rows:64px 1fr 40px;min-height:100dvh}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-signal-header{justify-content:flex-end;padding:12px 40px;min-height:0}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] :is(.auth-brand-lockup,.auth-signal-context){display:none}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-form-panel{padding:20px 0 28px;display:grid;place-items:center}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-form-shell{width:100%;border:0;background:none;padding:0;box-shadow:none;animation:none}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-stage{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,640px);align-items:center;gap:80px;width:min(1280px,calc(100% - 96px));margin:auto}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand{display:flex;align-items:center;flex-direction:column;text-align:center}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand img{display:block;width:300px;max-width:100%;height:auto;margin-bottom:28px}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand strong{font-size:32px;font-weight:600}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand span{font-size:18px;color:var(--pub-muted);margin-top:6px}
+.credits-editor{--ui-button-min-height:42px;--ui-button-font-size:14px;min-width:0;background:var(--pub-paper);border:1px solid var(--pub-line);border-radius:20px;box-shadow:0 20px 44px #34485b12,inset 0 1px #fff;overflow:hidden}
+.credits-editor-heading{padding:20px 24px 16px;border-bottom:1px solid var(--pub-line);background:linear-gradient(150deg,var(--pub-paper),color-mix(in srgb,var(--pub-accent) 5%,var(--pub-paper)))}
+.credits-editor-heading h1{font-size:26px;font-weight:600;line-height:1.4;margin:0 0 8px}
+.credits-editor-heading p{font-size:13px;line-height:1.8;color:var(--pub-muted);margin:0}
+.credits-editor-list{display:grid;gap:16px;padding:18px 24px;max-height:min(56dvh,640px);overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain}
+.credits-editor-founder,.credits-editor-entry{min-width:0;padding:0 0 16px;border-bottom:1px solid var(--pub-line)}
+.credits-editor-list section>header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;font-size:13px;color:var(--pub-muted)}
+.credits-editor-founder header>span:last-child{display:flex;align-items:center;gap:5px;font-size:12px}
+.credits-editor-founder svg{width:13px;height:13px}
+.credits-editor-founder dl{display:grid;gap:10px;margin:0}
+.credits-editor-founder dt{font-size:12px;color:var(--pub-muted);margin-bottom:4px}
+.credits-editor-founder dd{margin:0;font-size:14px;line-height:1.6;overflow-wrap:anywhere}
+.credits-row-actions{display:flex;gap:6px}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .credits-row-actions .icon-button{width:32px;height:32px;min-width:32px;min-height:32px;padding:7px}
+.credits-row-actions svg{width:16px;height:16px}
+.credits-editor-field{display:grid;gap:6px;margin-top:10px;font-size:13px;min-width:0;color:var(--pub-ink)}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .credits-editor-field :is(input,textarea){width:100%;min-width:0;border:1px solid var(--pub-line);border-radius:8px;background:var(--pub-soft);color:var(--pub-ink);font:inherit;line-height:1.7;padding:8px 10px;box-shadow:none;resize:vertical}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .credits-editor-field input{height:42px;min-height:42px}
+.credits-editor-field textarea{min-height:62px;max-height:240px}
+.credits-editor-list .credits-add{justify-self:start;min-height:42px}
+.credits-editor-footer{padding:14px 24px 18px;border-top:1px solid var(--pub-line)}
+.credits-editor-footer>div{display:flex;justify-content:flex-end;gap:12px}
+.credits-editor-footer .button{min-height:42px;min-width:108px}
+.credits-editor-footer p{font-size:13px;margin:0 0 12px;line-height:1.7}
+.credits-saved{color:var(--pub-accent)}
+.credits-editor-state{display:grid;gap:16px;padding:24px;font-size:14px;color:var(--pub-muted)}
+html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-signal-footer{display:flex;align-items:center;padding:0 24px;font-size:12px}
+@media(max-width:1100px){html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-stage{grid-template-columns:minmax(0,1fr) minmax(0,560px);gap:40px;width:calc(100% - 64px)}html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand img{width:240px}}
+@media(max-width:760px){html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"]{grid-template-rows:64px 1fr auto}html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-signal-header{padding-inline:20px}html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-stage{grid-template-columns:minmax(0,1fr);gap:24px;width:min(640px,calc(100% - 32px))}html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand img{width:110px;margin-bottom:12px}html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand strong{font-size:26px}html:root[data-appearance] .public-presentation.public-auth.credits-editor-page[data-auth-layout="brand"] .auth-entry-brand span{font-size:16px}.credits-editor-heading,.credits-editor-footer{padding:20px}.credits-editor-list{max-height:none;padding:20px}.credits-editor-heading h1{font-size:26px}}

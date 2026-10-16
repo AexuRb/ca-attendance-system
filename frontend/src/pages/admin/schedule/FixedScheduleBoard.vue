@@ -3,30 +3,31 @@
     v-if="periods.length && visibleWeekdays.length"
     class="schedule-focus-board"
   >
-    <div class="segmented schedule-view-switch" aria-label="排班视图">
+    <div v-if="!overviewOnly" class="segmented schedule-view-switch" aria-label="排班视图">
       <button type="button" :class="{ active: view === 'week' }" :aria-pressed="view === 'week'" @click="view = 'week'">整周概览</button>
       <button type="button" :class="{ active: view === 'day' }" :aria-pressed="view === 'day'" @click="view = 'day'">按日编辑</button>
     </div>
-    <div v-if="view === 'week'" class="schedule-week-scroll" tabindex="0" aria-label="整周排班矩阵，可横向滚动">
+    <div v-if="view === 'week' && activeWeekdays.length" class="schedule-week-scroll" tabindex="0" aria-label="整周排班矩阵，可横向滚动">
       <table class="schedule-week-matrix">
-        <thead><tr><th scope="col">星期 / 时段</th><th v-for="period in periods" :key="periodKey(period)" scope="col">{{ periodKey(period) }}</th></tr></thead>
-        <tbody><tr v-for="day in weekdays" :key="day.value">
-          <th scope="row">{{ day.label }}<small v-if="!day.enabled">未开放</small></th>
-          <td v-for="period in periods" :key="periodKey(period)">
+        <thead><tr><th scope="col">时段 / 星期</th><th v-for="day in activeWeekdays" :key="day.value" scope="col">{{ day.label }}</th></tr></thead>
+        <tbody><tr v-for="period in periods" :key="periodKey(period)">
+          <th scope="row">{{ shortTime(period.startTime) }}–{{ shortTime(period.endTime) }}</th>
+          <td v-for="day in activeWeekdays" :key="day.value">
             <template v-if="slotsFor(day.value, period).length">
-              <button v-for="slot in slotsFor(day.value, period)" :key="slot.id" type="button" class="schedule-week-slot" @click="view = 'day'; selectWeekday(day.value)">
+              <component :is="overviewOnly ? 'div' : 'button'" v-for="slot in slotsFor(day.value, period)" :key="slot.id" :type="overviewOnly ? undefined : 'button'" class="schedule-week-slot" @click="openDay(day.value)">
                 <strong>{{ slot.title }}</strong>
                 <span>{{ slot.assignees?.length ? slot.assignees.map(person => person.name).join('、') : '已建排班 · 暂无人' }}</span>
                 <small v-if="!slot.enabled || !day.enabled">签到台隐藏</small>
-              </button>
+              </component>
             </template>
-            <button v-else-if="day.enabled && !readOnly" class="button text small" type="button" @click="addAt(day.value, period)">未建排班 · 新增</button>
-            <span v-else>{{ day.enabled ? '未建排班' : '未开放' }}</span>
+            <button v-else-if="!overviewOnly && !readOnly" class="button text small" type="button" @click="addAt(day.value, period)">未建排班 · 新增</button>
+            <span v-else>未建排班</span>
           </td>
         </tr></tbody>
       </table>
     </div>
-    <template v-if="view === 'day'">
+    <EmptyState v-else-if="view === 'week'" title="暂无开放的值班星期" />
+    <template v-if="view === 'day' && !overviewOnly">
     <nav ref="dayNav" class="schedule-focus-days" aria-label="选择排班星期">
       <button
         v-for="day in visibleWeekdays"
@@ -115,7 +116,7 @@
               </div>
               <div v-else class="schedule-focus-empty">
                 <div><strong>该时段暂无固定排班</strong><span>{{ selectedDay?.enabled ? '可以直接在此时段新增' : '当前星期未开放' }}</span></div>
-                <button v-if="selectedDay?.enabled && !readOnly" class="schedule-focus-add" type="button" @click="$emit('add', selectedWeekday, periodKey(period))"><Plus aria-hidden="true" />新增此时段排班</button>
+                <button data-button-kind="entry" v-if="selectedDay?.enabled && !readOnly" class="schedule-focus-add" type="button" @click="$emit('add', selectedWeekday, periodKey(period))"><Plus aria-hidden="true" />新增此时段排班</button>
               </div>
             </div>
 
@@ -135,7 +136,7 @@
     "
     description="完成值班时段和开放星期设置后，即可在这里安排固定排班。"
   >
-    <RouterLink v-if="!readOnly" class="button primary" :to="{ path: '/admin/settings', hash: periods.length ? '#settings-weekdays' : '#settings-periods' }">设置值班星期与时段</RouterLink>
+    <RouterLink v-if="!readOnly && !overviewOnly" class="button primary" :to="{ path: '/admin/settings', hash: periods.length ? '#settings-weekdays' : '#settings-periods' }">设置值班星期与时段</RouterLink>
   </EmptyState>
 </template>
 
@@ -161,6 +162,7 @@ const props = defineProps<{
   weekdays: WeekdayOption[];
   preferredWeekday?: number;
   readOnly?: boolean;
+  overviewOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -180,7 +182,14 @@ const visibleWeekdays = computed(() => {
 });
 
 const selectedWeekday = ref(initialWeekday());
-const view = ref<'week' | 'day'>('day');
+const activeWeekdays = computed(() => props.weekdays.filter(day => day.enabled));
+const view = ref<'week' | 'day'>('week');
+watch(() => props.overviewOnly, overviewOnly => { if (overviewOnly) view.value = 'week'; });
+function openDay(weekday: number) {
+  if (props.overviewOnly) return;
+  view.value = 'day';
+  selectWeekday(weekday);
+}
 const motionDirection = ref(1);
 const dayNav = ref<HTMLElement | null>(null);
 const selectedDay = computed(() =>

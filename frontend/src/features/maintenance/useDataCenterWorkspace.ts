@@ -19,7 +19,7 @@ import type {
   RecycledRepairCase,
 } from "./dataCenterTypes";
 
-type DataCenterTab = "export" | "backups" | "recycle";
+type DataCenterTab = "import" | "export" | "backups" | "recycle";
 
 export function useDataCenterWorkspace() {
   const { user, expireSession } = useSession();
@@ -40,6 +40,9 @@ export function useDataCenterWorkspace() {
     filename: "",
   });
   const preview = ref<ExportPreview | null>(null);
+  const exportActionError = ref("");
+  const exportRouteSource = ref("");
+  let appliedExportRoute = "";
   const previewSelection = computed(() => exportSelectionFingerprint(request));
   const summary = ref<MaintenanceSummary | null>(null);
   const backups = ref<BackupItem[]>([]);
@@ -59,6 +62,7 @@ export function useDataCenterWorkspace() {
     dateRangeError(request.filters.from || "", request.filters.to || ""),
   );
   const activeLoadError = computed(() => {
+    if (tab.value === "import") return "";
     if (tab.value === "export") return optionsRequest.error.value || summaryRequest.error.value;
     if (tab.value === "backups") return backupRequest.error.value || summaryRequest.error.value;
     return recycleRequest.error.value;
@@ -68,6 +72,7 @@ export function useDataCenterWorkspace() {
     if (route.query.tab !== tab.value) {
       await router.replace({ query: { ...route.query, tab: tab.value } });
     }
+    if (tab.value === "import") return;
     await loadOptions();
     if (tab.value === "backups") await Promise.all([loadBackups(), loadSummary()]);
     else if (options.sources.length) await loadSummary();
@@ -78,6 +83,7 @@ export function useDataCenterWorkspace() {
   });
 
   watch(tab, async (value) => {
+    if (value === "export" && !options.sources.length) await Promise.all([loadOptions(), loadSummary()]);
     if (value === "backups") await Promise.all([loadBackups(), loadSummary()]);
     if (value === "recycle") await loadRecycle();
   });
@@ -90,14 +96,20 @@ export function useDataCenterWorkspace() {
     },
   );
 
+  watch(() => [route.query.tab, route.query.source, route.query.from, route.query.to, route.query.status], () => {
+    if (tab.value === "export" && options.sources.length) applyExportRoute();
+  });
+
   watch(previewSelection, () => {
     preview.value = null;
+    exportActionError.value = "";
   }, { flush: "sync" });
 
   function normalizedTab(value: unknown): DataCenterTab {
+    if (value === "export") return "export";
     if (value === "backups") return "backups";
     if (value === "recycle" && canViewRepairRecycleBin(user.value?.role)) return "recycle";
-    return "export";
+    return "import";
   }
 
   function selectTab(value: DataCenterTab) {
@@ -124,7 +136,11 @@ export function useDataCenterWorkspace() {
     const nextTab = availableTabs[nextIndex];
     if (!nextTab) return;
     selectTab(nextTab);
-    void nextTick(() => document.getElementById(`data-tab-${nextTab}`)?.focus());
+    void nextTick(() => {
+      const target = document.getElementById(`data-tab-${nextTab}`)
+        ?? document.getElementById(`data-${nextTab}-title`);
+      target?.focus();
+    });
   }
 
   async function loadOptions() {
@@ -135,6 +151,32 @@ export function useDataCenterWorkspace() {
     if (!value) return;
     options.sources = value.sources || [];
     if (!request.source && options.sources[0]) selectSource(options.sources[0]);
+    applyExportRoute();
+  }
+
+  function applyExportRoute() {
+    if (tab.value !== "export") return;
+    const sourceId = typeof route.query.source === "string" ? route.query.source : "";
+    const signature = JSON.stringify([sourceId, route.query.from, route.query.to, route.query.status]);
+    if (signature === appliedExportRoute) return;
+    exportRouteSource.value = "";
+    if (!sourceId) { appliedExportRoute = signature; return; }
+    const source = options.sources.find(item => item.id === sourceId);
+    if (!source) {
+      request.source = "";
+      request.fields = [];
+      request.filters = {};
+      exportActionError.value = "指定的数据类型不可用，或当前账号无权导出。请重新选择数据类型。";
+      return;
+    }
+    appliedExportRoute = signature;
+    selectSource(source);
+    exportActionError.value = "";
+    source.filters.forEach(filter => {
+      const value = route.query[filter.id];
+      if (["from", "to", "status"].includes(filter.id) && typeof value === "string") request.filters[filter.id] = value;
+    });
+    exportRouteSource.value = source.id;
   }
 
   async function loadSummary() {
@@ -199,14 +241,17 @@ export function useDataCenterWorkspace() {
 
   async function makePreview() {
     if (exportDateError.value || !request.fields.length) return;
+    exportActionError.value = "";
     await actions.run("preview", async () => {
       const value = await task.run(() => post<ExportPreview>("/api/exports/preview", request));
       if (value) preview.value = value;
+      else exportActionError.value = task.error.value;
     });
   }
 
   async function exportCustom() {
     if (exportDateError.value) return;
+    exportActionError.value = "";
     const snapshot = JSON.parse(JSON.stringify(request)) as ExportRequest;
     const filename = `${snapshot.filename || currentSource.value?.label || "自定义导出"}.xlsx`;
     await actions.run("export", async () => {
@@ -220,6 +265,7 @@ export function useDataCenterWorkspace() {
         }),
       );
       if (blob) downloadBlob(blob, filename);
+      else exportActionError.value = task.error.value;
     });
   }
 
@@ -324,6 +370,8 @@ export function useDataCenterWorkspace() {
     options,
     request,
     preview,
+    exportActionError,
+    exportRouteSource,
     summary,
     backups,
     recycle,

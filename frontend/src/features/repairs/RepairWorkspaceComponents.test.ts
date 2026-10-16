@@ -129,11 +129,17 @@ describe("repair workspace components", () => {
     await activeWrapper.get('[title="更新处理"]').trigger("click");
     expect(activeWrapper.emitted("process")?.[0]).toEqual([activeRepair]);
     expect(activeWrapper.emitted("view")).toBeUndefined();
-    expect(activeWrapper.find('[title="移入回收站"]').exists()).toBe(true);
+    await activeWrapper.get('[aria-haspopup="menu"]').trigger('click');
+    expect(document.body.querySelector('[role="menuitem"][title="移入回收站"]')).not.toBeNull();
+    expect(activeWrapper.emitted('view')).toBeUndefined();
+    const edit = Array.from(document.body.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(button => button.textContent?.includes('编辑事务'))!;
+    edit.click();
+    expect(activeWrapper.emitted('edit')?.[0]).toEqual([activeRepair]);
     expect(activeWrapper.find('[title="查看详情"]').exists()).toBe(false);
     await activeWrapper.get(".repair-ledger-row").trigger("click");
     expect(activeWrapper.emitted("view")?.[0]).toEqual([activeRepair]);
 
+    activeWrapper.unmount();
     const archivedWrapper = mount(RepairLedgerTable, {
       props: {
         items: [historyRepair],
@@ -150,6 +156,31 @@ describe("repair workspace components", () => {
     expect(archivedWrapper.find('[title="更新处理"]').exists()).toBe(false);
     expect(archivedWrapper.find('[title="移入回收站"]').exists()).toBe(false);
     expect(archivedWrapper.find('[title="查看详情"]').exists()).toBe(false);
+    await archivedWrapper.get('[aria-haspopup="menu"]').trigger('click');
+    expect(document.body.querySelector('[role="menuitem"][title="移入回收站"]')).toBeNull();
+    archivedWrapper.unmount();
+  });
+
+  it("keeps missing phones factual and canceled timestamps labeled as updates", async () => {
+    const item: RepairCase = { ...activeRepair, ownerPhone: '', status: 'CANCELED' };
+    const wrapper = mount(RepairLedgerTable, { props: {
+      items: [item], status: 'CANCELED', loading: false, error: '',
+      revealedPhones: new Set([item.id]), canManage: false, canDelete: false,
+    } });
+    expect(wrapper.text()).toContain('未填写');
+    expect(wrapper.find('.repair-phone-toggle').exists()).toBe(false);
+    expect(wrapper.text()).toContain('最近更新时间');
+    expect(wrapper.text()).not.toContain('取消时间');
+    await wrapper.get('[aria-haspopup="menu"]').trigger('click');
+    expect(document.body.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
+    wrapper.unmount();
+    const detail = mount(RepairDetailDrawer, { props: {
+      open: true, item, phoneVisible: true, canManage: false, canDelete: false,
+    } });
+    expect(document.body.textContent).toContain('未填写');
+    expect(document.body.querySelector('.repair-phone-toggle')).toBeNull();
+    expect(document.body.textContent).toContain('最近更新时间');
+    detail.unmount();
   });
 
   it("opens a history row with the Space key", async () => {

@@ -1,6 +1,6 @@
 <template>
   <footer class="kiosk-signal-week">
-    <strong class="kiosk-signal-week-title">本周部长排班 <span>人次</span></strong>
+    <strong class="kiosk-signal-week-title">本周排班概览</strong>
     <div class="kiosk-signal-week-days">
       <article
         v-for="day in weekSchedule"
@@ -8,7 +8,8 @@
         :class="{ today: day.date === todayValue }"
       >
         <span>{{ day.weekdayName?.replace("星期", "周") }}</span>
-        <strong>{{ dayCount(day) || "—" }}</strong>
+        <time class="kiosk-week-date" :datetime="day.date">{{ dateLabel(day.date) }}</time>
+        <strong>{{ dayCount(day) || "—" }}<small v-if="dayCount(day)">人次</small></strong>
       </article>
       <template v-if="!weekSchedule.length">
         <article v-for="label in fallbackDays" :key="label">
@@ -17,7 +18,7 @@
         </article>
       </template>
     </div>
-    <RouterLink
+    <RouterLink data-button-kind="entry"
       class="kiosk-signal-admin"
       :to="{ name: 'login' }"
       title="后台登录"
@@ -45,5 +46,10 @@ function dayCount(day: ScheduleDay) {
     (sum, slot) => sum + (slot.assignees?.length || 0),
     0,
   );
+}
+
+function dateLabel(value: string) {
+  const [, month, day] = value.split("-");
+  return month && day ? `${Number(month)}月${Number(day)}日` : "—";
 }
 </script>

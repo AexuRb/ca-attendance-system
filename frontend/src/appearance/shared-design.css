@@ -1,0 +1,56 @@
+/* Shared structure and semantic states. Theme files retain ownership of fonts,
+ * palette, surface radii and motion character; page files own responsive layout.
+ * Only semantic state paint is layered to beat legacy lazy-loaded overrides.
+ */
+@layer ui-design {
+  :root {
+    --ui-radius-control: 8px;
+    --ui-duration-control: 180ms;
+    --ui-duration-card: 220ms;
+    --ui-duration-emblem: 560ms;
+    --ui-space-1: 4px;
+    --ui-space-2: 8px;
+    --ui-space-3: 12px;
+    --ui-space-4: 16px;
+    --ui-space-6: 24px;
+    --ui-button-min-height: 42px;
+    --ui-button-font-size: 14px;
+    --ui-success: #287449;
+    --ui-success-bg: #EAF4ED;
+    --ui-warning: #946500;
+    --ui-warning-bg: #FFF4D8;
+    --ui-danger: #B23C45;
+    --ui-danger-bg: #FCEDEF;
+    --ui-disabled-bg: #F1F3F5;
+    --ui-disabled-ink: #626D79;
+    --ui-disabled-line: #DDE2E7;
+
+    --green-700: var(--ui-success) !important;
+    --green-100: var(--ui-success-bg) !important;
+    --amber-700: var(--ui-warning) !important;
+    --amber-100: var(--ui-warning-bg) !important;
+    --red-700: var(--ui-danger) !important;
+    --red-100: var(--ui-danger-bg) !important;
+    --admin-green: var(--ui-success) !important;
+    --admin-amber: var(--ui-warning) !important;
+    --admin-red: var(--ui-danger) !important;
+  }
+  :root[data-appearance="editorial"] { --ui-duration-emblem: 700ms; }
+  :root[data-appearance="spatial"] { --ui-duration-emblem: 640ms; }
+
+  :where(.status-badge[data-tone="success"], .mw-badge[data-tone="success"]) {
+    color: var(--ui-success) !important;
+    background: var(--ui-success-bg) !important;
+    border-color: color-mix(in srgb, var(--ui-success) 25%, white) !important;
+  }
+  :where(.status-badge[data-tone="warning"], .mw-badge[data-tone="warning"]) {
+    color: var(--ui-warning) !important;
+    background: var(--ui-warning-bg) !important;
+    border-color: color-mix(in srgb, var(--ui-warning) 25%, white) !important;
+  }
+  :where(.status-badge[data-tone="danger"], .mw-badge[data-tone="danger"], .inline-alert.danger) {
+    color: var(--ui-danger) !important;
+    background: var(--ui-danger-bg) !important;
+    border-color: color-mix(in srgb, var(--ui-danger) 25%, white) !important;
+  }
+}

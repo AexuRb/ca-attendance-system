@@ -21,6 +21,7 @@ class RolePermissionPolicyTest {
                 ATTENDANCE_MANAGE,
                 REPAIR_MANAGE,
                 STATS_VIEW,
+                SCHEDULE_VIEW,
                 STATS_EXPORT
         ));
     }
@@ -32,6 +33,7 @@ class RolePermissionPolicyTest {
                 ATTENDANCE_CREATE,
                 MEMBERS_MANAGE,
                 SCHEDULE_MANAGE,
+                SCHEDULE_VIEW,
                 DUTY_SETTINGS_MANAGE,
                 TRAINING_MANAGE,
                 REPAIR_MANAGE,

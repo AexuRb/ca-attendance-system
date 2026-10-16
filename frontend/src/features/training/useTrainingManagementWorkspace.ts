@@ -4,7 +4,6 @@ import { del, downloadBlob, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
-import { notify } from "../../shared/composables/useToast";
 import { dateRangeError } from "../../shared/validation/dateRange";
 import { createPrivateNavigationState } from "../../shared/navigation/privateNavigationState";
 import { routeQuerySignature, updateOwnedRouteQuery } from "../../shared/navigation/routeQueryState";
@@ -20,7 +19,7 @@ import type {
 import { useTrainingWorkspace, type TrainingWorkspaceQuery } from "./useTrainingWorkspace";
 
 type ScrollPosition = { top: number; left: number };
-type HistorySnapshot = { state: TrainingWorkspaceRouteState; signature: string; ribbon: ScrollPosition; participants: ScrollPosition };
+type HistorySnapshot = { state: TrainingWorkspaceRouteState; signature: string; ribbon: ScrollPosition; participants: ScrollPosition; workspace?: ScrollPosition };
 const historyMemory = createPrivateNavigationState<HistorySnapshot>();
 const visitKey = "trainingWorkspaceVisit";
 const publicKeys = ["sessionId", "sessionPage", "participantPage", "from", "to"] as const;
@@ -31,6 +30,7 @@ export function useTrainingManagementWorkspace() {
   const route = useRoute();
   const router = useRouter();
   const historyScope = historyMemory.scope();
+  const workspaceScroll = ref<HTMLElement | null>(null);
   const ribbonScroll = ref<HTMLElement | null>(null);
   const participantScroll = ref<HTMLElement | null>(null);
   let active = true;
@@ -58,7 +58,7 @@ export function useTrainingManagementWorkspace() {
   const workspace = useTrainingWorkspace({
     loadSessions: fetchTrainingSessionPage,
     loadParticipants: fetchTrainingParticipantPage,
-    defaults: { from: initialMonth.from, to: initialMonth.to },
+    defaults: { from: `${today.slice(0, 4)}-01-01`, to: initialMonth.to },
     initialQuery,
     onQueryChange: replaceRouteQuery,
   });
@@ -126,8 +126,7 @@ export function useTrainingManagementWorkspace() {
     await workspace.initialize();
     if (initialIntent === "new") openSession();
     if (initialIntent === "import") {
-      if (selected.value) openImport();
-      else notify("请先选择一个培训场次，再导入参与记录", "warning");
+      await router.replace({ name: "data", query: { tab: "import", kind: "training" } });
     }
     if (initialIntent === "export") {
       await nextTick();
@@ -136,6 +135,7 @@ export function useTrainingManagementWorkspace() {
   });
   onBeforeUnmount(() => {
     rememberScroll();
+    workspaceScroll.value?.removeEventListener("scroll", rememberScroll);
     active = false;
     workspace.dispose();
   });
@@ -187,6 +187,7 @@ export function useTrainingManagementWorkspace() {
       state: { ...state }, signature: publicSignature(),
       ribbon: pendingRestore?.ribbon || position(ribbonScroll.value),
       participants: pendingRestore?.participants || participantPosition(),
+      workspace: pendingRestore?.workspace || position(workspaceScroll.value),
     });
     restoreReady = true;
     await nextTick();
@@ -221,6 +222,7 @@ export function useTrainingManagementWorkspace() {
   function rememberScroll() {
     const saved = activeVisit ? historyScope.get(activeVisit) : undefined;
     if (!saved || restoringHistory.value) return;
+    if (workspaceScroll.value) saved.workspace = position(workspaceScroll.value);
     if (ribbonScroll.value) saved.ribbon = position(ribbonScroll.value);
     if (participantScroll.value?.dataset.sessionId === String(saved.state.sessionId)) saved.participants = position(participantScroll.value);
   }
@@ -236,8 +238,21 @@ export function useTrainingManagementWorkspace() {
       list.scrollTop = pendingRestore.participants.top;
       list.scrollLeft = pendingRestore.participants.left;
     }
+    if (workspaceScroll.value && pendingRestore.workspace) {
+      workspaceScroll.value.scrollTop = pendingRestore.workspace.top;
+      workspaceScroll.value.scrollLeft = pendingRestore.workspace.left;
+    }
     pendingRestore = undefined;
     restoringHistory.value = false;
+  }
+  function bindWorkspaceScroll(element: Element | ComponentPublicInstance | null) {
+    const next = element instanceof HTMLElement ? (element.closest<HTMLElement>(".overview-content") || element) : null;
+    if (next !== workspaceScroll.value) {
+      workspaceScroll.value?.removeEventListener("scroll", rememberScroll);
+      workspaceScroll.value = next;
+      next?.addEventListener("scroll", rememberScroll, { passive: true });
+    }
+    restoreScroll();
   }
   function bindRibbonScroll(element: Element | ComponentPublicInstance | null) {
     ribbonScroll.value = element instanceof HTMLElement ? element : null;
@@ -455,6 +470,7 @@ export function useTrainingManagementWorkspace() {
     restoringHistory,
     ribbonScroll,
     participantScroll,
+    bindWorkspaceScroll,
     bindRibbonScroll,
     bindParticipantScroll,
     rememberScroll,

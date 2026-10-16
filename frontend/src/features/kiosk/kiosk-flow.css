@@ -1,0 +1,75 @@
+/* Only the three reviewed kiosk states use these shared theme rules. */
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; min-height:340px; padding:24px 40px; text-align:center; font-family:"Noto Sans SC","Segoe UI","Microsoft YaHei UI",sans-serif; }
+html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-flow-state { font-family:"Noto Serif SC","SimSun",serif; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state :is(h1,p,span,strong,b,small,button) { font-family:inherit; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-signal-terminal-head { display:block; width:100%; max-width:1080px; margin:0; text-align:center; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state h1 { width:100%; max-width:none; margin:0; text-align:center; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-intro { display:block; margin:8px 0 0; color:var(--pub-muted); font-size:16px; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-choice-state { padding-top:12px; padding-bottom:12px; gap:10px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; width:100%; max-width:1080px; max-height:220px; margin:0; padding:3px; overflow-y:auto; text-align:left; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list>button { display:grid; grid-template-columns:minmax(0,1fr) 24px; align-items:center; gap:24px; min-height:80px; padding:10px 20px; border:1px solid var(--pub-line); border-radius:8px; background:var(--pub-soft); color:var(--pub-ink); box-shadow:none; animation:none; transform:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list>button:hover:not(:disabled) { border-color:var(--pub-accent); background:color-mix(in srgb,var(--pub-accent) 6%,var(--pub-paper)); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list>button:focus-visible { outline:2px solid color-mix(in srgb,var(--pub-accent) 18%,transparent); outline-offset:0; border-color:var(--pub-accent); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-choice-copy { display:flex; flex-direction:column; gap:4px; min-width:0; text-align:left; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-choice-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; min-width:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list strong { font-size:22px; font-weight:600; line-height:1.3; overflow-wrap:anywhere; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list small { font-size:16px; font-weight:400; line-height:1.5; color:var(--pub-muted); white-space:nowrap; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-student-number { display:flex; align-items:baseline; justify-content:flex-start; gap:12px; margin:0; font-weight:400; line-height:1.25; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-student-number>span { font-size:16px; font-weight:400; color:var(--pub-muted); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-student-number>b { color:var(--pub-ink); font-size:24px; font-weight:600; line-height:1.2; font-variant-numeric:tabular-nums; letter-spacing:1px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-member-ticket { display:flex; align-items:center; justify-content:center; width:100%; max-width:560px; margin:0; padding:14px 20px; border:1px solid var(--pub-line); border-radius:8px; background:var(--pub-soft); text-align:center; animation:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-member-ticket>div { display:flex; justify-content:center; align-items:center; gap:32px; min-width:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-member-ticket strong { color:var(--pub-ink); font-size:28px; font-weight:600; line-height:1.25; overflow-wrap:anywhere; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-step-status { flex-shrink:0; align-self:center; margin:0; padding:0; border:0; border-radius:0; background:none; color:var(--pub-accent); font-size:16px; font-weight:500; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-action-row { display:flex; flex-direction:row; justify-content:center; align-items:center; flex-wrap:wrap; gap:16px; width:100%; margin:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state :is(.kiosk-focus-primary,.kiosk-focus-secondary) { position:relative; display:flex; align-items:center; justify-content:center; flex:none; width:168px; min-width:168px; height:56px; min-height:56px; margin:0; padding:0 32px; border:1px solid var(--pub-line); border-radius:8px; font-size:18px; font-weight:500; line-height:1.5; color:var(--pub-ink); background:var(--pub-paper); text-align:center; box-shadow:0 1px 2px #162b4008; animation:none; transition:box-shadow .16s ease,transform .16s ease; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-primary { width:208px; min-width:208px; font-weight:600; border-color:color-mix(in srgb,var(--pub-accent) 90%,#000); color:white; background:linear-gradient(180deg,color-mix(in srgb,var(--pub-accent) 93%,#fff),color-mix(in srgb,var(--pub-accent) 96%,#000)); box-shadow:inset 0 1px #ffffff26,0 1px 2px #162b4014,0 4px 10px #162b4014; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-primary:hover:not(:disabled) { transform:none; background:linear-gradient(180deg,color-mix(in srgb,var(--pub-accent) 88%,#fff),var(--pub-accent)); box-shadow:inset 0 1px #ffffff30,0 2px 4px #162b4014,0 5px 12px #162b401a; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-primary:active:not(:disabled) { transform:translateY(1px); background:color-mix(in srgb,var(--pub-accent) 94%,#000); box-shadow:inset 0 1px 2px #00000014,0 1px 2px #162b4010; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-secondary:hover:not(:disabled) { border-color:var(--pub-accent); color:var(--pub-accent); background:var(--pub-soft); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state :is(.kiosk-focus-primary,.kiosk-focus-secondary):focus-visible { outline:2px solid color-mix(in srgb,var(--pub-accent) 18%,transparent); outline-offset:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state :is(.kiosk-focus-primary,.kiosk-focus-secondary):disabled { opacity:.65; cursor:not-allowed; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-confirm-label { font-size:inherit; font-weight:inherit; line-height:inherit; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-primary>svg { position:absolute; right:22px; width:20px; height:20px; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-feedback { display:flex; flex-direction:column; align-items:center; gap:6px; width:100%; max-width:1080px; min-height:24px; color:var(--pub-muted); font-size:16px; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-feedback :is(.kiosk-focus-error,.kiosk-focus-choice-scroll,.kiosk-flow-message) { display:flex; align-items:center; justify-content:center; gap:6px; margin:0; padding:0; border:0; background:none; font:inherit; line-height:inherit; animation:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-feedback svg { width:18px; height:18px; flex-shrink:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-focus-success-mark { display:grid; place-items:center; grid-row:auto; width:48px; height:48px; margin:0; border:1px solid color-mix(in srgb,var(--green-700) 22%,var(--pub-paper)); background:color-mix(in srgb,var(--green-700) 10%,var(--pub-paper)); color:var(--green-700); box-shadow:none; animation:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-focus-success-mark::after { content:none; animation:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-focus-success-mark svg { width:28px; height:28px; color:inherit; stroke-width:2.5; animation:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy { display:flex; flex-direction:column; align-items:center; gap:8px; width:100%; max-width:1080px; margin:0; text-align:center; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy :is(h1,strong,span) { margin:0; animation:none; transform:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-success-name { font-size:28px; font-weight:600; line-height:1.25; color:var(--pub-ink); overflow-wrap:anywhere; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy>span { font-size:16px; line-height:1.5; color:var(--pub-muted); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-return { width:196px; max-width:100%; margin-top:4px; color:var(--pub-muted); font-size:14px; line-height:1.5; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-return .kiosk-focus-reset-progress { width:100%; height:2px; margin:6px 0 0; border:0; background:var(--pub-line); }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-return .kiosk-focus-reset-progress i { background:color-mix(in srgb,var(--pub-accent) 60%,var(--pub-line)); }
+@media(max-width:700px) {
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state { min-height:0; padding:24px 20px; gap:12px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-intro { font-size:16px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list { grid-template-columns:minmax(0,1fr); max-height:284px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list>button { grid-template-columns:minmax(0,1fr) 20px; min-height:80px; gap:12px; padding:12px 16px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-choice-heading { gap:8px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list strong { font-size:22px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-choice-list small { font-size:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-student-number { gap:10px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-student-number>span { font-size:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-flow-student-number>b { font-size:24px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-member-ticket { padding:16px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-member-ticket>div { flex-direction:column; gap:8px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-member-ticket strong { font-size:24px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-step-status { font-size:16px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-action-row { gap:12px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state :is(.kiosk-focus-primary,.kiosk-focus-secondary) { width:196px; min-width:0; height:56px; min-height:56px; font-size:18px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-primary { width:196px; min-width:0; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-feedback { min-height:42px; font-size:14px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-success-name { font-size:24px; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy>span { font-size:16px; }
+}
+@media(max-width:560px) {
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-action-row { flex-direction:column-reverse; }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-action-row>button { width:100%; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state :is(.kiosk-focus-primary,.kiosk-focus-secondary) { transition:none; }
+}

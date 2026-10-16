@@ -1,0 +1,129 @@
+/* Approved option 1: session directory and participant workbench, all themes share layout. */
+html:root[data-appearance] .overview-training.training-presentation { --mw-paper:#fff; --mw-control:#fff; }
+html:root[data-appearance] .overview-training.training-presentation .overview-content { padding:24px 0; }
+html:root[data-appearance] .overview-training.training-presentation :is(.overview-page-heading,.overview-workspace) { width:calc(100% - 48px); margin-inline:auto; }
+html:root[data-appearance] .overview-training.training-presentation .overview-page-heading { margin-bottom:18px; }
+html:root[data-appearance] .overview-training.training-presentation .overview-page-heading h1 { font:500 28px/38px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .overview-workspace { display:flex; flex-direction:column; gap:22px; min-height:0; background:transparent; container:training-work / inline-size; }
+html:root[data-appearance] .overview-training.training-presentation .training-page-tools { display:flex; align-items:center; gap:10px; }
+html:root[data-appearance] .overview-training.training-presentation .button { min-height:42px; padding:9px 14px; border-radius:8px; font:500 14px/22px var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-training.training-presentation .icon-button { width:32px; height:32px; min-height:32px; padding:7px; border-radius:8px; }
+html:root[data-appearance] .overview-training.training-presentation .training-query { padding:16px; border:0; border-radius:12px; background:var(--overview-chat); }
+html:root[data-appearance] .overview-training.training-presentation .filter-bar { display:grid; grid-template-columns:minmax(180px,1.4fr) repeat(2,minmax(135px,1fr)) auto; align-items:end; gap:12px; padding:0; margin:0; border:0; background:transparent; box-shadow:none; }
+html:root[data-appearance] .overview-training.training-presentation .filter-bar label { display:grid; grid-column:auto; min-width:0; gap:6px; }
+html:root[data-appearance] .overview-training.training-presentation .filter-bar label>span { color:var(--mw-muted); font:400 13px/20px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-query .filter-bar input[type] { min-width:0; width:100%; height:42px; min-height:42px; padding:8px 11px; border:1px solid var(--mw-line); border-radius:8px; background:#fff; color:var(--mw-ink); font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-query-context { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; margin:-10px 0 0; padding:0; color:var(--mw-muted); font:400 12px/20px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-workbench { display:grid; grid-template-columns:236px minmax(0,1fr); align-items:start; gap:24px; min-width:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-workbench.is-empty { grid-template-columns:minmax(0,1fr); }
+html:root[data-appearance] .overview-training.training-presentation .training-month-shell { position:static; min-width:0; width:100%; height:auto; padding:16px 10px; border:1px solid color-mix(in srgb,var(--mw-line) 65%,transparent); border-radius:12px; background:color-mix(in srgb,#fff 22%,transparent); box-shadow:none; overflow:visible; }
+html:root[data-appearance] .overview-training.training-presentation .training-month-ribbon { display:block; padding:0; height:auto; max-height:none; border:0; background:transparent; }
+html:root[data-appearance] .overview-training.training-presentation .training-month-header { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 10px 12px; min-height:0; height:auto; border:0; background:transparent; }
+html:root[data-appearance] .overview-training.training-presentation .training-month-header h2 { font:500 15px/24px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-month-header>span { font:400 12px/20px var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-training.training-presentation .training-ribbon-viewport { display:grid; gap:5px; margin:0; padding:0; height:auto; max-height:none; overflow:visible; }
+html:root[data-appearance] .overview-training.training-presentation .training-list-event { display:grid; grid-template-columns:38px minmax(0,1fr); align-items:start; gap:12px; width:100%; min-width:0; min-height:76px; margin:0; padding:14px 10px; border:0; border-radius:8px; background:transparent; color:var(--mw-ink); text-align:left; box-shadow:none; transform:none; transition:background-color 180ms,color 180ms; }
+html:root[data-appearance] .overview-training.training-presentation .training-list-event.active { background:color-mix(in srgb,var(--mw-accent) 10%,transparent); box-shadow:none; }
+html:root[data-appearance] .overview-training.training-presentation .training-list-event:not(:disabled):hover { background:color-mix(in srgb,var(--mw-accent) 6%,transparent); transform:none; }
+html:root[data-appearance] .overview-training.training-presentation .training-list-event:focus-visible { outline:2px solid var(--mw-accent); outline-offset:2px; }
+html:root[data-appearance] .overview-training.training-presentation .training-list-event time { display:grid; justify-items:center; grid-column:auto; width:auto; height:auto; margin:0; padding:0; border:0; border-radius:0; background:transparent; color:var(--mw-muted); box-shadow:none; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-day strong { font:500 23px/30px var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .overview-training.training-presentation .training-session-day small { font:400 12px/18px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-event-copy { min-width:0; margin:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-event-copy>strong { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; overflow-wrap:anywhere; font:500 15px/23px var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .overview-training.training-presentation .training-event-copy>small { display:block; margin-top:7px; font:400 12px/18px var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-training.training-presentation .training-ribbon-pagination { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:0; margin-top:12px; padding:12px 10px 0; border:0; border-top:1px solid var(--mw-line); background:transparent; font:400 12px/20px var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-training.training-presentation .training-ribbon-pagination>div { display:flex; gap:8px; }
+html:root[data-appearance] .overview-training.training-presentation .training-time-stage { display:block; container:training-detail / inline-size; min-width:0; width:100%; height:auto; min-height:0; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; overflow:visible; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-overview { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px 16px; margin:0 0 22px; padding:0 0 22px; border:0; border-bottom:1px solid var(--mw-line); border-radius:0; background:transparent; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-heading { grid-column:1; min-width:0; padding:0; margin:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-heading time { display:block; width:auto; height:auto; padding:0; margin:0 0 8px; border:0; background:transparent; color:var(--mw-muted); font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-session-heading h2 { font:500 24px/34px var(--mw-font); color:var(--mw-ink); margin:0; overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-description { grid-column:1/-1; margin:0; color:var(--mw-muted); font:400 14px/24px var(--mw-font); white-space:pre-wrap; overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-overview-actions { display:flex; grid-column:2; grid-row:1; align-items:center; align-self:start; gap:8px; width:auto; margin:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-facts { display:flex; grid-column:1/-1; flex-wrap:wrap; gap:10px 22px; margin:0; padding:0; width:100%; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-facts>div { display:flex; align-items:baseline; gap:8px; min-width:0; min-height:0; padding:0; border:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-facts dt { font:400 13px/22px var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-training.training-presentation .training-session-facts dd { margin:0; color:var(--mw-ink); font:400 14px/22px var(--mw-font); overflow-wrap:anywhere; white-space:normal; }
+html:root[data-appearance] .overview-training.training-presentation .training-session-facts>div:nth-last-child(-n+2) dd { font-weight:500; color:var(--mw-accent); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-section { display:block; min-width:0; min-height:0; padding:0; border:0; border-radius:0; background:transparent; overflow:visible; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-toolbar { display:grid; grid-template-columns:auto minmax(160px,1fr) auto; align-items:center; gap:14px; min-height:0; padding:0; margin:0 0 16px; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-title { min-width:0; margin:0; padding:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-title h2 { font:500 18px/28px var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-title h2 small { font:400 13px/22px var(--mw-font); color:var(--mw-muted); margin-left:6px; }
+html:root[data-appearance] .overview-training.training-presentation .training-list-refresh { font:400 12px/20px var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-actions { display:flex; gap:8px; min-width:0; width:auto; margin:0; padding:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-search { display:flex; align-items:center; gap:10px; min-width:0; margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-search label { display:block; position:relative; flex:1; min-width:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-search label>svg { position:absolute; left:12px; top:13px; width:16px; height:16px; color:var(--mw-muted); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-section .training-participant-search input[type] { width:100%; min-width:0; height:42px; min-height:42px; padding:8px 10px 8px 38px; border:1px solid var(--mw-line); border-radius:8px; background:#fff; color:var(--mw-ink); font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-rows { width:100%; height:auto; min-height:0; max-height:none; overflow-x:auto; overflow-y:hidden; border:1px solid color-mix(in srgb,var(--mw-line) 70%,transparent); border-radius:10px; background:color-mix(in srgb,#fff 22%,transparent); scrollbar-width:thin; }
+html:root[data-appearance] .overview-training.training-presentation .training-record-table { width:100%; min-width:500px; border-collapse:collapse; table-layout:fixed; text-align:left; font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation :is(.training-participant-columns,.training-participant-row) { display:table-row; width:auto; min-width:0; height:auto; min-height:0; padding:0; border:0; border-radius:0; background:transparent; animation:none; transform:none; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-columns th { padding:10px 14px; border:0; border-bottom:1px solid var(--mw-line); background:color-mix(in srgb,var(--overview-chat) 50%,transparent); color:var(--mw-muted); font:400 12px/20px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-columns th:first-child { width:35%; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-columns th:nth-child(2) { width:100px; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-columns th:last-child { width:96px; text-align:right; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-row td { padding:12px 14px; border:0; border-bottom:1px solid color-mix(in srgb,var(--mw-line) 70%,transparent); background:transparent; vertical-align:middle; overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-row:last-child td { border-bottom:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-row:hover { background:color-mix(in srgb,var(--mw-accent) 6%,transparent); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-row .training-participant-identity { display:table-cell; width:auto; min-width:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-identity strong { display:block; color:var(--mw-ink); font:500 15px/24px var(--mw-font); overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-identity span { display:block; margin-top:3px; font:400 12px/20px var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-row .training-participant-duration { display:table-cell; width:auto; color:var(--mw-ink); font:400 14px/22px var(--mw-font); font-variant-numeric:tabular-nums; white-space:nowrap; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-row .training-participant-remark { display:table-cell; color:var(--mw-muted); font:400 13px/22px var(--mw-font); white-space:pre-wrap; overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-row-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; min-width:0; }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-pagination { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; min-height:0; margin:0; padding:14px 0; border:0; background:transparent; color:var(--mw-muted); font:400 12px/22px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation .training-participant-pagination>div { display:flex; align-items:center; gap:8px; }
+html:root[data-appearance] .overview-training.training-presentation :is(.training-ribbon-feedback,.training-region-feedback) { margin:0 0 12px; padding:10px; border-radius:8px; font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .overview-training.training-presentation :is(.training-ribbon-empty,.training-participant-empty,.training-time-stage-empty) { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:160px; padding:32px 20px; border:1px dashed var(--mw-line); border-radius:10px; background:transparent; color:var(--mw-muted); text-align:center; }
+html:root[data-appearance] .overview-training.training-presentation :is(.training-ribbon-empty,.training-participant-empty)>svg { width:24px; height:24px; }
+html:root[data-appearance] .overview-training.training-presentation :is(.training-ribbon-empty,.training-participant-empty) strong { font:500 17px/26px var(--mw-font); }
+@container training-work (max-width:900px) {
+  html:root[data-appearance] .overview-training.training-presentation .filter-bar { grid-template-columns:minmax(180px,1.4fr) repeat(2,minmax(110px,1fr)); }
+  html:root[data-appearance] .overview-training.training-presentation .filter-bar>.button { grid-column:1/-1; justify-self:end; }
+}
+@container training-work (max-width:720px) {
+  html:root[data-appearance] .overview-training.training-presentation .training-workbench { grid-template-columns:minmax(0,1fr); }
+  html:root[data-appearance] .overview-training.training-presentation .training-ribbon-viewport { display:flex; overflow-x:auto; overflow-y:hidden; scrollbar-width:thin; }
+  html:root[data-appearance] .overview-training.training-presentation .training-list-event { flex:0 0 220px; }
+  html:root[data-appearance] .overview-training.training-presentation .filter-bar { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  html:root[data-appearance] .overview-training.training-presentation .filter-bar label:first-child { grid-column:1/-1; }
+}
+@container training-detail (max-width:540px) {
+  html:root[data-appearance] .overview-training.training-presentation .training-session-overview { grid-template-columns:minmax(0,1fr); }
+  html:root[data-appearance] .overview-training.training-presentation .training-session-overview-actions { grid-column:1; grid-row:auto; justify-self:end; }
+  html:root[data-appearance] .overview-training.training-presentation .training-participant-toolbar { grid-template-columns:minmax(0,1fr) auto; }
+  html:root[data-appearance] .overview-training.training-presentation .training-participant-actions { grid-column:2; grid-row:1; }
+  html:root[data-appearance] .overview-training.training-presentation .training-participant-search { grid-column:1/-1; grid-row:2; }
+}
+@media(max-width:550px) {
+  html:root[data-appearance] .overview-training.training-presentation .overview-content { padding-block:20px; }
+  html:root[data-appearance] .overview-training.training-presentation :is(.overview-page-heading,.overview-workspace) { width:calc(100% - 32px); }
+  html:root[data-appearance] .overview-training.training-presentation .overview-page-heading h1 { font-size:24px; }
+  html:root[data-appearance] .overview-training.training-presentation .training-session-heading h2 { font-size:22px; line-height:32px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .overview-training.training-presentation .training-list-event { transition:none; }
+}
+
+html:root[data-appearance] .training-refined-backdrop.mw-scope { --mw-paper:#fff; --mw-control:#fff; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal { display:flex; flex-direction:column; border:0; border-radius:16px; background:#fff; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal-head { display:flex; align-items:center; justify-content:space-between; padding:24px 26px 0; border:0; background:transparent; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal-head h2 { font:500 22px/32px var(--mw-font); }
+html:root[data-appearance] .training-refined-backdrop .mw-modal-body { display:block; min-height:0; overflow:auto; padding:20px 26px; font:400 14px/24px var(--mw-font); }
+html:root[data-appearance] .training-refined-backdrop .mw-modal-foot { display:flex; flex-wrap:wrap; justify-content:end; gap:10px; padding:16px 26px; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal :is(#training-session-editor,#training-participant-editor) { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; margin:0; padding:0; border:0; border-radius:0; background:transparent; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal #training-session-editor { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 20px; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal #training-session-editor .span-2 { grid-column:1/-1; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal :is(#training-session-editor,#training-participant-editor) .field { display:grid; grid-template-columns:minmax(0,1fr); align-items:start; gap:7px; min-width:0; margin:0; }
+html:root[data-appearance] .training-refined-backdrop .mw-modal .field>span { font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .training-refined-backdrop.mw-scope .mw-modal .field :is(input:not([type=checkbox]):not([type=radio]),textarea) { width:100%; min-width:0; min-height:42px; padding:8px 10px; border:1px solid var(--mw-line); border-radius:8px; background:#fff; font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .training-refined-backdrop .mw-modal #training-session-editor .field-error { grid-column:1; }
+html:root[data-appearance] .training-refined-backdrop.mw-scope .mw-modal .button { min-height:42px; padding:9px 14px; border-radius:8px; font:500 14px/22px var(--mw-font); }
+html:root[data-appearance] .training-refined-backdrop .training-participant-context { margin:0 0 18px; padding:12px; border-radius:8px; background:var(--mw-soft); font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .training-refined-backdrop .upload-zone { display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:180px; border:1px dashed var(--mw-line); border-radius:10px; background:var(--mw-soft); }
+@media(max-width:550px) {
+  html:root[data-appearance] .training-refined-backdrop :is(.mw-modal-head,.mw-modal-body,.mw-modal-foot) { padding-inline:20px; }
+  html:root[data-appearance] .training-refined-backdrop .mw-modal #training-session-editor { grid-template-columns:minmax(0,1fr); }
+}

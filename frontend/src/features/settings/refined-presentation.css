@@ -1,0 +1,337 @@
+/* Original Classic organisation, isolated from legacy theme layout rules. */
+html:root[data-appearance] .overview-settings.settings-workspace { --mw-paper:#fff; --mw-control:#fff; }
+html:root[data-appearance] .overview-settings.settings-workspace .overview-content { padding:24px 0; }
+html:root[data-appearance] .overview-settings.settings-workspace :is(.overview-page-heading,.overview-workspace) { width:calc(100% - 48px); margin-inline:auto; }
+html:root[data-appearance] .overview-settings.settings-workspace .overview-page-heading { gap:16px; margin-bottom:16px; }
+html:root[data-appearance] .overview-settings.settings-workspace .overview-page-heading h1 { font:500 28px/38px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .overview-nav-group h2 { font:500 14px/20px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .overview-workspace { container:settings-work / inline-size; display:block; min-height:0; background:transparent; }
+html:root[data-appearance] .overview-settings.settings-workspace .button { min-height:42px; padding:9px 14px; border-radius:8px; font:500 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .system-workspace .mw-results>.loading-block { grid-column:1/-1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section { display:grid; grid-template-columns:130px minmax(0,1fr) 108px; gap:16px 20px; margin:0; padding:24px; min-width:0; border:0; border-top:1px solid var(--mw-line); border-radius:0; box-shadow:none; background:transparent; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading { display:contents; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>div { grid-column:1; grid-row:1/3; min-width:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading h2 { font:600 18px/1.6 var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading :is(span,p) { display:block; font:12px/1.8 var(--mw-font); color:var(--mw-muted); margin-top:6px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>.button { grid-column:3; grid-row:1; align-self:start; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section>.form-error { grid-column:2/-1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-grid { grid-column:2; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:100px auto 18px; gap:8px; position:relative; min-width:0; padding:8px; border:1px solid var(--mw-line); border-radius:7px; background:var(--mw-control); color:var(--mw-ink); text-align:left; box-shadow:none; transform:none; align-content:start; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice.selected { border-color:var(--mw-accent); background:color-mix(in srgb,var(--mw-accent) 5%,var(--mw-paper)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice::before { content:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice::after { content:''; align-self:center; width:14px; height:14px; grid-column:2; grid-row:2; border:1px solid var(--mw-muted); border-radius:50%; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice.selected::after { border-color:var(--mw-accent); background:var(--mw-accent); box-shadow:inset 0 0 0 3px var(--mw-paper); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-copy { grid-column:1; grid-row:2; display:grid; gap:3px; padding:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-copy strong { font:500 13px/1.6 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-copy small { font:12px/1.5 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-current { position:static; grid-column:1/-1; grid-row:3; display:flex; gap:4px; align-items:center; padding:0; background:none; border:0; font-size:12px; color:var(--mw-accent); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-current svg { width:12px; height:12px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview { grid-column:1/-1; position:relative; display:block; height:100px; overflow:hidden; background:#eef2f6; border-radius:5px; border:1px solid #dce3e9; color:#334b60; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview i { position:absolute; display:block; font-style:normal; border-radius:2px; background:#fff; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview b { display:block; height:3px; background:#dde4eb; margin:6px; border-radius:1px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-nav { inset:6px auto 6px 5px; width:20%; padding-top:8px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-side { display:none!important; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-title { top:6px; left:28%; right:5px; padding:5px 8px; font:600 9px/14px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-tools { top:34px; left:28%; right:5px; height:14px; display:flex!important; align-items:center; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-tools b { flex:1; margin:4px; background:#dae6f2; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-lines { top:51px; left:28%; right:5px; bottom:6px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=editorial] { background:#eee6d7; color:#786756; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=editorial] .sw-preview-nav { inset:6px 5px auto; width:auto; height:13px; padding:0; display:flex; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=editorial] .sw-preview-nav b { width:15%; margin:5px; background:#ddd4c5; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=editorial] .sw-preview-title { top:26px; left:5px; width:28%; right:auto; height:30px; background:#f7f3eb; font-family:SimSun,serif; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=editorial] .sw-preview-tools { top:26px; left:37%; height:30px; background:#faf7f0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=editorial] .sw-preview-lines { top:61px; left:5px; background:#faf7f0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=spatial] { background:linear-gradient(125deg,#cfe0ef,#e9e7ed); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=spatial] .sw-preview-nav { inset:5px 15% auto; width:auto; height:14px; padding:0; display:flex; border-radius:6px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=spatial] .sw-preview-nav b { width:20%; margin:5px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=spatial] .sw-preview-title { top:25px; left:5px; height:20px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=spatial] .sw-preview-tools { top:48px; left:5px; width:22%; height:auto; bottom:6px; display:block!important; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-days { grid-column:2; display:flex; flex-wrap:wrap; gap:10px 22px; align-items:start; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-days button { display:flex; gap:7px; align-items:center; border:0; border-radius:5px; padding:8px 0; background:transparent; color:var(--mw-ink); font:13px/1.6 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-day-check { display:grid; place-items:center; width:14px; height:14px; border:1px solid var(--mw-muted); border-radius:2px; font-size:12px; line-height:1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-days [aria-pressed=true] .sw-day-check { background:var(--mw-accent); border-color:var(--mw-accent); color:white; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-day-count { flex-basis:100%; color:var(--mw-muted); font-size:12px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-duty,html:root[data-appearance] .overview-settings.settings-workspace .sw-duty>.duty-time-side { display:contents; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-grid { grid-column:2; display:grid; gap:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-option { position:relative; display:grid; grid-template-columns:minmax(0,1fr) auto 34px; align-items:center; gap:12px; min-height:66px; padding:12px 0; margin:0; border:0; border-bottom:1px solid var(--mw-line); border-radius:0; box-shadow:none; background:none; overflow:visible; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-icon { display:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-copy { grid-column:1; grid-row:1; display:grid; gap:3px; min-width:0; white-space:normal; overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-copy strong { font:500 13px/1.6 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-copy small { font:12px/1.5 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-state { grid-column:2; grid-row:1; font:12px/1.6 var(--mw-font); color:var(--mw-muted); padding:0; background:none; border:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy input[role=switch] { position:relative; grid-column:3; grid-row:1; opacity:1; appearance:none; width:34px; height:20px; min-height:20px; padding:0; border:0; background:#a9b2ba; border-radius:12px; cursor:pointer; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy input[role=switch]::after { content:''; position:absolute; left:3px; top:3px; width:14px; height:14px; background:white; border-radius:50%; box-shadow:0 1px 3px #26364830; transition:transform var(--mw-speed); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy input[role=switch]:checked { background:var(--mw-accent); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy input[role=switch]:checked::after { transform:translateX(14px); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-tabs { grid-column:2; display:grid; gap:5px; margin:0; padding:0; border:0; background:none; overflow:visible; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-tab { display:flex; justify-content:space-between; gap:8px; text-align:left; padding:10px 12px; min-height:43px; min-width:0; background:var(--mw-control); border:1px solid var(--mw-line); border-radius:5px; color:var(--mw-ink); box-shadow:none; font:13px/1.6 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-tab.selected { border-color:var(--mw-accent); box-shadow:inset 3px 0 var(--mw-accent); background:var(--mw-soft); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-tab.conflict { border-color:#b34b42; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-form { grid-column:2; margin:0; padding:12px 0 0; border:0; border-radius:8px; box-shadow:none; background:none; min-width:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-form-head { display:flex; justify-content:space-between; gap:12px; margin:0 0 10px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-form-head>div:first-child { display:flex; align-items:center; gap:10px; font-size:12px; color:var(--mw-muted); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-form-head strong { font:500 12px/1.5 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-actions { display:flex; gap:5px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-fields { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; padding:0; background:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-time-divider { display:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .field { display:grid; gap:6px; margin:0; min-width:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .field>span { font:12px/1.5 var(--mw-font); color:var(--mw-muted); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-meta { display:flex; justify-content:space-between; margin:12px 0 0; padding:0; border:0; font-size:12px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-enabled { display:flex; align-items:center; gap:8px; background:none; padding:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-enabled input { position:static; opacity:1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-enabled i { display:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-footer { grid-column:3; grid-row:2/4; display:flex; flex-direction:column-reverse; align-self:start; align-items:stretch; gap:8px; margin:0; padding:0; border:0; background:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-footer>span { font-size:12px; color:var(--mw-muted); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-error { grid-column:2/-1; margin:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods>.empty-state { grid-column:2; min-height:120px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-selector { grid-column:2; min-width:0; padding:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-grid { gap:8px; padding:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-leaf { min-height:132px; grid-template-rows:34px minmax(62px,1fr) 32px; border-color:var(--mw-line); background:var(--mw-control); box-shadow:0 2px 5px #24364808; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-cap { background:var(--mw-soft); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day:hover .weekday-calendar-leaf { border-color:color-mix(in srgb,var(--mw-accent) 48%,var(--mw-line)); box-shadow:0 10px 22px #24364812; transform:translateY(-3px) rotateX(2deg); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day:active .weekday-calendar-leaf { box-shadow:0 2px 5px #24364808; transform:translateY(1px) rotateX(-3deg) scale(.98); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day[aria-pressed=true] .weekday-calendar-leaf { border-color:color-mix(in srgb,var(--mw-accent) 60%,var(--mw-line)); background:color-mix(in srgb,var(--mw-accent) 6%,var(--mw-control)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day[aria-pressed=true] .weekday-calendar-cap { color:var(--mw-accent); background:color-mix(in srgb,var(--mw-accent) 10%,var(--mw-soft)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day[aria-pressed=true] .weekday-calendar-cap i { background:var(--mw-accent); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day[aria-pressed=true] .weekday-calendar-state { color:var(--mw-accent); border-color:color-mix(in srgb,var(--mw-accent) 28%,var(--mw-line)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-count { margin:10px 0 0; color:var(--mw-muted); font-size:12px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; border:1px solid var(--mw-line); border-radius:8px; background:var(--mw-control); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview>div { padding:12px 16px; border-right:1px solid var(--mw-line); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview>div:last-child { border-right:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview span { display:block; color:var(--mw-muted); font:12px/1.5 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview strong { display:block; margin-top:2px; color:var(--mw-ink); font:600 16px/1.5 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview small { color:var(--mw-muted); font-size:12px; font-weight:500; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-caption { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-top:3px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-caption strong { font:600 13px/1.6 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-caption span { color:var(--mw-muted); font:12px/1.5 var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-day-rail-viewport { overflow-x:auto; padding:2px 0 6px; scrollbar-width:thin; scrollbar-color:var(--mw-line) transparent; scroll-behavior:smooth; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-day-rail { position:relative; min-width:760px; height:var(--rail-height); overflow:hidden; border:1px solid var(--mw-line); border-radius:10px; background:linear-gradient(90deg,var(--mw-control) 0 33.33%,color-mix(in srgb,var(--mw-soft) 55%,var(--mw-control)) 33.33% 66.66%,var(--mw-soft) 66.66%); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-zone { position:absolute; top:9px; z-index:1; color:var(--mw-muted); font:600 12px/1 var(--mw-font); letter-spacing:.12em; text-transform:uppercase; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-zone.morning { left:4%; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-zone.afternoon { left:39%; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-zone.evening { left:73%; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-axis { position:absolute; top:60px; right:24px; left:24px; height:2px; border-radius:2px; background:color-mix(in srgb,var(--mw-accent) 24%,var(--mw-line)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-tick { position:absolute; top:52px; z-index:1; width:1px; height:18px; background:color-mix(in srgb,var(--mw-muted) 52%,var(--mw-line)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-tick small { position:absolute; top:-26px; left:50%; transform:translateX(-50%); color:var(--mw-muted); font:600 12px/1 var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-tick.major { top:48px; height:26px; background:color-mix(in srgb,var(--mw-muted) 72%,var(--mw-line)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block { position:absolute; z-index:2; top:calc(39px + var(--rail-lane) * 48px); left:var(--rail-left); width:var(--rail-width); min-width:0; height:43px; padding-inline:2px; overflow:hidden; border:1px solid color-mix(in srgb,var(--mw-accent) 42%,var(--mw-line)); border-radius:8px; background:var(--mw-paper); color:var(--mw-accent); box-shadow:0 7px 18px #24364810; font:600 12px/1 var(--mw-font); white-space:nowrap; transition:top var(--mw-speed),height var(--mw-speed),transform var(--mw-speed),box-shadow var(--mw-speed),background-color var(--mw-speed); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block::after { position:absolute; right:0; bottom:0; left:0; height:3px; background:var(--mw-accent); content:""; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block:hover { transform:translateY(-2px); box-shadow:0 12px 24px #24364818; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block.selected { top:calc(33px + var(--rail-lane) * 48px); height:55px; border-color:var(--mw-accent); background:var(--mw-accent); color:white; box-shadow:0 14px 28px color-mix(in srgb,var(--mw-accent) 22%,transparent); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block.selected::after { background:color-mix(in srgb,white 58%,var(--mw-accent)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block.disabled:not(.selected) { border-style:dashed; color:var(--mw-muted); background:var(--mw-soft); box-shadow:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block.conflict { border-color:#b34b42; background:color-mix(in srgb,#b34b42 9%,var(--mw-paper)); color:#9d3932; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block.conflict.selected { background:#a84138; color:white; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-scroll-hint { display:none; color:var(--mw-muted); font:12px/1.5 var(--mw-font); text-align:right; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:8px; margin:0; padding:0; overflow:visible; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards .duty-period-tab { display:grid; min-width:0; min-height:68px; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:11px; padding:11px 13px; border:1px solid var(--mw-line); border-radius:8px; background:var(--mw-control); color:var(--mw-ink); box-shadow:none; text-align:left; transition:border-color var(--mw-speed),background-color var(--mw-speed),box-shadow var(--mw-speed),transform var(--mw-speed); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards .duty-period-tab:hover { border-color:color-mix(in srgb,var(--mw-accent) 42%,var(--mw-line)); transform:translateY(-1px); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards .duty-period-tab.selected { border-color:color-mix(in srgb,var(--mw-accent) 58%,var(--mw-line)); background:color-mix(in srgb,var(--mw-accent) 7%,var(--mw-control)); box-shadow:inset 3px 0 var(--mw-accent),0 6px 16px #2436480b; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-card-dot { width:8px; height:8px; border-radius:50%; background:var(--mw-accent); box-shadow:0 0 0 4px color-mix(in srgb,var(--mw-accent) 12%,transparent); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-tab.disabled .duty-period-card-dot { background:#a7b0b7; box-shadow:0 0 0 4px #a7b0b71b; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-copy { display:grid; min-width:0; gap:2px; border:0; border-radius:0; padding:0; background:transparent; box-shadow:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-copy strong { color:var(--mw-ink); font:600 13px/1.5 var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-copy small { overflow:hidden; color:var(--mw-muted); font:12px/1.5 var(--mw-font); text-overflow:ellipsis; white-space:nowrap; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards em { align-self:start; padding-top:2px; color:var(--mw-muted); font:12px/1.4 var(--mw-font); font-style:normal; white-space:nowrap; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-rail-editor { display:grid; grid-template-columns:155px minmax(0,1fr) auto; align-items:end; gap:18px; margin:0; padding:18px; border:1px solid var(--mw-line); border-radius:10px; background:var(--mw-soft); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-footer { grid-column:2/-1; grid-row:auto; flex-direction:row; justify-content:space-between; align-items:center; justify-self:stretch; }
+html:root[data-appearance] .settings-refined-backdrop .mw-modal { display:flex; flex-direction:column; border:0; border-radius:16px; background:#fff; }
+html:root[data-appearance] .settings-refined-backdrop .mw-modal-head { display:flex; flex-direction:row; align-items:center; justify-content:space-between; padding:24px 26px 0; border:0; background:transparent; }
+html:root[data-appearance] .settings-refined-backdrop .mw-modal-head h2 { font:500 22px/32px var(--mw-font); }
+html:root[data-appearance] .settings-refined-backdrop .mw-modal-body { display:block; flex:1; min-height:0; overflow:auto; padding:20px 26px; font:400 14px/24px var(--mw-font); }
+html:root[data-appearance] .settings-refined-backdrop .mw-modal-foot { display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:10px; padding:16px 26px; }
+html:root[data-appearance] .settings-refined-backdrop .button { min-height:42px; border-radius:8px; font:500 14px/22px var(--mw-font); }
+
+/* A section owns its grid. No positions are inherited from theme branches. */
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section { grid-template-columns:140px minmax(0,1fr) 116px; gap:18px 24px; padding:28px 0; background:transparent; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance { border-top:0; padding-top:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>div { grid-column:1; grid-row:1/3; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>:is(.button,.duty-readonly-state) { grid-column:3; grid-row:1; justify-self:stretch; align-self:start; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading h2 { font:500 18px/28px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading :is(span,p) { font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading .sw-section-status { color:var(--mw-accent); }
+html:root[data-appearance] .overview-settings.settings-workspace :is(.appearance-choice-grid,.weekday-calendar-selector,.duty-policy-grid) { grid-column:2; grid-row:1; min-width:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .appearance-choice { grid-template-rows:88px auto 20px; padding:10px; border-radius:10px; }
+html:root[data-appearance] .overview-settings.settings-workspace .appearance-choice-copy strong { font:500 16px/24px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] { height:88px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-nav { display:block; inset:6px auto 6px 5px; width:20%; height:auto; padding-top:8px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-nav b { width:auto; margin:6px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-title { inset:6px 5px auto 28%; width:auto; height:auto; padding:5px 8px; font:500 9px/14px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-tools { display:flex!important; inset:34px 5px auto 28%; width:auto; height:14px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-lines { inset:51px 5px 6px 28%; width:auto; height:auto; }
+html:root[data-appearance] .overview-settings.settings-workspace .weekday-calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; }
+html:root[data-appearance] .overview-settings.settings-workspace .weekday-calendar-day { grid-column:auto; }
+html:root[data-appearance] .overview-settings.settings-workspace .weekday-calendar-leaf { min-height:122px; grid-template-rows:30px 60px 30px; border-radius:8px; }
+html:root[data-appearance] .overview-settings.settings-workspace .weekday-calendar-cap { padding-inline:7px; font:500 10px/18px var(--mw-font); letter-spacing:.03em; }
+html:root[data-appearance] .overview-settings.settings-workspace .weekday-calendar-body strong { font:500 16px/24px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .weekday-calendar-state { font:400 12px/20px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .duty-policy-copy strong { font:500 15px/24px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .duty-policy-copy small { font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods>:not(.sw-heading) { grid-column:2/-1; grid-row:auto; min-width:0; margin:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .sw-heading>div { grid-row:1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview { grid-row:2; background:#fff; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-caption { grid-row:3; flex-wrap:wrap; align-items:baseline; gap:6px 16px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-day-rail-viewport { grid-row:4; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-day-rail { min-width:760px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block { width:calc(var(--rail-width) - 2px); min-width:0; padding:0; font:500 12px/18px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-block span { display:block; overflow:hidden; text-overflow:ellipsis; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards { grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards .duty-period-tab.disabled.selected { border-color:var(--mw-muted); background:var(--mw-soft); box-shadow:inset 3px 0 var(--mw-muted); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards .duty-period-tab.conflict.selected { border-color:#b34b42; background:#fff2f0; box-shadow:inset 3px 0 #b34b42; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-rail-editor { display:block; padding:18px; background:var(--overview-chat); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-form-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-form-head>div:first-child { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:baseline; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-form-head strong { font:500 18px/28px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-fields { display:grid; grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr); gap:12px; align-items:end; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-time-divider { display:block; padding-bottom:10px; color:var(--mw-muted); text-align:center; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .field input { min-width:0; width:100%; height:42px; border-radius:8px; background:#fff; font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-footer { flex-direction:row; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; }
+@container settings-work (max-width:850px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-section { grid-template-columns:130px minmax(0,1fr); gap:16px 20px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>:is(.button,.duty-readonly-state) { grid-column:2; grid-row:2; justify-self:end; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .sw-heading>.button { grid-row:1; }
+}
+@container settings-work (max-width:600px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-section { display:flex; flex-direction:column; gap:16px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-heading { display:flex; flex-wrap:wrap; align-items:start; justify-content:space-between; gap:12px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>div { flex:1 1 180px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>:is(.button,.duty-readonly-state) { flex:none; }
+  html:root[data-appearance] .overview-settings.settings-workspace .weekday-calendar-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-caption span { display:none; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-scroll-hint { display:block; }
+}
+@container settings-work (max-width:400px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .appearance-choice-grid { grid-template-columns:minmax(0,1fr); }
+  html:root[data-appearance] .overview-settings.settings-workspace .appearance-choice { grid-template-columns:100px minmax(0,1fr) 16px; grid-template-rows:48px 20px; min-height:98px; gap:4px 8px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .appearance-choice .sw-preview { grid-column:1; grid-row:1/3; height:72px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .appearance-choice-copy { grid-column:2; grid-row:1; align-self:end; }
+  html:root[data-appearance] .overview-settings.settings-workspace .appearance-choice::after { grid-column:3; grid-row:1/3; }
+  html:root[data-appearance] .overview-settings.settings-workspace .appearance-current { grid-column:2; grid-row:2; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-fields { grid-template-columns:minmax(0,1fr); }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-time-divider { display:none; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview>div { padding:10px 8px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-overview strong { font-size:13px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .duty-policy-option { grid-template-columns:minmax(0,1fr) 34px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .duty-policy-state { display:none; }
+  html:root[data-appearance] .overview-settings.settings-workspace .duty-policy-option input[role=switch] { grid-column:2; }
+}
+@media(max-width:550px) {
+  html:root[data-appearance] .overview-settings.settings-workspace :is(.overview-page-heading,.overview-workspace) { width:calc(100% - 32px); }
+  html:root[data-appearance] .overview-settings.settings-workspace .overview-page-heading h1 { font-size:24px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .overview-settings.settings-workspace :is(.weekday-calendar-leaf,.duty-rail-block,.duty-period-tab,input[role=switch]::after) { transition:none; transform:none; }
+  html:root[data-appearance] .overview-settings.settings-workspace .duty-day-rail-viewport { scroll-behavior:auto; }
+}
+
+/* Approved settings polish: one label/control rhythm with independent save actions. */
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section { grid-template-columns:130px minmax(0,1fr); gap:14px 20px; padding:24px 0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>div { grid-column:1; grid-row:1/span 2; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>.button { grid-column:2; grid-row:2; justify-self:end; }
+html:root[data-appearance] .overview-settings.settings-workspace .button.primary:disabled { opacity:1; background:#fff; border-color:var(--mw-line); color:var(--mw-muted); box-shadow:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .settings-save-error { grid-column:2; margin:0; color:var(--danger,#b42318); font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice { grid-template-columns:minmax(0,1fr); grid-template-rows:72px auto 20px; gap:8px; padding:10px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice::after { content:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-copy { grid-column:1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-current { grid-column:1; color:var(--mw-muted); font:400 12px/20px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-current.is-draft { color:var(--mw-accent); font-weight:500; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] { height:72px; --preview-accent:#4f91b7; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme=editorial] { --preview-accent:#b58c61; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-brand { inset:5px 6px auto; height:10px; display:flex; align-items:center; gap:4px; background:transparent; color:inherit; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-brand b { width:8px; height:8px; margin:0; border:1px solid currentColor; border-radius:50%; background:transparent; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-brand span { font:500 6px/10px var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-nav { inset:21px auto 5px 6px; width:23%; height:auto; padding:0; background:transparent; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-nav b { height:11px; margin:0 0 4px; border-radius:3px; background:#fff; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview[data-theme] .sw-preview-work { inset:21px 6px 5px 33%; display:block; border-radius:4px; background:#fff; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-reply { position:absolute; left:6px; top:8px; width:52%; height:7px; border-radius:3px; background:color-mix(in srgb,var(--preview-accent) 15%,white); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-preview-input { position:absolute; left:6px; right:6px; bottom:6px; height:9px; border-radius:3px; background:color-mix(in srgb,var(--preview-accent) 15%,white); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-leaf { min-height:108px; grid-template-rows:28px 48px 30px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-body { align-content:center; }
+html:root[data-appearance] .overview-settings.settings-workspace .duty-policy-grid { display:grid; grid-template-columns:minmax(0,1fr); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-option { grid-template-columns:minmax(0,1fr) 52px; column-gap:24px; row-gap:0; min-height:72px; padding:12px 0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-option input[role=switch] { grid-column:2; grid-row:1; justify-self:center; align-self:center; min-width:34px; max-width:34px; margin:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-option:last-child { border-bottom:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-policy .duty-policy-copy strong { font:500 15px/24px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .sw-heading>div { grid-row:1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .sw-heading>.button { grid-row:1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-caption { grid-row:2; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-day-rail-viewport { grid-row:3; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-footer { grid-column:2; }
+@container settings-work (max-width:600px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-section { display:flex; padding:20px 0; gap:14px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-heading { display:contents; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>div { order:0; flex:none; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-heading>.button { order:2; align-self:end; }
+  html:root[data-appearance] .overview-settings.settings-workspace .settings-save-error { order:3; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .sw-heading>.button { order:0; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .settings-save-error { order:0; }
+}
+@container settings-work (max-width:400px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice { grid-template-columns:84px minmax(0,1fr); grid-template-rows:auto 20px; min-height:88px; gap:4px 12px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice .sw-preview { grid-column:1; grid-row:1/3; height:60px; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-copy { grid-column:2; grid-row:1; align-self:end; }
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-current { grid-column:2; grid-row:2; }
+}
+
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day[aria-pressed=true] .weekday-calendar-leaf { transform:none; }
+html:root[data-appearance] .overview-settings.settings-workspace :is(.sw-heading>.button,.duty-period-footer>.button) { min-width:128px; }
+
+@container settings-work (max-width:600px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+@container settings-work (max-width:400px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-grid { grid-template-columns:minmax(0,1fr); }
+}
+
+/* Section headings own actions; all controls now sit below their heading. */
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section { display:flex; flex-direction:column; gap:18px; padding:26px 0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section>.sw-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; order:0; width:100%; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section .sw-heading>div { grid-column:auto; grid-row:auto; flex:none; min-width:0; order:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section .sw-heading>.button { grid-column:auto; grid-row:auto; align-self:auto; margin-left:auto; order:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section .sw-heading h2 { margin:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section>.settings-save-error { order:0; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-section .sw-heading>.settings-section-actions { display:flex; align-items:center; flex-wrap:wrap; justify-content:end; gap:8px; margin-left:auto; }
+html:root[data-appearance] .overview-settings.settings-workspace .settings-section-actions>.button { min-width:128px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods>:not(.sw-heading) { width:100%; align-self:stretch; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-footer { justify-content:start; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice { grid-template-columns:minmax(0,1fr); grid-template-rows:144px auto 20px; padding:10px; gap:10px; border-radius:10px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .settings-appearance-preview { grid-column:1; grid-row:1; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-copy { grid-column:1; grid-row:2; align-self:start; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-current { grid-column:1; grid-row:3; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-leaf { border-radius:10px; box-shadow:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-day:hover .weekday-calendar-leaf { transform:none; box-shadow:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-weekdays .weekday-calendar-cap { background:color-mix(in srgb,var(--mw-accent) 4%,white); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods :is(.duty-day-rail,.duty-period-tab,.duty-period-rail-editor) { border-radius:10px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods :is(.duty-rail-block,.duty-rail-block:hover,.duty-rail-block.selected) { box-shadow:none; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-rail-zone { opacity:.48; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards .duty-period-tab.selected { box-shadow:inset 3px 0 var(--mw-accent); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-rail-editor { border:1px solid var(--mw-line); background:color-mix(in srgb,var(--mw-accent) 4%,white); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-actions>.icon-button { width:34px; height:34px; border-radius:8px; box-shadow:none; }
+@container settings-work (max-width:600px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-section { gap:16px; padding:22px 0; }
+}
+
+
+html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards { grid-template-columns:repeat(4,minmax(0,1fr)); }
+@container settings-work (max-width:1000px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container settings-work (max-width:500px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-periods .duty-period-cards { grid-template-columns:minmax(0,1fr); }
+}
+
+/* Readable, interactive theme samples replace miniatures without nested controls. */
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice { grid-template-rows:202px auto 20px; }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-style-sample .sample-heading { font:500 20px/28px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-style-sample .sample-copy { font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-style-sample .sample-action { height:42px; min-height:42px; padding:9px 14px; font:500 14px/22px var(--mw-font); border-radius:8px; transition:background var(--mw-speed),border-color var(--mw-speed),transform var(--mw-speed); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-style-sample:hover .sample-action,
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice:focus-visible .sample-action { background:var(--sample-hover); }
+html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice:disabled .sample-action { cursor:default; }
+@media(prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-style-sample .sample-action { transition:none; transform:none; }
+}
+
+@container settings-work (max-width:600px) {
+  html:root[data-appearance] .overview-settings.settings-workspace .sw-appearance .appearance-choice-grid { grid-template-columns:minmax(0,1fr); }
+}

@@ -1,0 +1,128 @@
+/* One Classic record layout; the approved shell supplies each theme's colors and font. */
+html:root[data-appearance] .overview-attendance { --mw-paper:#fff; --mw-control:#fff; }
+html:root[data-appearance] .overview-attendance .overview-content { display:flex; flex-direction:column; padding:24px 0 20px; }
+html:root[data-appearance] .overview-attendance :is(.overview-page-heading,.overview-workspace) { width:calc(100% - 48px); margin-inline:auto; }
+html:root[data-appearance] .overview-attendance .overview-page-heading { flex:0 0 auto; margin-bottom:16px; }
+html:root[data-appearance] .overview-attendance .overview-page-heading h1 { font:500 28px/38px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .attendance-page-actions { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:10px; }
+html:root[data-appearance] .overview-attendance .attendance-page-actions .button { min-height:44px; padding:0 18px; border-radius:8px; font:500 15px/24px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .attendance-page-actions svg { width:16px; height:16px; }
+html:root[data-appearance] .overview-attendance .overview-workspace { container:attendance-records / inline-size; display:flex; flex-direction:column; flex:1; min-height:0; border:0; background:transparent; box-shadow:none; }
+html:root[data-appearance] .overview-attendance .attendance-filter { display:grid; grid-template-columns:minmax(128px,1fr) minmax(128px,1fr) minmax(160px,1.3fr) minmax(104px,.8fr) auto; align-items:end; gap:12px; flex:0 0 auto; margin:0 0 12px; padding:16px; border:0; border-radius:12px; background:var(--overview-chat); }
+html:root[data-appearance] .overview-attendance .attendance-filter label { display:grid; gap:7px; min-width:0; color:var(--mw-muted); font:400 14px/20px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .attendance-filter :is(input,select) { width:100%; min-width:0; height:42px; padding:0 10px; border:1px solid var(--mw-line); border-radius:8px; background:#fff; color:var(--mw-ink); font:400 14px/22px var(--mw-font); box-shadow:none; }
+html:root[data-appearance] .overview-attendance .attendance-filter .button { min-width:78px; min-height:42px; height:42px; padding:0 12px; border-radius:8px; font:500 14px/22px var(--mw-font); background:#fff; box-shadow:none; }
+html:root[data-appearance] .overview-attendance .attendance-filter svg { width:16px; height:16px; }
+html:root[data-appearance] .overview-attendance .attendance-results-summary { display:flex; align-items:center; flex-wrap:wrap; gap:5px 14px; flex:0 0 auto; padding:10px 0 12px; min-height:44px; border:0; background:transparent; box-shadow:none; }
+html:root[data-appearance] .overview-attendance .attendance-results-summary__title { display:flex; align-items:baseline; gap:8px; color:var(--mw-ink); font:500 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .attendance-results-summary__title strong { color:var(--mw-ink); font-weight:500; font-variant-numeric:tabular-nums; }
+html:root[data-appearance] .overview-attendance .attendance-results-summary__range { color:var(--mw-muted); font:400 13px/22px var(--mw-font); font-variant-numeric:tabular-nums; }
+html:root[data-appearance] .overview-attendance .attendance-query-status { margin-left:auto; color:var(--mw-muted); font:400 12px/20px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .attendance-table-scroll { flex:1; min-height:0; max-height:none; overflow:auto; margin:0; border-block:1px solid var(--mw-line); background:transparent; }
+html:root[data-appearance] .overview-attendance .attendance-table-scroll:focus-visible { outline:2px solid color-mix(in srgb,var(--mw-accent) 55%,transparent); outline-offset:0; }
+html:root[data-appearance] .overview-attendance .attendance-table { width:100%; min-width:700px; table-layout:fixed; border-collapse:collapse; background:transparent; }
+html:root[data-appearance] .overview-attendance .attendance-col-person { width:20%; }
+html:root[data-appearance] .overview-attendance .attendance-col-date { width:16%; }
+html:root[data-appearance] .overview-attendance .attendance-col-time { width:12%; }
+html:root[data-appearance] .overview-attendance .attendance-col-duration { width:14%; }
+html:root[data-appearance] .overview-attendance .attendance-col-status { width:12%; }
+html:root[data-appearance] .overview-attendance .attendance-col-actions { width:14%; }
+html:root[data-appearance] .overview-attendance .attendance-table thead { position:sticky; top:0; z-index:2; background:#fff; box-shadow:0 1px var(--mw-line); }
+html:root[data-appearance] .overview-attendance .attendance-table :is(th,td) { padding:12px; border:0; border-bottom:1px solid color-mix(in srgb,var(--mw-line) 65%,transparent); background:transparent; color:var(--mw-ink); font:400 14px/22px var(--mw-font); text-align:left; vertical-align:middle; font-variant-numeric:tabular-nums; }
+html:root[data-appearance] .overview-attendance .attendance-table th { height:46px; padding-block:10px; color:var(--mw-muted); font-weight:400; white-space:nowrap; }
+html:root[data-appearance] .overview-attendance .attendance-table td { height:76px; }
+html:root[data-appearance] .overview-attendance .attendance-table tbody tr:last-child td { border-bottom:0; }
+/* Paint the highlight once, on cells, without an opaque row layer underneath. */
+html:root[data-appearance] .overview-attendance .attendance-table tbody tr,
+html:root[data-appearance] .overview-attendance .attendance-table tbody :is(tr:hover,tr:focus-within) { background:transparent; box-shadow:none; transition:none; }
+html:root[data-appearance] .overview-attendance .attendance-table tbody :is(tr:hover,tr:focus-within) td { background:color-mix(in srgb,var(--mw-accent) 6%,transparent); }
+html:root[data-appearance] .overview-attendance .daily-person { min-width:0; }
+html:root[data-appearance] .overview-attendance .daily-person strong { display:block; font:500 20px/28px var(--mw-font); color:var(--mw-ink); overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-attendance .daily-person small { display:block; margin-top:3px; color:var(--mw-muted); font:400 13px/20px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .attendance-date time { color:var(--mw-muted); font:400 14px/22px var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-attendance .attendance-clock time { display:block; color:var(--mw-ink); font:500 20px/28px var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-attendance .attendance-clock small { margin-top:2px; font:400 12px/18px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .daily-outcome strong { display:block; font:500 17px/26px var(--mw-font); color:var(--mw-ink); }
+html:root[data-appearance] .overview-attendance .daily-outcome small { display:block; margin-top:2px; color:var(--mw-muted); font:400 12px/18px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .status-badge { padding:2px 6px; border:0; border-radius:5px; font:400 13px/20px var(--mw-font); white-space:nowrap; }
+html:root[data-appearance] .overview-attendance .attendance-table .row-actions { white-space:nowrap; text-align:right; }
+html:root[data-appearance] .overview-attendance .attendance-table .icon-button { width:34px; height:34px; min-height:34px; padding:0; border:0; border-radius:8px; background:transparent; box-shadow:none; color:var(--mw-muted); }
+html:root[data-appearance] .overview-attendance .attendance-table .icon-button + .icon-button { margin-left:6px; }
+html:root[data-appearance] .overview-attendance .attendance-table .icon-button svg { width:16px; height:16px; }
+html:root[data-appearance] .overview-attendance .attendance-table .icon-button:hover:not(:disabled) { background:var(--overview-chat); color:var(--mw-accent); }
+html:root[data-appearance] .overview-attendance .attendance-table .danger-ghost:hover:not(:disabled) { background:#a14c460d; color:#a14c46; }
+html:root[data-appearance] .overview-attendance .attendance-action-reason { display:block; margin:0 0 5px; color:var(--mw-muted); font:400 12px/18px var(--mw-font); white-space:normal; overflow-wrap:anywhere; }
+html:root[data-appearance] .overview-attendance .pagination { display:flex; align-items:center; justify-content:space-between; flex:0 0 auto; flex-wrap:wrap; min-height:56px; padding:12px 0 0; margin:0; gap:10px; color:var(--mw-muted); font:400 13px/22px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .pagination>div { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+html:root[data-appearance] .overview-attendance .pagination .button { min-height:36px; padding:5px 10px; border-radius:8px; font:400 13px/22px var(--mw-font); background:#fff; box-shadow:none; }
+html:root[data-appearance] .overview-attendance .pagination svg { width:14px; height:14px; }
+html:root[data-appearance] .overview-attendance .inline-alert { flex:0 0 auto; margin:0 0 12px; }
+html:root[data-appearance] .overview-attendance :is(.loading-block,.empty-state) { flex:1; min-height:180px; }
+html:root[data-appearance] .overview-attendance .empty-state { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px; color:var(--mw-muted); text-align:center; }
+html:root[data-appearance] .overview-attendance .empty-state>svg { width:28px; height:28px; }
+html:root[data-appearance] .overview-attendance .empty-state strong { color:var(--mw-ink); font:500 22px/32px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .empty-state p { font:400 14px/24px var(--mw-font); }
+html:root[data-appearance] .overview-attendance .attendance-mobile-list { display:none; }
+/* Dialog appearance is local to this page; existing locks and draft guards remain. */
+html:root[data-appearance] .attendance-dialog-backdrop { --mw-font:"Noto Sans SC","Segoe UI","Microsoft YaHei UI",sans-serif; background:#172b4033; backdrop-filter:none; }
+html:root[data-appearance="editorial"] .attendance-dialog-backdrop { --mw-font:"Noto Serif SC","Source Han Serif SC","SimSun",serif; }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal { display:flex; flex-direction:column; width:min(660px,100%); border:0; border-radius:16px; background:#fff; box-shadow:0 16px 60px #172b4026; }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal.modal-sm { width:min(520px,100%); }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal .mw-modal-head { display:flex; flex-direction:row; align-items:center; justify-content:space-between; padding:24px 26px 0; border:0; background:transparent; }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal-head h2 { font:500 22px/32px var(--mw-font); }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal-head .icon-button { width:32px; height:32px; min-height:32px; border:0; background:transparent; box-shadow:none; }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal-body { padding:22px 26px; font:400 15px/26px var(--mw-font); }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal-foot { padding:0 26px 24px; border:0; background:transparent; gap:12px; }
+html:root[data-appearance] .attendance-dialog-backdrop .mw-modal-foot .button { min-width:100px; min-height:44px; border-radius:8px; font:500 15px/24px var(--mw-font); }
+html:root[data-appearance] .attendance-dialog-backdrop .form-grid.two { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+html:root[data-appearance] .attendance-dialog-backdrop .span-2 { grid-column:1/-1; }
+html:root[data-appearance] .attendance-dialog-backdrop .field { display:grid; min-width:0; gap:7px; color:var(--mw-muted); font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .attendance-dialog-backdrop .field :is(input,select,textarea) { width:100%; min-width:0; padding:10px 12px; border-radius:8px; background:#fff; font:400 15px/22px var(--mw-font); }
+html:root[data-appearance] .attendance-dialog-backdrop .attendance-editor-context { display:flex; align-items:baseline; flex-wrap:wrap; gap:5px 14px; margin-bottom:20px; padding:0; border:0; background:transparent; }
+html:root[data-appearance] .attendance-dialog-backdrop .attendance-editor-context strong { font:500 22px/30px var(--mw-font); }
+html:root[data-appearance] .attendance-dialog-backdrop .attendance-editor-context span { color:var(--mw-muted); font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .attendance-dialog-backdrop .attendance-reevaluate { display:flex; align-items:flex-start; gap:10px; margin-top:2px; }
+html:root[data-appearance] .attendance-dialog-backdrop .attendance-reevaluate input { width:16px; height:16px; margin-top:4px; }
+html:root[data-appearance] .attendance-dialog-backdrop .attendance-reevaluate strong { display:block; font-weight:400; }
+html:root[data-appearance] .attendance-dialog-backdrop .attendance-reevaluate small { display:block; color:var(--mw-muted); font:400 13px/22px var(--mw-font); }
+@container attendance-records (max-width:710px) {
+  html:root[data-appearance] .overview-attendance .attendance-filter { grid-template-columns:repeat(2,minmax(0,1fr)); padding:14px; }
+  html:root[data-appearance] .overview-attendance .attendance-filter .filter-grow { grid-column:1/-1; }
+  html:root[data-appearance] .overview-attendance .attendance-table { display:none; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-list { display:block; list-style:none; padding:0; margin:0; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record { padding:18px 4px; border-bottom:1px solid var(--mw-line); }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record:last-child { border-bottom:0; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__person { display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 12px; min-width:0; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__person strong { width:100%; color:var(--mw-ink); font:500 21px/30px var(--mw-font); overflow-wrap:anywhere; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__person :is(span,time) { color:var(--mw-muted); font:400 13px/22px var(--mw-font); }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__times { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:16px 0; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__times small { display:block; color:var(--mw-muted); font:400 13px/22px var(--mw-font); }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__times time { color:var(--mw-ink); font:500 21px/30px var(--mw-font); }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__foot { display:flex; align-items:flex-end; flex-wrap:wrap; justify-content:space-between; gap:12px; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__duration strong { display:block; font:500 17px/26px var(--mw-font); }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__duration small { display:block; color:var(--mw-muted); font:400 12px/20px var(--mw-font); }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__actions { display:flex; gap:8px; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__actions .button { min-height:36px; padding:5px 10px; font:400 13px/22px var(--mw-font); border-radius:8px; background:#fff; box-shadow:none; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-record__actions svg { width:14px; height:14px; }
+  html:root[data-appearance] .overview-attendance .attendance-mobile-delete { color:#a14c46; }
+}
+@container attendance-records (max-width:340px) {
+  html:root[data-appearance] .overview-attendance .attendance-filter { grid-template-columns:minmax(0,1fr); }
+  html:root[data-appearance] .overview-attendance .attendance-query-status { margin-left:0; }
+  html:root[data-appearance] .overview-attendance .pagination { gap:8px; }
+  html:root[data-appearance] .overview-attendance .pagination>div { gap:7px; }
+}
+@media(max-width:900px) {
+  html:root[data-appearance] .overview-attendance .overview-content { display:block; }
+  html:root[data-appearance] .overview-attendance .attendance-table-scroll { max-height:56dvh; }
+}
+@media(max-width:550px) {
+  html:root[data-appearance] .overview-attendance :is(.overview-page-heading,.overview-workspace) { width:calc(100% - 32px); }
+  html:root[data-appearance] .overview-attendance .overview-page-heading { flex-wrap:wrap; gap:12px; }
+  html:root[data-appearance] .overview-attendance .overview-page-heading h1 { font-size:24px; }
+  html:root[data-appearance] .overview-attendance .attendance-page-actions { margin-left:auto; }
+  html:root[data-appearance] .attendance-dialog-backdrop .form-grid.two { grid-template-columns:minmax(0,1fr); }
+  html:root[data-appearance] .attendance-dialog-backdrop :is(.mw-modal-head,.mw-modal-body,.mw-modal-foot) { padding-inline:20px; }
+  html:root[data-appearance] .attendance-dialog-backdrop .mw-modal-foot .button { flex:1; min-width:0; }
+}

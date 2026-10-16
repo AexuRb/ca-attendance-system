@@ -9,12 +9,12 @@
         <label v-if="canRestore" class="button secondary bw-file-button"><Upload aria-hidden="true" />从文件恢复
           <input type="file" name="backup-restore-file" aria-label="选择需要恢复的备份文件" accept=".zip" @change="$emit('pick-restore', $event)" />
         </label>
-        <button class="button primary" type="button" :disabled="createPending" @click="$emit('request-create')"><DatabaseBackup aria-hidden="true" />{{ createPending ? '正在备份' : '立即备份' }}</button>
+        <button data-button-kind="soft" class="button primary" type="button" :disabled="createPending" @click="$emit('request-create')"><DatabaseBackup aria-hidden="true" />{{ createPending ? '正在备份' : '立即备份' }}</button>
       </div>
       <p v-if="restoreFileError" class="form-error" role="alert">{{ restoreFileError }}</p>
     </aside>
     <div class="bw-records" :class="{ 'drawer-open': Boolean(selected) }">
-      <header class="bw-record-head"><div><h2>备份档案</h2><span>共 {{ backups.length }} 份</span></div><label class="bw-search"><Search aria-hidden="true" /><input v-model.trim="query" name="backup-search" aria-label="搜索备份" autocomplete="off" placeholder="搜索日期或文件名…" /></label></header>
+      <header class="bw-record-head"><div><h2>备份档案</h2></div><label class="bw-search"><Search aria-hidden="true" /><input v-model.trim="query" name="backup-search" aria-label="搜索备份" autocomplete="off" placeholder="搜索日期或文件名…" /></label></header>
       <div class="bw-body">
         <div class="data-backup-list-pane">
           <LoadingBlock v-if="loading" label="正在加载备份" />
@@ -24,9 +24,9 @@
               <thead><tr><th class="bw-date">创建时间</th><th>备份文件</th><th class="bw-size">大小</th><th class="bw-actions">操作</th></tr></thead>
               <tbody><tr v-for="item in filteredBackups" :key="item.filename" :class="{ selected: selected?.filename === item.filename }">
                 <td class="bw-date">{{ dateTime(item.createdAt) }}</td>
-                <td><button class="bw-filename" type="button" :aria-label="`查看备份详情：${item.filename}`" aria-controls="data-backup-details" :aria-expanded="selected?.filename === item.filename" @click="selectBackup(item)"><FileArchive aria-hidden="true" /><span><strong>{{ item.filename }}</strong><small>完整业务数据</small></span></button><small class="bw-inline-meta"><span class="bw-inline-date">{{ dateTime(item.createdAt) }}</span><span class="bw-inline-size">{{ bytes(item.size) }}</span></small></td>
+                <td><button class="bw-filename" type="button" :aria-label="`查看备份详情：${item.filename}`" aria-controls="data-backup-details" :aria-expanded="selected?.filename === item.filename" @click="selectBackup(item)"><FileArchive aria-hidden="true" /><span><strong>{{ backupTitle(item.createdAt) }}</strong><small>{{ item.filename }}</small></span></button><small class="bw-inline-meta">{{ bytes(item.size) }}</small></td>
                 <td class="bw-size">{{ bytes(item.size) }}</td>
-                <td class="bw-actions"><div><button class="icon-button" type="button" title="下载备份" :aria-label="`下载备份：${item.filename}`" @click="$emit('download', item)"><Download aria-hidden="true" /></button><button v-if="canDelete" class="icon-button danger-ghost" type="button" title="删除备份" :aria-label="`删除备份：${item.filename}`" @click="$emit('request-delete', item)"><Trash2 aria-hidden="true" /></button></div></td>
+                <td class="bw-actions"><div><button class="icon-button bw-download-action" type="button" title="下载备份" :aria-label="`下载备份：${item.filename}`" @click="$emit('download', item)"><Download aria-hidden="true" /></button><button v-if="canDelete" class="icon-button danger-ghost bw-delete-action" type="button" title="删除备份" :aria-label="`删除备份：${item.filename}`" @click="$emit('request-delete', item)"><Trash2 aria-hidden="true" /></button></div></td>
               </tr></tbody>
             </table>
           </div>
@@ -37,6 +37,7 @@
           title="可下载恢复点"
           close-label="关闭备份详情"
           panel-class="data-backup-drawer"
+          surface-class="backup-refined-drawer"
           panel-id="data-backup-details"
           @close="selected = null"
         >
@@ -49,12 +50,12 @@
               <div><dt>数据范围</dt><dd>完整业务数据</dd></div>
             </dl>
             <div class="data-detail-actions">
-              <button class="button primary" type="button" @click="$emit('download', selected)">
+              <button data-button-kind="soft" class="button primary bw-download-action" type="button" @click="$emit('download', selected)">
                 <Download aria-hidden="true" />下载备份
               </button>
               <button
                 v-if="canDelete"
-                class="button danger"
+                class="button danger bw-delete-action"
                 type="button"
                 @click="$emit('request-delete', selected)"
               >
@@ -159,6 +160,13 @@ function selectBackup(item: BackupItem) {
 
 function dateTime(value: string) {
   return new Date(value).toLocaleString("zh-CN", { hour12: false });
+}
+
+function backupTitle(value: string) {
+  return new Date(value).toLocaleString("zh-CN", {
+    year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
 }
 
 function shortDate(value: string) {

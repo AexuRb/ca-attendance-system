@@ -3,7 +3,7 @@
     <Transition name="repair-drawer">
       <div
         v-if="open && item"
-        class="repair-drawer-backdrop" :class="{'affairs-detail mw-scope': refined}"
+        class="repair-drawer-backdrop" :class="[backdropClass, {'affairs-detail mw-scope': refined}]"
         @mousedown.self="$emit('close')"
       >
         <aside
@@ -61,8 +61,9 @@
                 <dd>
                   <strong>{{ item.ownerName }}</strong>
                   <span>
-                    {{ phoneVisible ? item.ownerPhone : maskRepairPhone(item.ownerPhone) }}
-                    <button
+                    {{ phoneVisible && item.ownerPhone?.trim() ? item.ownerPhone : maskRepairPhone(item.ownerPhone) }}
+                    <button data-button-kind="icon"
+                      v-if="item.ownerPhone?.trim()"
                       class="repair-phone-toggle"
                       type="button"
                       :aria-label="phoneVisible ? '隐藏完整电话' : '显示完整电话'"
@@ -86,7 +87,7 @@
               </div>
               <div>
                 <dt><CircleCheck aria-hidden="true" />{{ endTimeLabel }}</dt>
-                <dd>{{ repairDateTime(item.completedAt || item.updatedAt) }}</dd>
+                <dd>{{ repairDateTime(item.status === 'COMPLETED' ? item.completedAt || item.updatedAt : item.updatedAt) }}</dd>
               </div>
             </dl>
 
@@ -118,7 +119,7 @@
           </div>
 
           <footer class="repair-detail-actions">
-            <button v-if="canManage" class="button primary" type="button" @click="$emit('process', item)"><Wrench aria-hidden="true" />更新处理</button>
+            <button data-button-kind="action" v-if="canManage" class="button primary" type="button" @click="$emit('process', item)"><Wrench aria-hidden="true" />更新处理</button>
             <button
               class="button secondary"
               type="button"
@@ -182,6 +183,7 @@ import type { RepairCase } from "./repairTypes";
 
 const props = defineProps<{
   open: boolean;
+  backdropClass?: string;
   item: RepairCase | null;
   phoneVisible: boolean;
   canManage: boolean;
@@ -224,8 +226,6 @@ const statusTone = computed(() => {
 const endTimeLabel = computed(() =>
   props.item?.status === "COMPLETED"
     ? "完成时间"
-    : props.item?.status === "CANCELED"
-      ? "最后更新"
-      : "最近更新",
+    : "最近更新时间",
 );
 </script>

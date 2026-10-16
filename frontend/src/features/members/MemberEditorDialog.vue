@@ -1,5 +1,6 @@
 <template>
   <ModalDialog
+    :backdrop-class="backdropClass"
     :open="open"
     :title="member ? '编辑成员' : '新增成员'"
     eyebrow="MEMBER PROFILE"
@@ -115,7 +116,8 @@
         取消
       </button>
       <button
-        class="button primary"
+        class="button primary member-editor-save"
+        data-button-kind="action"
         type="submit"
         form="member-editor-form"
         :disabled="busy"
@@ -125,6 +127,7 @@
     </template>
   </ModalDialog>
   <ConfirmDialog
+    :backdrop-class="backdropClass"
     :open="unsaved.confirmOpen.value"
     title="放弃未保存修改"
     message="成员资料尚未保存，确定放弃修改吗？"
@@ -152,6 +155,7 @@ import type {
 } from "./memberDirectory";
 
 const props = defineProps<{
+  backdropClass?: string;
   open: boolean;
   member: MemberSummary | null;
   operatorRole?: string;

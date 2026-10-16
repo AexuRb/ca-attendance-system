@@ -2,6 +2,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import StatsPage from "./StatsPage.vue";
+import { statsVisits } from "../../features/stats/statsNavigation";
 
 const apiGet = vi.fn();
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
@@ -44,7 +45,7 @@ afterEach(() => {
 });
 
 describe("StatsPage request states", () => {
-  it("filters and sorts loaded results without changing the full-range metrics or fetching", async () => {
+  it("orders all loaded results by total hours while retaining full-range metrics", async () => {
     const members = [{ ...row('甲'), userId: 1, studentNo: '9900000001', trainingHours: 5, attendanceHours: 1, totalHours: 6 },
       { ...row('乙'), userId: 2, studentNo: '9900000002', trainingHours: 1, attendanceHours: 9, totalHours: 10 }];
     apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('weekly-detail') ? { days: [], users: members, cells: {} } : members));
@@ -52,14 +53,10 @@ describe("StatsPage request states", () => {
     await flushPromises();
     await wrapper.findAll('.segmented button')[1].trigger('click');
     await flushPromises();
-    const calls = apiGet.mock.calls.length;
-    await wrapper.get('.stats-result-tools select').setValue('training');
-    expect(wrapper.findAll('.stats-ranking-table tbody tr')[0].text()).toContain('甲');
-    await wrapper.get('.stats-result-tools input').setValue('000002');
-    expect(wrapper.findAll('.stats-ranking-table tbody tr')).toHaveLength(1);
-    expect(wrapper.get('.stats-result-tools').text()).toContain('全范围 2 人 · 筛出 1 人');
+    expect(wrapper.findAll('.stats-ranking-table tbody tr')[0].text()).toContain('乙');
+    expect(wrapper.findAll('.stats-ranking-table tbody tr')).toHaveLength(2);
+    expect(wrapper.get('.stats-result-tools').text()).toContain('统计成员 2 人');
     expect(wrapper.get('.workspace-metric-hours').text()).toContain('16');
-    expect(apiGet.mock.calls.length).toBe(calls);
     wrapper.unmount();
   });
 
@@ -180,11 +177,11 @@ describe("StatsPage request states", () => {
     expect(wrapper.get(".stats-metrics").text()).toContain("—");
     expect(wrapper.get(".stats-results").text()).toContain("统计结果暂不可用");
     expect(wrapper.find(".weekly-stats-table").exists()).toBe(false);
-    expect(wrapper.get('button[title="请先完成统计，再导出当前日期范围"]').attributes("disabled")).toBeDefined();
+    expect(wrapper.find('.stats-export').exists()).toBe(false);
     wrapper.unmount();
   });
 
-  it("requires applying changed dates before exporting", async () => {
+  it("requires applying changed dates before replacing the displayed statistics", async () => {
     apiGet.mockImplementation((url: string) => Promise.resolve(
       url.includes("weekly-detail")
         ? { days: [], users: [row("示例成员")], cells: {} }
@@ -192,15 +189,14 @@ describe("StatsPage request states", () => {
     ));
     const wrapper = mount(StatsPage);
     await flushPromises();
-    const exportButton = wrapper.get('button[title="导出当前统计结果"]');
-    expect(exportButton.attributes("disabled")).toBeUndefined();
+    expect(wrapper.find('.stats-export').exists()).toBe(false);
 
     await wrapper.get('input[name="statsFrom"]').setValue("2026-01-01");
-    expect(wrapper.get('button[title="请先完成统计，再导出当前日期范围"]').attributes("disabled")).toBeDefined();
+    expect(wrapper.find('.stats-export').exists()).toBe(false);
     expect(wrapper.get(".stats-results-context").text()).toContain("日期已修改，点击“统计”应用");
     await wrapper.get("form").trigger("submit");
     await flushPromises();
-    expect(wrapper.get('button[title="导出当前统计结果"]').attributes("disabled")).toBeUndefined();
+    expect(wrapper.find('.stats-export').exists()).toBe(false);
     expect(wrapper.get(".stats-results-context").text()).toContain("2026-01-01");
     expect(wrapper.get(".stats-results-context").text()).not.toContain("日期已修改");
     wrapper.unmount();
@@ -222,6 +218,15 @@ describe("StatsPage request states", () => {
     expect(document.body.textContent).toContain("示例成员的统计详情");
     expect(document.body.textContent).toContain("2026-08-25");
     expect(document.body.textContent).toContain("2026年8月");
+    const page = wrapper.get('.overview-content').element as HTMLElement;
+    const table = wrapper.get('.stats-ranking-table').element as HTMLElement;
+    page.scrollTop = 1120;
+    table.scrollLeft = 34;
+    const recordsButton = Array.from(document.body.querySelectorAll('button')).find(button => button.textContent === '查看此范围值班记录');
+    recordsButton!.click();
+    await flushPromises();
+    const historyWrite = navigation.replace.mock.calls.find(([target]) => target.state?.statsVisit);
+    expect(statsVisits.scope().get(historyWrite![0].state.statsVisit)).toMatchObject({ pageTop: 1120, left: 34, memberId: 1 });
     expect(document.body.textContent).toContain("2026年9月");
     expect(apiGet.mock.calls.some(([url]) => String(url).includes("/member-detail?from="))).toBe(true);
     wrapper.unmount();

@@ -2,7 +2,7 @@
   <section
     ref="root"
     class="command-workspace"
-    :class="[`is-${view.state}`, { 'is-engaged': engaged, 'daily-command': refined }]"
+    :class="[`is-${view.state}`, { 'is-engaged': engaged, 'daily-command': refined, 'today-conversation': refined, 'has-suggestions': panelOpen }]"
   >
     <div v-if="!refined" class="command-workspace-messages">
       <CommandWelcome
@@ -15,28 +15,22 @@
       />
       <CommandFeedback :message="errorMessage" />
     </div>
+
+    <div v-if="refined" class="today-command-stage"><slot name="conversation" /></div>
     <div class="command-composer-zone">
-      <label v-if="refined" class="daily-command-label" for="daily-command-input">命令与功能搜索 <kbd>/</kbd></label>
+      <label v-if="refined" class="sr-only" for="daily-command-input">命令与功能搜索</label>
       <div class="command-console-shell" :class="{ 'has-suggestions': panelOpen }">
-        <CommandSuggestionPanel
-          :floating="refined"
-          :open="panelOpen"
-          :mode="view.mode"
-          :path="view.path"
-          :prompt="view.prompt"
-          :suggestions="view.suggestions"
-          :active-index="activeIndex"
-          @select="selectNode"
-        />
+
         <CommandComposer
           :input-id="refined ? 'daily-command-input' : undefined"
+          :placeholder="refined ? '输入操作，例如：本周统计' : undefined"
           ref="composer"
           :model-value="modelValue"
           :mode="view.mode"
           :state="view.state"
-          :status-message="view.statusMessage"
+          :status-message="busy ? '正在查询…' : opening ? '正在打开…' : view.statusMessage"
           :open="panelOpen"
-          :disabled="!modelValue.trim() || executing"
+          :disabled="!modelValue.trim() || executing || opening || busy"
           :active-descendant="activeId"
           @update:model-value="updateInput"
           @focus="focusComposer"
@@ -45,32 +39,30 @@
           @submit="submit"
           @composition="composing = $event"
         />
+        <CommandSuggestionPanel
+          :embedded="refined"
+          :upward="refined"
+          :open="panelOpen"
+          :mode="view.mode"
+          :path="view.path"
+          :prompt="view.prompt"
+          :suggestions="view.suggestions"
+          :active-index="activeIndex"
+          @select="selectNode"
+        />
       </div>
-      <CommandFeedback v-if="refined" :message="errorMessage" />
-      <p v-else class="command-local-note">所有数据与操作均保留在本机</p>
-    </div>
-    <div v-if="refined" class="daily-shortcuts">
-      <div class="daily-shortcuts-head">
-        <small>常用入口</small>
-        <span v-if="loading" role="status">正在加载今日状态…</span>
-        <span v-else-if="quiet && !loadError">暂无待处理提醒</span>
+      <div v-if="refined && inlineShortcuts !== false" class="today-command-shortcuts" aria-label="常用操作">
+        <button data-button-kind="entry" v-for="item in quickActions" :key="item.id" type="button" :disabled="opening || busy" @click="executeQuickAction(item.command, item.label)"><component :is="shortcutIcon(item.id)" aria-hidden="true" />{{ item.label }}</button>
       </div>
-      <div v-if="loadError" class="inline-alert danger daily-overview-feedback" role="alert">
-        <CircleAlert aria-hidden="true" />
-        <span>{{ loadError }}</span>
-        <button class="button secondary small" type="button" data-action="retry-today" @click="$emit('retry-load')">重试</button>
-      </div>
-      <div v-if="loading" class="daily-shortcuts-skeleton" aria-hidden="true">
-        <i v-for="index in 3" :key="index"></i>
-      </div>
-      <TodayQuickActions v-else :items="quickActions" @execute="executeQuickAction" />
+      <p v-if="refined && errorMessage" class="today-command-error" role="alert"><CircleAlert aria-hidden="true" />{{ errorMessage }}</p>
+      <p v-if="!refined" class="command-local-note">所有数据与操作均保留在本机</p>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { CircleAlert } from "@lucide/vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
+import { DatabaseBackup, ChartColumn, CircleAlert, ClipboardCheck, ClipboardList, Wrench } from "@lucide/vue";
 import type { Role } from "../../../shared/types";
 import { commandInputView, completeCommandInput } from "../../../features/command-center/commandTree";
 import type { CommandNodeSuggestion } from "../../../features/command-center/commandTypes";
@@ -78,25 +70,28 @@ import CommandComposer from "./CommandComposer.vue";
 import CommandFeedback from "./CommandFeedback.vue";
 import CommandSuggestionPanel from "./CommandSuggestionPanel.vue";
 import CommandWelcome from "./CommandWelcome.vue";
-import TodayQuickActions from "./TodayQuickActions.vue";
 import type { TodayQuickAction } from "./types";
 import { useCommandSession } from "./useCommandSession";
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: string;
   dateLabel: string;
   roleName: string;
   role: Role;
   quickActions: TodayQuickAction[];
+  inlineShortcuts?: boolean;
+  importantActions?: TodayQuickAction[];
+  opening?: boolean;
+  busy?: boolean;
   errorMessage?: string;
   loadError?: string;
   loading?: boolean;
   quiet?: boolean;
   refined?: boolean;
-}>();
+}>(), { inlineShortcuts: true });
 const emit = defineEmits<{
   "update:modelValue": [value: string];
-  execute: [value: string];
+  execute: [value: string, displayName?: string];
   clearError: [];
   "retry-load": [];
 }>();
@@ -155,8 +150,20 @@ function focusComposer() {
   if (props.modelValue.trim()) openSuggestions();
 }
 
+function shortcutIcon(id: string) {
+  const icons: Record<string, Component> = { reviews: ClipboardCheck, 'today-records': ClipboardList, 'stats-week': ChartColumn, 'repairs-new': Wrench, backups: DatabaseBackup };
+  return icons[id] || ClipboardList;
+}
+
 function handleInputKeydown(event: KeyboardEvent) {
   if (event.isComposing || composing.value) return;
+  if (event.key === "ArrowRight" && panelOpen.value && view.value.mode === "command"
+    && view.value.state === "incomplete" && view.value.suggestions.length === 1
+    && caret.value === props.modelValue.length) {
+    event.preventDefault();
+    completeActive();
+    return;
+  }
   if (event.key === "ArrowDown" || event.key === "ArrowUp") {
     if (!panelOpen.value) return;
     event.preventDefault();
@@ -180,7 +187,7 @@ function handleInputKeydown(event: KeyboardEvent) {
 }
 
 function submit() {
-  if (!props.modelValue.trim() || executing.value) return;
+  if (!props.modelValue.trim() || executing.value || props.opening || props.busy || composing.value) return;
   if (executable.value) {
     execute(props.modelValue);
     return;
@@ -211,16 +218,16 @@ function completeActive() {
   if (item) selectNode(item);
 }
 
-function executeQuickAction(command: string) {
+function executeQuickAction(command: string, displayName?: string) {
   emit("update:modelValue", command);
-  execute(command);
+  execute(command, displayName);
 }
 
-function execute(command: string) {
-  if (executing.value) return;
+function execute(command: string, displayName?: string) {
+  if (executing.value || props.opening || props.busy) return;
   executing.value = true;
   open.value = false;
-  emit("execute", command);
+  emit("execute", command, displayName);
   executionTimer = window.setTimeout(() => {
     executing.value = false;
   }, 500);
@@ -253,4 +260,5 @@ function isEditable(element: Element | null) {
     element instanceof HTMLSelectElement ||
     (element instanceof HTMLElement && element.isContentEditable);
 }
+defineExpose({ executeQuickAction });
 </script>

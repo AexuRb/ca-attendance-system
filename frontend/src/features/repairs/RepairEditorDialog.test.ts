@@ -8,6 +8,23 @@ afterEach(() => {
 });
 
 describe("RepairEditorDialog", () => {
+  it("only offers completion time for completed records and preserves its draft", async () => {
+    const wrapper = mount(RepairEditorDialog, { props: {
+      open: true, pending: false, handler: null, candidates: [], initialStep: 2,
+      form: { id: 7, agreementType: 'REPAIR', ownerName: '测试联系人', ownerPhone: '',
+        deviceType: '电脑', deviceBrand: '', deviceModel: '', accessories: '', faultDescription: '无法开机',
+        serviceDescription: '', dataBackupConfirmed: false, riskAcknowledged: false, privacyAcknowledged: false,
+        status: 'REPAIRING', receivedAt: '2026-10-14T14:00', completedAt: '2026-10-14T15:00', handlerName: '', remark: '' },
+    } });
+    expect(document.body.querySelector('[name="completedAt"]')).toBeNull();
+    await wrapper.setProps({ form: { ...wrapper.props('form'), status: 'COMPLETED' } });
+    expect(document.body.querySelector<HTMLInputElement>('[name="completedAt"]')?.value).toBe('2026-10-14T15:00');
+    await wrapper.setProps({ form: { ...wrapper.props('form'), status: 'CANCELED' } });
+    expect(document.body.querySelector('[name="completedAt"]')).toBeNull();
+    await wrapper.setProps({ form: { ...wrapper.props('form'), status: 'COMPLETED' } });
+    expect(document.body.querySelector<HTMLInputElement>('[name="completedAt"]')?.value).toBe('2026-10-14T15:00');
+    wrapper.unmount();
+  });
   it("validates each step, focuses the error and uses factual confirmation wording", async () => {
     const wrapper = mount(RepairEditorDialog, {
       attachTo: document.body,

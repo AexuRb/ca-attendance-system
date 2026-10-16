@@ -14,12 +14,24 @@ const weekdays = [
 ];
 
 describe("FixedScheduleBoard", () => {
-  it("opens an empty matrix cell with its weekday and period and marks closed days", async () => {
+  it("defaults to weekday columns and period rows, omitting closed weekdays", async () => {
     const wrapper = mount(FixedScheduleBoard, { props: { periods, weekdays: [...weekdays, { value: 3, label: "星期三", short: "周三", enabled: false }], slots: [] } });
-    await wrapper.get('.schedule-view-switch button').trigger('click');
-    expect(wrapper.get('.schedule-week-matrix').text()).toContain('未开放');
+    expect(wrapper.findAll('.schedule-week-matrix thead th').map(th => th.text())).toEqual(['时段 / 星期', '星期一', '星期二']);
+    expect(wrapper.findAll('.schedule-week-matrix tbody tr')).toHaveLength(2);
+    expect(wrapper.get('.schedule-week-matrix').text()).not.toContain('星期三');
     await wrapper.get('.schedule-week-matrix td button').trigger('click');
     expect(wrapper.emitted('add')?.[0]).toEqual([1, '14:00-16:00']);
+    wrapper.unmount();
+  });
+  it("keeps overview-only slots noninteractive and hides every editing entry", async () => {
+    const wrapper = mount(FixedScheduleBoard, { props: { periods, weekdays, overviewOnly: true,
+      slots: [{ id: 1, weekday: 1, weekdayName: '星期一', startTime: '14:00', endTime: '16:00', title: '值班', enabled: true, assignees: [] }],
+    } });
+    expect(wrapper.findAll('button')).toHaveLength(0);
+    expect(wrapper.get('.schedule-week-slot').element.tagName).toBe('DIV');
+    await wrapper.get('.schedule-week-slot').trigger('click');
+    expect(wrapper.find('.schedule-week-matrix').exists()).toBe(true);
+    expect(wrapper.emitted('add')).toBeUndefined();
     wrapper.unmount();
   });
 
@@ -65,6 +77,7 @@ describe("FixedScheduleBoard", () => {
       },
     });
 
+    await wrapper.findAll('.schedule-view-switch button')[1].trigger('click');
     expect(wrapper.findAll(".schedule-focus-day")).toHaveLength(2);
     expect(wrapper.findAll(".schedule-focus-period")).toHaveLength(2);
     expect(wrapper.get(".schedule-focus-day.active").text()).toContain("星期一");

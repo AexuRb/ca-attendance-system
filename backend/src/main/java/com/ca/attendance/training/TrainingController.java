@@ -89,6 +89,11 @@ public class TrainingController {
         return trainings.importParticipants(id, file);
     }
 
+    @PostMapping(value = "/{id}/participants/import/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TrainingService.ImportPreview previewParticipants(@PathVariable long id, @RequestParam("file") MultipartFile file) {
+        return trainings.previewParticipants(id, file);
+    }
+
     @GetMapping("/{id}/participants/import-template")
     public ResponseEntity<byte[]> sessionImportTemplate(@PathVariable long id) {
         TrainingService.ExportFile file = trainings.exportSessionImportTemplate(id);

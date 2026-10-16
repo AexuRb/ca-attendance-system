@@ -87,7 +87,7 @@ class DutyScheduleServiceIntegrationTest {
     }
 
     @Test
-    void ministerCannotListManagementSchedules() {
+    void ministerCanReadSchedulesButCannotCreateThem() {
         AuthContext.set(new AuthUser(
                 ministerId,
                 "1001",
@@ -96,7 +96,8 @@ class DutyScheduleServiceIntegrationTest {
                 Instant.now().plusSeconds(3600)
         ));
 
-        ApiException denied = assertThrows(ApiException.class, schedules::list);
+        assertTrue(schedules.list().isEmpty());
+        ApiException denied = assertThrows(ApiException.class, () -> schedules.create(request("1001")));
 
         assertEquals(403, denied.status().value());
         assertTrue(denied.getMessage().contains("会长或管理员"));

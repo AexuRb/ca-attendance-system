@@ -9,9 +9,18 @@ import type { AppearanceId } from "./appearanceTypes";
 
 afterEach(() => {
   delete document.documentElement.dataset.appearance;
+  delete document.documentElement.dataset.palette;
 });
 
 describe("appearance startup", () => {
+  it.each(["PINE","VIOLET","GRAPHITE","ROSE"] as const)("saves and restores %s through the existing contract", async id => {
+    let stored:AppearanceId="CLASSIC";
+    await changeGlobalAppearance(id, async next => { stored=next; return {appearance:next,version:1}; }, async()=>{});
+    expect(useAppearance().state.active).toBe(id);
+    await initializeAppearance(async()=>({appearance:stored,version:1}),async definition=>definition);
+    expect(useAppearance().state.active).toBe(id);
+    expect(useAppearance().state.fallback).toBe(false);
+  });
   it("loads the selected appearance before marking startup ready", async () => {
     const loaded: AppearanceId[] = [];
 
@@ -99,7 +108,7 @@ describe("appearance startup", () => {
     expect(state.requested).toBe("SPATIAL");
     expect(state.active).toBe("CLASSIC");
     expect(state.fallback).toBe(true);
-    expect(state.error).toContain("界面资源加载失败");
+    expect(state.error).toContain("主题资源加载失败");
   });
 
   it("preloads and persists a new appearance before applying it", async () => {

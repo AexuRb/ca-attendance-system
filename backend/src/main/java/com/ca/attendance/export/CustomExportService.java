@@ -9,6 +9,7 @@ import com.ca.attendance.common.ExportRowLimit;
 import com.ca.attendance.common.SqlLike;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
+import com.ca.attendance.stats.StatsService;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -46,6 +47,7 @@ public class CustomExportService {
     private static final List<SourceDefinition> SOURCES = List.of(
             membersSource(),
             attendanceSource(),
+            statsSource(),
             trainingSource(),
             scheduleSource(),
             repairSource(),
@@ -54,10 +56,12 @@ public class CustomExportService {
 
     private final JdbcTemplate jdbc;
     private final OperationLogService logs;
+    private final StatsService stats;
 
-    public CustomExportService(JdbcTemplate jdbc, OperationLogService logs) {
+    public CustomExportService(JdbcTemplate jdbc, OperationLogService logs, StatsService stats) {
         this.jdbc = jdbc;
         this.logs = logs;
+        this.stats = stats;
     }
 
     public ExportOptions options() {
@@ -134,22 +138,49 @@ public class CustomExportService {
 
         List<FieldOption> selectedFields = validateFields(source, request.fields());
         Map<String, String> filters = validateFilters(source, request.filters());
+        if (source.id().equals("stats") && (!filters.containsKey("from") || !filters.containsKey("to"))) {
+            throw ApiException.badRequest("统计汇总需要开始日期和结束日期");
+        }
         return new PreparedExport(source, selectedFields, filters);
     }
 
     private List<Map<String, Object>> queryRows(PreparedExport prepared) {
-        List<Map<String, Object>> rows = limited(query(prepared.source().id(), prepared.filters()));
+        List<Map<String, Object>> rows = prepared.source().id().equals("stats")
+                ? summaryRows(prepared.filters()) : limited(query(prepared.source().id(), prepared.filters()));
         ExportRowLimit.requireWithinLimit(rows.size());
         return rows;
     }
 
     private PreviewRows queryPreview(PreparedExport prepared) {
+        if (prepared.source().id().equals("stats")) {
+            List<Map<String, Object>> rows = summaryRows(prepared.filters());
+            return new PreviewRows(rows.size(), rows.stream().limit(PREVIEW_ROWS).toList());
+        }
         QueryBuilder source = query(prepared.source().id(), prepared.filters());
         String sql = "SELECT preview_source.*, COUNT(*) OVER () AS " + PREVIEW_TOTAL_COLUMN
                 + " FROM (" + source.sql() + ") preview_source LIMIT " + PREVIEW_ROWS;
         List<Map<String, Object>> rows = jdbc.queryForList(sql, source.args().toArray());
         int totalRows = rows.isEmpty() ? 0 : ((Number) rows.getFirst().get(PREVIEW_TOTAL_COLUMN)).intValue();
         return new PreviewRows(totalRows, rows);
+    }
+
+    private List<Map<String, Object>> summaryRows(Map<String, String> filters) {
+        LocalDate from = parseDate(filters.get("from"), "开始日期");
+        LocalDate to = parseDate(filters.get("to"), "结束日期");
+        // Reuse the statistics page's aggregation, rounding and archived-training exclusions.
+        return stats.summary(from, to).stream().map(item -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("studentNo", item.studentNo());
+            row.put("name", item.name());
+            row.put("grade", item.grade());
+            row.put("attendanceCount", item.attendanceCount());
+            row.put("trainingCount", item.trainingCount());
+            row.put("attendanceHours", item.attendanceHours());
+            row.put("trainingHours", item.trainingHours());
+            row.put("dutyCount", item.dutyCount());
+            row.put("totalHours", item.totalHours());
+            return row;
+        }).toList();
     }
 
     private Map<String, Object> previewRow(Map<String, Object> row, List<FieldOption> fields) {
@@ -581,6 +612,18 @@ public class CustomExportService {
                 textFilter("keyword", "学号或姓名"),
                 selectFilter("effectiveStatus", "有效状态", choices(
                         "VALID", "有效", "PENDING", "待审核", "INCOMPLETE", "未签退", "INVALID", "无效"))
+        ));
+    }
+
+    private static SourceDefinition statsSource() {
+        return new SourceDefinition("stats", "统计汇总", false, List.of(
+                field("studentNo", "学号", true), field("name", "姓名", true),
+                field("grade", "年级", false),
+                field("attendanceCount", "值班次数", true), field("trainingCount", "培训次数", true),
+                field("attendanceHours", "值班时长", true), field("trainingHours", "培训时长", true),
+                field("dutyCount", "总次数", false), field("totalHours", "总时长", true)
+        ), List.of(
+                dateFilter("from", "开始日期", startOfYear()), dateFilter("to", "结束日期", LocalDate.now().toString())
         ));
     }
 

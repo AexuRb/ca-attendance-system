@@ -263,8 +263,8 @@ class BenchmarkCasesTest(unittest.TestCase):
             cases["training_large_roster"],
             ("/#/admin/trainings?sessionId=5", ".training-participant-row"),
         )
-        self.assertEqual(cases["repairs"][1], ".repair-ledger-row")
-        self.assertEqual(cases["repair_history"][1], ".repair-ledger-row")
+        self.assertEqual(cases["repairs"][1], ".repair-active-cards .repair-ledger-row")
+        self.assertEqual(cases["repair_history"][1], ".repair-ledger-table:not(.repair-active-cards) .repair-ledger-row")
 
 
 class PerformanceGateTest(unittest.TestCase):

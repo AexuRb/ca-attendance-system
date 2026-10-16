@@ -17,6 +17,7 @@ import sys
 from time import perf_counter
 from typing import Any
 from urllib.error import HTTPError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
@@ -418,11 +419,11 @@ def browser_benchmark_cases(large_training_route: str) -> tuple[tuple[str, str, 
             large_training_route,
             ".training-participant-row",
         ),
-        ("repairs", "/#/admin/repairs", ".repair-ledger-row"),
+        ("repairs", "/#/admin/repairs?status=REPAIRING", ".repair-active-cards .repair-ledger-row"),
         (
             "repair_history",
             "/#/admin/repairs?status=COMPLETED&page=1",
-            ".repair-ledger-row",
+            ".repair-ledger-table:not(.repair-active-cards) .repair-ledger-row",
         ),
         ("logs", "/#/admin/logs", ".audit-records article"),
     )
@@ -453,7 +454,15 @@ def benchmark_browser(
     training_page = json.loads(training_payload.decode("utf-8"))
     large_training_route = "/#/admin/trainings"
     if training_page.get("items"):
-        large_training_route += f"?sessionId={training_page['items'][0]['id']}"
+        target = training_page["items"][0]
+        # The large-roster case must select its target after the directory
+        # changed from twenty sessions per page to eight. General directory
+        # throughput is measured separately without these date filters.
+        large_training_route += "?" + urlencode({
+            "sessionId": target["id"],
+            "from": target["trainingDate"],
+            "to": target["trainingDate"],
+        })
 
     cases = browser_benchmark_cases(large_training_route)
     results: dict[str, Any] = {}

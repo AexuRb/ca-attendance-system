@@ -24,7 +24,6 @@
           </span>
           <span class="weekday-calendar-body">
             <strong>{{ shortDay(day) }}</strong>
-            <small>{{ String(day.weekday).padStart(2, "0") }}</small>
           </span>
           <span class="weekday-calendar-state">
             {{ day.enabled ? "开放" : "关闭" }}

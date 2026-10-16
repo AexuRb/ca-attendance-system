@@ -12,12 +12,13 @@ const mocks = vi.hoisted(() => ({
   notify: vi.fn(),
   push: vi.fn(),
   replace: vi.fn(),
+  routeQuery: {} as Record<string,string>,
 }));
 
 vi.mock("vue-router", async (importOriginal) => ({
   ...await importOriginal<typeof import("vue-router")>(),
   RouterLink: { template: '<a><slot /></a>' },
-  useRoute: () => ({ query: {} }),
+  useRoute: () => ({ query: mocks.routeQuery }),
   useRouter: () => ({ push: mocks.push, replace: mocks.replace }),
 }));
 
@@ -68,6 +69,7 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+  mocks.routeQuery = {};
   mocks.apiGet.mockImplementation((url: string) => {
     if (url.startsWith("/api/users/page?")) {
       return Promise.resolve({
@@ -382,50 +384,20 @@ describe("MembersPage applied query", () => {
   });
 });
 
-describe("MembersPage import", () => {
-  it("requires a successful server preview before sending the confirmed file and token", async () => {
-    mocks.apiPost.mockResolvedValueOnce({ valid: true, created: 1, updated: 0, errorCount: 0, errors: [], warnings: [], changes: [], token: 'preview-revision' })
-      .mockResolvedValueOnce({ created: 1, updated: 0, skipped: 0, errors: [] });
+describe("MembersPage import migration", () => {
+  it("keeps the member page focused on member management without file import entries", async () => {
     const wrapper = mount(MembersPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    await wrapper.get('.mw-tools .mw-button:not(.primary)').trigger('click');
-    const input = wrapper.get('input[type="file"]');
-    const file = new File(['test'], 'members.xlsx');
-    Object.defineProperty(input.element, 'files', { value: [file], configurable: true });
-    await input.trigger('change');
-    await wrapper.get('[role=dialog] footer .button.primary').trigger('click');
-    await flushPromises();
-    expect(mocks.apiPost).toHaveBeenCalledTimes(1);
-    expect(mocks.apiPost.mock.calls[0][0]).toBe('/api/users/import/preview');
-    expect(wrapper.get('[role=dialog] footer .button.primary').text()).toBe('确认整批导入');
-    await wrapper.get('[role=dialog] footer .button.primary').trigger('click');
-    await flushPromises();
-    expect(mocks.apiPost.mock.calls[1][0]).toBe('/api/users/import');
-    expect(mocks.apiPost.mock.calls[1][1].get('previewToken')).toBe('preview-revision');
-    expect(mocks.apiPost.mock.calls[1][1].get('file')).toBe(file);
+    expect(wrapper.find('input[type=file]').exists()).toBe(false);
+    expect(wrapper.get('.members-page-actions').text()).not.toContain('批量导入');
     wrapper.unmount();
   });
-
-  it("keeps a row-specific import error visible in the dialog", async () => {
-    mocks.apiPost.mockRejectedValue(
-      new Error("成员文件校验未通过，未写入任何成员：第 3 行：姓名不能超过 64 个字符"),
-    );
-    const wrapper = mount(MembersPage, {
-      global: { stubs: { Teleport: true } },
-    });
+  it("redirects an existing import intent to the member task in the data center", async () => {
+    mocks.routeQuery = { intent: 'import' };
+    const wrapper = mount(MembersPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-
-    await wrapper.get(".mw-tools .mw-button:not(.primary)").trigger("click");
-    const input = wrapper.get('input[type="file"]');
-    Object.defineProperty(input.element, "files", {
-      value: [new File(["test"], "members.xlsx")],
-      configurable: true,
-    });
-    await input.trigger("change");
-    await wrapper.get("[role=dialog] footer .button.primary").trigger("click");
-    await flushPromises();
-
-    expect(wrapper.text()).toContain("第 3 行：姓名不能超过 64 个字符");
-    expect(wrapper.find(".member-import-error").exists()).toBe(true);
+    expect(mocks.replace).toHaveBeenCalledWith({ name: 'data', query: { tab: 'import', kind: 'members' } });
+    expect(mocks.apiPost).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 });

@@ -1,5 +1,6 @@
 <template>
   <ModalDialog
+    backdrop-class="training-refined-backdrop"
     :open="open"
     :title="form.id ? '编辑参与记录' : '新增参与记录'"
     size="sm"
@@ -53,7 +54,7 @@
     </form>
     <template #footer>
       <button class="button secondary" type="button" :disabled="pending" @click="close">取消</button>
-      <button v-if="!form.id" class="button secondary" type="button" :disabled="pending" @click="submit(true)">保存并继续</button>
+      <button data-button-kind="action" v-if="!form.id" class="button secondary" type="button" :disabled="pending" @click="submit(true)">保存并继续</button>
       <button class="button primary" type="submit" form="training-participant-editor" :disabled="pending">
         <LoaderCircle v-if="pending" class="spin" aria-hidden="true" />
         {{ pending ? "正在保存" : "保存记录" }}

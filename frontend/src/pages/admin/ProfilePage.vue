@@ -1,5 +1,6 @@
 <template>
-  <RefinedWorkspaceShell class="support-workspace profile-presentation" title="个人资料" description="查看个人信息与时长记录" section-key="people" filter-label="筛选个人资料">
+  <ExpandedWorkspaceShell class="support-workspace profile-presentation overview-profile" current-page="profile">
+    <template #heading><h1>个人资料</h1></template>
     <div v-if="pageError" class="inline-alert danger" role="alert">
       <span>{{ pageError }}</span>
       <button class="button secondary small" type="button" @click="retryFailedLoad">重试</button>
@@ -14,13 +15,10 @@
             <p>{{ user?.studentNo }} · {{ roleLabel(user?.role) }}</p>
           </div>
         </div>
-        <button class="button secondary profile-password-action" type="button" @click="passwordOpen = true">
+        <button data-button-kind="soft" class="button secondary profile-password-action" type="button" @click="openPassword">
           <KeyRound />修改密码
         </button>
       </div>
-      <p class="profile-range-note" aria-live="polite">
-        {{ appliedRange ? `统计范围 ${appliedRange.from} 至 ${appliedRange.to}` : recordsError ? '时长记录读取失败' : '正在读取时长记录' }}<span v-if="recordsLoading && recordsReady"> · 更新中</span><span v-else-if="recordsError && recordsReady"> · 更新失败，显示上次结果</span>
-      </p>
       <div class="profile-totals">
         <div class="profile-stat">
           <strong>{{ recordsReady ? number(attendanceHours) : '—' }}</strong>
@@ -79,6 +77,22 @@
         </form>
       </section>
 
+      <section class="panel profile-range-panel" aria-labelledby="profile-range-title">
+        <div class="section-heading"><h2 id="profile-range-title">统计范围</h2></div>
+        <div class="profile-range-content">
+          <form class="profile-record-filter" aria-label="筛选个人记录日期" @submit.prevent="loadRecords">
+            <label><span>开始日期</span><input v-model="from" name="profileRecordFrom" type="date" required /></label>
+            <label><span>结束日期</span><input v-model="to" name="profileRecordTo" type="date" required /></label>
+            <button class="button secondary" type="submit" :disabled="recordsLoading || Boolean(filterError)"><Search />{{ recordsLoading ? '查询中…' : '查询' }}</button>
+          </form>
+          <p class="profile-range-note" aria-live="polite">
+            {{ appliedRange ? `当前范围 ${appliedRange.from} 至 ${appliedRange.to}` : recordsError ? '时长记录读取失败' : '正在读取时长记录' }}<span v-if="recordsLoading && recordsReady"> · 更新中</span><span v-else-if="recordsError && recordsReady"> · 更新失败，显示上次结果</span>
+          </p>
+          <p v-if="filterError" class="form-error" role="alert">{{ filterError }}</p>
+          <p v-if="rangeChanged" class="profile-record-context" aria-live="polite">日期已修改，查询后生效</p>
+        </div>
+      </section>
+
       <section class="panel profile-record-panel">
         <div class="section-heading profile-record-heading">
           <h2>个人记录</h2>
@@ -102,24 +116,7 @@
               <GraduationCap />培训 {{ trainingRecords.length }}
             </button>
           </div>
-          <form class="profile-record-filter" @submit.prevent="loadRecords">
-            <label>
-              <span>开始日期</span>
-              <input v-model="from" name="profileRecordFrom" type="date" required />
-            </label>
-            <label>
-              <span>结束日期</span>
-              <input v-model="to" name="profileRecordTo" type="date" required />
-            </label>
-            <button class="button secondary small" type="submit" :disabled="recordsLoading || Boolean(filterError)">
-              <Search />{{ recordsLoading ? '查询中…' : '查询' }}
-            </button>
-          </form>
         </div>
-        <p v-if="filterError" class="form-error" role="alert">{{ filterError }}</p>
-        <p v-if="rangeChanged || (recordsLoading && recordsReady)" class="profile-record-context" aria-live="polite">
-          {{ rangeChanged ? '日期已修改，查询后生效' : '正在更新记录' }}
-        </p>
         <div v-if="recordsError" class="inline-alert danger profile-record-error" role="alert">
           <span>{{ recordsError }}{{ recordsReady ? '；下方保留上次结果。' : '' }}</span>
           <button class="button secondary small" type="button" @click="loadRecords">重试</button>
@@ -248,12 +245,7 @@
       </section>
     </div>
 
-    <ProfilePasswordDialog
-      :open="passwordOpen"
-      @close="passwordOpen = false"
-      @changed="passwordChanged"
-    />
-  </RefinedWorkspaceShell>
+  </ExpandedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
@@ -264,23 +256,24 @@ import {
   Save,
   Search,
 } from "@lucide/vue";
-import RefinedWorkspaceShell from "../../layouts/RefinedWorkspaceShell.vue";
+import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
 import "../../features/profile/presentation.css";
+import "../../features/today/overview-presentation.css";
+import "../../features/profile/refined-presentation.css";
 provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
-import ProfilePasswordDialog from "../../features/profile/ProfilePasswordDialog.vue";
 import { useProfileWorkspace } from "../../features/profile/useProfileWorkspace";
 
 const {
   activeRecordTab, activeRecords, appliedRange, attendanceHours, attendanceNote, attendanceRecords,
   attendanceStatusMeta, busy, captureProfileForm, clock, filterError, from, loadRecords,
-  number, pageError, passwordChanged, passwordOpen, profile, profileErrors, rangeChanged, recordsError,
+  number, openPassword, pageError, profile, profileErrors, rangeChanged, recordsError,
   recordsLoading, recordsReady, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
   trainingHours, trainingRecords, user,
 } = useProfileWorkspace();

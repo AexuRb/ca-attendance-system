@@ -13,6 +13,37 @@ type RouteGuardCase = {
 
 const routeGuardMatrix: RouteGuardCase[] = [
   {
+    case: "requires login for the standalone credits editor",
+    target: "credits-editor", state: routeState(),
+    expected: { name: "login", query: { next: "/credits/edit" } },
+  },
+  {
+    case: "admits the administrator to the credits editor",
+    target: "credits-editor", state: routeState({ role: "ADMIN" }), expected: true,
+  },
+  {
+    case: "does not let the president bypass the hidden editor boundary",
+    target: "credits-editor", state: routeState({ role: "PRESIDENT" }), expected: { name: "today" },
+  },
+  {
+    case: "requires authentication for the standalone password page",
+    target: "password",
+    state: routeState(),
+    expected: { name: "login", query: { next: "/password" } },
+  },
+  {
+    case: "allows a signed-in member to change their own password",
+    target: "password",
+    state: routeState({ role: "MEMBER" }),
+    expected: true,
+  },
+  {
+    case: "allows an authorized remote administrator to change their password",
+    target: "password",
+    state: routeState({ mode: "REMOTE_ADMIN", role: "ADMIN" }),
+    expected: true,
+  },
+  {
     case: "redirects an uninitialized local kiosk to setup",
     target: "kiosk",
     state: routeState({ initialized: false }),
@@ -161,7 +192,7 @@ describe("admin route permissions", () => {
   });
 
   it("keeps schedule management away from ministers", () => {
-    expect(route("schedules")?.meta.roles).toEqual(["PRESIDENT", "ADMIN"]);
+    expect(route("schedules")?.meta.roles).toEqual(["MINISTER", "PRESIDENT", "ADMIN"]);
   });
 
   it("allows members to open only their profile in the admin shell", () => {

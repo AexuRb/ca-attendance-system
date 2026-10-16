@@ -1,0 +1,205 @@
+/* Shared button appearance contract. Page CSS still owns placement and hit areas.
+ * Layered important paint declarations intentionally outrank legacy page rules,
+ * including lazy-loaded dialogs, without depending on stylesheet load order.
+ * Selection cards, tabs, list options and menu items keep their own semantics.
+ */
+@layer ui-buttons {
+  :where(.public-presentation, .setup-page, .navigation-recovery-backdrop) {
+    --ui-button-font-size: 16px;
+    --ui-button-min-height: 48px;
+  }
+
+  :where(.button, .mw-button, .icon-button, [data-button-kind]):not([role="menuitem"]) {
+    --ui-button-accent: var(--setup-accent, var(--pub-accent, var(--recovery-accent, var(--mw-accent, #126aa8))));
+    --ui-button-line: var(--setup-line, var(--pub-line, var(--recovery-line, var(--mw-line, #d9e1e9))));
+    --ui-button-muted: var(--setup-muted, var(--pub-muted, var(--recovery-muted, var(--mw-muted, #4d647a))));
+    --ui-button-ink: var(--setup-ink, var(--pub-ink, var(--recovery-ink, var(--mw-ink, #2b3641))));
+    --ui-button-fill: var(--ui-button-accent);
+    --ui-button-color: #fff;
+    --ui-button-border: var(--ui-button-accent);
+    --ui-button-image: linear-gradient(175deg, color-mix(in srgb, var(--ui-button-fill), white 8%), var(--ui-button-fill));
+    --ui-button-shadow: inset 0 1px #ffffff35, 0 1px 2px #24364812;
+    --ui-button-hover-fill: color-mix(in srgb, var(--ui-button-accent) 92%, black);
+    --ui-button-hover-color: #fff;
+    --ui-button-hover-border: var(--ui-button-accent);
+    border: 1px solid var(--ui-button-border) !important;
+    border-radius: var(--ui-radius-control) !important;
+    background-color: var(--ui-button-fill) !important;
+    background-image: var(--ui-button-image) !important;
+    background-size: 250% 100% !important;
+    background-position: 0% 50% !important;
+    color: var(--ui-button-color) !important;
+    box-shadow: var(--ui-button-shadow) !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    transition: background-color var(--ui-duration-control) ease, background-position var(--ui-duration-card) ease,
+      color var(--ui-duration-control) ease, border-color var(--ui-duration-control) ease, box-shadow var(--ui-duration-control) ease,
+      transform 140ms ease !important;
+  }
+
+  :where(.button, .mw-button, [data-button-kind="action"], [data-button-kind="entry"], [data-button-kind="soft"]):not([role="menuitem"]) {
+    min-height: var(--ui-button-min-height, 42px) !important;
+    font-size: var(--ui-button-font-size, 14px) !important;
+    line-height: 22px !important;
+  }
+
+  /* Functional entries use the backup page's From file restore appearance. */
+  :where(.button.secondary, .button.text, .mw-button:not(.primary), a.button, a.mw-button, label.button, [data-button-kind="entry"]):not([role="menuitem"]) {
+    --ui-button-fill: #fff;
+    --ui-button-color: var(--ui-button-ink);
+    --ui-button-border: var(--ui-button-line);
+    --ui-button-image: none;
+    --ui-button-shadow: 0 1px 2px #24364808;
+    --ui-button-hover-fill: color-mix(in srgb, var(--ui-button-accent) 8%, white);
+    --ui-button-hover-color: var(--ui-button-accent);
+    --ui-button-hover-border: var(--ui-button-accent);
+  }
+
+  /* A form submit is an action even when its old page class was secondary. */
+  :where(.button[type="submit"], .mw-button[type="submit"], [data-button-kind="action"]):not([role="menuitem"]) {
+    --ui-button-fill: var(--ui-button-accent);
+    --ui-button-color: #fff;
+    --ui-button-border: var(--ui-button-accent);
+    --ui-button-image: linear-gradient(175deg, color-mix(in srgb, var(--ui-button-fill), white 8%), var(--ui-button-fill));
+    --ui-button-shadow: inset 0 1px #ffffff35, 0 1px 2px #24364812;
+    --ui-button-hover-fill: color-mix(in srgb, var(--ui-button-accent) 92%, black);
+    --ui-button-hover-color: #fff;
+  }
+
+  /* Page creation entries share the attendance page's Add record dimensions. */
+  .workspace-create-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: none !important;
+    gap: 7px !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    padding: 0 18px !important;
+    font-family: var(--mw-font) !important;
+    font-size: 14px !important;
+    line-height: 22px !important;
+    white-space: nowrap !important;
+  }
+
+  .workspace-create-button svg {
+    flex: none !important;
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  /* Soft theme paint is independent of page-owned button dimensions. */
+  :where([data-button-kind="soft"], [data-button-kind="compact"]):not([role="menuitem"]) {
+    --ui-button-fill: color-mix(in srgb, var(--ui-button-accent) 7%, transparent);
+    --ui-button-color: var(--ui-button-accent);
+    --ui-button-border: color-mix(in srgb, var(--ui-button-accent) 18%, transparent);
+    --ui-button-image: none;
+    --ui-button-shadow: none;
+    --ui-button-hover-fill: color-mix(in srgb, var(--ui-button-accent) 14%, transparent);
+    --ui-button-hover-color: var(--ui-button-accent);
+    --ui-button-hover-border: color-mix(in srgb, var(--ui-button-accent) 35%, transparent);
+  }
+
+  /* Only compact row details use the smaller hit area. */
+  :where([data-button-kind="compact"]):not([role="menuitem"]) {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 4px 10px !important;
+    font-size: 13px !important;
+    line-height: 20px !important;
+    white-space: nowrap !important;
+  }
+
+  /* Icon-only controls share the backup download/delete sweep. */
+  :where(.icon-button, [data-button-kind="icon"]):not([role="menuitem"]) {
+    --ui-button-fill: #fff;
+    --ui-button-color: var(--ui-button-accent);
+    --ui-button-border: var(--ui-button-line);
+    --ui-button-sweep: color-mix(in srgb, var(--ui-button-accent) 18%, transparent);
+    --ui-button-image: linear-gradient(115deg, transparent 0%, transparent 43%, var(--ui-button-sweep) 70%, transparent 100%);
+    --ui-button-shadow: 0 1px 2px #24364805;
+    --ui-button-hover-fill: #fff;
+    --ui-button-hover-color: var(--ui-button-accent);
+    --ui-button-hover-border: color-mix(in srgb, var(--ui-button-accent) 28%, transparent);
+  }
+
+  /* Destructive actions retain a red identity, including icon controls. */
+  :where(.button, .mw-button, .icon-button, [data-button-kind]):is(.danger, .danger-text, .danger-ghost, [data-button-tone="danger"]):not([role="menuitem"]) {
+    --ui-button-accent: var(--ui-danger);
+    --ui-button-fill: var(--ui-danger);
+    --ui-button-color: #fff;
+    --ui-button-border: var(--ui-danger);
+    --ui-button-image: linear-gradient(175deg, color-mix(in srgb, var(--ui-button-fill), white 8%), var(--ui-button-fill));
+    --ui-button-hover-fill: color-mix(in srgb, var(--ui-danger) 88%, black);
+    --ui-button-hover-color: #fff;
+    --ui-button-hover-border: color-mix(in srgb, var(--ui-danger) 88%, black);
+  }
+
+  :where(.icon-button, [data-button-kind="icon"]):is(.danger, .danger-ghost, .danger-text, [data-button-tone="danger"]):not([role="menuitem"]) {
+    --ui-button-fill: #fff;
+    --ui-button-color: var(--ui-danger);
+    --ui-button-border: var(--ui-button-line);
+    --ui-button-sweep: color-mix(in srgb, var(--ui-danger) 18%, transparent);
+    --ui-button-image: linear-gradient(115deg, transparent 0%, transparent 43%, var(--ui-button-sweep) 70%, transparent 100%);
+    --ui-button-hover-fill: #fff;
+    --ui-button-hover-color: var(--ui-danger);
+    --ui-button-hover-border: color-mix(in srgb, var(--ui-danger) 28%, transparent);
+  }
+
+  :where(.button, .mw-button, .icon-button, [data-button-kind]):not([role="menuitem"]):not(:disabled, [aria-disabled="true"], :has(input:disabled)):is(:hover, :focus-visible) {
+    --ui-button-fill: var(--ui-button-hover-fill);
+    background-color: var(--ui-button-hover-fill) !important;
+    color: var(--ui-button-hover-color) !important;
+    border-color: var(--ui-button-hover-border) !important;
+    transform: none !important;
+  }
+
+  :where(.icon-button, [data-button-kind="icon"]):not(:disabled, [aria-disabled="true"]):is(:hover, :focus-visible) {
+    background-position: 100% 50% !important;
+  }
+
+  :where(.button, .mw-button, .icon-button, [data-button-kind]):not([role="menuitem"]):focus-visible {
+    outline: 2px solid var(--ui-button-accent) !important;
+    outline-offset: 3px !important;
+  }
+
+  :where(.button, .mw-button, .icon-button, [data-button-kind]):not([role="menuitem"]):not(:disabled, [aria-disabled="true"], :has(input:disabled)):active {
+    transform: translateY(1px) !important;
+  }
+
+  /* Disabled is a stable neutral palette, not faded enabled colors. */
+  :where(.button, .mw-button, .icon-button, [data-button-kind]):not([role="menuitem"]):is(:disabled, [aria-disabled="true"], :has(input:disabled)) {
+    background-color: var(--ui-disabled-bg) !important;
+    background-image: none !important;
+    color: var(--ui-disabled-ink) !important;
+    border-color: var(--ui-disabled-line) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+    cursor: default !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :where(.button, .mw-button, .icon-button, [data-button-kind]):not([role="menuitem"]) {
+      transition: none !important;
+      transform: none !important;
+    }
+    :where(.button, .mw-button, .icon-button, [data-button-kind]):not([role="menuitem"]):not(:disabled, [aria-disabled="true"], :has(input:disabled)):active {
+      transform: none !important;
+    }
+  }
+}
