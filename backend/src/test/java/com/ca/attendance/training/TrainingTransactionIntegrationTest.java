@@ -284,15 +284,25 @@ class TrainingTransactionIntegrationTest {
     }
 
     @Test
-    void sessionTemplatePrefillsSpeakerAsFirstParticipant() throws Exception {
+    void sessionTemplateStartsEmptyAndUsesFictionalExamples() throws Exception {
         TrainingSessionItem session = trainings.create(sessionRequest("事务培训主讲人模板"));
         TrainingService.ExportFile template = trainings.exportSessionImportTemplate(session.id());
 
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(template.bytes()))) {
-            Row speaker = workbook.getSheetAt(0).getRow(1);
-            assertEquals("事务测试主讲人", speaker.getCell(1).getStringCellValue());
-            assertEquals(2.0, speaker.getCell(2).getNumericCellValue());
-            assertEquals("主讲人", speaker.getCell(3).getStringCellValue());
+            Sheet participants = workbook.getSheet("参与名单");
+            assertEquals(0, participants.getLastRowNum());
+            assertEquals("示例成员甲", workbook.getSheet("填写示例").getRow(2).getCell(1).getStringCellValue());
+            boolean defaultDurationShown = false;
+            for (Sheet sheet : workbook) {
+                for (Row row : sheet) {
+                    for (var cell : row) {
+                        assertTrue(!cell.toString().contains(session.speaker()),
+                                "Import template must not contain the actual speaker name");
+                        defaultDurationShown |= cell.toString().contains("下载时默认时长：2 小时");
+                    }
+                }
+            }
+            assertTrue(defaultDurationShown);
         }
     }
 
@@ -305,11 +315,19 @@ class TrainingTransactionIntegrationTest {
         Files.write(STORAGE_ROOT.resolve("training-long-title.xlsx"), template.bytes());
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(template.bytes()));
              ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            Row speaker = workbook.getSheetAt(0).getRow(1);
-            assertEquals(0.0, speaker.getCell(2).getNumericCellValue());
-            speaker.getCell(0).setBlank();
-            speaker.getCell(0).setCellValue("000001");
-            speaker.getCell(2).setBlank();
+            Sheet participants = workbook.getSheetAt(0);
+            assertEquals(0, participants.getLastRowNum());
+            boolean zeroDefaultShown = false;
+            for (Row row : workbook.getSheet("填写说明")) {
+                for (var cell : row) {
+                    zeroDefaultShown |= cell.toString().contains("下载时默认时长：0 小时");
+                }
+            }
+            assertTrue(zeroDefaultShown);
+            Row participant = participants.createRow(1);
+            participant.createCell(0).setCellValue("000001");
+            participant.createCell(1).setCellValue("示例参与成员");
+            participant.createCell(2).setBlank();
             workbook.write(output);
             var result = trainings.importParticipants(session.id(), new MockMultipartFile(
                     "file", "participants.xlsx",

@@ -687,7 +687,8 @@ class SQLiteDatabaseIntegrationTest {
 
         AuthContext.set(new AuthUser(adminId, "admin", "管理员", Role.ADMIN, Instant.now().plusSeconds(3600)));
         CustomExportService.ExportOptions adminOptions = exports.options();
-        assertEquals(7, adminOptions.sources().size());
+        assertEquals(List.of("members", "attendance", "schedule", "repairs", "training", "logs"),
+                adminOptions.sources().stream().map(CustomExportService.SourceOption::id).toList());
         for (CustomExportService.SourceOption source : adminOptions.sources()) {
             List<String> fields = source.fields().stream()
                     .filter(CustomExportService.FieldOption::defaultSelected)
