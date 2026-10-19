@@ -1,6 +1,6 @@
 /* The kiosk uses one Classic composition across all appearances. */
 html:root[data-appearance] .public-presentation.public-kiosk { --pub-radius:12px; padding:28px 40px; animation:none; transform:none; }
-html:root[data-appearance] .public-presentation.public-kiosk .public-kiosk-shell { display:grid; grid-template-columns:minmax(0,1fr); max-width:1480px; padding-top:0; }
+html:root[data-appearance] .public-presentation.public-kiosk .public-kiosk-shell { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(auto,1fr) auto auto; max-width:none; min-height:calc(100dvh - 56px); padding-top:0; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-header { position:static; display:flex; align-items:center; justify-content:space-between; grid-column:1; grid-row:1; margin:0 0 24px; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand { display:flex; align-items:center; gap:16px; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand-mark,
@@ -10,7 +10,7 @@ html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-header
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-clock { font-size:38px; line-height:1.1; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-time>span { font-size:16px; line-height:1.5; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-service { font-size:14px; }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-stage { grid-column:1; grid-row:2; margin:0; border-radius:var(--pub-radius) var(--pub-radius) 0 0; box-shadow:none; }
+html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-stage { display:grid; grid-column:1; grid-row:2; margin:0; border-radius:var(--pub-radius) var(--pub-radius) 0 0; box-shadow:none; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-state { width:100%; max-width:none; margin:0; min-height:260px; padding:28px 40px; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-state h1 { font-size:38px; line-height:1.25; letter-spacing:0; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-input-state { justify-content:center; min-height:300px; gap:16px; padding-top:40px; }
@@ -75,7 +75,7 @@ html:root[data-appearance] .public-presentation.public-kiosk :is(.kiosk-focus-ch
 }
 @media(max-width:700px) {
   html:root[data-appearance] .public-presentation.public-kiosk { padding:20px 16px 32px; }
-  html:root[data-appearance] .public-presentation.public-kiosk .public-kiosk-shell { display:flex; padding-top:0; }
+  html:root[data-appearance] .public-presentation.public-kiosk .public-kiosk-shell { display:flex; min-height:0; padding-top:0; }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-header { order:0; margin-bottom:18px; gap:14px; }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand strong { font-size:18px; }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-brand-mark,

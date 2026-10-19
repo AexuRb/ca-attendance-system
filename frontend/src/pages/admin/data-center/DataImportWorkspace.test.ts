@@ -16,6 +16,12 @@ async function validate(w: ReturnType<typeof render>) { await w.get('.import-fil
 beforeEach(() => { Object.keys(mocks.query).forEach(key => delete mocks.query[key]); vi.clearAllMocks(); mocks.get.mockResolvedValue({ items: [training, { ...training, id: 5, title: "培训乙" }], page: 1, hasMore: false }); mocks.post.mockResolvedValue(memberPreview); });
 afterEach(() => { wrappers.splice(0).forEach(w => w.unmount()); });
 describe('data import catalog', () => {
+  it('downloads the member template from the authenticated backend', async () => {
+    const w = render(); mocks.get.mockResolvedValue(new Blob(['template']));
+    await w.get('[aria-label="下载成员名册模板"]').trigger('click'); await flushPromises();
+    expect(mocks.get).toHaveBeenCalledWith('/api/users/import-template');
+    expect(mocks.download).toHaveBeenCalledTimes(1);
+  });
   it('starts with three task entries and no file or API request', () => { const w = render(); expect(w.findAll('.import-task')).toHaveLength(3); expect(w.find('input[type=file]').exists()).toBe(false); expect(mocks.get).not.toHaveBeenCalled(); });
   it('requires a valid preview and submits the reviewed file with member revision', async () => {
     const w = render(); await open(w); expect(w.get('.import-task-footer button').attributes('disabled')).toBeDefined(); await file(w); await validate(w);

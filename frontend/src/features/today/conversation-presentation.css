@@ -100,16 +100,14 @@ html:root[data-appearance] .today-conversation button:active { transform: none; 
 html:root[data-appearance] .today-conversation button:focus-visible { outline: 2px solid var(--mw-accent); outline-offset: 3px; }
 html:root[data-appearance] .overview-shell .today-dialogue-log { display: flex; flex-direction: column; height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 0 8px 0 0; }
 html:root[data-appearance] .overview-shell .today-dialogue-log > * { flex-shrink: 0; }
-/* Auto space collapses when history overflows, keeping its first reply reachable. */
-html:root[data-appearance] .overview-shell .today-entry-message { margin-top: auto; }
-html:root[data-appearance] .overview-shell .today-dialogue-log.is-welcome-only { display: grid; grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr); justify-items: center; padding: 0; }
-html:root[data-appearance] .overview-shell .today-entry-message.is-welcome { grid-row: 2; width: fit-content; max-width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; text-align: center; }
-html:root[data-appearance] .overview-shell .today-entry-message.is-welcome > p { margin: 0; font: 500 28px/1.6 var(--mw-font); }
+/* Keep short histories at the composer; auto space collapses when they overflow. */
+html:root[data-appearance] .overview-shell .today-dialogue-log > .today-conversation-turn:first-child { margin-top: auto; }
+html:root[data-appearance] .overview-shell .today-welcome-display { display: grid; grid-template-rows: minmax(0, 1fr) auto minmax(0, 1fr); justify-items: center; height: 100%; min-height: 0; overflow-y: auto; }
+html:root[data-appearance] .overview-shell .today-entry-message { grid-row: 2; width: fit-content; max-width: 100%; margin: 0; padding: 0; color: var(--mw-ink); font: 500 28px/1.6 var(--mw-font); text-align: center; overflow-wrap: anywhere; }
 html:root[data-appearance] .overview-shell .today-system-message { width: fit-content; max-width: min(900px, 100%); padding: 18px 22px; border: 1px solid transparent; border-radius: 16px 16px 16px 4px; background: var(--overview-chat); box-shadow: none; color: var(--mw-ink); }
 html:root[data-appearance] .overview-shell .today-system-message > p { margin: 8px 0 0; font-size: 18px; line-height: 1.8; overflow-wrap: anywhere; }
 html:root[data-appearance] .overview-shell .today-system-message > small { display: block; margin-top: 8px; color: var(--mw-muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 html:root[data-appearance] .overview-shell .today-system-message > :first-child { margin-top: 0; }
-html:root[data-appearance] .overview-shell .today-entry-message > small { margin-top: 0; font-size: 13px; }
 html:root[data-appearance] .overview-shell .today-message-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 html:root[data-appearance] .overview-shell .today-message-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; max-width: 100%; padding: 8px 14px; min-height: 40px; border: 1px solid var(--mw-line); border-radius: 8px; background: var(--mw-paper); color: var(--mw-ink); font-size: 14px; line-height: 22px; white-space: normal; text-align: left; overflow-wrap: anywhere; }
 html:root[data-appearance] .overview-shell .today-message-actions button svg { width: 15px; height: 15px; color: var(--mw-muted); }

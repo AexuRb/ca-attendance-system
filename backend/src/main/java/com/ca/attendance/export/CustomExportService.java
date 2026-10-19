@@ -48,9 +48,9 @@ public class CustomExportService {
             membersSource(),
             attendanceSource(),
             statsSource(),
-            trainingSource(),
             scheduleSource(),
             repairSource(),
+            trainingSource(),
             logsSource()
     );
 
@@ -68,6 +68,7 @@ public class CustomExportService {
         AuthUser current = AuthContext.current();
         requireExporter(current);
         List<SourceOption> sources = SOURCES.stream()
+                .filter(source -> !source.id().equals("stats"))
                 .filter(source -> !source.adminOnly()
                         || RolePermissionPolicy.allows(
                                 current.role(),
@@ -584,8 +585,8 @@ public class CustomExportService {
     private static SourceDefinition membersSource() {
         return new SourceDefinition("members", "成员", false, List.of(
                 field("studentNo", "学号", true), field("name", "姓名", true),
-                field("role", "角色", true), field("status", "账号状态", true),
-                field("phone", "手机号", true), field("major", "学院", true),
+                field("role", "角色", false), field("status", "账号状态", false),
+                field("phone", "手机号", false), field("major", "学院", true),
                 field("grade", "年级", true), field("qq", "QQ", false),
                 field("lastLoginAt", "最近登录", false), field("createdAt", "创建时间", false)
         ), List.of(
@@ -643,9 +644,9 @@ public class CustomExportService {
     private static SourceDefinition scheduleSource() {
         return new SourceDefinition("schedule", "部长排班", false, List.of(
                 field("weekday", "星期", true), field("period", "值班时段", true),
-                field("title", "标题", true), field("location", "地点", false),
+                field("title", "标题", false), field("location", "地点", false),
                 field("note", "备注", false), field("enabled", "签到台显示", false),
-                field("studentNo", "学号", true), field("name", "姓名", true),
+                field("studentNo", "学号", false), field("name", "姓名", true),
                 field("sortOrder", "组内顺序", false)
         ), List.of(
                 selectFilter("weekday", "星期", choices(

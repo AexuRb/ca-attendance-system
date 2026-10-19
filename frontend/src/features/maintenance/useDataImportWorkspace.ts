@@ -100,7 +100,7 @@ export function useDataImportWorkspace() {
       if (active.value !== "training") openTask("training");
       error.value = "请先选择培训，再下载对应模板。"; return;
     }
-    const path = kind === "members" ? "/templates/member-import-template.xlsx" : kind === "schedules" ? "/api/schedules/import-template" : `/api/trainings/${session.value!.id}/participants/import-template`;
+    const path = kind === "members" ? "/api/users/import-template" : kind === "schedules" ? "/api/schedules/import-template" : `/api/trainings/${session.value!.id}/participants/import-template`;
     busy.value = "template"; error.value = "";
     try { const blob = await get<Blob>(path); if (live) downloadBlob(blob, `${importKinds.find(k => k.id === kind)!.name}导入模板.xlsx`); }
     catch (cause) { if (live) error.value = message(cause, "模板下载失败，请重试"); }

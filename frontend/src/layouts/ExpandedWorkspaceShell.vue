@@ -21,7 +21,7 @@
       <div class="overview-brand">
         <button data-button-kind="icon" ref="menuButton" class="overview-menu-toggle" type="button" :aria-expanded="menuOpen" aria-controls="overview-navigation" aria-label="打开功能菜单" @click="menuOpen = !menuOpen"><Menu aria-hidden="true" /></button>
         <img :src="logoUrl" data-shared-emblem="small" width="890" height="892" alt="计算机协会会徽">
-        <strong>计算机值班管理系统</strong>
+        <strong>计算机协会值班管理系统</strong>
       </div>
       <div class="overview-topbar-actions">
         <span v-if="!checking && !online" class="overview-service-alert" role="status"><CircleAlert aria-hidden="true" />服务连接异常</span>

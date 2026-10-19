@@ -2,6 +2,9 @@ package com.ca.attendance.training;
 
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.DownloadFilename;
+import com.ca.attendance.common.ExcelImportTemplateGuide;
+import com.ca.attendance.common.ExcelImportTemplateGuide.Item;
+import com.ca.attendance.common.ExcelImportTemplateGuide.Section;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -20,7 +23,6 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -60,14 +62,9 @@ public class TrainingExcelExportService {
 
     private void writeImportTemplateWorkbook(Workbook workbook, TrainingSessionItem session,
                                              BigDecimal defaultDuration) {
-        CellStyle titleStyle = titleStyle(workbook);
         CellStyle headerStyle = headerStyle(workbook);
-        CellStyle textStyle = textStyle(workbook);
         CellStyle studentNoStyle = textStyle(workbook);
         studentNoStyle.setDataFormat(workbook.createDataFormat().getFormat("@"));
-        CellStyle noteStyle = textStyle(workbook);
-        noteStyle.setWrapText(true);
-        noteStyle.setVerticalAlignment(VerticalAlignment.TOP);
 
         Sheet dataSheet = workbook.createSheet("参与名单");
         dataSheet.setDefaultColumnStyle(0, studentNoStyle);
@@ -78,53 +75,40 @@ public class TrainingExcelExportService {
             cell.setCellValue(headers[index]);
             cell.setCellStyle(headerStyle);
         }
-        if (session != null && session.speaker() != null && !session.speaker().isBlank()) {
-            Row speaker = dataSheet.createRow(1);
-            speaker.createCell(0).setCellValue("");
-            speaker.createCell(1).setCellValue(session.speaker());
-            speaker.createCell(2).setCellValue(defaultDuration.doubleValue());
-            speaker.createCell(3).setCellValue("主讲人");
-            for (int index = 0; index < headers.length; index++) {
-                speaker.getCell(index).setCellStyle(index == 0 ? studentNoStyle : textStyle);
-            }
-        }
         setColumnWidths(dataSheet, 36, 18, 12, 28);
         dataSheet.createFreezePane(0, 1);
+        ExcelImportTemplateGuide.fitPrintWidth(dataSheet, false);
 
-        Sheet noteSheet = workbook.createSheet("填写说明");
-        Row title = noteSheet.createRow(0);
-        title.createCell(0).setCellValue("培训参与名单导入模板");
-        title.getCell(0).setCellStyle(titleStyle);
-        title.setHeightInPoints(30);
-        List<String> notes = new ArrayList<>();
-        if (session == null) {
-            notes.add("通用模板：请在培训管理中选择具体培训后导入。");
-        } else {
-            notes.add("培训：" + session.title() + "（" + session.trainingDate() + "）");
-            notes.add("主讲人：" + valueOrDash(session.speaker()));
-            notes.add("下载时默认时长：" + defaultDuration.stripTrailingZeros().toPlainString() + " 小时");
-            notes.add("导入前请核对目标培训的标题和日期；旧模板的主讲人、预填时长等信息可能需要更新。");
-        }
-        notes.add("参与名单工作表第一行为表头，请从第二行开始填写。");
-        notes.add("姓名必填。学号留空时，姓名必须唯一匹配系统中已有成员；外部人员、重名或无法匹配的主讲人也需补填学号。");
-        notes.add("学号填写 1—32 位数字，以文本输入或粘贴并核对前导零和长学号。带格式粘贴可能覆盖文本格式，已被转成数字的学号需重新填写。");
-        notes.add("填写学号时，已有账号按学号匹配，姓名以系统资料为准；未建档学号保存为培训外部记录，不创建成员账号。");
-        notes.add("当前培训有主讲人时，第一条数据已预填主讲人，会作为参与记录导入。请核对姓名、补填所需学号并检查时长；不登记此人请删除该行。");
-        notes.add("时长单位为小时，可填数字或以 h、H、小时、时结尾，如 1.5 或 2小时；范围 0—999.99，四舍五入保留两位小数。计入培训时长，并纳入合计时长。");
-        notes.add("只有时长留空时，才按导入目标培训当前起止时间计算；无有效起止时间时默认 0，请人工核对。已预填或手填数字不会随培训时间变更自动更新。");
-        notes.add("文件不超过 5 MB，表头后的数据区域最多 3000 行（本模板第 2—3001 行），中间空白行也占行号范围，请删除范围外的多余行。");
-        notes.add("同一文件内学号不能重复；学号留空时姓名不能重复。重复或任意其他校验错误都会使整批不写入，请修正后重新导入。");
-        notes.add("同一培训中已存在的学号会更新姓名、时长和备注（空白备注会清除原备注），不是累加时长；文件未包含的参与记录保持不变。");
-        for (int index = 0; index < notes.size(); index++) {
-            Row row = noteSheet.createRow(index + 2);
-            Cell cell = row.createCell(0);
-            cell.setCellValue(notes.get(index));
-            cell.setCellStyle(noteStyle);
-            // Estimate wrapped lines conservatively without relying on fonts installed on the server.
-            int textWidth = notes.get(index).codePoints().map(value -> value > 255 ? 2 : 1).sum();
-            row.setHeightInPoints(Math.max(32, (float) Math.ceil(textWidth / 68.0) * 16 + 12));
-        }
-        noteSheet.setColumnWidth(0, 76 * 256);
+        String target = session == null ? "通用模板。先在数据中心选择具体培训，再导入参与名单。"
+                : "目标培训：" + session.title() + "（" + session.trainingDate()
+                + "）。下载时默认时长：" + defaultDuration.stripTrailingZeros().toPlainString() + " 小时。";
+        ExcelImportTemplateGuide.write(workbook, "培训参与名单导入模板", target, List.of(
+                new Section("一、填写规则", List.of(
+                        new Item("填写位置", "第一张表", "在“参与名单”第2行起填写，一行一人。保留第1行表头，不添加标题或说明行。"),
+                        new Item("学号", "条件必填", "1—32位数字，按文本填写。留空时，姓名必须唯一匹配已有成员；外部人员、重名或无法匹配的主讲人必须补填学号。"),
+                        new Item("姓名", "必填", "填写实际参与人的姓名。填写已有学号时，最终姓名以系统成员资料为准。"),
+                        new Item("时长", "可留空", "单位：小时。可填1.5、2小时等，接受h/H/小时/时后缀；范围0—999.99，四舍五入保留两位小数。时长计入培训和合计时长。"),
+                        new Item("备注", "可选", "填写本次培训的参与备注。更新已有记录时，留空会清除原备注。")
+                )),
+                new Section("二、导入后会发生什么", List.of(
+                        new Item("已有参与记录", "更新，不累加", "同一培训中已有学号更新姓名、时长和备注。文件未包含的参与记录保持不变。"),
+                        new Item("未建档学号", "外部参与记录", "保存到本次培训，不创建成员账号。"),
+                        new Item("时长留空", "按目标培训计算", "采用导入时目标培训的起止时间；没有有效起止时间则为0。已填数字不会随培训时间变化自动更新。"),
+                        new Item("参与人员", "按实际名单填写", "首表不预填任何人员。需要登记主讲人的参与记录时，请自行填写其学号、姓名和时长。"),
+                        new Item("重复或其他错误", "整批不写入", "同一文件学号不能重复；学号留空时姓名不能重复。任意校验错误都需修正后重新校验。")
+                )),
+                new Section("三、导入前核对", List.of(
+                        new Item("目标培训", "核对标题和日期", "先选择培训，再下载对应模板。培训时间可能变化，导入前重新核对目标培训和时长。"),
+                        new Item("粘贴方式", "仅粘贴值", "学号列按文本填写，保留前导零和全部数字。带格式粘贴可能覆盖文本格式，已丢失的数字需从原始资料重新填写。"),
+                        new Item("文件限制", "5 MB / 3000行", "填写范围为首表第2—3001行，中间空白行也占行号范围。删除范围外多余行。"),
+                        new Item("操作流程", "校验后确认", "选择文件并校验，核对人员、时长和更新结果后确认导入。文件或目标变化后重新校验。"),
+                        new Item("填写示例", "仅供参照", "示例表使用虚构姓名，系统不读取该表。请勿直接把示例当作实际人员导入。")
+                ))
+        ));
+        ExcelImportTemplateGuide.examples(workbook, headers, List.of(
+                List.of("000001", "示例成员甲", "1.5", "参与备注示例"),
+                List.of("00123456789012345678901234567890", "示例外部人员乙", "2小时", "")
+        ), "姓名和学号示例均为虚构，学号保留前导零。时长可留空按目标培训计算；备注留空在更新时会清除原备注。");
         workbook.setActiveSheet(0);
     }
 

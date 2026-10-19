@@ -1,6 +1,6 @@
 <template>
   <div class="data-type-catalog">
-    <header class="import-catalog-lead"><h2>选择数据类型</h2></header>
+    <header class="import-catalog-lead"><h2>{{ title || "选择数据类型" }}</h2></header>
     <div class="import-catalog-list">
       <section v-for="item in items" :key="item.id" class="import-task data-type-card" :aria-labelledby="`data-type-${mode}-${item.id}`">
         <header class="import-task-summary">
@@ -15,7 +15,7 @@
 import type { Component } from "vue";
 import { UsersRound, CalendarDays, GraduationCap, ClipboardList, Wrench, History, FileSpreadsheet } from "@lucide/vue";
 export interface DataTypeChoice { id: string; label: string; description: string }
-defineProps<{ mode: 'import' | 'export'; items: DataTypeChoice[]; busy?: boolean }>();
+defineProps<{ mode: 'import' | 'export'; items: DataTypeChoice[]; busy?: boolean; title?: string }>();
 defineEmits<{ choose: [id: string] }>();
 const icons: Record<string, Component> = { members: UsersRound, schedules: CalendarDays, schedule: CalendarDays, training: GraduationCap, attendance: ClipboardList, repairs: Wrench, logs: History };
 </script>

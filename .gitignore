@@ -54,6 +54,7 @@ backend/*.pid
 backend/*.err
 ca-attendance-system-*.zip
 release-artifacts/
+outputs/
 
 # Local UI screenshots and smoke-test output
 frontend/ui-check/

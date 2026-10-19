@@ -30,6 +30,31 @@ afterEach(() => {
 });
 
 describe("TodayPage request states", () => {
+  it("shows a plain greeting until the first message is sent and restores it on re-entry", async () => {
+    sessionMock.name = "示例成员甲";
+    mocks.apiGet.mockImplementation((url: string) => Promise.resolve(url.includes("schedules") ? { slots: [] } : { todayPendingCount: 0, ongoingRepairCount: 0 }));
+    const wrapper = mount(TodayPage);
+    await flushPromises();
+    expect(wrapper.get(".today-entry-message").element.tagName).toBe("P");
+    expect(wrapper.get(".today-entry-message").classes()).not.toContain("today-system-message");
+    expect(wrapper.find('[role="log"]').exists()).toBe(false);
+
+    const input = wrapper.get('textarea[aria-label="查找后台功能或输入命令"]');
+    await input.setValue("/ 打开 成员名册");
+    expect(wrapper.find(".today-entry-message").exists()).toBe(true);
+    await input.trigger("keydown", { key: "Enter" });
+    await flushPromises();
+    expect(wrapper.find(".today-entry-message").exists()).toBe(false);
+    expect(wrapper.get('[role="log"]').findAll(".today-conversation-turn")).toHaveLength(1);
+    expect(mocks.routerPush).not.toHaveBeenCalled();
+    wrapper.unmount();
+
+    const reopened = mount(TodayPage);
+    await flushPromises();
+    expect(reopened.get(".today-entry-message").text()).toBe("欢迎回来，示例成员甲。");
+    reopened.unmount();
+  });
+
   it("keeps sidebar shortcuts on the guarded conversation path", async () => {
     mocks.apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('schedules') ? { slots: [] } : {todayPendingCount:0,ongoingRepairCount:0}));
     const wrapper = mount(TodayPage);
@@ -39,6 +64,7 @@ describe("TodayPage request states", () => {
     await button.trigger('click');
     await flushPromises();
     expect(wrapper.findAll('.today-conversation-turn')).toHaveLength(1);
+    expect(wrapper.find('.today-entry-message').exists()).toBe(false);
     expect(wrapper.get('.today-user-message').text()).toBe('新建维修');
     expect(mocks.routerPush).not.toHaveBeenCalled();
     expect(mocks.apiGet.mock.calls.every(([url]) => /stats\/dashboard|schedules\/today/.test(url))).toBe(true);

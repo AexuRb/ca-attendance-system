@@ -1,8 +1,8 @@
 <template>
-  <div ref="log" class="today-dialogue-log" :class="{ 'is-welcome-only': !turns.length }" role="log" aria-label="今日操作对话" aria-live="polite" aria-relevant="additions">
-    <article class="today-system-message today-entry-message" :class="{ 'is-welcome': !turns.length }">
-      <p>{{ entry }}</p>
-    </article>
+  <div v-if="!turns.length" class="today-welcome-display">
+    <p class="today-entry-message">{{ entry }}</p>
+  </div>
+  <div v-else ref="log" class="today-dialogue-log" role="log" aria-label="今日操作对话" aria-live="polite" aria-relevant="additions">
     <div v-for="(turn, index) in turns" :key="turn.id" class="today-conversation-turn">
       <p class="today-user-message">{{ turn.input }}</p>
       <article class="today-system-message" :class="{ 'is-error': turn.failed }">

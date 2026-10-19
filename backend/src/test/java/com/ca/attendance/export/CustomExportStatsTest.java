@@ -33,9 +33,9 @@ class CustomExportStatsTest {
     private void role(Role role) { AuthContext.set(new AuthUser(1,"synthetic","测试账号",role,Instant.now().plusSeconds(60))); }
     private CustomExportService.ExportRequest request() { return new CustomExportService.ExportRequest("stats",List.of("studentNo","attendanceHours","trainingHours","totalHours"),Map.of("from",from.toString(),"to",to.toString()),""); }
     private StatsService.SummaryItem item(int id) { return new StatsService.SummaryItem(id,"T"+id,"测试成员",null,"MEMBER",2,1,new BigDecimal("3.25"),new BigDecimal("1.50"),3,new BigDecimal("4.75")); }
-    @Test void exposesSummaryToLeadersWithoutExpandingMinisterPermissions() {
+    @Test void omitsSummaryFromCatalogWithoutExpandingMinisterPermissions() {
         role(Role.PRESIDENT);
-        assertThat(service.options().sources()).anySatisfy(source -> { assertThat(source.id()).isEqualTo("stats"); assertThat(source.label()).isEqualTo("统计汇总"); });
+        assertThat(service.options().sources()).noneMatch(source -> source.id().equals("stats"));
         role(Role.MINISTER);
         assertThatThrownBy(service::options).isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> service.preview(request())).isInstanceOf(ApiException.class);

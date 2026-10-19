@@ -1,6 +1,6 @@
 <template>
   <AuthLayout class="credits-editor-page" :entry-mode="state.access.mode" large-brand>
-    <template #header-actions><button class="button secondary" data-button-kind="entry" type="button" :disabled="busy" @click="router.push({ name: 'settings' })">返回系统设置</button></template>
+    <template #header-actions><button class="button secondary" data-button-kind="entry" type="button" :disabled="busy" @click="router.push({ name: 'profile' })">返回个人资料</button></template>
     <section class="credits-editor" aria-labelledby="credits-editor-title">
       <header class="credits-editor-heading"><div><h1 id="credits-editor-title">编辑鸣谢</h1><p>{{ acknowledgements.intro }}</p></div></header>
       <div v-if="loading" class="credits-editor-state" role="status">正在加载贡献信息</div>

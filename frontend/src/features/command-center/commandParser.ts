@@ -281,8 +281,9 @@ function exportCommand(
   args: string[],
   now: Date,
 ): CommandResolution {
-  if (["数据统计", "培训记录", "操作日志"].includes(object.canonical)) {
-    const fallback = object.canonical === "数据统计" ? "本周" : "本月";
+  if (object.canonical === "数据统计") return invalid("统计汇总导出已移除，请使用“查看 数据统计”查看统计结果。");
+  if (["培训记录", "操作日志"].includes(object.canonical)) {
+    const fallback = "本月";
     const range = optionalRange(args, now, fallback);
     return "message" in range ? invalid(range.message) : exportRangeRoute(object, range);
   }
@@ -363,7 +364,7 @@ function exportRangeRoute(
     "已准备" + range.label + object.canonical + "导出",
     "confirm",
     "data",
-    { tab: "export", source: ({ 数据统计: "stats", 培训记录: "training", 操作日志: "logs" } as Record<string, string>)[object.canonical]!, from: range.from, to: range.to },
+    { tab: "export", source: ({ 培训记录: "training", 操作日志: "logs" } as Record<string, string>)[object.canonical]!, from: range.from, to: range.to },
   );
 }
 

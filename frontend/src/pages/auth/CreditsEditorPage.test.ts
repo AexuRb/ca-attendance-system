@@ -16,6 +16,9 @@ async function page(){const w=mount(CreditsEditorPage);wrappers.push(w);await fl
 beforeEach(()=>{vi.clearAllMocks();mocks.get.mockResolvedValue({intro:acknowledgements.intro,contributors:[fixedContributor,extraA,extraB],revision:"r1"});});
 afterEach(()=>wrappers.splice(0).forEach(w=>w.unmount()));
 describe("credits editor",()=>{
+  it("returns to the profile that now hosts the credits entry",async()=>{
+    const w=await page();await w.get('button').trigger('click');expect(mocks.push).toHaveBeenCalledWith({name:'profile'});expect(w.get('button').text()).toBe('返回个人资料');
+  });
   it("keeps the thanks and founder immutable, with no editable fields or row actions",async()=>{
     const w=await page();expect(w.get('.credits-editor-founder').text()).toContain(fixedContributor.name);
     expect(w.get('.credits-editor-founder').findAll('input,textarea,button')).toHaveLength(0);

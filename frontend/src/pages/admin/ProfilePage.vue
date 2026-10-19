@@ -1,6 +1,8 @@
 <template>
   <ExpandedWorkspaceShell class="support-workspace profile-presentation overview-profile" current-page="profile">
-    <template #heading><h1>个人资料</h1></template>
+    <template #heading><h1>个人资料</h1>
+      <button v-if="isAdmin" class="button secondary small" type="button" aria-label="查看鸣谢" @click="credits = true"><HeartHandshake aria-hidden="true" />鸣谢</button>
+    </template>
     <div v-if="pageError" class="inline-alert danger" role="alert">
       <span>{{ pageError }}</span>
       <button class="button secondary small" type="button" @click="retryFailedLoad">重试</button>
@@ -245,6 +247,7 @@
       </section>
     </div>
 
+    <CreditsDialog v-if="isAdmin" :open="credits" @close="credits = false" />
   </ExpandedWorkspaceShell>
 </template>
 
@@ -252,12 +255,13 @@
 import {
   CalendarCheck,
   GraduationCap,
+  HeartHandshake,
   KeyRound,
   Save,
   Search,
 } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
-import { provide } from "vue";
+import { computed, provide, ref } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
@@ -268,6 +272,7 @@ provide(memberPresentationKey, true);
 import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
+import CreditsDialog from "../../shared/ui/CreditsDialog.vue";
 import { useProfileWorkspace } from "../../features/profile/useProfileWorkspace";
 
 const {
@@ -277,4 +282,6 @@ const {
   recordsLoading, recordsReady, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
   trainingHours, trainingRecords, user,
 } = useProfileWorkspace();
+const isAdmin = computed(() => user.value?.role === "ADMIN");
+const credits = ref(false);
 </script>

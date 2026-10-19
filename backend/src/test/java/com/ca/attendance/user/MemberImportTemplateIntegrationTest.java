@@ -20,6 +20,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -27,7 +28,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -35,7 +36,6 @@ import static org.junit.jupiter.api.Assertions.*;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class MemberImportTemplateIntegrationTest {
     private static final Path STORAGE_ROOT = temporaryRoot();
-    private static final Path TEMPLATE = Path.of("../frontend/public/templates/member-import-template.xlsx");
     private static final String LONG_STUDENT_NO = "00" + "1234567890".repeat(3);
 
     @Autowired private UserService users;
@@ -65,11 +65,9 @@ class MemberImportTemplateIntegrationTest {
     }
 
     @Test
-    void templateCopiesKeepTheMachineReadableBlankInputContract() throws Exception {
-        byte[] bytes = Files.readAllBytes(TEMPLATE);
-        assertArrayEquals(bytes, Files.readAllBytes(Path.of("../docs/成员批量导入模板.xlsx")));
-        assertArrayEquals(bytes, Files.readAllBytes(Path.of("src/main/resources/static/templates/member-import-template.xlsx")));
-        try (var input = Files.newInputStream(TEMPLATE); var workbook = WorkbookFactory.create(input)) {
+    void generatedTemplateKeepsTheMachineReadableBlankInputContract() throws Exception {
+        byte[] bytes = new MemberImportTemplateService().generate().bytes();
+        try (var input = new ByteArrayInputStream(bytes); var workbook = WorkbookFactory.create(input)) {
             var sheet = workbook.getSheetAt(0);
             var reader = new ExcelCellTextReader(workbook);
             assertEquals("成员导入模板", sheet.getSheetName());
@@ -98,10 +96,10 @@ class MemberImportTemplateIntegrationTest {
             assertEquals("'年级选项'!$A$1:$A$33", workbook.getName("MemberImportGrades").getRefersToFormula());
             var options = workbook.getSheet("年级选项");
             assertTrue(workbook.isSheetHidden(workbook.getSheetIndex(options)));
-            // A static template is deliberately checked against the current backend range.
+            // Generated options follow the current backend year range.
             int minimum = LocalDate.now().getYear() - 30;
             for (int index = 0; index < 33; index++) {
-                assertEquals((minimum + index) + "级", reader.read(options.getRow(index), 0), "跨年时重新生成静态模板");
+                assertEquals((minimum + index) + "级", reader.read(options.getRow(index), 0));
             }
             assertEquals("", reader.read(options.getRow(33), 0));
             var examples = workbook.getSheet("填写示例");
@@ -110,18 +108,16 @@ class MemberImportTemplateIntegrationTest {
             assertEquals("000001", reader.read(examples.getRow(2), 0));
             assertEquals(LONG_STUDENT_NO, reader.read(examples.getRow(3), 0));
         }
-        try (var archive = new ZipFile(TEMPLATE.toFile())) {
-            for (var entry : archive.stream().filter(e -> e.getName().endsWith(".xml")).toList()) {
-                try (var input = archive.getInputStream(entry)) {
-                    assertFalse(new String(input.readAllBytes(), StandardCharsets.UTF_8).contains("专业"), entry.getName());
-                }
+        try (var archive = new ZipInputStream(new ByteArrayInputStream(bytes))) {
+            for (var entry = archive.getNextEntry(); entry != null; entry = archive.getNextEntry()) {
+                if (entry.getName().endsWith(".xml")) assertFalse(new String(archive.readAllBytes(), StandardCharsets.UTF_8).contains("专业"), entry.getName());
             }
         }
     }
 
     @Test
     void untouchedTemplateNeverImportsReferenceExamples() throws Exception {
-        var file = upload(Files.readAllBytes(TEMPLATE));
+        var file = upload(new MemberImportTemplateService().generate().bytes());
         try (var workbook = WorkbookFactory.create(file.getInputStream())) {
             var reader = new ExcelCellTextReader(workbook);
             for (int c = 0; c < 6; c++) assertEquals("", reader.read(workbook.getSheetAt(0).getRow(3000), c), "上传读取第 3001 行");
@@ -140,7 +136,7 @@ class MemberImportTemplateIntegrationTest {
     @Test
     void templatePreservesLeadingZerosAndThirtyTwoDigitIdentifiersThroughPreviewAndImport() throws Exception {
         byte[] bytes;
-        try (var input = Files.newInputStream(TEMPLATE); var workbook = WorkbookFactory.create(input);
+        try (var input = new ByteArrayInputStream(new MemberImportTemplateService().generate().bytes()); var workbook = WorkbookFactory.create(input);
              var output = new ByteArrayOutputStream()) {
             var sheet = workbook.getSheetAt(0);
             sheet.getRow(1).getCell(0).setCellValue("000001");

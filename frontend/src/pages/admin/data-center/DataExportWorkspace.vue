@@ -2,10 +2,11 @@
   <section class="data-workspace data-export-workspace">
     <p v-if="actionError && !selectedType" class="form-error" role="alert">{{ actionError }}</p>
     <DataTypeCatalog v-if="!selectedType" mode="export" :items="catalogItems" :busy="busy" @choose="chooseSource" />
+    <AttendanceExportWorkspace v-else-if="request.source==='attendance'&&!attendanceCustom" @back="selectedType=false" @custom="attendanceCustom=true" />
     <template v-else>
     <header class="data-operation-header">
       <div class="import-kind-identity"><span class="import-kind-icon"><component :is="sourceIcons[request.source] || FileSpreadsheet" aria-hidden="true" /></span><h2>{{ currentSource?.label }}</h2></div>
-      <button class="button secondary" data-button-kind="entry" type="button" :disabled="busy" @click="selectedType = false"><ArrowLeft aria-hidden="true" />更换数据类型</button>
+      <button class="button secondary" data-button-kind="entry" type="button" :disabled="busy" @click="request.source==='attendance'?attendanceCustom=false:selectedType=false"><ArrowLeft aria-hidden="true" />{{request.source==='attendance'?'更换导出方式':'更换数据类型'}}</button>
     </header>
     <div class="data-frame data-export-table-frame">
       <div class="data-export-body">
@@ -125,10 +126,11 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { ArrowLeft, Download, FileSpreadsheet, ScanSearch, ChartColumn, UsersRound, ClipboardList, GraduationCap, CalendarDays, Wrench, History } from "@lucide/vue";
+import { ArrowLeft, Download, FileSpreadsheet, ScanSearch, UsersRound, ClipboardList, GraduationCap, CalendarDays, Wrench, History } from "@lucide/vue";
 import type { Component } from "vue";
 import EmptyState from "../../../shared/ui/EmptyState.vue";
 import DataTypeCatalog from "./DataTypeCatalog.vue";
+import AttendanceExportWorkspace from "./AttendanceExportWorkspace.vue";
 import { onBeforeRouteLeave, onBeforeRouteUpdate } from "vue-router";
 import type { ExportOptions, ExportPreview, ExportRequest, ExportSource } from "../../../features/maintenance/dataCenterTypes";
 const props = defineProps<{
@@ -139,12 +141,12 @@ const emit = defineEmits<{
   "select-source": [source: ExportSource]; "update-filter": [id: string, value: string]; "update-filename": [value: string];
   "toggle-field": [id: string]; "toggle-all": []; "reset-filters": []; preview: []; export: [];
 }>();
-const selectedType = ref(false);
-watch(() => props.routeSource, value => { selectedType.value = Boolean(value); }, { immediate: true });
+const selectedType = ref(false),attendanceCustom=ref(false);
+watch(() => props.routeSource, value => { selectedType.value = Boolean(value); attendanceCustom.value=Boolean(value); }, { immediate: true });
 const busy = computed(() => props.previewPending || props.exportPending);
 const previewHeading = ref<HTMLElement | null>(null);
 const actionBar = ref<HTMLElement | null>(null);
-const sourceIcons: Record<string, Component> = { stats: ChartColumn, members: UsersRound, attendance: ClipboardList, training: GraduationCap, schedule: CalendarDays, repairs: Wrench, logs: History };
+const sourceIcons: Record<string, Component> = { members: UsersRound, attendance: ClipboardList, training: GraduationCap, schedule: CalendarDays, repairs: Wrench, logs: History };
 watch(() => props.preview, async value => {
   if (!value) return;
   await nextTick();
@@ -160,7 +162,6 @@ const filterSummary = computed(() => (currentSource.value?.filters || []).flatMa
 }));
 function requestPreview() { if (canPreview.value && !props.previewPending) emit('preview'); }
 const descriptions: Record<string, string> = {
-  stats: '成员值班、培训次数与累计时长',
   members: '成员账号与基本资料',
   attendance: '签到签退与值班时长',
   training: '培训场次与参与记录',
@@ -175,6 +176,7 @@ function chooseSource(id: string) {
   const source = props.options.sources.find(item => item.id === id);
   if (!source) return;
   if (source.id !== props.request.source) emit('select-source', source);
+  attendanceCustom.value=false;
   selectedType.value = true;
 }
 onBeforeRouteLeave(() => !busy.value);

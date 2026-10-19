@@ -1,8 +1,6 @@
 <template>
   <ExpandedWorkspaceShell class="settings-page system-workspace settings-workspace overview-settings" current-page="settings">
-    <template #heading><h1>系统设置</h1>
-      <button v-if="canEditAppearance" class="button secondary small" type="button" aria-label="查看鸣谢" @click="credits = true"><HeartHandshake aria-hidden="true" />鸣谢</button>
-    </template>
+    <template #heading><h1>系统设置</h1></template>
     <div v-if="loadError" class="inline-alert danger" role="alert">
       <span>{{ loadError }}</span>
       <button class="button secondary small" type="button" data-action="retry-settings" @click="loadSettings">
@@ -57,13 +55,12 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-    <CreditsDialog v-if="canEditAppearance" :open="credits" backdrop-class="settings-refined-backdrop" @close="credits = false" />
   </ExpandedWorkspaceShell>
 </template>
 <script setup lang="ts">
-import { HeartHandshake, Save } from "@lucide/vue";
+import { Save } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
-import { provide, ref } from "vue";
+import { provide } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/today/overview-presentation.css";
@@ -71,12 +68,10 @@ import "../../features/settings/refined-presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
-import CreditsDialog from "../../shared/ui/CreditsDialog.vue";
 import DutyTimeWorkspace from "./settings/DutyTimeWorkspace.vue";
 import WeekdayCalendarSelector from "./settings/WeekdayCalendarSelector.vue";
 import AppearanceSelector from "./settings/AppearanceSelector.vue";
 import { useSettingsWorkspace } from "../../features/settings/useSettingsWorkspace";
-const credits = ref(false);
 
 const {
   actions,

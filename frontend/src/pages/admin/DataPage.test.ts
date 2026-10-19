@@ -69,6 +69,11 @@ const datedExportOptions = {
   }],
 };
 
+async function openCustomSource(wrapper:ReturnType<typeof mount>){
+  if(wrapper.find('button[data-source=custom]').exists()){await wrapper.get('button[data-source=custom]').trigger('click');return;}
+  await wrapper.get('.data-type-card button[data-source]').trigger('click');
+  if(wrapper.find('button[data-source=custom]').exists())await wrapper.get('button[data-source=custom]').trigger('click');
+}
 function installSuccessfulLoads() {
   mocks.get.mockImplementation((url: string) => {
     if (url === "/api/exports/options") return Promise.resolve(exportOptions);
@@ -155,7 +160,7 @@ describe("DataPage request states", () => {
     const wrapper = mount(DataPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
 
-    await wrapper.get(".data-type-card button[data-source]").trigger("click");
+    await openCustomSource(wrapper);
     await wrapper.get("button[data-export-action=preview]").trigger("click");
     await flushPromises();
 
@@ -195,7 +200,7 @@ describe("DataPage request states", () => {
     mocks.post.mockReturnValue(new Promise(resolve => { finish = resolve; }));
     const wrapper = mount(DataPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    await wrapper.get('.data-type-card button[data-source]').trigger('click');
+    await openCustomSource(wrapper);
     await wrapper.get('button[data-export-action=preview]').trigger('click');
     await wrapper.get('button[data-export-action=preview]').trigger('click');
     expect(mocks.post).toHaveBeenCalledTimes(1);
@@ -227,7 +232,7 @@ describe("DataPage request states", () => {
     mocks.post.mockRejectedValueOnce(new Error("预览暂不可用"));
     const wrapper = mount(DataPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    await wrapper.get(".data-type-card button[data-source]").trigger("click");
+    await openCustomSource(wrapper);
     await wrapper.get('input[name="export-filter-from"]').setValue("2026-10-01");
     await wrapper.get("button[data-export-action=preview]").trigger("click");
     await flushPromises();
@@ -248,7 +253,7 @@ describe("DataPage request states", () => {
     mocks.post.mockResolvedValue({ source:"members", sourceLabel:"成员名册", fields:exportOptions.sources[0].fields, filters:{}, totalRows:1, truncated:false, rows:[{name:"测试成员"}] });
     const wrapper = mount(DataPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    await wrapper.get(".data-type-card button[data-source]").trigger("click");
+    await openCustomSource(wrapper);
     await wrapper.get('input[name="export-field-name"]').setValue(false);
     expect(wrapper.get("button[data-export-action=preview]").attributes("disabled")).toBeDefined();
     expect(wrapper.get('[role="alert"]').text()).toContain("至少选择一个");
@@ -271,11 +276,11 @@ describe("DataPage request states", () => {
     const wrapper = mount(DataPage, { global: { stubs: { Teleport: true } } });
       await flushPromises();
       expect(wrapper.find("#data-export-config").exists()).toBe(false);
-      await wrapper.get(".data-type-card button[data-source]").trigger("click");
+      await openCustomSource(wrapper);
       await wrapper.get('input[name="export-filter-from"]').setValue("2026-10-01");
       await wrapper.get(".data-operation-header button").trigger("click");
       expect(wrapper.find("#data-export-config").exists()).toBe(false);
-      await wrapper.get(".data-type-card button[data-source]").trigger("click");
+      await openCustomSource(wrapper);
       expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
       expect((wrapper.get('input[name="export-filter-from"]').element as HTMLInputElement).value).toBe("2026-10-01");
       wrapper.unmount();
@@ -290,7 +295,7 @@ describe("DataPage request states", () => {
     expect(wrapper.get("#data-panel-export").attributes("aria-labelledby")).toBe("data-export-title");
     expect(wrapper.get("#data-export-title").text()).toBe("数据中心");
     expect(wrapper.find(".data-preview-table").exists()).toBe(false);
-    await wrapper.get(".data-type-card button[data-source]").trigger("click");
+    await openCustomSource(wrapper);
     expect(wrapper.get(".data-preview-status").text()).toContain("生成预览");
     wrapper.unmount();
   });
@@ -334,7 +339,7 @@ describe("DataPage request states", () => {
     });
     const wrapper = mount(DataPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
-    await wrapper.get(".data-type-card button[data-source]").trigger("click");
+    await openCustomSource(wrapper);
 
     const inputs = wrapper.findAll('input[type="date"]');
     await inputs[0].setValue("2026-08-21");
@@ -435,13 +440,13 @@ describe('DataPage import entry', () => {
 
 
 describe("data center command destinations", () => {
-  it.each(["repairs", "stats"])("opens the selected %s configuration with command dates without exporting", async sourceId => {
+  it.each(["repairs", "training"])("opens the selected %s configuration with command dates without exporting", async sourceId => {
     mocks.routeQuery.source=sourceId;
     mocks.routeQuery.from="2026-08-01"; mocks.routeQuery.to="2026-08-28";
     if(sourceId === "repairs") mocks.routeQuery.status="COMPLETED";
     const filters = [...datedExportOptions.sources[0].filters,
       ...(sourceId === "repairs" ? [{id:"status",label:"状态",type:"select",defaultValue:"",options:[{value:"COMPLETED",label:"已完成"}]}] : [])];
-    const label=sourceId === "stats" ? "统计汇总" : "维修事务";
+    const label=sourceId === "training" ? "培训记录" : "维修事务";
     const source={id:sourceId,label,fields:[{id:"name",label:"姓名",defaultSelected:true}],filters};
     mocks.get.mockImplementation((url:string) => Promise.resolve(url === "/api/exports/options" ? {sources:[...exportOptions.sources,source]} : {datasets:[]}));
     const wrapper=mount(DataPage,{global:{stubs:{Teleport:true}}});
@@ -456,6 +461,13 @@ describe("data center command destinations", () => {
     expect(mocks.post).toHaveBeenCalledWith("/api/exports/preview",expect.objectContaining({source:sourceId,filters:expect.objectContaining({from:"2026-08-01",to:"2026-08-28"})}));
     expect(mocks.api).not.toHaveBeenCalled(); expect(mocks.download).not.toHaveBeenCalled();
     wrapper.unmount();
+  });
+  it("does not reopen the removed summary from an old data center link", async () => {
+    mocks.routeQuery.source="stats"; installSuccessfulLoads();
+    const wrapper=mount(DataPage,{global:{stubs:{Teleport:true}}});await flushPromises();
+    expect(wrapper.find('button[data-source="stats"]').exists()).toBe(false);
+    expect(wrapper.get('[role="alert"]').text()).toContain("指定的数据类型不可用");
+    expect(mocks.post).not.toHaveBeenCalled();expect(mocks.api).not.toHaveBeenCalled();wrapper.unmount();
   });
   it("shows unavailable or forbidden command source instead of silently opening another type", async () => {
     mocks.routeQuery.source="logs"; mocks.role="PRESIDENT"; installSuccessfulLoads();

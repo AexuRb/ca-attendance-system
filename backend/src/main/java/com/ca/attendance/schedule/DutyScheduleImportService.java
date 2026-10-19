@@ -4,6 +4,9 @@ import com.ca.attendance.access.RolePermissionPolicy;
 import com.ca.attendance.auth.AuthContext;
 import com.ca.attendance.auth.AuthUser;
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.common.ExcelImportTemplateGuide;
+import com.ca.attendance.common.ExcelImportTemplateGuide.Item;
+import com.ca.attendance.common.ExcelImportTemplateGuide.Section;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.settings.DutyPeriodService;
@@ -416,9 +419,6 @@ public class DutyScheduleImportService {
         CellStyle textStyle = textStyle(workbook);
         CellStyle studentNoStyle = textStyle(workbook);
         studentNoStyle.setDataFormat(workbook.createDataFormat().getFormat("@"));
-        CellStyle noteStyle = textStyle(workbook);
-        noteStyle.setWrapText(true);
-        noteStyle.setVerticalAlignment(VerticalAlignment.TOP);
         Sheet sheet = workbook.createSheet("排班导入");
         sheet.setDefaultColumnStyle(2, studentNoStyle);
         String[] headers = {"星期", "值班时段", "学号", "姓名"};
@@ -446,29 +446,34 @@ public class DutyScheduleImportService {
         sheet.setColumnWidth(2, 36 * 256);
         sheet.setColumnWidth(3, 18 * 256);
         sheet.createFreezePane(0, 1);
+        ExcelImportTemplateGuide.fitPrintWidth(sheet, false);
 
-        Sheet notes = workbook.createSheet("填写说明");
-        List<String> instructions = List.of(
-                "排班导入说明",
-                "1. 每行填写一名值班人员；同一星期和时段需要多人时，请复制该行继续填写。",
-                "2. 学号必填（1—32 位数字），姓名可不填；填写姓名时必须与成员页面完全一致。",
-                "3. 学号列已设为文本，请以文本输入或粘贴，核对前导零和长学号是否保持原样。带格式粘贴可能覆盖文本格式，已被转成数字的学号需重新填写。",
-                "4. 只能安排当前处于启用状态的部长、会长或管理员账号。",
-                "5. 模板按下载时启用的星期和时段生成；设置变更后请重新下载。提交仍按当前设置校验，只能使用当前启用的星期和已有启用时段。",
-                "6. 同一星期和时段的本次人员名单将整组替换原有人员，不是追加；其他分组保持不变。",
-                "7. 学号和姓名都未填写的预填行会跳过，不会清空该时段的原排班。同一分组内学号不能重复，同一人可填写在不同分组。",
-                "8. 文件不超过 5 MB，表头后的数据区域最多 1000 行（本模板第 2—1001 行）；中间空白行、未填人员的预填行也占行号范围，请删除范围外的多余行。",
-                "9. 先上传文件查看预览，核对人员和替换分组后再确认导入；任意校验错误都会使整份文件不写入。"
-        );
-        for (int index = 0; index < instructions.size(); index++) {
-            Row row = notes.createRow(index);
-            Cell cell = row.createCell(0);
-            cell.setCellValue(instructions.get(index));
-            cell.setCellStyle(index == 0 ? headerStyle : noteStyle);
-            int textWidth = instructions.get(index).codePoints().map(value -> value > 255 ? 2 : 1).sum();
-            row.setHeightInPoints(index == 0 ? 28 : Math.max(32, (float) Math.ceil(textWidth / 68.0) * 16 + 12));
-        }
-        notes.setColumnWidth(0, 76 * 256);
+        ExcelImportTemplateGuide.write(workbook, "固定排班导入说明",
+                "模板已按下载时启用的星期和时段预填。请在第一张表填写实际值班人员；每行一人，同组多人请复制该行。", List.of(
+                        new Section("一、填写规则", List.of(
+                                new Item("填写位置", "第一张表", "在“排班导入”第2行起填写。保留第1行四列表头，不添加标题或说明行。"),
+                                new Item("星期、值班时段", "必填", "使用模板已预填的组合。仅允许当前已启用的星期和时段，设置变化后请重新下载模板。"),
+                                new Item("学号", "必填", "1—32位数字，以文本填写。账号必须已建档、启用，且角色为部长、会长或管理员。"),
+                                new Item("姓名", "可留空", "填写时必须与成员名册中的姓名完全一致。"),
+                                new Item("同组多人", "每人一行", "复制相同星期和时段的行，填写不同人员。同一组学号不能重复，同一人可以出现在不同组。")
+                        )),
+                        new Section("二、导入后会发生什么", List.of(
+                                new Item("文件涉及的分组", "整组替换", "同一星期和时段的原人员名单会被本次名单替换，不是追加。请填写该组需要保留的全部人员。"),
+                                new Item("文件未涉及的分组", "保持不变", "不会改动其他星期或时段的排班。"),
+                                new Item("预填行未填人员", "跳过", "学号和姓名均为空时跳过该行，不会清空该组原排班。"),
+                                new Item("任意校验错误", "整批不写入", "修正问题后重新校验，确认所有替换分组和人员后再导入。")
+                        )),
+                        new Section("三、导入前核对", List.of(
+                                new Item("粘贴方式", "仅粘贴值", "学号保留前导零和全部数字。带格式粘贴可能覆盖文本格式，已丢失的数字需从原始资料重新填写。"),
+                                new Item("文件限制", "5 MB / 1000行", "填写范围为首表第2—1001行。中间空白行和未填人员的预填行也占行号范围，删除范围外多余行。"),
+                                new Item("操作流程", "校验后确认", "下载模板并填写，上传校验，核对本次人员和整组替换范围，最后确认导入。"),
+                                new Item("填写示例", "仅供参照", "示例表姓名和学号均为虚构，系统不读取该表。请在首表填写实际人员。")
+                        ))
+                ));
+        ExcelImportTemplateGuide.examples(workbook, headers, List.of(
+                List.of(weekdays.getFirst().name(), periods.getFirst().displayText(), "000001", "示例部长甲"),
+                List.of(weekdays.getFirst().name(), periods.getFirst().displayText(), "000002", "示例部长乙")
+        ), "这两行表示同一星期和时段安排两人。确认导入后，该组原人员将被完整替换。示例学号、姓名均为虚构，请勿直接导入。");
         workbook.setActiveSheet(0);
     }
 

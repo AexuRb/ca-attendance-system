@@ -1,1 +1,0 @@
-import{C as e,N as t,X as n,_t as r,h as i,v as a,w as o}from"./vue-router-DyCa9V42.js";import{m as s}from"./index-CbZZEzVC.js";var c={class:`loading-block`,role:`status`},l=o({__name:`LoadingBlock`,props:{label:{}},setup(o){return(l,u)=>(t(),a(`div`,c,[e(n(s),{class:`spin`}),i(`span`,null,r(o.label||`正在加载`),1)]))}});export{l as t};

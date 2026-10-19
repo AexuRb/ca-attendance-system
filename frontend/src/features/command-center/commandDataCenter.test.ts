@@ -10,14 +10,15 @@ describe("data center command handoff", () => {
   it.each([["数据中心","import"], ["数据与备份","import"], ["数据导入","import"], ["数据导出","export"], ["自定义导出","export"], ["自定义 Excel","export"], ["备份与恢复","backups"]])("opens %s in its current mode", (object, tab) => {
     expect(resolveCommand(`/ 打开 ${object}`, "ADMIN", now)).toMatchObject({kind:"resolved",target:{name:"data",query:{tab}}});
   });
-  it.each([["数据统计","stats","PRESIDENT"], ["培训记录","training","PRESIDENT"], ["操作日志","logs","ADMIN"]] as const)("preserves dates for %s exports", (object, source, role) => {
+  it.each([["培训记录","training","PRESIDENT"], ["操作日志","logs","ADMIN"]] as const)("preserves dates for %s exports", (object, source, role) => {
     expect(resolveCommand(`/ 导出 ${object} 2026-08-01..2026-08-28`, role, now)).toMatchObject({kind:"resolved",execution:"confirm",target:{name:"data",query:{tab:"export",source,from:"2026-08-01",to:"2026-08-28"}}});
   });
   it.each([["进行中","REPAIRING"],["已完成","COMPLETED"],["已取消","CANCELED"]])("preserves repair status %s", (label,status) => {
     expect(resolveCommand(`/ 导出 维修事务 ${label} 本月`,"PRESIDENT",now)).toMatchObject({kind:"resolved",target:{name:"data",query:{tab:"export",source:"repairs",status,from:"2026-10-01",to:"2026-10-31"}}});
   });
   it("retains backup creation confirmation and rejects invalid ranges", () => {
-    expect(resolveCommand("/ 导出 统计汇总 本周","PRESIDENT",now)).toMatchObject({kind:"resolved",target:{name:"data",query:{tab:"export",source:"stats"}}});
+    expect(resolveCommand("/ 导出 统计汇总 本周","PRESIDENT",now)).toMatchObject({kind:"invalid"});
+    expect(resolveCommand("/ 查看 数据统计 本周","PRESIDENT",now)).toMatchObject({kind:"resolved",target:{name:"stats"}});
     expect(resolveCommand("/ 创建 备份","PRESIDENT",now)).toMatchObject({kind:"resolved",execution:"confirm",target:{name:"data",query:{tab:"backups",intent:"create-backup"}}});
     expect(resolveCommand("/ 导出 数据统计 2026-08-28..2026-08-01","ADMIN",now).kind).toBe("invalid");
   });
