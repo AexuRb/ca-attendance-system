@@ -30,13 +30,28 @@ class CreditsControllerTest {
     }
     @AfterEach void clear(){AuthContext.clear();}
     void role(Role role){AuthContext.set(new AuthUser(1,"local-check","local-check",role,Instant.now().plusSeconds(60)));}
-    @Test void presidentCannotReadOrPutDirectly() throws Exception {
-        role(Role.PRESIDENT);mvc.perform(get("/api/settings/credits")).andExpect(status().isForbidden());
-        mvc.perform(put("/api/settings/credits").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isForbidden());verifyNoInteractions(jdbc,logs);
+    @Test void allRolesCanReadCreditsDirectly() throws Exception {
+        for (Role role : Role.values()) {
+            role(role);
+            mvc.perform(get("/api/settings/credits")).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.contributors[0].name").value(CreditsService.FOUNDER.name()));
+        }
+        verify(jdbc, never()).update(anyString(), any(Object[].class)); verifyNoInteractions(logs);
     }
-    @Test void ministerCannotUseEitherEndpointDirectly() throws Exception {
-        role(Role.MINISTER);mvc.perform(get("/api/settings/credits")).andExpect(status().isForbidden());
-        mvc.perform(put("/api/settings/credits").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isForbidden());verifyNoInteractions(jdbc,logs);
+    @Test void nonAdministratorsCannotPutDirectly() throws Exception {
+        for (Role role : List.of(Role.PRESIDENT, Role.MINISTER, Role.MEMBER)) {
+            role(role);
+            mvc.perform(put("/api/settings/credits").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                    .andExpect(status().isForbidden());
+        }
+        verifyNoInteractions(jdbc,logs);
+    }
+    @Test void anonymousRequestsCannotReadOrWrite() throws Exception {
+        AuthContext.clear();
+        mvc.perform(get("/api/settings/credits")).andExpect(status().isUnauthorized());
+        mvc.perform(put("/api/settings/credits").contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(jdbc,logs);
     }
     @Test void administratorCannotTamperWithFixedContentThroughJson() throws Exception {
         role(Role.ADMIN);

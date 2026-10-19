@@ -51,7 +51,6 @@ html:root[data-appearance] .overview-attendance .attendance-table .icon-button +
 html:root[data-appearance] .overview-attendance .attendance-table .icon-button svg { width:16px; height:16px; }
 html:root[data-appearance] .overview-attendance .attendance-table .icon-button:hover:not(:disabled) { background:var(--overview-chat); color:var(--mw-accent); }
 html:root[data-appearance] .overview-attendance .attendance-table .danger-ghost:hover:not(:disabled) { background:#a14c460d; color:#a14c46; }
-html:root[data-appearance] .overview-attendance .attendance-action-reason { display:block; margin:0 0 5px; color:var(--mw-muted); font:400 12px/18px var(--mw-font); white-space:normal; overflow-wrap:anywhere; }
 html:root[data-appearance] .overview-attendance .pagination { display:flex; align-items:center; justify-content:space-between; flex:0 0 auto; flex-wrap:wrap; min-height:56px; padding:12px 0 0; margin:0; gap:10px; color:var(--mw-muted); font:400 13px/22px var(--mw-font); }
 html:root[data-appearance] .overview-attendance .pagination>div { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
 html:root[data-appearance] .overview-attendance .pagination .button { min-height:36px; padding:5px 10px; border-radius:8px; font:400 13px/22px var(--mw-font); background:#fff; box-shadow:none; }

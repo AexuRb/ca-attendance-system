@@ -1,7 +1,7 @@
 <template>
   <ExpandedWorkspaceShell class="support-workspace profile-presentation overview-profile" current-page="profile">
     <template #heading><h1>个人资料</h1>
-      <button v-if="isAdmin" class="button secondary small" type="button" aria-label="查看鸣谢" @click="credits = true"><HeartHandshake aria-hidden="true" />鸣谢</button>
+      <button class="button secondary small" type="button" aria-label="查看鸣谢" @click="credits = true"><HeartHandshake aria-hidden="true" />鸣谢</button>
     </template>
     <div v-if="pageError" class="inline-alert danger" role="alert">
       <span>{{ pageError }}</span>
@@ -247,7 +247,7 @@
       </section>
     </div>
 
-    <CreditsDialog v-if="isAdmin" :open="credits" @close="credits = false" />
+    <CreditsDialog :open="credits" @close="credits = false" />
   </ExpandedWorkspaceShell>
 </template>
 
@@ -261,7 +261,7 @@ import {
   Search,
 } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
-import { computed, provide, ref } from "vue";
+import { provide, ref } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
@@ -282,6 +282,5 @@ const {
   recordsLoading, recordsReady, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
   trainingHours, trainingRecords, user,
 } = useProfileWorkspace();
-const isAdmin = computed(() => user.value?.role === "ADMIN");
 const credits = ref(false);
 </script>

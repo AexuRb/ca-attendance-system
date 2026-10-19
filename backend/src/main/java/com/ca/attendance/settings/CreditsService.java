@@ -31,7 +31,7 @@ public class CreditsService {
     public CreditsService(JdbcTemplate jdbc, OperationLogService logs, ObjectMapper mapper) {
         this.jdbc = jdbc; this.logs = logs; this.mapper = mapper;
     }
-    public Credits current() { requireRead(); return fromStored(readStored()); }
+    public Credits current() { AuthContext.current(); return fromStored(readStored()); }
 
     @Transactional
     public Credits update(Update request) {
@@ -62,10 +62,6 @@ public class CreditsService {
         Credits after = fromStored(value);
         logs.log("UPDATE_ACKNOWLEDGEMENTS", "app_settings", null, before, after, "编辑鸣谢贡献信息");
         return after;
-    }
-    private void requireRead() {
-        Role role = AuthContext.current().role();
-        if (role != Role.ADMIN) throw ApiException.forbidden("只有管理员可以查看鸣谢");
     }
     private String readStored() {
         List<String> values = jdbc.query("SELECT setting_value FROM app_settings WHERE setting_key = ?",

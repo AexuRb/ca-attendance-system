@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open && isAdmin" :title="acknowledgements.title" size="sm" :backdrop-class="['credits-dialog-backdrop', backdropClass].filter(Boolean).join(' ')"
+  <ModalDialog :open="open && !!user" :title="acknowledgements.title" size="sm" :backdrop-class="['credits-dialog-backdrop', backdropClass].filter(Boolean).join(' ')"
     :title-interactive="canEdit" @title-activate="activateTitle" @close="$emit('close')">
     <p class="credits-thanks">{{ acknowledgements.intro }}</p>
     <p v-if="loading" class="credits-notice" role="status">正在加载贡献信息</p>
@@ -41,13 +41,13 @@ async function activateTitle() {
 }
 async function load() {
   controller?.abort();
-  if (!props.open || !isAdmin.value || props.contributors) return;
+  if (!props.open || !user.value || props.contributors) return;
   const active = controller = new AbortController(); loading.value = true; error.value = "";
   try { const data = await get<CreditsSetting>("/api/settings/credits", { signal: active.signal }); if (!active.signal.aborted) saved.value = data.contributors; }
   catch (cause) { if (!active.signal.aborted) error.value = cause instanceof Error ? cause.message : "鸣谢加载失败"; }
   finally { if (controller === active) loading.value = false; }
 }
-watch([() => props.open, isAdmin], () => { clicks = 0; lastClick = 0; if (props.open && isAdmin.value) { saved.value = [...acknowledgements.contributors]; void load(); } else controller?.abort(); }, { immediate: true });
+watch([() => props.open, () => user.value?.id, () => user.value?.role], () => { clicks = 0; lastClick = 0; if (props.open && user.value) { saved.value = [...acknowledgements.contributors]; void load(); } else controller?.abort(); }, { immediate: true });
 onBeforeUnmount(() => controller?.abort());
 </script>
 <style>

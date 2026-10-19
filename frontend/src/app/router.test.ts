@@ -26,6 +26,14 @@ const routeGuardMatrix: RouteGuardCase[] = [
     target: "credits-editor", state: routeState({ role: "PRESIDENT" }), expected: { name: "today" },
   },
   {
+    case: "does not let the minister enter the credits editor directly",
+    target: "credits-editor", state: routeState({ role: "MINISTER" }), expected: { name: "today" },
+  },
+  {
+    case: "does not let the member enter the credits editor directly",
+    target: "credits-editor", state: routeState({ role: "MEMBER" }), expected: { name: "profile" },
+  },
+  {
     case: "requires authentication for the standalone password page",
     target: "password",
     state: routeState(),

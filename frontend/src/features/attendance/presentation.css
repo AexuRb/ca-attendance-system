@@ -64,7 +64,6 @@ html:root[data-appearance=editorial] .attendance-workspace .daily-outcome>small 
 html:root[data-appearance=editorial] .attendance-workspace .daily-outcome>strong { display:block; }
 html:root[data-appearance=spatial] .attendance-results-summary { background:linear-gradient(105deg,color-mix(in srgb,var(--mw-accent) 10%,var(--mw-paper)),var(--mw-soft) 48%,var(--mw-paper)); }
 html:root[data-appearance] .attendance-mobile-list { display:none; }
-html:root[data-appearance] .attendance-table .attendance-action-reason { display:block; max-width:18ch; margin:0 0 6px auto; color:var(--mw-muted); font-size:12px; line-height:1.5; white-space:normal; overflow-wrap:anywhere; }
 html:root[data-appearance] .attendance-editor-context { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px; margin:0 0 18px; padding:10px 12px; border:1px solid var(--mw-line); border-radius:8px; background:var(--mw-soft); }
 html:root[data-appearance] .attendance-editor-context strong { font-size:14px; color:var(--mw-ink); }
 html:root[data-appearance] .attendance-editor-context span { font-size:12px; color:var(--mw-muted); }
@@ -89,7 +88,6 @@ html:root[data-appearance] .attendance-editor-context span { font-size:12px; col
   html:root[data-appearance] .attendance-mobile-record__actions .button { min-height:34px; gap:5px; padding:6px 9px; font-size:12px; }
   html:root[data-appearance] .attendance-mobile-record__actions svg { width:14px; height:14px; }
   html:root[data-appearance] .attendance-mobile-delete { color:var(--red-700); }
-  html:root[data-appearance] .attendance-mobile-record>.attendance-action-reason { margin:0; color:var(--mw-muted); font-size:12px; line-height:1.5; }
   html:root[data-appearance=editorial] .attendance-mobile-record { gap:14px; padding-block:18px; background:var(--mw-paper); }
   html:root[data-appearance=editorial] .attendance-mobile-record__person strong { font:400 18px/1.45 var(--font-editorial); }
   html:root[data-appearance=editorial] .attendance-mobile-record__times { border-width:1px 0; border-radius:0; padding-inline:0; background:transparent; }

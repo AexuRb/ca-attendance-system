@@ -92,7 +92,6 @@
               />
             </td>
             <td class="align-right row-actions mw-actions-column">
-              <small v-if="!actionAccess(item).allowed" class="attendance-action-reason">{{ actionAccess(item).reason }}</small>
               <button
                 class="icon-button"
                 :title="
@@ -160,16 +159,17 @@
           </div>
           <div class="attendance-mobile-record__actions">
             <button class="button secondary small" type="button" :disabled="!actionAccess(item).allowed"
-              :aria-label="`编辑 ${item.name} ${item.dutyDate} 的记录`" @click="openEdit(item)">
+              :title="actionAccess(item).allowed ? '编辑' : actionAccess(item).reason"
+              :aria-label="`编辑 ${item.name} ${item.dutyDate} 的记录${actionAccess(item).allowed ? '' : `：${actionAccess(item).reason}`}`" @click="openEdit(item)">
               <Pencil aria-hidden="true" />编辑
             </button>
             <button class="button secondary small attendance-mobile-delete" type="button" :disabled="!actionAccess(item).allowed"
-              :aria-label="`删除 ${item.name} ${item.dutyDate} 的记录`" @click="askDelete(item)">
+              :title="actionAccess(item).allowed ? '删除' : actionAccess(item).reason"
+              :aria-label="`删除 ${item.name} ${item.dutyDate} 的记录${actionAccess(item).allowed ? '' : `：${actionAccess(item).reason}`}`" @click="askDelete(item)">
               <Trash2 aria-hidden="true" />删除
             </button>
           </div>
         </div>
-        <p v-if="!actionAccess(item).allowed" class="attendance-action-reason">{{ actionAccess(item).reason }}</p>
       </li>
     </ol>
     </div>

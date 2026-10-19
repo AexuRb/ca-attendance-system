@@ -16,8 +16,8 @@ vi.mock("../../features/settings/useSettingsWorkspace", () => ({ useSettingsWork
 }) }));
 const stubs={ExpandedWorkspaceShell:{template:'<main><header><slot name="heading"/></header><slot/></main>'},AppearanceSelector:true,WeekdayCalendarSelector:true,DutyTimeWorkspace:true,LoadingBlock:true,ConfirmDialog:true,CreditsDialog:true,EmptyState:true,StatusBadge:true};
 describe("credits entry location and access", () => {
-  it("opens and closes credits from the administrator profile heading", async () => {
-    access.role = "ADMIN";
+  it.each(["ADMIN", "PRESIDENT", "MINISTER", "MEMBER"])("opens and closes credits from the %s profile heading", async role => {
+    access.role = role;
     const wrapper = mount(ProfilePage, { global: { stubs } });
     expect(wrapper.get("header").text()).toContain("个人资料");
     await wrapper.get('header button[aria-label="查看鸣谢"]').trigger("click");
@@ -26,14 +26,6 @@ describe("credits entry location and access", () => {
     dialog.vm.$emit("close");
     await wrapper.vm.$nextTick();
     expect(dialog.attributes("open")).toBe("false");
-    wrapper.unmount();
-  });
-
-  it.each(["PRESIDENT", "MINISTER", "MEMBER"])("does not render the profile entry or mount the dialog for %s", role => {
-    access.role = role;
-    const wrapper = mount(ProfilePage, { global: { stubs } });
-    expect(wrapper.find('button[aria-label="查看鸣谢"]').exists()).toBe(false);
-    expect(wrapper.find("credits-dialog-stub").exists()).toBe(false);
     wrapper.unmount();
   });
 

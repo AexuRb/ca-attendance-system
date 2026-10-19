@@ -33,14 +33,24 @@ class CreditsServiceTest {
         assertThat(current.contributors()).containsExactly(CreditsService.FOUNDER);
         verify(jdbc, never()).update(anyString(),any(Object[].class)); verifyNoInteractions(logs);
     }
-    @Test void onlyAdministratorCanReadOrWrite() {
+    @Test void onlyAdministratorCanWrite() {
         var request = request(List.of(CreditsService.FOUNDER));
         clearInvocations(jdbc);
         for (Role role : List.of(Role.PRESIDENT, Role.MINISTER, Role.MEMBER)) {
             role(role); assertThatThrownBy(() -> service.update(request)).isInstanceOf(ApiException.class).hasMessageContaining("管理员");
         }
-        for (Role role : List.of(Role.PRESIDENT, Role.MINISTER, Role.MEMBER)) { role(role); assertThatThrownBy(service::current).isInstanceOf(ApiException.class); }
         verifyNoInteractions(jdbc, logs);
+    }
+    @Test void allAuthenticatedRolesCanReadSavedContributorsWithoutWriting() {
+        when(jdbc.query(anyString(), any(RowMapper.class), eq(CreditsService.KEY)))
+                .thenReturn(List.of("[{\"name\":\"维护者－示例\",\"contribution\":\"维护\"}]"));
+        for (Role role : Role.values()) {
+            role(role);
+            assertThat(service.current().contributors()).containsExactly(CreditsService.FOUNDER,
+                    new CreditsService.Entry("维护者－示例", "维护"));
+        }
+        verify(jdbc, never()).update(anyString(), any(Object[].class));
+        verifyNoInteractions(logs);
     }
     @Test void rejectsFounderEditsDeletionReorderingAndThanksEdits() {
         var extra = new CreditsService.Entry("维护者－姓名","功能改进");
