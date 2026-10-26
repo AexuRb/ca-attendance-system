@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "electron": "43.7.7",
-    "electron-builder": "26.15.3"
+    "electron-builder": "26.18.0"
   },
   "overrides": {
     "brace-expansion": "5.0.12",
