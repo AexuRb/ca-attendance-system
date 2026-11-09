@@ -1,5 +1,14 @@
 # 开发状态
 
+## 3.6.0已正式发布（2026-11-09）
+
+[v3.6.0 Release](https://github.com/AexuRb/ca-attendance-system/releases/tag/v3.6.0)已正式公开并设为Latest。独立分支codex/remote-role-access-3.6.0的发布提交666fc15e7f6f4b41336f5931771d1f3dac6598ca已非强制快进main；[main发布CI](https://github.com/AexuRb/ca-attendance-system/actions/runs/42604415035)全部通过，候选12f7e2a的[托管Windows完整打包工作流](https://github.com/AexuRb/ca-attendance-system/actions/runs/42603877841)也全部通过。v3.6.0标签及codex/release-3.6.0固定该发布提交，历史标签/分支和旧Release均保留，未创建PR、强推或替换旧发行资产。
+
+三项资产名称、大小、uploaded状态及服务器SHA-256全部与本地匹配；重新下载SHA256SUMS.txt与本地逐字节一致。安装版191625690字节，SHA256为824b47c84088024db336cb2d54db66a3d6c6a95f79112ea43ec303fc560bed77；便携版261931221字节，SHA256为40316a20b931ea899fa776050bdc517cd713e29a43258f0f914441ff4930bb8d。证据tasks/release-3.6.0-20261109包含CI结果、发行文件核验、成品启动/窗口/托盘、业务指纹及release-published-verified；运行数据、凭据、日志和安装包均未提交。
+
+本节与发布说明的最终CI链接单独补交main，版本标签/版本分支及发行文件不改动，不重新打包。8080保留本版原库预览PID17668，JAR SHA256 29340d0748f917fdf1d340f24f79b23df44b441f2025b0455998f1bbc4ac6980，8080/8081均127.0.0.1、明确项目根目录app.storage.root与原data/attendance.db。成品测试进程均已退出，未修改已安装程序或新建/复制数据库。本轮模拟角色/协议与实际MockMvc覆盖边界、未完成真实角色端到端/公网/性能/覆盖升级等已在发行说明披露；构建中危与未签名/未加密限制保持。字体错位、维修/培训导出及今日概览后续继续待办。
+
+
 ## 3.6.0发行验证完成（2026-11-09，准备同步main）
 
 干净npm ci、实际桌面安装钩子、完整前端测试/两套类型/构建、后端认证/权限/远程API及本人记录无库定向与依赖上界、桌面完整测试/CJS语法、非数据库脚本/Python/PowerShell检查全部通过；生产审计0告警，完整前端4/桌面6项构建中危，无高危/严重。未新增依赖升级或强制降级。候选12f7e2a的[GitHub CI](https://github.com/AexuRb/ca-attendance-system/actions/runs/42603877841)后端/前端/桌面/脚本四项常规门禁全部通过，完整后端和数据库脚本在托管环境执行；额外Windows干净打包按运行结果补记。
