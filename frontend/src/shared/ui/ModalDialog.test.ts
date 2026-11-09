@@ -72,6 +72,29 @@ async function openDialog() {
 }
 
 describe("ModalDialog", () => {
+  it("locks a pending dialog without replacing its draft and shows only the current attempt's error", async () => {
+    const wrapper = mount(ModalDialog, { attachTo: document.body,
+      props: { open: true, title: "保存记录", busy: false, error: "之前的错误" },
+      slots: { default: '<input aria-label="草稿" value="  保留输入  " />', footer: '<button type="button">确认</button>' },
+    });
+    await nextTick(); await nextTick();
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="草稿"]')!;
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    await wrapper.setProps({ busy: true });
+    expect(document.querySelector<HTMLButtonElement>('button[aria-label="关闭"]')!.disabled).toBe(true);
+    expect(document.querySelector('[data-dialog-content]')!.hasAttribute("inert")).toBe(true);
+    expect(document.querySelector('[role="dialog"] footer')!.hasAttribute("inert")).toBe(true);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(wrapper.emitted("close")).toBeUndefined();
+    await wrapper.setProps({ busy: false, error: "保存失败" });
+    expect(document.querySelector('input[aria-label="草稿"]')).toBe(input);
+    expect(input.value).toBe("  保留输入  ");
+    expect(document.querySelector('[role="alert"]')?.textContent).toBe("保存失败");
+    await wrapper.setProps({ open: false }); await wrapper.setProps({ open: true });
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    wrapper.unmount();
+  });
+
   it("focuses the first interactive control when opened", async () => {
     const wrapper = await openDialog();
 

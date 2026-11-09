@@ -4,10 +4,10 @@ export const USER_INPUT_LIMITS = {
   nameMax: 64,
   passwordMin: 6,
   passwordMax: 64,
-  phoneMax: 64,
+  phoneMax: 11,
   collegeMax: 128,
   gradeMax: 16,
-  qqMax: 32,
+  qqMax: 20,
   reasonMax: 500,
 } as const;
 
@@ -60,7 +60,12 @@ export function validateMemberInput(
 
 export function validateProfileInput(input: ProfileInput): InputErrors {
   const errors: InputErrors = {};
-  checkMax(errors, "phone", input.phone, USER_INPUT_LIMITS.phoneMax, "联系方式");
+  const phone = input.phone?.trim() || "";
+  if (phone) {
+    if (!/^[0-9]+$/.test(phone)) errors.phone = "仅支持数字";
+    else if (phone.length !== 11) errors.phone = "手机号应为11位";
+    else if (!/^1[3-9][0-9]{9}$/.test(phone)) errors.phone = "手机号格式不正确";
+  }
   checkMax(
     errors,
     input.college !== undefined ? "college" : "major",
@@ -68,7 +73,12 @@ export function validateProfileInput(input: ProfileInput): InputErrors {
     USER_INPUT_LIMITS.collegeMax,
     "学院",
   );
-  checkMax(errors, "qq", input.qq, USER_INPUT_LIMITS.qqMax, "QQ");
+  const qq = input.qq?.trim() || "";
+  if (qq) {
+    if (!/^[0-9]+$/.test(qq)) errors.qq = "仅支持数字";
+    else if (qq.length < 5 || qq.length > 20) errors.qq = "QQ号应为5–20位";
+    else if (qq.startsWith("0")) errors.qq = "QQ号不能以0开头";
+  }
   return errors;
 }
 

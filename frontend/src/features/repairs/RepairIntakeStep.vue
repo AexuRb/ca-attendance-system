@@ -15,7 +15,7 @@
           <span>受理时间</span>
           <input
             v-model="form.receivedAt"
-            name="repair-received-at"
+            name="repair-received-at" required
             type="datetime-local"
             :aria-invalid="Boolean(errors.receivedAt)"
           />
@@ -36,6 +36,10 @@
           <AccountPicker
             :model-value="handler"
             :candidates="candidates"
+            :loading="candidateLoading"
+            :error="candidateError"
+            :disabled="disabled"
+            @retry="$emit('retry-candidates')"
             compact-selection
             input-name="repair-handler"
             aria-label="选择维修负责人"
@@ -75,6 +79,9 @@ defineProps<{
   errors: RepairErrors;
   handler: AccountCandidate | null;
   candidates: AccountCandidate[];
+  candidateLoading?: boolean;
+  candidateError?: string;
+  disabled?: boolean;
 }>();
-defineEmits<{ "update:handler": [value: AccountCandidate | null] }>();
+defineEmits<{ "update:handler": [value: AccountCandidate | null]; "retry-candidates": [] }>();
 </script>

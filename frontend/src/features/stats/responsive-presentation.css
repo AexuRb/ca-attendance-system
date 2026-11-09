@@ -1,0 +1,85 @@
+/* Respond to the available workspace, including a resized desktop window. */
+@container stats-work (max-width:900px) {
+  html:root[data-appearance] .overview-stats .stats-filter { grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; gap:10px; padding:12px; }
+  html:root[data-appearance] .overview-stats .stats-filter .segmented { grid-column:1/-1; width:100%; }
+  html:root[data-appearance] .overview-stats .segmented button { flex:1; min-width:0; padding-inline:6px; }
+  html:root[data-appearance] .overview-stats .stats-filter>.button { grid-column:3; align-self:end; }
+  html:root[data-appearance] .overview-stats .stats-metrics { gap:8px; margin-bottom:12px; }
+  html:root[data-appearance] .overview-stats .stats-metrics article { min-height:82px; padding:12px; grid-template-columns:auto auto; justify-content:start; gap:2px 5px; background:color-mix(in srgb,#fff 40%,transparent); box-shadow:none; }
+  html:root[data-appearance] .overview-stats .stats-metrics article>span { font-size:12px; line-height:20px; }
+  html:root[data-appearance] .overview-stats .stats-metrics strong { font-size:25px; line-height:32px; }
+  html:root[data-appearance] .overview-stats .stats-metrics article:hover { transform:none; box-shadow:none; }
+}
+@container stats-work (max-width:620px) {
+  html:root[data-appearance] .overview-stats .stats-filter { grid-template-columns:repeat(2,minmax(0,1fr)); margin-bottom:12px; }
+  html:root[data-appearance] .overview-stats .stats-filter>.button { grid-column:1/-1; justify-self:end; min-width:88px; }
+  html:root[data-appearance] .overview-stats .stats-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  html:root[data-appearance] .overview-stats .stats-metrics article { min-height:76px; }
+}
+@container stats-result (min-width:621px) and (max-width:900px) {
+  html:root[data-appearance] .overview-stats .stats-ranking-table { display:block; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile { display:none; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table table { min-width:0; table-layout:fixed; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table .stats-secondary-column { display:none; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table :is(th,td) { padding:10px 6px; font-size:12px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table td { height:66px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table :is(th,td):first-child { width:5%; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table :is(th,td):nth-child(2) { width:27%; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table :is(th,td):nth-child(n+5) { width:17%; text-align:right; }
+  html:root[data-appearance] .overview-stats .stats-ranking-table .stats-member-title strong { font-size:16px; line-height:24px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-total { font-size:18px; }
+}
+@container stats-result (max-width:900px) {
+  html:root[data-appearance] .overview-stats .weekly-stats-table { display:none; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile { display:block; margin:0; padding:0; list-style:none; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile>li { border-bottom:1px solid var(--mw-line); }
+  html:root[data-appearance] .overview-stats .weekly-stats-legend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record>summary { display:grid; grid-template-columns:minmax(0,1fr) auto 44px; align-items:center; gap:6px 10px; padding:14px 2px; list-style:none; background:transparent; cursor:pointer; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record>summary::-webkit-details-marker { display:none; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record>summary:hover { transform:none; background:color-mix(in srgb,var(--mw-accent) 3%,transparent); }
+  html:root[data-appearance] .overview-stats :is(.weekly-stats-mobile-record__person,.stats-ranking-mobile-record__person) { min-width:0; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__person strong { display:block; font-size:16px; font-weight:500; line-height:24px; overflow-wrap:anywhere; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__person small { display:block; margin:0; color:var(--mw-muted); font-size:12px; line-height:18px; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__total { display:flex; align-items:baseline; justify-content:end; gap:4px; white-space:nowrap; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__total strong { font-size:21px; line-height:28px; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__total small { font-size:12px; color:var(--mw-muted); }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__sub { grid-column:1/-1; grid-row:2; font-size:12px; line-height:20px; color:var(--mw-muted); }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__toggle { display:flex; grid-column:3; grid-row:1; align-items:center; justify-content:end; flex-direction:column; gap:0; margin:0; font-size:11px; color:var(--mw-muted); }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__toggle svg { width:16px; height:16px; transition:transform 140ms ease-out; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__hide-label { display:none; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record[open] .weekly-stats-mobile-record__show-label { display:none; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record[open] .weekly-stats-mobile-record__hide-label { display:inline; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record[open] .weekly-stats-mobile-record__toggle svg { transform:rotate(180deg); }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__days { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 16px; margin:0; padding:10px 2px 14px; border-block:1px solid var(--mw-line); background:transparent; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__days>div { display:flex; align-items:baseline; justify-content:space-between; gap:6px; padding:6px 0; background:transparent; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__days dt { color:var(--mw-muted); font-size:12px; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__days dt small { margin-left:4px; font-size:11px; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__days dd { margin:0; font-size:13px; color:var(--mw-ink); }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__days dd small { font-size:11px; }
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__detail { width:auto; min-height:36px; margin:4px 0 10px; padding:0 8px; border:0; }
+}
+@container stats-result (max-width:620px) {
+  html:root[data-appearance] .overview-stats .stats-ranking-table { display:none; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile { display:block; list-style:none; margin:0; padding:0; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record { padding:14px 2px; border:0; border-bottom:1px solid var(--mw-line); background:transparent; box-shadow:none; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__head { display:grid; grid-template-columns:20px minmax(0,1fr) auto 36px; align-items:center; gap:8px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__head .rank { display:block; width:auto; height:auto; text-align:left; font-size:12px; color:var(--mw-muted); }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__person strong { display:block; font-size:16px; line-height:24px; font-weight:500; overflow-wrap:anywhere; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__person small { display:block; color:var(--mw-muted); font-size:12px; line-height:18px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__total { display:flex; justify-content:end; align-items:baseline; gap:4px; white-space:nowrap; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__total strong { font-size:21px; line-height:28px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__total small { color:var(--mw-muted); font-size:12px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__detail { display:grid; place-items:center; width:36px; min-width:36px; min-height:36px; height:36px; padding:0; margin:0; border:0; background:transparent; box-shadow:none; color:var(--mw-accent); }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__detail svg { width:18px; height:18px; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__breakdown { display:flex; flex-wrap:wrap; gap:2px 14px; margin:6px 0 0 28px; padding:0; border:0; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__breakdown>div { display:flex; align-items:baseline; gap:4px; min-width:0; }
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__breakdown dt,
+  html:root[data-appearance] .overview-stats .stats-ranking-mobile-record__breakdown dd { margin:0; font-size:12px; line-height:20px; font-weight:400; color:var(--mw-muted); white-space:normal; }
+}
+@container stats-work (max-width:340px) {
+  html:root[data-appearance] .overview-stats .overview-workspace .stats-filter input[type=date] { padding-inline:5px; font-size:12px; }
+  html:root[data-appearance] .overview-stats .stats-filter label { font-size:12px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .overview-stats .weekly-stats-mobile-record__toggle svg { transition:none; }
+}

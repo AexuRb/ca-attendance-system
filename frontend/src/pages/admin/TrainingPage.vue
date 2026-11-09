@@ -94,14 +94,14 @@
       </div>
     </div>
 
-    <TrainingSessionEditorDialog
+    <TrainingSessionEditorDialog :submit-error="actionError"
       :open="sessionOpen"
       :form="sessionForm"
       :pending="isPending('save-session')"
       @close="closeSession"
       @save="saveSession"
     />
-    <TrainingParticipantEditorDialog
+    <TrainingParticipantEditorDialog :submit-error="actionError"
       :session="participantSession"
       :saved-message="participantSavedMessage"
       :open="participantOpen"
@@ -111,7 +111,7 @@
       @save="saveParticipant"
     />
 
-    <ConfirmDialog
+    <ConfirmDialog :error="actionError"
       backdrop-class="training-refined-backdrop"
       :open="Boolean(deleteTarget)"
       title="归档培训"
@@ -121,7 +121,7 @@
       @cancel="deleteTarget = null"
       @confirm="archiveSession"
     />
-    <ConfirmDialog
+    <ConfirmDialog :error="actionError"
       backdrop-class="training-refined-backdrop"
       :open="Boolean(participantDeleteTarget)"
       title="删除参与记录"
@@ -167,6 +167,7 @@ import TrainingMonthRibbon from "../../features/training/TrainingMonthRibbon.vue
 import { useTrainingManagementWorkspace } from "../../features/training/useTrainingManagementWorkspace";
 
 const {
+  actionError,
   restoringHistory,
   bindWorkspaceScroll,
   bindRibbonScroll,

@@ -43,6 +43,22 @@ public final class ExcelCellTextReader {
         };
     }
 
+    public String readExactIdentifier(Row row, int columnIndex, String label) {
+        String text = read(row, columnIndex);
+        if (row == null || columnIndex < 0) return text;
+        Cell cell = row.getCell(columnIndex);
+        if (cell == null) return text;
+        boolean numeric = cell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC;
+        if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.FORMULA) {
+            CellValue value = evaluator.evaluate(cell);
+            numeric = value != null && value.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC;
+        }
+        if (numeric && text.matches("[0-9]{16,}")) {
+            throw ApiException.badRequest("第 " + (row.getRowNum() + 1) + " 行" + label + "超过15位时须使用文本单元格，避免精度丢失");
+        }
+        return text;
+    }
+
     private String formulaText(Cell cell) {
         CellValue value = evaluator.evaluate(cell);
         if (value == null) {

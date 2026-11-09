@@ -3,12 +3,12 @@
     <Transition name="training-drawer">
       <div
         v-if="open"
-        class="training-drawer-backdrop"
+        class="training-drawer-backdrop app-detail-backdrop"
         @mousedown.self="$emit('close')"
       >
         <aside
           ref="dialog"
-          class="training-session-drawer"
+          class="training-session-drawer app-detail"
           role="dialog"
           aria-modal="true"
           aria-labelledby="training-drawer-title"
@@ -17,7 +17,7 @@
           <header>
             <div>
               <p class="eyebrow">SESSIONS</p>
-              <h2 id="training-drawer-title">切换培训场次</h2>
+              <h2 id="training-drawer-title">切换培训场次</h2><p class="dialog-description">共 {{ total }} 场培训</p>
             </div>
             <button
               class="icon-button"

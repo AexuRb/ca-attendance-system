@@ -95,22 +95,26 @@
       @delete="requestDelete"
       @toggle-phone="togglePhone"
     />
-    <RepairEditorDialog
+    <RepairEditorDialog :submit-error="actionError"
       :open="editorOpen"
       backdrop-class="repairs-refined-backdrop"
       :form="form"
       :handler="selectedHandler"
       :candidates="handlerCandidates"
+      :candidate-loading="handlerCandidatesLoading"
+      :candidate-error="handlerCandidatesError"
+      @retry-candidates="loadHandlerCandidates"
       :pending="isPending('save-repair')"
       :initial-step="editorInitialStep"
       @update:handler="selectedHandler = $event"
       @close="closeEditor"
       @save="save"
     />
-    <ConfirmDialog
+    <ConfirmDialog :error="actionError"
       :open="Boolean(deleteTarget)"
       backdrop-class="repairs-refined-backdrop"
       title="移入维修回收站"
+      :context="[{ label: '维修编号', value: deleteTarget?.caseNo || '—' }]"
       :message="`将 ${deleteTarget?.caseNo || ''} 移入回收站，管理员可通过维修回收站入口恢复。`"
       confirm-label="移入回收站"
       danger
@@ -168,6 +172,7 @@ import RepairStatusTabs from "../../features/repairs/RepairStatusTabs.vue";
 import { useRepairManagementWorkspace } from "../../features/repairs/useRepairManagementWorkspace";
 
 const {
+  actionError,
   bindTableScroll,
   rememberTableScroll,
   appliedFilters,
@@ -191,7 +196,7 @@ const {
   agreementHtml,
   agreementLoading,
   agreementError,
-  handlerCandidates,
+  handlerCandidates, handlerCandidatesLoading, handlerCandidatesError, loadHandlerCandidates,
   selectedHandler,
   revealedPhones,
   form,

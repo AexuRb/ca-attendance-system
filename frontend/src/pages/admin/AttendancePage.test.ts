@@ -3,6 +3,14 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import AttendancePage from "./AttendancePage.vue";
 
+async function openOtherReason() {
+  const choice = document.body.querySelector<HTMLInputElement>('input[name="attendanceReason"][value="other"]')!;
+  choice.checked = true;
+  choice.dispatchEvent(new Event("change", { bubbles: true }));
+  await flushPromises();
+  return document.body.querySelector<HTMLTextAreaElement>('textarea[name="attendanceReasonOther"]')!;
+}
+
 const apiGet = vi.fn();
 const apiPut = vi.fn();
 const apiPost = vi.fn();
@@ -165,14 +173,14 @@ describe("AttendancePage manual editing", () => {
     wrapper.findComponent({ name: "AccountPicker" }).vm.$emit("update:modelValue", {
       id: 4, studentNo: "20260009", name: "测试成员", role: "MEMBER", department: "技术部", enabled: true,
     });
-    const reason = document.body.querySelector<HTMLTextAreaElement>('[name="attendanceReason"]')!;
+    const reason = await openOtherReason();
     reason.value = "补录签到";
     reason.dispatchEvent(new Event("input", { bubbles: true }));
     await flushPromises();
     document.body.querySelector<HTMLButtonElement>(".mw-modal-foot .button.primary")!.click();
     await flushPromises();
     expect(apiPost).toHaveBeenCalledWith("/api/attendance/manual", expect.objectContaining({
-      studentNo: "20260009", checkOutTime: null, checkOutStatus: "NOT_SUBMITTED",
+      studentNo: "20260009", checkOutTime: null, checkOutStatus: "NOT_SUBMITTED", reason: "其他：补录签到",
     }));
     wrapper.unmount();
   });
@@ -222,7 +230,7 @@ describe("AttendancePage manual editing", () => {
     await flushPromises();
     await wrapper.get('button[aria-label="编辑"]').trigger("click");
     await flushPromises();
-    const reason = document.body.querySelector<HTMLTextAreaElement>('[name="attendanceReason"]')!;
+    const reason = await openOtherReason();
     reason.value = "保留这段说明";
     reason.dispatchEvent(new Event("input", { bubbles: true }));
     await flushPromises();
@@ -285,7 +293,7 @@ describe("AttendancePage manual editing", () => {
     const checkbox = document.body.querySelector<HTMLInputElement>(
       '.attendance-reevaluate input[type="checkbox"]',
     );
-    const reason = document.body.querySelector<HTMLTextAreaElement>("textarea");
+    const reason = await openOtherReason();
     expect(checkbox?.checked).toBe(false);
     checkbox?.click();
     if (reason) {
@@ -342,7 +350,7 @@ describe("AttendancePage manual editing", () => {
     const wrapper = mount(AttendancePage);
     await flushPromises();
     await wrapper.get('button[aria-label="编辑"]').trigger("click");
-    const reason = document.body.querySelector<HTMLTextAreaElement>("textarea");
+    const reason = await openOtherReason();
     if (reason) {
       reason.value = "修正测试记录";
       reason.dispatchEvent(new Event("input", { bubbles: true }));

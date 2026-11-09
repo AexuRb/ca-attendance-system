@@ -1,0 +1,39 @@
+@layer ui-dialogs {
+  .app-dialog .member-picker { display:block!important; min-width:0!important; padding:0!important; border:0!important; border-radius:0!important; background:transparent!important; overflow:visible!important; }
+  .app-dialog .member-picker-current { display:flex!important; align-items:center!important; gap:10px!important; min-width:0!important; margin:0 0 12px!important; padding:12px!important; border:1px solid var(--dialog-line)!important; border-radius:8px!important; background:var(--dialog-soft)!important; }
+  .app-dialog .member-picker-current:last-child { margin-bottom:0!important; }
+  .app-dialog .member-picker-avatar { display:grid!important; place-items:center!important; width:32px!important; height:32px!important; flex:0 0 32px!important; border:1px solid color-mix(in srgb,var(--dialog-accent) 14%,var(--dialog-line))!important; border-radius:8px!important; background:color-mix(in srgb,var(--dialog-accent) 8%,white)!important; color:var(--dialog-accent)!important; font:500 12px/1 var(--dialog-font)!important; }
+  .app-dialog .member-picker-identity { display:block!important; min-width:0!important; flex:1!important; }
+  .app-dialog .member-picker-identity strong { display:block!important; color:var(--dialog-ink)!important; font:500 13px/1.7 var(--dialog-font)!important; white-space:normal!important; overflow-wrap:anywhere; }
+  .app-dialog .member-picker-identity small { display:block!important; margin:2px 0 0!important; color:var(--dialog-muted)!important; font:400 11px/1.7 var(--dialog-font)!important; white-space:normal!important; overflow-wrap:anywhere; }
+  .app-dialog .member-picker-identity em { font:400 11px/1.7 var(--dialog-font); color:var(--ui-danger); }
+  .app-dialog .member-picker-search { display:flex!important; align-items:center!important; gap:9px!important; height:40px!important; min-height:40px!important; padding:0 10px!important; border:1px solid var(--dialog-line)!important; border-radius:8px!important; background:#fff!important; }
+  .app-dialog .member-picker-search:focus-within { border-color:var(--dialog-accent)!important; box-shadow:0 0 0 3px color-mix(in srgb,var(--dialog-accent) 10%,transparent)!important; }
+  .app-dialog .member-picker-search>svg { flex:none; width:16px!important; color:var(--dialog-muted)!important; }
+  html:root[data-appearance] .app-dialog .field .member-picker .member-picker-search input,html:root[data-appearance] .app-dialog .member-picker .member-picker-search input { flex:1!important; width:100%!important; height:36px!important; min-width:0!important; min-height:0!important; margin:0!important; padding:0!important; border:0!important; border-radius:0!important; outline:0!important; box-shadow:none!important; background:transparent!important; color:var(--dialog-ink)!important; font:400 13px/22px var(--dialog-font)!important; }
+  .app-dialog .member-picker-search:has(input[aria-invalid=true]) { border-color:var(--ui-danger,#b23c45)!important; }
+  .app-dialog .member-picker-meta { display:flex; justify-content:space-between; gap:8px; padding:12px 0 6px; color:var(--dialog-muted); font:400 11px/1.6 var(--dialog-font); }
+  .app-dialog .member-picker-options { display:block!important; max-height:none!important; margin:0!important; padding:0!important; overflow:visible!important; border:0!important; border-radius:0!important; background:transparent!important; }
+  .app-dialog .member-picker-options>button { display:flex!important; align-items:center!important; gap:10px!important; width:100%!important; min-width:0!important; min-height:58px!important; margin:0!important; padding:9px 8px!important; border:0!important; border-bottom:1px solid var(--dialog-line)!important; border-radius:0!important; background:transparent!important; color:var(--dialog-ink)!important; text-align:left!important; box-shadow:none!important; transform:none!important; }
+  .app-dialog .member-picker-options>button[aria-selected=true] { background:color-mix(in srgb,var(--dialog-accent) 7%,white)!important; }
+  .app-dialog .member-picker-options>button:focus-visible { outline:2px solid var(--dialog-accent)!important; outline-offset:-2px!important; }
+  .app-dialog .member-picker-options>button:disabled { opacity:.55!important; cursor:default!important; }
+  .app-dialog .member-picker-mark { display:grid!important; place-items:center!important; width:16px!important; height:16px!important; min-width:16px; flex:none; margin-left:auto; border:1px solid var(--dialog-line); border-radius:50%; color:#fff; }
+  .app-dialog .member-picker-mark.square { border-radius:4px; }
+  .app-dialog [aria-selected=true]>.member-picker-mark { background:var(--dialog-accent); border-color:var(--dialog-accent); }
+  .app-dialog .member-picker-mark svg { width:11px!important; height:11px!important; }
+  .app-dialog .member-picker-pagination { display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:10px; color:var(--dialog-muted); font:400 11px/1.6 var(--dialog-font); }
+  .member-picker-pagination>div { display:flex; align-items:center; gap:6px; }
+  .app-dialog .member-picker-state { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; padding:24px 12px; min-height:170px; text-align:center; }
+  .member-picker-state>svg { width:24px; height:24px; color:var(--dialog-muted); }
+  .member-picker-state strong { font-size:13px; font-weight:500; }
+  .member-picker-state p { margin:0; font-size:12px; color:var(--dialog-muted); }
+  .app-dialog .member-picker-selected { display:block!important; margin:0 0 12px!important; padding:0!important; border:0!important; background:transparent!important; }
+  .app-dialog .schedule-assignee-selected__label { display:block; margin-bottom:8px; font:400 11px/1.7 var(--dialog-font)!important; color:var(--dialog-muted)!important; }
+  .member-picker-tags { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+  .app-dialog .member-picker-tag { display:inline-flex!important; align-items:center!important; gap:6px!important; max-width:100%; min-height:30px!important; padding:4px 8px!important; border:1px solid var(--dialog-line)!important; border-radius:6px!important; background:var(--dialog-soft)!important; color:var(--dialog-ink)!important; font:400 11px/1.7 var(--dialog-font)!important; }
+  .member-picker-tag small { font-size:10px!important; color:var(--dialog-muted)!important; }
+  .member-picker-tag svg { width:13px!important; height:13px!important; }
+  @media(hover:hover) and (pointer:fine) { .app-dialog .member-picker-options>button:not(:disabled):hover { background:var(--dialog-soft)!important; } }
+  @media(max-width:420px) { .app-dialog .member-picker-current { gap:7px!important; padding:10px!important; flex-wrap:wrap; } .app-dialog .member-picker-current .member-picker-identity { flex-basis:calc(100% - 50px)!important; } }
+}

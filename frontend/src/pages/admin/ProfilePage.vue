@@ -50,6 +50,8 @@
             <input
               v-model.trim="profile.phone"
               name="phone"
+              inputmode="tel"
+              placeholder="选填"
               autocomplete="tel"
               maxlength="64"
               :aria-invalid="Boolean(profileErrors.phone)"
@@ -58,7 +60,7 @@
           </label>
           <label class="field">
             <span>QQ</span>
-            <input v-model.trim="profile.qq" name="qq" inputmode="numeric" maxlength="32" :aria-invalid="Boolean(profileErrors.qq)" />
+            <input v-model.trim="profile.qq" name="qq" inputmode="numeric" maxlength="32" placeholder="选填" :aria-invalid="Boolean(profileErrors.qq)" />
             <small v-if="profileErrors.qq" class="field-error" role="alert">{{ profileErrors.qq }}</small>
           </label>
           <label class="field">

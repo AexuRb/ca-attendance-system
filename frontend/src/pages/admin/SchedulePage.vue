@@ -51,6 +51,9 @@
     <ModalDialog
       backdrop-class="schedule-refined-backdrop"
       :open="editorOpen"
+      :busy="actions.isPending('save')"
+      :error="actionError"
+      description="设置时段并选择排班人员。"
       :title="fixedForm.id ? '编辑固定排班' : '新增固定排班'"
       size="lg"
       @close="closeEditor"
@@ -94,6 +97,7 @@
           <ScheduleAssigneePicker
             v-model="fixedForm.assignees"
             :candidates="assigneeCandidates"
+            :disabled="actions.isPending('save')"
             :open="editorOpen"
           />
         </div>
@@ -171,6 +175,7 @@ import ScheduleAssigneePicker from "../../features/schedule/ScheduleAssigneePick
 import { useScheduleWorkspace } from "../../features/schedule/useScheduleWorkspace";
 
 const {
+  actionError,
   canManage,
   unsaved,
   actions,

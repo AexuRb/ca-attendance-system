@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <ModalDialog :error="submitError" :busy="pending"
     backdrop-class="training-refined-backdrop"
     :open="open"
     :title="form.id ? '编辑培训' : '新建培训'"
@@ -11,7 +11,7 @@
         <span>培训标题</span>
         <input
           v-model.trim="form.title"
-          name="training-title"
+          name="training-title" required
           maxlength="100"
           autocomplete="off"
           data-dialog-initial-focus
@@ -24,7 +24,7 @@
         <span>培训日期</span>
         <input
           v-model="form.trainingDate"
-          name="training-date"
+          name="training-date" required
           type="date"
           :aria-invalid="Boolean(errors.trainingDate)"
           :aria-describedby="errors.trainingDate ? 'training-date-error' : undefined"
@@ -77,7 +77,7 @@ import { focusFirstInvalid } from "../../shared/validation/userInput";
 import { validateTrainingSessionForm, type TrainingSessionErrors } from "./trainingForms";
 import type { TrainingSessionForm } from "./trainingTypes";
 
-const props = defineProps<{ open: boolean; form: TrainingSessionForm; pending: boolean }>();
+const props = defineProps<{ open: boolean; form: TrainingSessionForm; pending: boolean; submitError?: string }>();
 const emit = defineEmits<{ close: []; save: [] }>();
 const errors = reactive<TrainingSessionErrors>({});
 const formElement = ref<HTMLFormElement | null>(null);

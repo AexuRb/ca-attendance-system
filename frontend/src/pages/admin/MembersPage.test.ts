@@ -107,18 +107,20 @@ describe("MembersPage deletion", () => {
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain("仅可永久删除从未参与业务的空白账号");
 
-    await wrapper.get(".confirm-copy + .field textarea").setValue("清理测试账号");
+    await wrapper.get('.reason-picker input[value="other"]').setValue(true);
+    await wrapper.get(".reason-picker textarea").setValue("清理测试账号");
     await wrapper.get("[role=dialog] footer .button.danger").trigger("click");
     await flushPromises();
 
     expect(mocks.apiDelete).toHaveBeenCalledWith("/api/users/2", {
-      reason: "清理测试账号",
+      reason: "其他：清理测试账号",
     });
     expect(mocks.notify).toHaveBeenCalledWith(
       "该成员已有培训记录、维修事务，不能永久删除，请改为停用账号",
       "danger",
     );
     expect(wrapper.find(".confirm-copy").exists()).toBe(true);
+    expect((wrapper.get(".reason-picker textarea").element as HTMLTextAreaElement).value).toBe("清理测试账号");
   });
 
   it("closes the dialog and refreshes only after deletion succeeds", async () => {
@@ -130,10 +132,11 @@ describe("MembersPage deletion", () => {
 
     wrapper.findComponent(MemberRowActions).vm.$emit("delete");
     await wrapper.vm.$nextTick();
-    await wrapper.get(".confirm-copy + .field textarea").setValue("清理空白账号");
+    await wrapper.get('.reason-picker input[value="误建账号"]').setValue(true);
     await wrapper.get("[role=dialog] footer .button.danger").trigger("click");
     await flushPromises();
 
+    expect(mocks.apiDelete).toHaveBeenCalledWith("/api/users/2", { reason: "误建账号" });
     expect(wrapper.find(".confirm-copy").exists()).toBe(false);
     expect(mocks.apiGet.mock.calls.filter(([url]) => String(url).startsWith("/api/users/page?")).length).toBe(2);
     expect(mocks.notify).toHaveBeenCalledWith("成员已删除", "success");

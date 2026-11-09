@@ -44,10 +44,6 @@ html:root[data-appearance] .attendance-results-summary__title strong { color:var
 html:root[data-appearance] .attendance-results-summary__range { color:var(--mw-muted); font:12px/1.5 var(--mw-font); font-variant-numeric:tabular-nums; }
 html:root[data-appearance] .attendance-table thead { background:var(--mw-soft); }
 html:root[data-appearance] .attendance-table thead th { color:var(--mw-muted); font-weight:600; letter-spacing:.025em; }
-html:root[data-appearance] .attendance-table tbody tr:nth-child(even) td { background:color-mix(in srgb,var(--mw-soft) 30%,var(--mw-paper)); }
-html:root[data-appearance] .attendance-table tbody tr:hover td,
-html:root[data-appearance] .attendance-table tbody tr:focus-within td { background:color-mix(in srgb,var(--mw-accent) 5%,var(--mw-paper)); }
-html:root[data-appearance] .attendance-table tbody td { transition:background-color var(--mw-speed); }
 html:root[data-appearance] .attendance-table .daily-person strong { font-weight:600; color:var(--mw-ink); }
 html:root[data-appearance] .attendance-table .daily-person small { color:var(--mw-muted); font-variant-numeric:tabular-nums; }
 html:root[data-appearance] .attendance-table .attendance-date time,

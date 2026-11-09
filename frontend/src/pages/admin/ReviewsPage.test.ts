@@ -1,9 +1,14 @@
 // @vitest-environment jsdom
-import { flushPromises, mount } from "@vue/test-utils";
+import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ReviewsPage from "./ReviewsPage.vue";
 import { defineComponent } from "vue";
 import { useAttendanceReviewWorkspace } from "../../features/attendance/useAttendanceReviewWorkspace";
+
+async function enterRejectReason(wrapper: VueWrapper, text: string) {
+  await wrapper.get('input[name="reviewRejectReason"][value="other"]').setValue();
+  await wrapper.get('textarea[name="reviewRejectReasonOther"]').setValue(text);
+}
 
 // Full-queue behavior and API scope remain in the existing workspace.
 function mountReviewWorkspace() {
@@ -94,16 +99,16 @@ describe("ReviewsPage individual review and retained workspace behavior", () => 
     const wrapper = mount(ReviewsPage, { global: { stubs: { Teleport: true } } });
     await flushPromises();
     await wrapper.get(".review-approve-check-in .review-state-action__reject").trigger("click");
-    await wrapper.get('[name="reviewRejectReason"]').setValue("时间需要核实");
+    await enterRejectReason(wrapper, "时间需要核实");
     await wrapper.get(".review-reject-actions .button.danger").trigger("click");
     await flushPromises();
-    expect((wrapper.get('[name="reviewRejectReason"]').element as HTMLTextAreaElement).value).toBe("时间需要核实");
+    expect((wrapper.get('textarea[name="reviewRejectReasonOther"]').element as HTMLTextAreaElement).value).toBe("时间需要核实");
     await wrapper.get(".review-reject-actions .button.secondary").trigger("click");
     const confirm = wrapper.findAllComponents({ name: "ConfirmDialog" }).find(component => component.props("title") === "放弃驳回原因")!;
     expect(confirm.props("open")).toBe(true);
     confirm.vm.$emit("cancel");
     await flushPromises();
-    expect((wrapper.get('[name="reviewRejectReason"]').element as HTMLTextAreaElement).value).toBe("时间需要核实");
+    expect((wrapper.get('textarea[name="reviewRejectReasonOther"]').element as HTMLTextAreaElement).value).toBe("时间需要核实");
     wrapper.unmount();
   });
 
@@ -177,16 +182,17 @@ describe("ReviewsPage individual review and retained workspace behavior", () => 
     expect(wrapper.findAll(".review-state-action__approve")).toHaveLength(2);
     expect(wrapper.find(".review-detail,.review-process").exists()).toBe(false);
     await wrapper.get(".review-state-action__reject").trigger("click");
-    await wrapper.get('[name="reviewRejectReason"]').setValue("现场找不到该成员");
+    await enterRejectReason(wrapper, "现场找不到该成员");
     await wrapper.findAll(".review-state-action__reject")[1].trigger("click");
     const confirmation = wrapper.findAllComponents({ name: "ConfirmDialog" }).find(c => c.props("title") === "放弃驳回原因")!;
     expect(confirmation.props("open")).toBe(true);
     expect(wrapper.text()).toContain("驳回审核测试成员的签到");
     confirmation.vm.$emit("cancel");await flushPromises();
-    expect((wrapper.get('[name="reviewRejectReason"]').element as HTMLTextAreaElement).value).toBe("现场找不到该成员");
+    expect((wrapper.get('textarea[name="reviewRejectReasonOther"]').element as HTMLTextAreaElement).value).toBe("现场找不到该成员");
     await wrapper.findAll(".review-state-action__reject")[1].trigger("click");confirmation.vm.$emit("confirm");await flushPromises();
     expect(wrapper.text()).toContain("驳回第二位的签到");
-    expect((wrapper.get('[name="reviewRejectReason"]').element as HTMLTextAreaElement).value).toBe("");
+    expect(wrapper.find('textarea[name="reviewRejectReasonOther"]').exists()).toBe(false);
+    expect(wrapper.find('input[name="reviewRejectReason"]:checked').exists()).toBe(false);
     expect(mocks.apiPost).not.toHaveBeenCalled();wrapper.unmount();
   });
 
@@ -194,13 +200,13 @@ describe("ReviewsPage individual review and retained workspace behavior", () => 
     const wrapper = mount(ReviewsPage, { global: { stubs: { Teleport: true } } }); await flushPromises();
     expect(wrapper.find('button[aria-label="刷新"]').exists()).toBe(false);
     await wrapper.get(".review-state-action__reject").trigger("click");
-    await wrapper.get('[name="reviewRejectReason"]').setValue("需现场核对");
+    await enterRejectReason(wrapper, "需现场核对");
     const discard = wrapper.findAllComponents({ name: "ConfirmDialog" }).find(c => c.props("title") === "放弃驳回原因")!;
     await wrapper.get(".review-state-action__approve").trigger("click");
     expect(discard.props("open")).toBe(true);
     expect(mocks.apiPost).not.toHaveBeenCalled();
     discard.vm.$emit("cancel"); await flushPromises();
-    expect((wrapper.get('[name="reviewRejectReason"]').element as HTMLTextAreaElement).value).toBe("需现场核对");
+    expect((wrapper.get('textarea[name="reviewRejectReasonOther"]').element as HTMLTextAreaElement).value).toBe("需现场核对");
     await wrapper.get(".review-state-action__approve").trigger("click");
     discard.vm.$emit("confirm"); await flushPromises();
     expect(mocks.apiPost).toHaveBeenCalledWith("/api/attendance/1/review", { part: "CHECK_IN", action: "APPROVE", reason: "" }); wrapper.unmount();
@@ -261,14 +267,14 @@ describe("ReviewsPage individual review and retained workspace behavior", () => 
   it("guards the draft before opening all-queue confirmation and retains it on cancel", async () => {
     const wrapper = mount(ReviewsPage, { global: { stubs: { Teleport: true } } }); await flushPromises();
     await wrapper.get('.review-state-action__reject').trigger('click');
-    await wrapper.get('[name="reviewRejectReason"]').setValue('现场需要核对');
+    await enterRejectReason(wrapper, '现场需要核对');
     await wrapper.get('.review-approve-all').trigger('click');
     const dialogs = wrapper.findAllComponents({ name: 'ConfirmDialog' });
     const discard = dialogs.find(c => c.props('title') === '放弃驳回原因')!;
     const bulk = dialogs.find(c => c.props('title') === '通过全部待审核记录')!;
     expect(discard.props('open')).toBe(true); expect(bulk.props('open')).toBe(false);
     discard.vm.$emit('cancel'); await flushPromises();
-    expect((wrapper.get('[name="reviewRejectReason"]').element as HTMLTextAreaElement).value).toBe('现场需要核对');
+    expect((wrapper.get('textarea[name="reviewRejectReasonOther"]').element as HTMLTextAreaElement).value).toBe('现场需要核对');
     await wrapper.get('.review-approve-all').trigger('click'); discard.vm.$emit('confirm'); await flushPromises();
     expect(bulk.props('open')).toBe(true); expect(wrapper.find('[name="reviewRejectReason"]').exists()).toBe(false);
     expect(mocks.apiPost).not.toHaveBeenCalled(); wrapper.unmount();
@@ -290,16 +296,16 @@ describe("ReviewsPage individual review and retained workspace behavior", () => 
     await wrapper.get('.review-approve-check-out .review-state-action__reject').trigger('click');
     expect(wrapper.text()).toContain('驳回审核测试成员的签退');expect(wrapper.get('.review-reject-context').text()).toContain('2026-08-12 · 16:00');
     expect(wrapper.get('.review-reject-actions .button.danger').attributes('disabled')).toBeDefined();
-    await wrapper.get('[name="reviewRejectReason"]').setValue('  现场未找到该成员  ');
+    await enterRejectReason(wrapper, '  现场未找到该成员  ');
     await wrapper.get('.review-reject-actions .button.danger').trigger('click');await flushPromises();
-    expect(mocks.apiPost).toHaveBeenCalledWith('/api/attendance/1/review', { part: 'CHECK_OUT', action: 'REJECT', reason: '现场未找到该成员' });
+    expect(mocks.apiPost).toHaveBeenCalledWith('/api/attendance/1/review', { part: 'CHECK_OUT', action: 'REJECT', reason: '其他：现场未找到该成员' });
     expect(wrapper.find('[name="reviewRejectReason"]').exists()).toBe(false);wrapper.unmount();
   });
   it("locks the rejection dialog against close and duplicate submission while pending", async () => {
     let resolveReview!: (value: unknown) => void;
     mocks.apiPost.mockReturnValue(new Promise(resolve => { resolveReview = resolve; }));
     const wrapper = mount(ReviewsPage, { global: { stubs: { Teleport: true } } });await flushPromises();
-    await wrapper.get('.review-state-action__reject').trigger('click');await wrapper.get('[name="reviewRejectReason"]').setValue('现场需要核对');
+    await wrapper.get('.review-state-action__reject').trigger('click');await enterRejectReason(wrapper, '现场需要核对');
     await wrapper.get('.review-reject-actions .button.danger').trigger('click');
     const rejection = wrapper.findAllComponents({ name: 'ModalDialog' }).find(c => c.props('title') === '驳回审核测试成员的签到')!;
     rejection.vm.$emit('close');await flushPromises();

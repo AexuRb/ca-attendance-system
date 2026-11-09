@@ -1,6 +1,6 @@
 {
   "name": "ca-attendance-desktop",
-  "version": "3.5.2",
+  "version": "3.5.3",
   "private": true,
   "description": "计算机协会本地离线管理系统桌面端",
   "author": "AexuRb",
@@ -13,7 +13,7 @@
     "dist": "electron-builder --win nsis --x64"
   },
   "devDependencies": {
-    "electron": "43.7.7",
+    "electron": "43.8.7",
     "electron-builder": "26.15.3"
   },
   "overrides": {

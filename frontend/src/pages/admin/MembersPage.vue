@@ -72,7 +72,7 @@
       </div>
     </div>
 
-    <MemberEditorDialog
+    <MemberEditorDialog :submit-error="actionError"
       backdrop-class="members-refined-backdrop"
       :open="editorOpen"
       :member="editorTarget"
@@ -84,7 +84,7 @@
       @save="saveMember"
     />
 
-    <BulkMemberStatusDialog
+    <BulkMemberStatusDialog :submit-error="actionError"
       backdrop-class="members-refined-backdrop"
       :open="bulkOpen"
       :count="selected.size"
@@ -94,7 +94,7 @@
       @confirm="applyBulkStatus"
     />
 
-    <MemberPasswordResetDialog
+    <MemberPasswordResetDialog :submit-error="actionError"
       backdrop-class="members-refined-backdrop"
       :open="Boolean(resetTarget)"
       :member="resetTarget"
@@ -102,14 +102,16 @@
       @close="closeReset"
       @confirm="resetPassword"
     />
-    <ConfirmDialog
+    <ConfirmDialog :error="actionError"
       backdrop-class="members-refined-backdrop"
       :open="Boolean(deleteTarget)"
       title="删除成员"
+      :context="[{ label: '成员', value: deleteTarget?.name || '—' }, { label: '学号', value: deleteTarget?.studentNo || '—' }]"
       :message="`仅可永久删除从未参与业务的空白账号。将删除 ${deleteTarget?.name || ''} 的账号，系统会先自动备份；如已有历史记录，请改为停用账号。`"
       confirm-label="删除成员"
       danger
       require-reason
+      :reason-options="reasonOptions.memberDelete"
       :pending="actions.isPending('delete')"
       @cancel="deleteTarget = null"
       @confirm="remove"
@@ -139,6 +141,7 @@ import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";
 
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import { reasonOptions } from "../../shared/config/reasonOptions";
 import MemberEditorDialog from "../../features/members/MemberEditorDialog.vue";
 import MemberPasswordResetDialog from "../../features/members/MemberPasswordResetDialog.vue";
 import BulkMemberStatusDialog from "../../features/members/BulkMemberStatusDialog.vue";
@@ -148,6 +151,7 @@ import ActionMenu from "../../shared/ui/ActionMenu.vue";
 import { useMemberDirectoryWorkspace } from "../../features/members/useMemberDirectoryWorkspace";
 
 const {
+  actionError,
   bindTableScroll,
   rememberTableScroll,
   actions,

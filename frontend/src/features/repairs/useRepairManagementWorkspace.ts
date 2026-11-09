@@ -3,6 +3,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { api, del, downloadBlob, get, post, put } from "../../shared/api";
 import { useSession } from "../../app/session";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
+import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import { notify } from "../../shared/composables/useToast";
@@ -78,6 +79,8 @@ export function useRepairManagementWorkspace() {
   const agreementError = ref("");
   const exportButton = ref<HTMLButtonElement | null>(null);
   const handlerCandidates = ref<AccountCandidate[]>([]);
+  const candidateRequest = useLatestRequest();
+  const { loading: handlerCandidatesLoading, error: handlerCandidatesError } = candidateRequest;
   const selectedHandler = ref<AccountCandidate | null>(null);
   const revealedPhones = ref(new Set<number>());
   const form = reactive<RepairCaseForm>({
@@ -326,7 +329,7 @@ export function useRepairManagementWorkspace() {
   }
 
   async function loadHandlerCandidates() {
-    const value = await task.run(() => get<AccountCandidate[]>("/api/repairs/handler-candidates"));
+    const value = await candidateRequest.run(signal => get<AccountCandidate[]>("/api/repairs/handler-candidates", { signal }), "成员名单暂时无法加载");
     if (value) handlerCandidates.value = value;
   }
 
@@ -420,6 +423,7 @@ export function useRepairManagementWorkspace() {
   }
 
   return {
+    actionError: task.error,
     tableScroll,
     bindTableScroll,
     rememberTableScroll,
@@ -445,7 +449,7 @@ export function useRepairManagementWorkspace() {
     agreementHtml,
     agreementLoading,
     agreementError,
-    handlerCandidates,
+    handlerCandidates, handlerCandidatesLoading, handlerCandidatesError, loadHandlerCandidates,
     selectedHandler,
     revealedPhones,
     form,

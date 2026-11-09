@@ -3,12 +3,12 @@
     <Transition name="repair-drawer">
       <div
         v-if="open && item"
-        class="repair-drawer-backdrop" :class="[backdropClass, {'affairs-detail mw-scope': refined}]"
+        class="repair-drawer-backdrop app-detail-backdrop" :class="[backdropClass, {'affairs-detail mw-scope': refined}]"
         @mousedown.self="$emit('close')"
       >
         <aside
           ref="dialog"
-          class="repair-detail-drawer"
+          class="repair-detail-drawer app-detail"
           role="dialog"
           aria-modal="true"
           aria-labelledby="repair-detail-title"

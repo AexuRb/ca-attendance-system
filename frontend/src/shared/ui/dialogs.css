@@ -1,0 +1,108 @@
+/* Shared dialog structure; theme tokens retain palette, typography and motion.
+ * A named layer beats legacy page paint without copying button rules. */
+@layer ui-dialogs {
+  :where(.app-dialog-backdrop,.app-detail-backdrop,.agreement-backdrop) {
+    --dialog-accent:var(--theme-accent,#30669c);
+    --dialog-ink:var(--theme-ink,#293541);
+    --dialog-muted:var(--theme-muted,#55636f);
+    --dialog-line:var(--theme-line,#d6dfe7);
+    --dialog-soft:var(--theme-workspace,#f7f9fc);
+    --dialog-font:var(--mw-font,var(--font-sans,"Microsoft YaHei",sans-serif));
+    background:#27323e52!important; backdrop-filter:blur(3px)!important;
+  }
+  .app-dialog-backdrop { padding:24px!important; }
+  .app-dialog {
+    display:flex!important; flex-direction:column!important; width:min(640px,100%)!important;
+    max-height:calc(100dvh - 48px)!important; min-height:0!important; overflow:hidden!important;
+    border:1px solid var(--dialog-line)!important; border-radius:12px!important; background:#fff!important;
+    color:var(--dialog-ink)!important; font:400 14px/1.6 var(--dialog-font)!important;
+    box-shadow:0 24px 80px #172a4030!important;
+  }
+  .app-dialog::before { display:none!important; }
+  .credits-dialog-backdrop .app-dialog::after { right:12px!important; bottom:12px!important; max-width:calc(100% - 24px)!important; }
+  .app-dialog.modal-sm { width:min(440px,100%)!important; }
+  .app-dialog.modal-xl { width:min(920px,100%)!important; }
+  .app-dialog>header,.app-detail>header {
+    display:flex!important; align-items:flex-start!important; justify-content:space-between!important;
+    gap:16px!important; flex:none!important; padding:20px 24px!important;
+    border-bottom:1px solid var(--dialog-line)!important; background:#fff!important;
+  }
+  :is(.app-dialog,.app-detail)>header>div { min-width:0!important; }
+  :is(.app-dialog,.app-detail)>header h2 { margin:0!important; color:var(--dialog-ink)!important; font:600 18px/1.5 var(--dialog-font)!important; overflow-wrap:anywhere; }
+  :is(.app-dialog,.app-detail)>header .eyebrow { display:none!important; }
+  :is(.app-dialog,.app-detail) .dialog-description { margin:4px 0 0!important; color:var(--dialog-muted)!important; font:400 12px/1.7 var(--dialog-font)!important; }
+  .app-dialog>[data-dialog-content],.app-detail>[data-dialog-content] {
+    flex:1!important; min-height:0!important; overflow:auto!important; overscroll-behavior:contain;
+    padding:24px!important; font:400 14px/1.6 var(--dialog-font)!important;
+  }
+  .app-dialog>footer,.app-detail>footer {
+    display:flex!important; align-items:center!important; justify-content:flex-end!important;
+    gap:8px!important; flex:none!important; flex-wrap:wrap!important; padding:16px 24px!important;
+    border-top:1px solid var(--dialog-line)!important; background:#fff!important;
+  }
+  .app-dialog>footer[inert] .button {
+    --ui-button-fill:var(--ui-disabled-bg,#f1f3f5); --ui-button-color:var(--ui-disabled-ink,#626d79); --ui-button-border:var(--ui-disabled-line,#dde2e7);
+    --ui-button-image:none; --ui-button-shadow:none; --ui-button-hover-fill:var(--ui-disabled-bg,#f1f3f5); --ui-button-hover-color:var(--ui-disabled-ink,#626d79); --ui-button-hover-border:var(--ui-disabled-line,#dde2e7);
+  }
+  .app-dialog :is(.form-grid,.form-grid.two) { display:grid!important; grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:20px 18px!important; margin:0!important; padding:0!important; border:0!important; background:transparent!important; }
+  .app-dialog :is(.form-grid:not(.two)):not(:has(.span-2)) { grid-template-columns:minmax(0,1fr)!important; }
+  .app-dialog .span-2 { grid-column:1/-1!important; }
+  .app-dialog .field { display:flex!important; flex-direction:column!important; gap:7px!important; min-width:0!important; margin:0!important; }
+  .app-dialog .field>span { color:var(--dialog-ink)!important; font:500 12px/1.6 var(--dialog-font)!important; }
+  .app-dialog .field:has(:is(input,select,textarea)[required]):not(:has(:disabled))>span:first-child::after { content:" *"; color:var(--ui-danger,#b23c45); }
+  .app-dialog .field :is(input:not([type=radio]):not([type=checkbox]):not([type=file]),select,textarea) {
+    width:100%!important; min-width:0!important; min-height:40px!important; padding:8px 11px!important;
+    border:1px solid var(--dialog-line)!important; border-radius:8px!important; background:#fff!important;
+    color:var(--dialog-ink)!important; font:400 13px/22px var(--dialog-font)!important; box-shadow:none!important;
+  }
+  .app-dialog .field :is(input,select,textarea):focus-visible { outline:2px solid var(--dialog-accent)!important; outline-offset:2px!important; }
+  .app-dialog .field :is(input,select,textarea)[aria-invalid=true] { border-color:var(--ui-danger,#b23c45)!important; }
+  .app-dialog .field :is(input,select,textarea):disabled { background:var(--ui-disabled-bg,#f1f3f5)!important; color:var(--ui-disabled-ink,#626d79)!important; }
+  .app-dialog [data-dialog-content][inert] .field :is(input,select,textarea) { background:var(--ui-disabled-bg,#f1f3f5)!important; color:var(--ui-disabled-ink,#626d79)!important; }
+  .app-dialog .field-error,.app-dialog .form-error { color:var(--ui-danger,#b23c45)!important; font:400 12px/1.6 var(--dialog-font)!important; overflow-wrap:anywhere; }
+  .app-dialog :is(.field-hint,.form-note) { color:var(--dialog-muted)!important; font:400 12px/1.7 var(--dialog-font)!important; }
+  .app-dialog .confirm-copy { margin:0 0 20px!important; color:var(--dialog-muted)!important; font:400 13px/1.9 var(--dialog-font)!important; overflow-wrap:anywhere; }
+  .app-dialog .dialog-submit-error { margin:20px 0 0; padding:12px 14px; background:var(--ui-danger-bg,#fcedef); color:var(--ui-danger,#b23c45); border-radius:8px; font:400 12px/1.8 var(--dialog-font); overflow-wrap:anywhere; }
+  .app-dialog :is(.inline-alert,.result-note) { margin:12px 0; padding:12px 14px!important; border-radius:8px!important; font:400 12px/1.8 var(--dialog-font)!important; overflow-wrap:anywhere; }
+  .app-dialog .dialog-summary { margin:0 0 20px; }
+  .dialog-summary>div { display:grid; grid-template-columns:80px minmax(0,1fr); gap:12px; padding:10px 0; border-bottom:1px solid var(--dialog-line); font:400 13px/1.7 var(--dialog-font); }
+  .dialog-summary dt { color:var(--dialog-muted); }
+  .dialog-summary dd { margin:0; overflow-wrap:anywhere; }
+  .app-dialog .attendance-editor-context { display:block!important; margin:0 0 24px!important; padding:0 0 0 12px!important; border:0!important; border-left:2px solid var(--dialog-accent)!important; background:transparent!important; }
+  .app-dialog .attendance-editor-context strong { display:block; font:600 14px/1.7 var(--dialog-font)!important; }
+  .app-dialog .attendance-editor-context span { font:400 12px/1.7 var(--dialog-font)!important; color:var(--dialog-muted)!important; }
+  .app-dialog .upload-zone { padding:28px 18px!important; border:1px dashed var(--dialog-line)!important; border-radius:8px!important; background:var(--dialog-soft)!important; box-shadow:none!important; }
+  .app-dialog :is(.restore-contact-details,.restore-contact-review) { font-size:12px!important; }
+  .app-dialog .training-participant-context { margin:0 0 20px!important; border-left:2px solid var(--dialog-accent); padding:0 0 0 12px!important; background:transparent!important; }
+  .app-dialog .repair-editor-steps { margin-bottom:20px!important; }
+  .app-dialog .repair-editor-steps button { min-width:0; }
+  .app-dialog :is(.review-reject-actions,.member-password-reset-actions) { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+  .app-detail-backdrop { padding:16px!important; }
+  .app-detail { display:flex!important; flex-direction:column!important; width:min(640px,100%)!important; max-width:100%!important; height:calc(100dvh - 32px)!important; max-height:calc(100dvh - 32px)!important; margin:0 0 0 auto!important; overflow:hidden!important; border:1px solid var(--dialog-line)!important; border-radius:12px 0 0 12px!important; background:#fff!important; color:var(--dialog-ink)!important; box-shadow:0 24px 80px #172a4030!important; }
+  .app-detail>.training-session-list { flex:1; min-height:0; overflow:auto; }
+  .app-detail>.training-session-list>.training-directory-heading { display:none!important; }
+  .app-detail :is(.repair-detail-navigation,.training-session-list-toolbar) { flex:none; padding:12px 24px!important; border-bottom:1px solid var(--dialog-line)!important; }
+  .app-detail :is(dt,.repair-detail-section>h3) { color:var(--dialog-muted)!important; font-size:12px!important; }
+  .app-detail dd { font-size:13px!important; overflow-wrap:anywhere; }
+  .is-side-panel>.app-dialog { width:min(640px,100%)!important; height:100%!important; max-height:100%!important; border-radius:12px 0 0 12px!important; }
+  .app-dialog-backdrop.is-side-panel { padding:16px!important; }
+  .agreement-dialog>header { padding:20px 24px!important; border-bottom:1px solid var(--dialog-line)!important; }
+  .agreement-dialog { border:1px solid var(--dialog-line)!important; border-radius:12px!important; background:#fff!important; }
+  .agreement-dialog>header h2 { font:600 18px/1.5 var(--dialog-font)!important; margin:0!important; }
+  .agreement-dialog>header .eyebrow { display:none!important; }
+  @media(max-width:620px) {
+    .app-dialog-backdrop { padding:12px!important; }
+    .app-dialog { max-height:calc(100dvh - 24px)!important; }
+    :is(.app-dialog,.app-detail)>header { padding:18px!important; }
+    :is(.app-dialog,.app-detail)>header h2 { font-size:17px!important; }
+    .app-dialog>[data-dialog-content],.app-detail>[data-dialog-content] { padding:20px 18px!important; }
+    .app-dialog>footer,.app-detail>footer { padding:14px 18px!important; }
+    .app-dialog :is(.form-grid,.form-grid.two) { grid-template-columns:minmax(0,1fr)!important; gap:18px!important; }
+    .app-detail-backdrop { padding:8px!important; }
+    .app-dialog-backdrop.is-side-panel { padding:8px!important; }
+    .app-detail { width:100%!important; height:calc(100dvh - 16px)!important; max-height:calc(100dvh - 16px)!important; border-radius:12px!important; }
+    .is-side-panel>.app-dialog { border-radius:12px!important; }
+    .app-dialog .dialog-summary>div { grid-template-columns:66px minmax(0,1fr); gap:10px; }
+    .agreement-dialog>header { padding:16px!important; gap:12px; flex-wrap:wrap; }
+  }
+}

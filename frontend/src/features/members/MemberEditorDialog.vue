@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <ModalDialog :error="submitError" :busy="busy"
     :backdrop-class="backdropClass"
     :open="open"
     :title="member ? '编辑成员' : '新增成员'"
@@ -71,6 +71,8 @@
         <input
           v-model.trim="form.phone"
           name="phone"
+          inputmode="tel"
+          placeholder="选填"
           autocomplete="tel"
           maxlength="64"
           :aria-invalid="Boolean(errors.phone)"
@@ -94,22 +96,12 @@
       </label>
       <label class="field">
         <span>QQ</span>
-        <input v-model.trim="form.qq" name="qq" inputmode="numeric" maxlength="32" :aria-invalid="Boolean(errors.qq)" />
+        <input v-model.trim="form.qq" name="qq" inputmode="numeric" maxlength="32" placeholder="选填" :aria-invalid="Boolean(errors.qq)" />
         <small v-if="errors.qq" class="field-error" role="alert">{{ errors.qq }}</small>
       </label>
-      <label v-if="member" class="field span-2">
-        <span>修改原因</span>
-        <textarea
-          v-model.trim="form.reason"
-          name="reason"
-          rows="3"
-          placeholder="用于操作日志"
-          maxlength="500"
-          required
-          :aria-invalid="Boolean(errors.reason)"
-        />
-        <small v-if="errors.reason" class="field-error" role="alert">{{ errors.reason }}</small>
-      </label>
+      <ReasonPicker v-if="member" :key="`${open}-${member.id}`" v-model="form.reason" class="span-2" name="reason" label="修改原因"
+        :options="reasonOptions.memberEdit" :disabled="busy" :invalid="Boolean(errors.reason)" />
+      <small v-if="member && errors.reason" class="field-error span-2" role="alert">{{ errors.reason }}</small>
     </form>
     <template #footer>
       <button class="button secondary" type="button" :disabled="busy" @click="close">
@@ -142,6 +134,8 @@
 import { computed, reactive, ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import ReasonPicker from "../../shared/ui/ReasonPicker.vue";
+import { reasonOptions } from "../../shared/config/reasonOptions";
 import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import {
   focusFirstInvalid,
@@ -160,7 +154,7 @@ const props = defineProps<{
   member: MemberSummary | null;
   operatorRole?: string;
   gradeChoices: string[];
-  busy?: boolean;
+  busy?: boolean; submitError?: string;
   lockAccountControls?: boolean;
 }>();
 const emit = defineEmits<{
@@ -220,7 +214,7 @@ watch(
       major: member?.major || "",
       grade: member?.grade || "",
       qq: member?.qq || "",
-      reason: member ? "更新成员资料" : "",
+      reason: "",
     });
     baseline.value = JSON.stringify(form);
     Object.keys(errors).forEach((key) => delete errors[key]);

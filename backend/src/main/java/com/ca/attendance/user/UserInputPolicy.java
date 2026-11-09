@@ -11,10 +11,10 @@ public final class UserInputPolicy {
     public static final int NAME_MAX_LENGTH = 64;
     public static final int PASSWORD_MIN_LENGTH = 6;
     public static final int PASSWORD_MAX_LENGTH = 64;
-    public static final int PHONE_MAX_LENGTH = 64;
+    public static final int PHONE_MAX_LENGTH = 11;
     public static final int COLLEGE_MAX_LENGTH = 128;
     public static final int GRADE_MAX_LENGTH = 16;
-    public static final int QQ_MAX_LENGTH = 32;
+    public static final int QQ_MAX_LENGTH = 20;
     public static final int REASON_MAX_LENGTH = 500;
 
     private static final Pattern NEW_STUDENT_NO = Pattern.compile("\\d{6,32}");
@@ -66,7 +66,11 @@ public final class UserInputPolicy {
     }
 
     public static String phone(String value) {
-        return optional(value, PHONE_MAX_LENGTH, "联系方式");
+        String normalized = optional(value, PHONE_MAX_LENGTH, "手机号");
+        if (normalized != null && !normalized.matches("1[3-9][0-9]{9}")) {
+            throw ApiException.badRequest("请输入11位大陆手机号，或留空");
+        }
+        return normalized;
     }
 
     public static String college(String value) {
@@ -92,7 +96,11 @@ public final class UserInputPolicy {
     }
 
     public static String qq(String value) {
-        return optional(value, QQ_MAX_LENGTH, "QQ");
+        String normalized = optional(value, QQ_MAX_LENGTH, "QQ");
+        if (normalized != null && !normalized.matches("[1-9][0-9]{4,19}")) {
+            throw ApiException.badRequest("QQ须为5至20位数字，且首位不能为0，或留空");
+        }
+        return normalized;
     }
 
     public static String reason(String value) {

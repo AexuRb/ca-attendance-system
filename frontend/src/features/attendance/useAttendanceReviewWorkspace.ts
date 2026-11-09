@@ -192,6 +192,7 @@ export function useAttendanceReviewWorkspace() {
   const clock = (value?: string) => value?.slice(11, 16) || "—";
 
   return {
+    actionError: task.error,
     selectedIds,
     selectedItemCount,
     allVisibleSelected,

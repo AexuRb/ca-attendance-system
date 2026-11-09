@@ -14,7 +14,7 @@
           <span>联系人</span>
           <input
             v-model.trim="form.ownerName"
-            name="repair-owner-name"
+            name="repair-owner-name" required
             autocomplete="name"
             data-dialog-initial-focus
             :aria-invalid="Boolean(errors.ownerName)"
@@ -42,7 +42,7 @@
           <span>设备类型</span>
           <input
             v-model.trim="form.deviceType"
-            name="repair-device-type"
+            name="repair-device-type" required
             autocomplete="off"
             placeholder="笔记本电脑、台式机等"
             :aria-invalid="Boolean(errors.deviceType)"
@@ -65,7 +65,7 @@
           <span>故障描述</span>
           <textarea
             v-model.trim="form.faultDescription"
-            name="repair-fault-description"
+            name="repair-fault-description" required
             rows="2"
             :aria-invalid="Boolean(errors.faultDescription)"
           />

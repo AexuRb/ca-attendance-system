@@ -73,8 +73,8 @@
           <tr>
             <th>#</th>
             <th>成员</th>
-            <th>年级</th>
-            <th>角色</th>
+            <th class="stats-secondary-column">年级</th>
+            <th class="stats-secondary-column">角色</th>
             <th>值班时长</th>
             <th>培训时长</th>
             <th>合计时长</th>
@@ -93,8 +93,8 @@
               <span class="stats-member-title"><strong>{{ item.name }}</strong><button data-button-kind="compact" class="stats-detail-trigger" type="button" :disabled="loading || Boolean(loadError)" @click="openMemberDetail(item)">查看详情</button></span>
               <small>{{ item.studentNo }}</small>
             </td>
-            <td>{{ item.grade || "—" }}</td>
-            <td>{{ roleLabel(item.role) }}</td>
+            <td class="stats-secondary-column">{{ item.grade || "—" }}</td>
+            <td class="stats-secondary-column">{{ roleLabel(item.role) }}</td>
             <td>{{ number(item.attendanceHours ?? item.dutyHours) }} 小时</td>
             <td>{{ number(item.trainingHours) }} 小时</td>
             <td><span class="stats-ranking-total"><strong class="total-hours">{{ number(item.totalHours) }}</strong><small>小时</small></span></td>
@@ -107,15 +107,15 @@
         <li v-for="(item, index) in visibleRows" :key="item.userId || item.studentNo" class="stats-ranking-mobile-record">
           <div class="stats-ranking-mobile-record__head">
             <span class="rank" :data-rank="index + 1">{{ index + 1 }}</span>
-            <div class="stats-ranking-mobile-record__person"><strong>{{ item.name }}</strong><small>{{ item.studentNo }} · {{ item.grade || '年级未知' }} · {{ roleLabel(item.role) }}</small></div>
-            <div class="stats-ranking-mobile-record__total"><strong>{{ number(item.totalHours) }}</strong><small>合计小时</small></div>
+            <div class="stats-ranking-mobile-record__person"><strong>{{ item.name }}</strong><small>{{ item.studentNo }}</small></div>
+            <div class="stats-ranking-mobile-record__total" :aria-label="`合计 ${number(item.totalHours)} 小时`"><strong>{{ number(item.totalHours) }}</strong><small>小时</small></div>
+            <button class="icon-button stats-ranking-mobile-record__detail" type="button" :aria-label="`查看${item.name}的统计详情`" title="查看详情" :disabled="loading || Boolean(loadError)" @click="openMemberDetail(item)"><ChevronRight aria-hidden="true" /></button>
           </div>
           <dl class="stats-ranking-mobile-record__breakdown">
             <div><dt>值班</dt><dd>{{ number(item.attendanceHours ?? item.dutyHours) }} 小时</dd></div>
             <div><dt>培训</dt><dd>{{ number(item.trainingHours) }} 小时</dd></div>
             <div><dt>有效记录</dt><dd>{{ effectiveDutyCount(item) }} 次</dd></div>
           </dl>
-          <button data-button-kind="compact" class="stats-detail-trigger stats-ranking-mobile-record__detail" type="button" :disabled="loading || Boolean(loadError)" @click="openMemberDetail(item)">查看详情</button>
         </li>
       </ol>
       </div>
@@ -142,7 +142,7 @@
 </template>
 
 <script setup lang="ts">
-import { BarChart3 } from "@lucide/vue";
+import { BarChart3, ChevronRight } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import QueryStatus from "../../shared/ui/QueryStatus.vue";
 import { provide } from "vue";
@@ -152,6 +152,7 @@ import "../../features/workspaces/presentation.css";
 import "../../features/stats/presentation.css";
 import "../../features/today/overview-presentation.css";
 import "../../features/stats/refined-presentation.css";
+import "../../features/stats/responsive-presentation.css";
 provide(memberPresentationKey, true);
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import EmptyState from "../../shared/ui/EmptyState.vue";

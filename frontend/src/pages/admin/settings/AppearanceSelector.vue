@@ -53,6 +53,7 @@
       :message="`切换为“${selectedLabel}”配色？后台、登录页和签到台将同步更新。`"
       confirm-label="确认应用"
       :pending="pending"
+      :error="error"
       pending-label="正在应用"
       @cancel="confirmOpen = false"
       @confirm="$emit('save')"

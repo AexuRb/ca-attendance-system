@@ -196,6 +196,9 @@
     </div>
     <ModalDialog
       :open="editorOpen"
+      :busy="actions.isPending('save')"
+      :error="actionError"
+      :description="editing ? '核对记录后保存修改。' : '选择成员，补充实际值班时间。'"
       backdrop-class="attendance-dialog-backdrop"
       :title="editing ? '修改值班记录' : '补录值班记录'"
       size="lg"
@@ -211,6 +214,11 @@
           <AccountPicker
             v-model="selectedMember"
             :candidates="manualCandidates"
+            compact-selection
+            :loading="manualCandidatesLoading"
+            :error="manualCandidatesError"
+            :disabled="actions.isPending('save')"
+            @retry="loadManualCandidates"
             :open="editorOpen"
             aria-label="选择补录成员"
             placeholder="搜索姓名或学号"
@@ -241,10 +249,8 @@
             <option value="REJECTED">已驳回</option>
             <option value="NOT_SUBMITTED">未提交</option>
           </select></label
-        ><label class="field span-2"
-          ><span>操作原因</span
-          ><textarea v-model="form.reason" name="attendanceReason" rows="3" required />
-        </label>
+        ><ReasonPicker :key="`${editorOpen}-${editing?.id ?? 'new'}`" v-model="form.reason" class="span-2" name="attendanceReason"
+          :options="editing ? reasonOptions.attendanceEdit : reasonOptions.attendanceCreate" :disabled="actions.isPending('save')" />
         <label
           v-if="editing && canReviewStatus"
           class="attendance-reevaluate span-2"
@@ -281,14 +287,16 @@
       @cancel="unsaved.cancel"
       @confirm="unsaved.discard"
     />
-    <ConfirmDialog
+    <ConfirmDialog :error="actionError"
       backdrop-class="attendance-dialog-backdrop"
       :open="Boolean(deleteTarget)"
       title="删除值班记录"
+      :context="[{ label: '成员', value: deleteTarget?.name || '—' }, { label: '值班日期', value: deleteTarget?.dutyDate || '—' }]"
       :message="`将删除 ${deleteTarget?.name || ''} 在 ${deleteTarget?.dutyDate || ''} 的值班记录，系统会先自动备份。`"
       confirm-label="删除记录"
       danger
       require-reason
+      :reason-options="reasonOptions.attendanceDelete"
       :pending="actions.isPending('delete')"
       @cancel="deleteTarget = null"
       @confirm="remove"
@@ -319,10 +327,13 @@ import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import ReasonPicker from "../../shared/ui/ReasonPicker.vue";
+import { reasonOptions } from "../../shared/config/reasonOptions";
 import AccountPicker from "../../features/accounts/AccountPicker.vue";
 import { useAttendanceRecordsWorkspace } from "../../features/attendance/useAttendanceRecordsWorkspace";
 
 const {
+  actionError,
   statsOrigin, returnToStats,
   bindTableScroll,
   rememberTableScroll,
@@ -347,7 +358,7 @@ const {
   form,
   listError,
   listLoading,
-  manualCandidates,
+  manualCandidates, manualCandidatesLoading, manualCandidatesError, loadManualCandidates,
   openCreate,
   openEdit,
   page,

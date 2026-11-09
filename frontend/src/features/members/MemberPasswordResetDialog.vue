@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <ModalDialog :error="submitError" :busy="busy"
     :open="open"
     title="重置成员密码"
     eyebrow="ACCOUNT SECURITY"
@@ -65,7 +65,7 @@ import type { MemberSummary } from "./memberDirectory";
 const props = defineProps<{
   open: boolean;
   member: MemberSummary | null;
-  busy?: boolean;
+  busy?: boolean; submitError?: string;
 }>();
 const emit = defineEmits<{ close: []; confirm: [newPassword: string] }>();
 const formElement = ref<HTMLFormElement | null>(null);

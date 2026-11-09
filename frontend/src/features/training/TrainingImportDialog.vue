@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <ModalDialog :busy="pending"
     backdrop-class="training-refined-backdrop"
     :open="open"
     title="导入参与名单"

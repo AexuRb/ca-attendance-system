@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open" title="批量导入排班" size="lg" @close="close">
+  <ModalDialog :busy="busy" :open="open" title="批量导入排班" size="lg" @close="close">
     <div class="schedule-import-workspace">
       <label class="field schedule-import-file">
         <span>Excel 文件</span>

@@ -137,6 +137,19 @@ public class BackupService {
     }
 
     public RestoreResult restore(MultipartFile file) {
+        return restore(file, false, "");
+    }
+
+    public ContactReview reviewRestore(MultipartFile file) {
+        RolePermissionPolicy.require(AuthContext.current().role(), RolePermissionPolicy.Permission.BACKUP_ADMIN,
+                "只有管理员可以校验恢复备份");
+        try (ExtractedBackupArchive archive = archiveReader.extract(file, restoreValidator.supportedEntries())) {
+            BackupRestorePayload payload = restoreValidator.parse(archive);
+            return BackupContactPolicy.review(file, payload.tableFiles().get("users"), objectMapper);
+        }
+    }
+
+    public RestoreResult restore(MultipartFile file, boolean clearInvalidContacts, String reviewHash) {
         AuthUser current = AuthContext.current();
         RolePermissionPolicy.require(
                 current.role(),
@@ -144,7 +157,17 @@ public class BackupService {
                 "只有管理员可以恢复备份"
         );
         try (ExtractedBackupArchive archive = archiveReader.extract(file, restoreValidator.supportedEntries())) {
-            BackupRestorePayload payload = restoreValidator.parse(archive);
+            BackupRestorePayload parsed = restoreValidator.parse(archive);
+            ContactReview review = BackupContactPolicy.review(file, parsed.tableFiles().get("users"), objectMapper);
+            if ((clearInvalidContacts || (reviewHash != null && !reviewHash.isBlank()))
+                    && !review.fileHash().equals(reviewHash)) {
+                throw ApiException.badRequest("备份文件与校验结果不一致，请重新选择并校验");
+            }
+            if (review.phoneCount() + review.qqCount() > 0 && !clearInvalidContacts) {
+                throw ApiException.badRequest("备份包含格式错误的联系方式，请先校验并明确确认清空后恢复");
+            }
+            BackupRestorePayload payload = new BackupRestorePayload(parsed.tableFiles(), clearInvalidContacts,
+                    review.phoneCount(), review.qqCount());
             RestoreResult result = transactions.execute(status -> {
                 BackupItem safetyBackup = createBackup(
                         current.studentNo(),
@@ -200,7 +223,8 @@ public class BackupService {
         RestoreResult result = new RestoreResult(
                 safetyBackup,
                 restoredRows,
-                restoredRows.values().stream().mapToInt(Integer::intValue).sum()
+                restoredRows.values().stream().mapToInt(Integer::intValue).sum(),
+                payload.clearedPhoneCount(), payload.clearedQqCount()
         );
         logRestore(current, result);
         return result;
@@ -269,7 +293,11 @@ public class BackupService {
     public record RestoreResult(
             BackupItem safetyBackup,
             Map<String, Integer> restoredRows,
-            int totalRows
+            int totalRows,
+            int clearedPhoneCount,
+            int clearedQqCount
     ) {
     }
+    public record ContactIssue(int rowNumber, String field, String reason) {}
+    public record ContactReview(String fileHash, int phoneCount, int qqCount, List<ContactIssue> issues, boolean truncated) {}
 }

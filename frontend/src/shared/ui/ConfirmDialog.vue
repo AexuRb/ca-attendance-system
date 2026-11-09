@@ -1,9 +1,12 @@
 <template>
-  <ModalDialog :open="open" :title="title" size="sm" @close="cancel">
+  <ModalDialog :open="open" :title="title" :description="description" :busy="pending" :error="error" size="sm" @close="cancel">
+    <dl v-if="context?.length" class="dialog-summary"><div v-for="row in context" :key="row.label"><dt>{{ row.label }}</dt><dd>{{ row.value }}</dd></div></dl>
     <p class="confirm-copy">{{ message }}</p>
-    <label v-if="requireReason" class="field">
+    <ReasonPicker v-if="requireReason && reasonOptions?.length" :key="`${open}-${title}`" v-model="reason"
+      :options="reasonOptions" name="confirmReason" :label="reasonLabel" :disabled="pending" />
+    <label v-else-if="requireReason" class="field">
       <span>{{ reasonLabel || "操作原因" }}</span>
-      <textarea v-model="reason" name="confirmReason" rows="3" :placeholder="reasonPlaceholder || '请说明原因'" autofocus />
+      <textarea v-model="reason" name="confirmReason" rows="3" :disabled="pending" :placeholder="reasonPlaceholder || '请说明原因'" autofocus />
     </label>
     <template #footer>
       <button
@@ -19,7 +22,7 @@
         :class="danger ? 'danger' : 'primary'"
         type="button"
         :disabled="pending || (requireReason && !reason.trim())"
-        @click="$emit('confirm', reason.trim())"
+        @click="confirm"
       >
         {{ pending ? pendingLabel || "处理中..." : confirmLabel || "确认" }}
       </button>
@@ -30,9 +33,13 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import ModalDialog from "./ModalDialog.vue";
+import ReasonPicker from "./ReasonPicker.vue";
 const props = defineProps<{
   open: boolean;
   title: string;
+  description?: string;
+  error?: string;
+  context?: { label: string; value: string }[];
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
@@ -40,6 +47,7 @@ const props = defineProps<{
   requireReason?: boolean;
   reasonLabel?: string;
   reasonPlaceholder?: string;
+  reasonOptions?: readonly string[];
   pending?: boolean;
   pendingLabel?: string;
 }>();
@@ -47,6 +55,9 @@ const emit = defineEmits<{ cancel: []; confirm: [reason: string] }>();
 const reason = ref("");
 function cancel() {
   if (!props.pending) emit("cancel");
+}
+function confirm() {
+  if (!props.pending && (!props.requireReason || reason.value.trim())) emit("confirm", reason.value.trim());
 }
 watch(
   () => props.open,

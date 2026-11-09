@@ -9,6 +9,8 @@ import "./appearance/shared-design.css";
 import "./appearance/refinements.css";
 import "./appearance/palettes.css";
 import "./shared/ui/buttons.css";
+import "./shared/ui/dialogs.css";
+import "./shared/ui/member-picker.css";
 
 async function start() {
   await initializeAppearance();

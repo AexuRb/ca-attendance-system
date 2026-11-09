@@ -50,6 +50,39 @@ function options(wrapper: ReturnType<typeof mountPicker>) {
 }
 
 describe("AccountPicker", () => {
+  it("paginates a large list and enters the current page from the search field", async () => {
+    const many = Array.from({ length: 14 }, (_, i) => ({ id: i + 1, name: `示例成员${i + 1}`, studentNo: String(9900000000 + i) }));
+    const wrapper = mount(AccountPicker, { attachTo: document.body, props: { candidates: many, modelValue: null } });
+    expect(options(wrapper)).toHaveLength(6);
+    await wrapper.get('button[aria-label="下一页成员"]').trigger("click");
+    expect(options(wrapper)[0].attributes("data-option-id")).toBe("7");
+    await wrapper.get("input").trigger("keydown", { key: "ArrowDown" }); await nextTick();
+    expect(document.activeElement).toBe(options(wrapper)[0].element);
+    await options(wrapper)[0].trigger("keydown", { key: "Enter" });
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([many[6]]);
+    wrapper.unmount();
+  });
+
+  it("keeps the selection through a failed load and closes the expanded chooser before its parent", async () => {
+    const wrapper = mount(AccountPicker, { attachTo: document.body, props: { candidates, modelValue: candidates[0], compactSelection: true } });
+    await wrapper.get('button[data-button-kind="compact"]').trigger("click");
+    await wrapper.setProps({ error: "请重试" });
+    expect(wrapper.get('[role="alert"]').text()).toContain("加载失败");
+    expect(wrapper.find('[role="option"]').exists()).toBe(false);
+    expect(wrapper.get('.account-picker-current').text()).toContain("Alpha");
+    await wrapper.get('.member-picker-state button').trigger("click");
+    expect(wrapper.emitted("retry")).toHaveLength(1);
+    await wrapper.setProps({ error: "" });
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    options(wrapper)[0].element.dispatchEvent(event); await nextTick();
+    expect(event.cancelBubble || event.defaultPrevented).toBe(true);
+    expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
+    await wrapper.get('button[data-button-kind="compact"]').trigger("click");
+    await wrapper.get("input").setValue("Bravo");
+    expect(options(wrapper)).toHaveLength(1);
+    wrapper.unmount();
+  });
+
   it("keeps a compact selection stable until the user searches for another account", async () => {
     const wrapper = mount(AccountPicker, {
       attachTo: document.body,
@@ -58,7 +91,7 @@ describe("AccountPicker", () => {
 
     expect(wrapper.find(".account-picker-current").text()).toContain("Alpha");
     expect(wrapper.find('[role="listbox"]').exists()).toBe(false);
-    await wrapper.get("input").trigger("focus");
+    await wrapper.get('button[data-button-kind="compact"]').trigger("click");
     expect(options(wrapper).map((item) => item.text())).toEqual([
       expect.stringContaining("Bravo"),
       expect.stringContaining("Charlie"),

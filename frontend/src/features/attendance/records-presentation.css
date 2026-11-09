@@ -32,10 +32,18 @@ html:root[data-appearance] .overview-attendance .attendance-table :is(th,td) { p
 html:root[data-appearance] .overview-attendance .attendance-table th { height:46px; padding-block:10px; color:var(--mw-muted); font-weight:400; white-space:nowrap; }
 html:root[data-appearance] .overview-attendance .attendance-table td { height:76px; }
 html:root[data-appearance] .overview-attendance .attendance-table tbody tr:last-child td { border-bottom:0; }
-/* Paint the highlight once, on cells, without an opaque row layer underneath. */
+/* Keep every resting row transparent; paint one light layer on its cells. */
 html:root[data-appearance] .overview-attendance .attendance-table tbody tr,
-html:root[data-appearance] .overview-attendance .attendance-table tbody :is(tr:hover,tr:focus-within) { background:transparent; box-shadow:none; transition:none; }
-html:root[data-appearance] .overview-attendance .attendance-table tbody :is(tr:hover,tr:focus-within) td { background:color-mix(in srgb,var(--mw-accent) 6%,transparent); }
+html:root[data-appearance] .overview-attendance .attendance-table tbody tr:hover { background:transparent; box-shadow:none; transition:none; }
+html:root[data-appearance] .overview-attendance .attendance-table tbody tr td { background:transparent; box-shadow:none; transition:background-color 140ms ease-out; }
+html:root[data-appearance] .overview-attendance .attendance-table tbody tr:has(:focus-visible) td { background:color-mix(in srgb,var(--mw-accent) 3%,transparent); }
+html:root[data-appearance] .overview-attendance .attendance-table tbody tr:is(:hover,:has(:focus-visible)) td:first-child { box-shadow:none; }
+@media (hover:hover) and (pointer:fine) {
+  html:root[data-appearance] .overview-attendance .attendance-table tbody tr:hover td { background:color-mix(in srgb,var(--mw-accent) 3%,transparent); }
+}
+@media (prefers-reduced-motion:reduce) {
+  html:root[data-appearance] .overview-attendance .attendance-table tbody tr td { transition:none; }
+}
 html:root[data-appearance] .overview-attendance .daily-person { min-width:0; }
 html:root[data-appearance] .overview-attendance .daily-person strong { display:block; font:500 20px/28px var(--mw-font); color:var(--mw-ink); overflow-wrap:anywhere; }
 html:root[data-appearance] .overview-attendance .daily-person small { display:block; margin-top:3px; color:var(--mw-muted); font:400 13px/20px var(--mw-font); }
@@ -62,6 +70,7 @@ html:root[data-appearance] .overview-attendance .empty-state>svg { width:28px; h
 html:root[data-appearance] .overview-attendance .empty-state strong { color:var(--mw-ink); font:500 22px/32px var(--mw-font); }
 html:root[data-appearance] .overview-attendance .empty-state p { font:400 14px/24px var(--mw-font); }
 html:root[data-appearance] .overview-attendance .attendance-mobile-list { display:none; }
+html:root[data-appearance] .overview-attendance .attendance-mobile-record { background:transparent; }
 /* Dialog appearance is local to this page; existing locks and draft guards remain. */
 html:root[data-appearance] .attendance-dialog-backdrop { --mw-font:"Noto Sans SC","Segoe UI","Microsoft YaHei UI",sans-serif; background:#172b4033; backdrop-filter:none; }
 html:root[data-appearance="editorial"] .attendance-dialog-backdrop { --mw-font:"Noto Serif SC","Source Han Serif SC","SimSun",serif; }

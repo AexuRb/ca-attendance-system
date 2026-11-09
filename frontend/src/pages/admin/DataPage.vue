@@ -91,7 +91,7 @@
     </section>
     </Transition>
 
-    <ConfirmDialog
+    <ConfirmDialog :error="actionError"
       :open="createBackupOpen"
       backdrop-class="backup-refined-backdrop"
       title="创建本机备份"
@@ -101,7 +101,7 @@
       @cancel="createBackupOpen = false"
       @confirm="createBackup"
     />
-    <ConfirmDialog
+    <ConfirmDialog :error="actionError"
       :open="Boolean(deleteBackupTarget)"
       backdrop-class="backup-refined-backdrop"
       title="删除备份"
@@ -112,9 +112,9 @@
       @cancel="deleteBackupTarget = null"
       @confirm="deleteBackup"
     />
-    <RecyclePurgeDialog :item="purgeTarget" :pending="actions.isPending('purge-repair')"
+    <RecyclePurgeDialog :submit-error="actionError" :item="purgeTarget" :pending="actions.isPending('purge-repair')"
       @cancel="purgeTarget = null" @confirm="purgeRepair" />
-    <RestoreBackupDialog
+    <RestoreBackupDialog :submit-error="actionError"
       :open="Boolean(restoreTarget)"
       backdrop-class="backup-refined-backdrop"
       :file="restoreTarget"
@@ -145,6 +145,7 @@ import RepairRecycleWorkspace from "./data-center/RepairRecycleWorkspace.vue";
 import { useDataCenterWorkspace } from "../../features/maintenance/useDataCenterWorkspace";
 
 const {
+  actionError,
   tab,
   options,
   request,

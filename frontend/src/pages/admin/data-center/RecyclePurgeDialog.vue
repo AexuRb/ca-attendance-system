@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="Boolean(item)" title="彻底删除维修事务" size="sm" backdrop-class="recycle-refined-backdrop" @close="cancel">
+  <ModalDialog :busy="pending" :error="submitError" :open="Boolean(item)" title="彻底删除维修事务" size="sm" backdrop-class="recycle-refined-backdrop" @close="cancel">
     <p class="confirm-copy">彻底删除后，无法从回收站恢复。系统会先自动备份，再删除这条维修事务。</p>
     <p class="recycle-purge-reference">确认编号：<strong>{{ item?.caseNo }}</strong></p>
     <label class="field">
@@ -18,7 +18,7 @@
 import { computed, ref, useId, watch } from "vue";
 import ModalDialog from "../../../shared/ui/ModalDialog.vue";
 import type { RecycledRepairCase } from "../../../features/maintenance/dataCenterTypes";
-const props = defineProps<{ item: RecycledRepairCase | null; pending: boolean }>();
+const props = defineProps<{ item: RecycledRepairCase | null; pending: boolean; submitError?: string }>();
 const emit = defineEmits<{ cancel: []; confirm: [value: string] }>();
 const caseNo = ref("");
 const errorId = useId();

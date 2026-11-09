@@ -220,6 +220,7 @@ export function useScheduleWorkspace() {
   }
 
   return {
+    actionError: task.error,
     canManage,
     unsaved,
     actions,

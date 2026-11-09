@@ -509,6 +509,7 @@ export function useMemberDirectoryWorkspace() {
   }
 
   return {
+    actionError: task.error,
     bindTableScroll,
     tableScroll,
     rememberTableScroll,

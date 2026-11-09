@@ -18,9 +18,9 @@ class UserInputPolicyTest {
         assertThat(UserInputPolicy.name("名".repeat(64))).hasSize(64);
         assertThat(UserInputPolicy.password("1".repeat(6))).hasSize(6);
         assertThat(UserInputPolicy.password("1".repeat(64))).hasSize(64);
-        assertThat(UserInputPolicy.phone("1".repeat(64))).hasSize(64);
+        assertThat(UserInputPolicy.phone(" 13800000000 ")).isEqualTo("13800000000");
         assertThat(UserInputPolicy.college("院".repeat(128))).hasSize(128);
-        assertThat(UserInputPolicy.qq("1".repeat(32))).hasSize(32);
+        assertThat(UserInputPolicy.qq("1".repeat(20))).hasSize(20);
     }
 
     @Test
@@ -37,9 +37,19 @@ class UserInputPolicyTest {
 
     @Test
     void rejectsOversizedOptionalProfileFields() {
-        assertBadRequest(() -> UserInputPolicy.phone("1".repeat(65)), "联系方式不能超过 64");
+        assertBadRequest(() -> UserInputPolicy.phone("1".repeat(12)), "手机号不能超过 11");
         assertBadRequest(() -> UserInputPolicy.college("院".repeat(129)), "学院不能超过 128");
-        assertBadRequest(() -> UserInputPolicy.qq("1".repeat(33)), "QQ不能超过 32");
+        assertBadRequest(() -> UserInputPolicy.qq("1".repeat(21)), "QQ不能超过 20");
+    }
+
+    @Test void contactFormatsRejectNonDigitsAndPreserveTwentyDigitQq() {
+        for (String value : new String[]{"中文", "1380000000", "12800000000", "1380000000a", "１３８００００００００", "138 00000000"})
+            assertThatThrownBy(() -> UserInputPolicy.phone(value)).isInstanceOf(ApiException.class);
+        for (String value : new String[]{"中文", "1234", "012345", "123a45", "１２３４５", "123 45"})
+            assertThatThrownBy(() -> UserInputPolicy.qq(value)).isInstanceOf(ApiException.class);
+        assertThat(UserInputPolicy.phone(" ")).isNull();
+        assertThat(UserInputPolicy.qq(null)).isNull();
+        assertThat(UserInputPolicy.qq(" 12345678901234567890 ")).isEqualTo("12345678901234567890");
     }
 
     @Test

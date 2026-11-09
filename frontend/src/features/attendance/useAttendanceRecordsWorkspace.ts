@@ -60,6 +60,8 @@ export function useAttendanceRecordsWorkspace() {
   const editing = ref<AttendanceRecordItem | null>(null);
   const deleteTarget = ref<AttendanceRecordItem | null>(null);
   const manualCandidates = ref<AccountCandidate[]>([]);
+  const candidateRequest = useLatestRequest();
+  const { loading: manualCandidatesLoading, error: manualCandidatesError } = candidateRequest;
   const selectedMember = ref<AccountCandidate | null>(null);
   const filters = reactive<AttendanceRecordFilters>({ from: "", to: "", keyword: "", status: "" });
   const appliedFilters = ref({ ...filters });
@@ -327,8 +329,9 @@ export function useAttendanceRecordsWorkspace() {
   }
 
   async function loadManualCandidates() {
-    const value = await task.run(() =>
-      get<AccountCandidate[]>("/api/attendance/manual-candidates"),
+    const value = await candidateRequest.run(signal =>
+      get<AccountCandidate[]>("/api/attendance/manual-candidates", { signal }),
+      "成员名单暂时无法加载",
     );
     if (value) manualCandidates.value = value;
   }
@@ -375,6 +378,7 @@ export function useAttendanceRecordsWorkspace() {
   }
 
   return {
+    actionError: task.error,
     statsOrigin, returnToStats,
     bindTableScroll,
     tableScroll,
@@ -402,7 +406,7 @@ export function useAttendanceRecordsWorkspace() {
     listError,
     listLoading,
     load,
-    manualCandidates,
+    manualCandidates, manualCandidatesLoading, manualCandidatesError, loadManualCandidates,
     openCreate,
     openEdit,
     page,

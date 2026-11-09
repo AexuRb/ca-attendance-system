@@ -32,8 +32,15 @@ public class BackupController {
     }
 
     @PostMapping(value = "/restore", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public BackupService.RestoreResult restore(@RequestParam("file") MultipartFile file) {
-        return backups.restore(file);
+    public BackupService.RestoreResult restore(@RequestParam("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean clearInvalidContacts,
+            @RequestParam(defaultValue = "") String reviewHash) {
+        return backups.restore(file, clearInvalidContacts, reviewHash);
+    }
+
+    @PostMapping(value = "/restore/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public BackupService.ContactReview reviewRestore(@RequestParam("file") MultipartFile file) {
+        return backups.reviewRestore(file);
     }
 
     @GetMapping("/{filename}")

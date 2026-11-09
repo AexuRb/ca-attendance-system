@@ -467,6 +467,7 @@ export function useTrainingManagementWorkspace() {
   }
 
   return {
+    actionError: task.error,
     restoringHistory,
     ribbonScroll,
     participantScroll,

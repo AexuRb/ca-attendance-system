@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <ModalDialog :error="submitError" :busy="busy"
     :open="open"
     :title="status === 'ACTIVE' ? '批量启用账号' : '批量停用账号'"
     eyebrow="BULK ACTION"
@@ -16,16 +16,8 @@
         }}
       </p>
     </div>
-    <label class="field">
-      <span>操作原因</span>
-      <textarea
-        v-model.trim="reason"
-        name="bulkStatusReason"
-        rows="3"
-        placeholder="用于安全备份和操作日志"
-        autofocus
-      />
-    </label>
+    <ReasonPicker :key="`${open}-${status}`" v-model="reason" name="bulkStatusReason"
+      :options="status === 'ACTIVE' ? reasonOptions.memberEnable : reasonOptions.memberDisable" :disabled="busy" />
     <template #footer>
       <button class="button secondary" type="button" :disabled="busy" @click="close">
         取消
@@ -46,13 +38,15 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
+import ReasonPicker from "../../shared/ui/ReasonPicker.vue";
+import { reasonOptions } from "../../shared/config/reasonOptions";
 import type { MemberStatus } from "./memberDirectory";
 
 const props = defineProps<{
   open: boolean;
   count: number;
   status: MemberStatus;
-  busy?: boolean;
+  busy?: boolean; submitError?: string;
 }>();
 const emit = defineEmits<{
   close: [];
@@ -66,8 +60,8 @@ function close() {
 
 watch(
   () => [props.open, props.status] as const,
-  ([open, status]) => {
-    if (open) reason.value = status === "ACTIVE" ? "批量启用成员账号" : "批量停用成员账号";
+  ([open]) => {
+    if (open) reason.value = "";
   },
   { immediate: true },
 );

@@ -36,7 +36,7 @@ final class DatabaseRestoreExecutor {
         }
         for (String table : BackupSchema.RESTORE_TABLE_ORDER) {
             if (shouldRestore(payload, table)) {
-                restoredRows.put(table, restoreTable(table, payload.tableFiles().get(table)));
+                restoredRows.put(table, restoreTable(table, payload.tableFiles().get(table), payload.clearInvalidContacts()));
             }
         }
         if (payload.tableFiles().containsKey("repair_cases")
@@ -62,7 +62,7 @@ final class DatabaseRestoreExecutor {
                 """);
     }
 
-    private int restoreTable(String table, java.nio.file.Path tableFile) {
+    private int restoreTable(String table, java.nio.file.Path tableFile, boolean clearInvalidContacts) {
         if (tableFile == null) {
             return 0;
         }
@@ -75,7 +75,7 @@ final class DatabaseRestoreExecutor {
             while ((token = parser.nextToken()) != JsonToken.END_ARRAY) {
                 Map<String, Object> row = parser.readValueAs(ROW_TYPE);
                 count++;
-                insertRow(table, count, row);
+                insertRow(table, count, row, clearInvalidContacts);
             }
             return count;
         } catch (ApiException ex) {
@@ -85,12 +85,13 @@ final class DatabaseRestoreExecutor {
         }
     }
 
-    private void insertRow(String table, int rowNumber, Map<String, Object> row) {
+    private void insertRow(String table, int rowNumber, Map<String, Object> row, boolean clearInvalidContacts) {
         List<String> columns = new ArrayList<>(row.keySet());
         String columnSql = columns.stream().map(this::quote).reduce((left, right) -> left + ", " + right).orElse("");
         String placeholders = columns.stream().map(column -> "?").reduce((left, right) -> left + ", " + right).orElse("");
         Object[] values = columns.stream()
-                .map(column -> valueConverter.convert(table, rowNumber, column, row.get(column)))
+                .map(column -> valueConverter.convert(table, rowNumber, column,
+                        BackupContactPolicy.restoreValue(table, column, row.get(column), clearInvalidContacts)))
                 .toArray();
         jdbc.update("INSERT INTO " + table + " (" + columnSql + ") VALUES (" + placeholders + ")", values);
     }

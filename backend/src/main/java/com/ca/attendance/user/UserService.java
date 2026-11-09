@@ -516,7 +516,7 @@ public class UserService {
                 phone = UserInputPolicy.phone(candidate.phone());
                 college = UserInputPolicy.college(candidate.major());
                 grade = UserInputPolicy.grade(candidate.grade());
-                qq = UserInputPolicy.qq(candidate.qq());
+                qq = UserInputPolicy.qq(reader.readExactIdentifier(row, columns.getOrDefault("qq", -1), "QQ"));
             } catch (ApiException ex) {
                 skipped++;
                 addImportIssue(issues, "第 " + (i + 1) + " 行：" + ex.getMessage());

@@ -97,6 +97,7 @@ describe("MemberEditorDialog", () => {
       },
     });
 
+    await wrapper.get('input[name="reason"][value="基础资料更正"]').setValue();
     await wrapper.get("form").trigger("submit");
 
     expect(wrapper.emitted("save")).toHaveLength(1);

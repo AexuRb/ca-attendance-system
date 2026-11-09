@@ -31,9 +31,10 @@
       </div>
     </template>
     <div v-else class="review-unavailable-space" />
-    <ModalDialog :open="Boolean(rejectTarget)" backdrop-class="review-dialog-backdrop" :title="`驳回${rejectTarget?.name || ''}的${rejectPart === 'CHECK_IN' ? '签到' : '签退'}`" size="sm" @close="cancelReject">
+    <ModalDialog :open="Boolean(rejectTarget)" :busy="rejectPending" :error="actionError" backdrop-class="review-dialog-backdrop" :title="`驳回${rejectTarget?.name || ''}的${rejectPart === 'CHECK_IN' ? '签到' : '签退'}`" size="sm" @close="cancelReject">
       <p v-if="rejectTarget" class="review-reject-context">{{ rejectTarget.studentNo }} · {{ rejectTarget.dutyDate }} · {{ clock(rejectPart === 'CHECK_IN' ? rejectTarget.checkInTime : rejectTarget.checkOutTime) }}</p>
-      <form class="review-reject-form" @submit.prevent="rejectAndContinue"><label class="field"><span>驳回原因</span><textarea v-model="rejectReason" name="reviewRejectReason" rows="3" autocomplete="off" placeholder="请说明原因" autofocus :disabled="rejectPending" /></label></form>
+      <form class="review-reject-form" @submit.prevent="rejectAndContinue"><ReasonPicker :key="`${rejectTarget?.id}-${rejectPart}`" v-model="rejectReason"
+        :options="reasonOptions.reviewReject" name="reviewRejectReason" label="驳回原因" :disabled="rejectPending" /></form>
       <template #footer><div class="review-reject-actions"><button class="button secondary" type="button" :disabled="rejectPending" @click="cancelReject">取消</button><button class="button danger" type="button" :disabled="interactionLocked || !rejectReason.trim()" @click="rejectAndContinue">{{ rejectPending ? '正在提交' : '确认驳回' }}</button></div></template>
     </ModalDialog>
     <ConfirmDialog :open="bulkConfirmOpen" backdrop-class="review-dialog-backdrop" title="通过全部待审核记录" :message="`将通过全部 ${bulkItemCount} 项待审核，涉及 ${bulkRecordCount} 条记录，包括当前未展示的记录。提交时将按数据库中的最新待审核范围处理。`" confirm-label="全部通过" :pending="actions.isPending('bulk')" @cancel="bulkConfirmOpen = false" @confirm="bulkApprove" />
@@ -55,10 +56,13 @@ import EmptyState from "../../shared/ui/EmptyState.vue";
 import LoadingBlock from "../../shared/ui/LoadingBlock.vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
+import ReasonPicker from "../../shared/ui/ReasonPicker.vue";
+import { reasonOptions } from "../../shared/config/reasonOptions";
 import ReviewStateAction from "./reviews/ReviewStateAction.vue";
 import { useAttendanceReviewWorkspace, type ReviewPart, type ReviewRecord } from "../../features/attendance/useAttendanceReviewWorkspace";
 
 const {
+  actionError,
   openBulk, bulkConfirmOpen, bulkItemCount, bulkRecordCount, bulkApprove, bulkErrors,
   unsaved,
   actions,

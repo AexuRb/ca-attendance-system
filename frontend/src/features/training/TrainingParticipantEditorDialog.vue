@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <ModalDialog :error="submitError" :busy="pending"
     backdrop-class="training-refined-backdrop"
     :open="open"
     :title="form.id ? '编辑参与记录' : '新增参与记录'"
@@ -26,7 +26,7 @@
         <span>姓名</span>
         <input
           v-model.trim="form.name"
-          name="participant-name"
+          name="participant-name" required
           autocomplete="name"
           :aria-invalid="Boolean(errors.name)"
           :disabled="pending"
@@ -71,7 +71,7 @@ import { focusFirstInvalid } from "../../shared/validation/userInput";
 import { validateParticipantForm, type TrainingParticipantErrors } from "./trainingForms";
 import type { TrainingParticipantForm, TrainingSession } from "./trainingTypes";
 
-const props = defineProps<{ open: boolean; form: TrainingParticipantForm; pending: boolean; session?: TrainingSession | null; savedMessage?: string }>();
+const props = defineProps<{ open: boolean; form: TrainingParticipantForm; pending: boolean; submitError?: string; session?: TrainingSession | null; savedMessage?: string }>();
 const emit = defineEmits<{ close: []; save: [continueAdding: boolean] }>();
 const errors = reactive<TrainingParticipantErrors>({});
 const formElement = ref<HTMLFormElement | null>(null);

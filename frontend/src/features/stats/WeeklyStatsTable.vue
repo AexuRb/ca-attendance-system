@@ -63,10 +63,10 @@
       <li v-for="member in detail.users" :key="member.userId">
         <details class="weekly-stats-mobile-record">
           <summary>
-            <span class="weekly-stats-mobile-record__person"><strong>{{ member.name }}</strong><small>{{ member.studentNo }} · {{ member.grade || '年级未知' }} · {{ roleLabel(member.role) }}</small></span>
-            <span class="weekly-stats-mobile-record__total"><strong>{{ displayAmount(member.totalHours) }}</strong><small>合计小时</small></span>
+            <span class="weekly-stats-mobile-record__person"><strong>{{ member.name }}</strong><small>{{ member.studentNo }}</small></span>
+            <span class="weekly-stats-mobile-record__total" :aria-label="`合计 ${displayAmount(member.totalHours)} 小时`"><strong>{{ displayAmount(member.totalHours) }}</strong><small>小时</small></span>
             <span class="weekly-stats-mobile-record__sub">值班 {{ displayAmount(member.attendanceHours) }} 小时 · 培训 {{ displayAmount(member.trainingHours) }} 小时</span>
-            <span class="weekly-stats-mobile-record__toggle"><ChevronDown aria-hidden="true" /><span class="weekly-stats-mobile-record__show-label">查看详情</span><span class="weekly-stats-mobile-record__hide-label">收起详情</span></span>
+            <span class="weekly-stats-mobile-record__toggle"><ChevronDown aria-hidden="true" /><span class="weekly-stats-mobile-record__show-label">每日</span><span class="weekly-stats-mobile-record__hide-label">收起</span></span>
           </summary>
           <dl class="weekly-stats-mobile-record__days">
             <div v-for="day in detail.days" :key="day.dutyDate" :data-heat="weeklyHeatLevel(weeklyCellHours(detail, day.dutyDate, member.userId))">

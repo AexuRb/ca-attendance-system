@@ -53,6 +53,7 @@ export function useDialogFocus(options: DialogFocusOptions) {
     ).filter(
       (element) =>
         !element.hidden &&
+        !element.matches(":disabled") &&
         element.getAttribute("aria-hidden") !== "true" &&
         !element.closest("[inert]"),
     );

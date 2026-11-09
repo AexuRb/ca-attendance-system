@@ -7,6 +7,7 @@ import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
 import { dateRangeError } from "../../shared/validation/dateRange";
 import { backupFileError } from "../../shared/validation/fileValidation";
+import type { RestoreConfirmation } from "./restoreContacts";
 import { exportSelectionFingerprint } from "./dataExportState";
 import { canDeleteBackup, canRestoreBackup, canViewRepairRecycleBin } from "./dataPermissions";
 import type {
@@ -311,11 +312,15 @@ export function useDataCenterWorkspace() {
     restoreTarget.value = file;
   }
 
-  async function restoreBackup() {
+  async function restoreBackup(options?: RestoreConfirmation) {
     if (!restoreTarget.value || !canRestore.value) return;
     await actions.run("restore-backup", async () => {
       const body = new FormData();
       body.append("file", restoreTarget.value as File);
+      if (options) {
+        body.append("clearInvalidContacts", String(options.clearInvalidContacts));
+        body.append("reviewHash", options.reviewHash);
+      }
       const restored = await task.run(
         () => post("/api/maintenance/backups/restore", body),
         "数据已恢复，请重新登录",
@@ -366,6 +371,7 @@ export function useDataCenterWorkspace() {
   }
 
   return {
+    actionError: task.error,
     tab,
     options,
     request,

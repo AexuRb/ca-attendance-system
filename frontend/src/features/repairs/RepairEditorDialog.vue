@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog
+  <ModalDialog :error="submitError" :busy="pending"
     :open="open"
     :title="form.id ? initialStep === 2 ? '更新维修处理' : '编辑维修事务' : '新建维修事务'"
     size="lg"
@@ -22,6 +22,10 @@
         :errors="errors"
         :handler="handler"
         :candidates="candidates"
+        :candidate-loading="candidateLoading"
+        :candidate-error="candidateError"
+        :disabled="pending"
+        @retry-candidates="$emit('retry-candidates')"
         @update:handler="$emit('update:handler', $event)"
       />
     </form>
@@ -56,10 +60,12 @@ const props = defineProps<{
   form: RepairCaseForm;
   handler: AccountCandidate | null;
   candidates: AccountCandidate[];
-  pending: boolean;
+  candidateLoading?: boolean;
+  candidateError?: string;
+  pending: boolean; submitError?: string;
   initialStep?: 1 | 2;
 }>();
-const emit = defineEmits<{ close: []; save: []; "update:handler": [value: AccountCandidate | null] }>();
+const emit = defineEmits<{ close: []; save: []; "update:handler": [value: AccountCandidate | null]; "retry-candidates": [] }>();
 const step = ref<1 | 2>(1);
 const errors = reactive<RepairErrors>({});
 
