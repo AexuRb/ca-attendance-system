@@ -141,8 +141,8 @@ class MemberImportTemplateIntegrationTest {
             var sheet = workbook.getSheetAt(0);
             sheet.getRow(1).getCell(0).setCellValue("000001");
             sheet.getRow(1).getCell(1).setCellValue("文本示例甲");
-            sheet.getRow(1).getCell(2).setCellValue("00000000000");
-            sheet.getRow(1).getCell(5).setCellValue("000000001");
+            sheet.getRow(1).getCell(2).setCellValue("13800000000");
+            sheet.getRow(1).getCell(5).setCellValue("12345678901234567890");
             sheet.getRow(3000).getCell(0).setCellValue(LONG_STUDENT_NO);
             sheet.getRow(3000).getCell(1).setCellValue("文本示例乙");
             sheet.getRow(3000).getCell(4).setCellValue(String.valueOf(LocalDate.now().getYear() + 2));
@@ -156,9 +156,34 @@ class MemberImportTemplateIntegrationTest {
         assertEquals(List.of("000001", LONG_STUDENT_NO), preview.changes().stream().map(UserService.ImportChange::studentNo).toList());
         var result = users.importMembers(file, preview.token());
         assertEquals(2, result.created());
-        assertEquals("00000000000", jdbc.queryForObject("SELECT phone FROM users WHERE student_no = '000001'", String.class));
-        assertEquals("000000001", jdbc.queryForObject("SELECT qq FROM users WHERE student_no = '000001'", String.class));
+        assertEquals("13800000000", jdbc.queryForObject("SELECT phone FROM users WHERE student_no = '000001'", String.class));
+        assertEquals("12345678901234567890", jdbc.queryForObject("SELECT qq FROM users WHERE student_no = '000001'", String.class));
         assertEquals((LocalDate.now().getYear() + 2) + "级", jdbc.queryForObject("SELECT grade FROM users WHERE student_no = ?", String.class, LONG_STUDENT_NO));
+    }
+
+    @Test
+    void invalidContactInLaterRowRejectsTheWholeMemberImport() throws Exception {
+        for (int column : new int[]{2, 5}) {
+            byte[] bytes;
+            try (var input = new ByteArrayInputStream(new MemberImportTemplateService().generate().bytes());
+                 var workbook = WorkbookFactory.create(input); var output = new ByteArrayOutputStream()) {
+                var sheet = workbook.getSheetAt(0);
+                sheet.getRow(1).getCell(0).setCellValue("000001");
+                sheet.getRow(1).getCell(1).setCellValue("文本示例甲");
+                sheet.getRow(2).getCell(0).setCellValue("000002");
+                sheet.getRow(2).getCell(1).setCellValue("文本示例乙");
+                sheet.getRow(2).getCell(column).setCellValue("无效联系方式");
+                workbook.write(output);
+                bytes = output.toByteArray();
+            }
+            var file = upload(bytes);
+            var preview = users.previewImport(file);
+            assertFalse(preview.valid());
+            assertTrue(preview.errors().stream().anyMatch(error -> error.contains("第 3 行")));
+            assertThrows(com.ca.attendance.common.ApiException.class, () -> users.importMembers(file));
+            assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM users", Integer.class));
+            assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE student_no IN ('000001','000002')", Integer.class));
+        }
     }
 
     private static MockMultipartFile upload(byte[] bytes) {

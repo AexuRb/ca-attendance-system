@@ -407,7 +407,7 @@ class UserTransactionIntegrationTest {
 
     @Test
     void updateProfileRollsBackFieldsWhenAuditLogFails() {
-        jdbc.update("UPDATE users SET phone = 'original-phone', major = '原学院', qq = '10000' WHERE id = ?", adminId);
+        jdbc.update("UPDATE users SET phone = '13800000000', major = '原学院', qq = '10000' WHERE id = ?", adminId);
         jdbc.execute("""
                 CREATE TRIGGER fail_update_profile_log
                 BEFORE INSERT ON operation_logs
@@ -418,11 +418,11 @@ class UserTransactionIntegrationTest {
                 """);
 
         assertThrows(DataAccessException.class, () -> users.updateProfile(
-                new UserService.ProfileRequest("new-phone", "新学院", null, "20000")
+                new UserService.ProfileRequest("13900000000", "新学院", null, "20000")
         ));
 
         var profile = jdbc.queryForMap("SELECT phone, major, qq FROM users WHERE id = ?", adminId);
-        assertEquals("original-phone", profile.get("phone"));
+        assertEquals("13800000000", profile.get("phone"));
         assertEquals("原学院", profile.get("major"));
         assertEquals("10000", profile.get("qq"));
         assertEquals(0, actionCount("UPDATE_PROFILE"));
@@ -604,7 +604,7 @@ class UserTransactionIntegrationTest {
         ApiException memberError = assertThrows(ApiException.class, () -> users.update(
                 targetId,
                 new UserService.UpdateUserRequest(
-                        "字段边界成员", "MEMBER", "ACTIVE", "1".repeat(65),
+                        "字段边界成员", "MEMBER", "ACTIVE", "1".repeat(12),
                         null, null, null, "字段边界测试"
                 )
         ));
@@ -612,7 +612,7 @@ class UserTransactionIntegrationTest {
                 new UserService.ProfileRequest(null, "院".repeat(129), null, null)
         ));
 
-        assertTrue(memberError.getMessage().contains("联系方式不能超过 64"));
+        assertTrue(memberError.getMessage().contains("手机号不能超过 11"));
         assertTrue(profileError.getMessage().contains("学院不能超过 128"));
     }
 
