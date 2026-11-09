@@ -1,5 +1,14 @@
 # 开发状态
 
+## 3.5.3已正式发布（2026-11-09）
+
+[v3.5.3 Release](https://github.com/AexuRb/ca-attendance-system/releases/tag/v3.5.3)已正式公开并设为Latest。发布提交d679ccf2fb014c7dc99ad420bc17d9d11ed62f7e由独立开发分支非强制快进main；[main发布CI](https://github.com/AexuRb/ca-attendance-system/actions/runs/42592835109)全部通过，候选7168507的[额外Windows干净打包工作流](https://github.com/AexuRb/ca-attendance-system/actions/runs/42592388118)也全部通过。v3.5.3标签与codex/release-3.5.3固定在该发布提交；原历史标签/分支均保留，未创建PR、强推或覆盖历史发行。
+
+安装版191624220字节、便携版261927564字节及SHA256SUMS.txt三项资产名称/大小/uploaded状态与服务器SHA-256逐项匹配，实际重新下载校验文件与本地一致。安装版SHA256为9c16f9baf662b9433a5d89548757d362de5219ef08109357d2fe5b1359b30db4，便携版为60389fd70b8cd96af14271001caa13d908b14beb21098dd215bf51cd37badd6c。本轮证据在tasks/release-3.5.3-20261109，包括CI结果、artifact-verification、packaged-smoke、verification及release-published-verified；未提交任何运行数据、凭据、日志或发行包。
+
+发布后的本节及发布说明CI链接单独补交main；版本标签/版本分支与发行资产保持在已验证的发布提交，不重新打包。8080保留本版预览PID8968，原项目data/attendance.db，8080/8081仅127.0.0.1；本轮成品测试进程均已退出。字体错位继续暂停，维修/培训导出与今日概览后续待办及上一节验证限制保持。
+
+
 ## 3.5.3发布验证（2026-11-09）
 
 用户明确要求暂缓字体错位、发布小版本并发布GitHub。本版版本文件/锁文件、README/运行说明、CHANGELOG及发布说明已同步3.5.3；累计弹窗/成员选择/原因、值班行底色、窄屏统计、联系方式与旧备份确认恢复纳入本次，主题字体及维修/培训导出、概览后续仍待办。
