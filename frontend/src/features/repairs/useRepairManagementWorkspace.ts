@@ -25,7 +25,7 @@ const visitKey = "repairWorkspaceVisit";
 const publicKeys = ["status", "page", "from", "to"] as const;
 
 export function useRepairManagementWorkspace() {
-  const { user } = useSession();
+  const { user, state } = useSession();
   const task = useAsyncTask();
   const actions = usePendingActions();
   const route = useRoute();
@@ -103,7 +103,7 @@ export function useRepairManagementWorkspace() {
     handlerName: "",
     remark: "",
   });
-  const canManage = computed(() => canManageRepairs(user.value?.role));
+  const canManage = computed(() => canManageRepairs(user.value?.role, state?.access?.mode));
   const canDelete = computed(() => canDeleteRepairs(user.value?.role));
   const canExport = computed(() => canExportRepairs(user.value?.role));
   const exportDisabled = computed(() => !hasAppliedQuery.value || repairPage.loading || Boolean(repairPage.error) || actions.isPending("export-repairs"));
@@ -231,6 +231,7 @@ export function useRepairManagementWorkspace() {
   }
 
   function openEditor(item?: RepairCase, initialStep: 1 | 2 = 1) {
+    if (!canManage.value) return;
     detailReturnTarget.value = null;
     editorInitialStep.value = item ? initialStep : 1;
     Object.assign(
@@ -288,6 +289,7 @@ export function useRepairManagementWorkspace() {
   }
 
   function editFromDetail(item: RepairCase, initialStep: 1 | 2 = 1) {
+    if (!canManage.value) return;
     detailTarget.value = null;
     openEditor(item, initialStep);
     detailReturnTarget.value = item;
@@ -305,6 +307,7 @@ export function useRepairManagementWorkspace() {
   }
 
   async function save() {
+    if (!canManage.value) return;
     const previousStatus = form.id ? findLoadedCase(form.id)?.status : null;
     const payload = {
       ...form,
@@ -329,11 +332,13 @@ export function useRepairManagementWorkspace() {
   }
 
   async function loadHandlerCandidates() {
+    if (!canManage.value) return;
     const value = await candidateRequest.run(signal => get<AccountCandidate[]>("/api/repairs/handler-candidates", { signal }), "成员名单暂时无法加载");
     if (value) handlerCandidates.value = value;
   }
 
   async function remove() {
+    if (!canDelete.value) return;
     const target = deleteTarget.value;
     if (!target) return;
     const removed = await actions.run("delete-repair", () =>

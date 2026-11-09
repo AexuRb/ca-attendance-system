@@ -11,8 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class RolePermissionPolicyTest {
     @Test
-    void memberReceivesNoManagementPermission() {
-        assertAllowed(Role.MEMBER, Set.of());
+    void memberOnlyReceivesRemoteEntryPermission() {
+        assertAllowed(Role.MEMBER, Set.of(REMOTE_ADMIN));
     }
 
     @Test
@@ -22,7 +22,7 @@ class RolePermissionPolicyTest {
                 REPAIR_MANAGE,
                 STATS_VIEW,
                 SCHEDULE_VIEW,
-                STATS_EXPORT
+                STATS_EXPORT, REMOTE_ADMIN
         ));
     }
 

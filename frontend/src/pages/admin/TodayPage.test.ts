@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   notify: vi.fn(),
 }));
-const sessionMock = vi.hoisted(() => ({ role: "ADMIN", name: "林知远" }));
+const sessionMock = vi.hoisted(() => ({ role: "ADMIN", name: "林知远", mode: "LOCAL" }));
 
 vi.mock("../../shared/api", () => ({
   get: (...args: unknown[]) => mocks.apiGet(...args),
@@ -19,12 +19,12 @@ vi.mock("vue-router", () => ({
 }));
 vi.mock("../../shared/composables/useToast", () => ({ notify: mocks.notify }));
 vi.mock("../../app/session", () => ({
-  useSession: () => ({ user: { value: { role: sessionMock.role, name: sessionMock.name } }, state: { access: { kioskAvailable: true } }, logout: vi.fn() }),
+  useSession: () => ({ user: { value: { role: sessionMock.role, name: sessionMock.name } }, state: { access: { kioskAvailable: sessionMock.mode === "LOCAL", mode: sessionMock.mode } }, logout: vi.fn() }),
 }));
 
 afterEach(() => {
   Object.values(mocks).forEach((mock) => mock.mockReset());
-  sessionMock.role = "ADMIN";
+  sessionMock.role = "ADMIN"; sessionMock.mode = "LOCAL";
   sessionMock.name = "林知远";
   vi.useRealTimers();
 });
@@ -519,4 +519,19 @@ describe("TodayPage data center commands", () => {
     expect(mocks.routerPush).toHaveBeenCalledWith({name:"data",query:{tab:"export",source:"repairs",status:"CANCELED",from:"2026-08-01",to:"2026-08-28"}});
     wrapper.unmount();
   });
+});
+
+it("removes review tasks and creation shortcuts for the remote minister and rejects pasted aliases", async () => {
+  sessionMock.role = "MINISTER"; sessionMock.mode = "REMOTE_ADMIN";
+  mocks.apiGet.mockImplementation((url:string)=>Promise.resolve(url.includes("schedules")?{slots:[]}:{todayPendingCount:5,ongoingRepairCount:2}));
+  const wrapper=mount(TodayPage); await flushPromises();
+  expect(wrapper.find('[data-task="reviews"]').exists()).toBe(false);
+  expect(wrapper.findAll('.today-command-shortcuts button').some(item=>/签到审核|新建维修/.test(item.text()))).toBe(false);
+  expect(wrapper.find('[data-task="repairs"]').exists()).toBe(true);
+  const input=wrapper.get('textarea[aria-label="查找后台功能或输入命令"]');
+  for (const command of ["/ 打开 审核", "/ 新建 维修事务"]) {
+    await input.setValue(command); await input.trigger('keydown',{key:'Enter'}); await flushPromises();
+    expect(mocks.routerPush).not.toHaveBeenCalled();
+  }
+  wrapper.unmount();
 });

@@ -1,6 +1,7 @@
 <template>
   <ExpandedWorkspaceShell class="overview-stats" current-page="stats">
-    <template #heading><h1>数据统计</h1></template>
+    <template #heading><h1>数据统计</h1><div class="stats-page-actions"><button :ref="captureExportButton" class="button secondary" type="button"
+      :disabled="!exportReady || actions.isPending('export')" @click="exportExcel"><FileSpreadsheet aria-hidden="true" />{{ actions.isPending('export') ? '正在导出' : '导出统计' }}</button></div></template>
     <form class="filter-bar stats-filter" aria-label="筛选统计日期" @submit.prevent="loadCustom">
       <div class="segmented">
         <button
@@ -142,7 +143,7 @@
 </template>
 
 <script setup lang="ts">
-import { BarChart3, ChevronRight } from "@lucide/vue";
+import { BarChart3, ChevronRight, FileSpreadsheet } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import QueryStatus from "../../shared/ui/QueryStatus.vue";
 import { provide } from "vue";
@@ -162,6 +163,7 @@ import { effectiveDutyCount } from "../../features/stats/statsSummary";
 import { useStatsWorkspace } from "../../features/stats/useStatsWorkspace";
 
 const {
+  actions, captureExportButton, exportReady, exportExcel,
   visibleRows, resultScroll, memberIndex, adjacentMember, openRecords,
   applyPreset,
   closeMemberDetail,

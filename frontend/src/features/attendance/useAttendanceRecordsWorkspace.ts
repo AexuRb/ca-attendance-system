@@ -2,6 +2,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, t
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
 import { useUnsavedChanges } from "../../shared/composables/useUnsavedChanges";
 import { useSession } from "../../app/session";
+import { isRemoteMinister } from "../../shared/access/entryAccess";
 import type { AccountCandidate } from "../accounts/accountCandidates";
 import { del, get, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
@@ -35,7 +36,7 @@ const historyMemory = createPrivateNavigationState<HistorySnapshot>();
 const visitKey = "attendanceVisit";
 
 export function useAttendanceRecordsWorkspace() {
-  const { user } = useSession();
+  const { user, state } = useSession();
   const route = useRoute();
   const router = useRouter();
   const historyScope = historyMemory.scope();
@@ -89,6 +90,7 @@ export function useAttendanceRecordsWorkspace() {
     ["PRESIDENT", "ADMIN"].includes(user.value?.role || ""),
   );
   const canReviewStatus = canCreate;
+  const canModify = computed(() => !isRemoteMinister(user.value?.role, state?.access?.mode));
   const routeKeys = ["from", "to", "status", "page", "keyword"] as const;
   let routeReady = false;
   let suppressRouteRestore = false;
@@ -321,6 +323,7 @@ export function useAttendanceRecordsWorkspace() {
   const toInput = (value?: string) => value?.slice(0, 16) || "";
 
   function actionAccess(item: AttendanceRecordItem): AttendanceActionAccess {
+    if (!canModify.value) return { allowed: false, reason: "远程部长不能修改或删除值班记录" };
     return attendanceActionAccess(
       user.value?.role,
       item.userRole,
@@ -392,7 +395,7 @@ export function useAttendanceRecordsWorkspace() {
     actions,
     applyFilters,
     askDelete,
-    canCreate,
+    canCreate, canModify,
     canReviewStatus,
     closeEditor,
     dateTime,

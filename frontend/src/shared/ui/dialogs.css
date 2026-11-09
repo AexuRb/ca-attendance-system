@@ -19,7 +19,6 @@
     box-shadow:0 24px 80px #172a4030!important;
   }
   .app-dialog::before { display:none!important; }
-  .credits-dialog-backdrop .app-dialog::after { right:12px!important; bottom:12px!important; max-width:calc(100% - 24px)!important; }
   .app-dialog.modal-sm { width:min(440px,100%)!important; }
   .app-dialog.modal-xl { width:min(920px,100%)!important; }
   .app-dialog>header,.app-detail>header {

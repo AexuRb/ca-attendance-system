@@ -61,7 +61,7 @@ const content = ref<HTMLElement | null>(null);
 const menuButton = ref<HTMLButtonElement | null>(null);
 const media = window.matchMedia?.("(max-width: 900px)");
 const smallScreen = ref(media?.matches ?? false);
-const sections = computed(() => navigationForRole(user.value?.role).map(section => ({
+const sections = computed(() => navigationForRole(user.value?.role, state?.access?.mode).map(section => ({
   key: section.key,
   label: section.key === "system" ? "设置" : section.label,
   items: section.items.flatMap<{ key: string; label: string; icon: Component; target: RouteLocationRaw }>(item => item.name === "data" ? [

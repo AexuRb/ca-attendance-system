@@ -90,6 +90,15 @@ class AttendanceServiceTest {
     }
 
     @Test
+    void personalRecordsAlwaysUseTheAuthenticatedMemberId() {
+        AuthContext.set(new AuthUser(7L, "test-member", "示例成员", Role.MEMBER,
+                Instant.now(TEST_CLOCK).plusSeconds(3600)));
+        when(records.searchForUser(7L, TEST_DATE.minusDays(7), TEST_DATE)).thenReturn(java.util.List.of());
+        assertThat(service().myRecords(TEST_DATE.minusDays(7), TEST_DATE)).isEmpty();
+        verify(records).searchForUser(7L, TEST_DATE.minusDays(7), TEST_DATE);
+    }
+
+    @Test
     void submitPublicCreatesCheckInAndMarksRecordIncomplete() {
         AttendanceService service = service();
         UserSummary member = user(1L, "20230001", "张三", Role.MEMBER);

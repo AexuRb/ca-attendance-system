@@ -60,3 +60,10 @@ describe("admin navigation permissions", () => {
     }
   });
 });
+
+it("removes reviews only for remote ministers while preserving all other role menus", () => {
+  for (const role of Object.keys(expectedRoutes) as Role[]) {
+    const names = navigationForRole(role, "REMOTE_ADMIN").flatMap(section => section.items.map(item => item.name));
+    expect(names).toEqual(expectedRoutes[role].filter(name => role !== "MINISTER" || name !== "reviews"));
+  }
+});

@@ -63,7 +63,7 @@ public class AuthService {
                 throw ApiException.forbidden("账号已停用");
             }
             if (context.remote() && !remoteAccess.roleAllowed(user.role())) {
-                throw ApiException.forbidden("远程后台仅允许会长或管理员登录");
+                throw ApiException.forbidden("当前账号不允许远程登录");
             }
         } catch (ApiException ex) {
             LoginAttemptGuard.FailureResult failure = loginAttempts.recordFailure(studentNo, context);

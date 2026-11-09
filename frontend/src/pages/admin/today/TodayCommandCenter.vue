@@ -64,6 +64,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Component } from "vue";
 import { DatabaseBackup, ChartColumn, CircleAlert, ClipboardCheck, ClipboardList, Wrench } from "@lucide/vue";
 import type { Role } from "../../../shared/types";
+import type { EntryMode } from "../../../shared/access/entryAccess";
 import { commandInputView, completeCommandInput } from "../../../features/command-center/commandTree";
 import type { CommandNodeSuggestion } from "../../../features/command-center/commandTypes";
 import CommandComposer from "./CommandComposer.vue";
@@ -78,6 +79,7 @@ const props = withDefaults(defineProps<{
   dateLabel: string;
   roleName: string;
   role: Role;
+  entryMode?: EntryMode;
   quickActions: TodayQuickAction[];
   inlineShortcuts?: boolean;
   importantActions?: TodayQuickAction[];
@@ -88,7 +90,7 @@ const props = withDefaults(defineProps<{
   loading?: boolean;
   quiet?: boolean;
   refined?: boolean;
-}>(), { inlineShortcuts: true });
+}>(), { inlineShortcuts: true, entryMode: "LOCAL" });
 const emit = defineEmits<{
   "update:modelValue": [value: string];
   execute: [value: string, displayName?: string];
@@ -110,7 +112,7 @@ const {
   moveActive,
   escape,
 } = useCommandSession();
-const view = computed(() => commandInputView(props.modelValue, props.role, caret.value));
+const view = computed(() => commandInputView(props.modelValue, props.role, caret.value, 9, props.entryMode));
 const engaged = computed(() => Boolean(props.modelValue.trim()));
 const executable = computed(() =>
   view.value.state === "executable" || view.value.state === "extensible",

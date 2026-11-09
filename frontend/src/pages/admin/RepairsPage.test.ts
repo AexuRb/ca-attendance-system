@@ -14,7 +14,7 @@ const apiGet = vi.fn();
 const apiPut = vi.fn();
 const routerReplace = vi.fn();
 const routerPush = vi.fn();
-const sessionRole = vi.hoisted(() => ({ value: "ADMIN" }));
+const sessionRole = vi.hoisted(() => ({ value: "ADMIN", mode: "LOCAL" }));
 
 vi.mock("../../shared/api", () => ({
   api: (...args: unknown[]) => apiRequest(...args),
@@ -27,7 +27,7 @@ vi.mock("../../shared/api", () => ({
 
 vi.mock("../../app/session", () => ({
   useSession: () => ({
-    user: ref({ id: 1, name: "管理员", role: sessionRole.value }), state: { access: { kioskAvailable: true } }, logout: vi.fn(),
+    user: ref({ id: 1, name: "管理员", role: sessionRole.value }), state: { access: { kioskAvailable: sessionRole.mode === "LOCAL", mode: sessionRole.mode } }, logout: vi.fn(),
   }),
 }));
 
@@ -44,7 +44,7 @@ afterEach(() => {
   apiPut.mockReset();
   routerReplace.mockReset();
   routerPush.mockReset();
-  sessionRole.value = "ADMIN";
+  sessionRole.value = "ADMIN"; sessionRole.mode = "LOCAL";
   document.body.innerHTML = "";
 });
 
@@ -313,3 +313,22 @@ function statusOffset(status: RepairStatus) {
 }
 
 vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));
+
+it("keeps remote minister repair details and agreements without editors or candidate requests", async () => {
+  sessionRole.value = "MINISTER"; sessionRole.mode = "REMOTE_ADMIN";
+  apiGet.mockResolvedValue([]); apiRequest.mockResolvedValue(repairPage("REPAIRING",1,1,1));
+  const wrapper = mount(RepairsPage); await flushPromises();
+  expect(wrapper.find(".workspace-create-button").exists()).toBe(false);
+  expect(wrapper.find(".repair-card-process").exists()).toBe(false);
+  expect(apiGet.mock.calls.some(([url]) => String(url).includes("handler-candidates"))).toBe(false);
+  await wrapper.get(".repair-ledger-row").trigger("click"); await flushPromises();
+  const drawer=wrapper.findComponent({name:"RepairDetailDrawer"});
+  expect(drawer.props("canManage")).toBe(false); expect(drawer.props("canDelete")).toBe(false);
+  drawer.vm.$emit("edit", drawer.props("item")); drawer.vm.$emit("process", drawer.props("item")); await flushPromises();
+  expect(wrapper.findComponent({name:"RepairEditorDialog"}).props("open")).toBe(false);
+  apiRequest.mockResolvedValue({text:async()=>"<html><body>协议示例</body></html>"});
+  drawer.vm.$emit("preview",drawer.props("item")); await flushPromises();
+  expect(apiRequest).toHaveBeenLastCalledWith("/api/repairs/1/agreement");
+  expect(wrapper.findComponent({name:"AgreementDialog"}).props("html")).toContain("协议示例");
+  expect(apiPut).not.toHaveBeenCalled(); wrapper.unmount();
+});

@@ -1,4 +1,5 @@
 import type { Role } from "../../shared/types";
+import { commandAllowedAtEntry, type EntryMode } from "../../shared/access/entryAccess";
 import type { CommandSuggestion } from "./commandTypes";
 
 const MANAGERS: Role[] = ["MINISTER", "PRESIDENT", "ADMIN"];
@@ -230,10 +231,11 @@ const defaultIds: Record<Exclude<Role, "MEMBER">, string[]> = {
   ADMIN: ["settings", "logs", "data", "members", "repairs"],
 };
 
-export function defaultCommands(role: Role): CommandSuggestion[] {
+export function defaultCommands(role: Role, mode?: EntryMode): CommandSuggestion[] {
   if (role === "MEMBER") return [];
   const ids = defaultIds[role];
   return ids
     .map((id) => commandSuggestions.find((item) => item.id === id))
-    .filter((item): item is CommandSuggestion => Boolean(item));
+    .filter((item): item is CommandSuggestion => Boolean(item))
+    .filter(item => commandAllowedAtEntry(item.command, role, mode));
 }

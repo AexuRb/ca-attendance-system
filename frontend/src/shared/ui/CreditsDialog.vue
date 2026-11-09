@@ -1,5 +1,5 @@
 <template>
-  <ModalDialog :open="open && !!user" :title="acknowledgements.title" size="sm" :backdrop-class="['credits-dialog-backdrop', backdropClass].filter(Boolean).join(' ')"
+  <ModalDialog custom-appearance :open="open && !!user" :title="acknowledgements.title" size="sm" :backdrop-class="['credits-dialog-backdrop', backdropClass].filter(Boolean).join(' ')"
     :title-interactive="canEdit" @title-activate="activateTitle" @close="$emit('close')">
     <p class="credits-thanks">{{ acknowledgements.intro }}</p>
     <p v-if="loading" class="credits-notice" role="status">正在加载贡献信息</p>

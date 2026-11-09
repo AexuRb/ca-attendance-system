@@ -3,7 +3,7 @@
     <form class="auth-form" @submit.prevent="submit">
       <div class="auth-heading">
         <h2>{{ state.access.mode === 'REMOTE_ADMIN' ? '远程登录' : '登录后台' }}</h2>
-        <p>{{ state.access.mode === 'REMOTE_ADMIN' ? '仅限会长和管理员' : '使用学号登录' }}</p>
+        <p>{{ state.access.mode === 'REMOTE_ADMIN' ? '使用学号和密码登录' : '使用学号登录' }}</p>
       </div>
       <div class="field">
         <label for="login-account">学号</label>

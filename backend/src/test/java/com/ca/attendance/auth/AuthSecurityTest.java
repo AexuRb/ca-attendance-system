@@ -8,6 +8,8 @@ import com.ca.attendance.user.UserRepository;
 import com.ca.attendance.user.UserSummary;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -153,26 +155,22 @@ class AuthSecurityTest {
         verify(tokenService, never()).revokeUser(1L);
     }
 
-    @Test
-    void remoteLoginAllowsOnlyPresidentAndAdministrator() {
-        when(users.findLoginByStudentNo("minister")).thenReturn(Optional.of(
-                new UserRepository.UserLoginRow(
-                        2L, "minister", "测试部长", "hash", Role.MINISTER, "ACTIVE", false
-                )
-        ));
+    @ParameterizedTest
+    @EnumSource(Role.class)
+    void remoteLoginAllowsEveryActiveRoleAndAuditsItsActualRole(Role role) {
+        var account = new UserRepository.UserLoginRow(2L, "remote-account", "测试账号", "hash", role, "ACTIVE", false);
+        when(users.findLoginByStudentNo("remote-account")).thenReturn(Optional.of(account));
         when(passwords.matches("correct-password", "hash")).thenReturn(true);
-        AuthService service = new AuthService(
-                users, jdbc, passwords, tokenService,
-                new RemoteAccessPolicy(8081), new LoginAttemptGuard(),
-                new AuthenticationEventService(jdbc, logs)
-        );
-
-        assertThatThrownBy(() -> service.login(
-                "minister", "correct-password",
-                new AuthService.LoginContext(true, "203.0.113.10", "test-agent")
-        )).isInstanceOf(ApiException.class).hasMessageContaining("会长或管理员");
-
-        verify(tokenService, never()).issue(2L, "minister", "测试部长", Role.MINISTER);
+        when(tokenService.issue(2L, "remote-account", "测试账号", role)).thenReturn("remote-token");
+        when(jdbc.update(anyString(), org.mockito.ArgumentMatchers.any(LocalDateTime.class), eq(2L))).thenReturn(1);
+        AuthService service = new AuthService(users, jdbc, passwords, tokenService,
+                new RemoteAccessPolicy(8081), new LoginAttemptGuard(), new AuthenticationEventService(jdbc, logs));
+        var response = service.login("remote-account", "correct-password",
+                new AuthService.LoginContext(true, "203.0.113.10", "test-agent"));
+        assertThat(response.token()).isEqualTo("remote-token");
+        assertThat(response.role()).isEqualTo(role.name());
+        verify(logs).logAuthentication(OperationLogService.AuthenticationOutcome.SUCCESS, true,
+                account, "remote-account", "203.0.113.10", "test-agent", "远程后台登录成功");
     }
 
     @Test
@@ -288,7 +286,7 @@ class AuthSecurityTest {
     }
 
     @Test
-    void remoteRequestsRejectKioskAndNonPrivilegedSessions() {
+    void remoteRequestsRejectKioskAndAllowMinisterStatistics() {
         TokenService tokens = new TokenService(12);
         AuthInterceptor interceptor = new AuthInterceptor(tokens, users, new RemoteAccessPolicy(8081));
 
@@ -307,9 +305,8 @@ class AuthSecurityTest {
         when(users.findSummaryById(2L)).thenReturn(Optional.of(user(2L, Role.MINISTER, "ACTIVE", false)));
         MockHttpServletRequest adminApiRequest = request("/api/stats/summary", ministerToken);
         adminApiRequest.setLocalPort(8081);
-        assertThatThrownBy(() -> interceptor.preHandle(adminApiRequest, new MockHttpServletResponse(), new Object()))
-                .isInstanceOf(ApiException.class)
-                .hasMessageContaining("会长或管理员");
+        assertThat(interceptor.preHandle(adminApiRequest, new MockHttpServletResponse(), new Object())).isTrue();
+        assertThat(AuthContext.current().role()).isEqualTo(Role.MINISTER);
     }
 
     @Test

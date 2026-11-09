@@ -185,3 +185,12 @@ describe("command center parser", () => {
     });
   });
 });
+
+it("restricts canonical and alias commands at the remote minister entry", () => {
+  for (const command of ["/ 打开 签到审核", "/ 打开 审核", "/ 新建 维修事务", "/ 新建 维修记录"]) {
+    expect(resolveCommand(command,"MINISTER",new Date(),"REMOTE_ADMIN").kind).toBe("forbidden");
+    expect(resolveCommand(command,"MINISTER").kind).toBe("resolved");
+  }
+  expect(resolveCommand("/ 查看 值班记录 本周","MINISTER",new Date(),"REMOTE_ADMIN").kind).toBe("resolved");
+  expect(resolveCommand("/ 查看 维修事务 进行中","MINISTER",new Date(),"REMOTE_ADMIN").kind).toBe("resolved");
+});

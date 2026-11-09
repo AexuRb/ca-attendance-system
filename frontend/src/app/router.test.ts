@@ -12,6 +12,11 @@ type RouteGuardCase = {
 };
 
 const routeGuardMatrix: RouteGuardCase[] = [
+  { case: "blocks the remote minister review route", target: "reviews", state: routeState({ mode: "REMOTE_ADMIN", role: "MINISTER" }), expected: { name: "today" } },
+  { case: "retains local minister reviews", target: "reviews", state: routeState({ role: "MINISTER" }), expected: true },
+  { case: "allows remote minister repair viewing", target: "repairs", state: routeState({ mode: "REMOTE_ADMIN", role: "MINISTER" }), expected: true },
+  { case: "opens the remote member profile", target: "profile", state: routeState({ mode: "REMOTE_ADMIN", role: "MEMBER" }), expected: true },
+  { case: "redirects remote members from management to their profile", target: "attendance", state: routeState({ mode: "REMOTE_ADMIN", role: "MEMBER" }), expected: { name: "profile" } },
   {
     case: "requires login for the standalone credits editor",
     target: "credits-editor", state: routeState(),
@@ -168,7 +173,7 @@ function routeState({
   initialized = true,
   mode = "LOCAL",
   kioskAvailable = mode === "LOCAL",
-  allowedRemoteRoles = mode === "REMOTE_ADMIN" ? ["PRESIDENT", "ADMIN"] : [],
+  allowedRemoteRoles = mode === "REMOTE_ADMIN" ? ["MEMBER", "MINISTER", "PRESIDENT", "ADMIN"] : [],
   role = null,
   mustChangePassword = false,
 }: RouteStateOptions = {}): RouteAccessState {

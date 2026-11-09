@@ -171,6 +171,8 @@ export function resolveRouteAccess(
     return { name: "login", query: { next: to.fullPath } };
   if (state.user?.mustChangePassword && to.name !== "password")
     return { name: "password" };
+  if (to.name === "reviews" && state.user?.role === "MINISTER" && state.access.mode === "REMOTE_ADMIN")
+    return { name: "today" };
   const roles = to.meta.roles as Role[] | undefined;
   if (roles && state.user && !roles.includes(state.user.role)) {
     return state.user.role === "MEMBER"

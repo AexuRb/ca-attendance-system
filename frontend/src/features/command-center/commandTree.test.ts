@@ -138,3 +138,13 @@ describe("command tree", () => {
     expect(completeCommandInput("/ 查找 ", attendance!, 5).value).toBe("/ 查找 值班记录 ");
   });
 });
+
+it("excludes review and write operations from remote minister command suggestions", () => {
+  const root=commandInputView("/ ","MINISTER",2,99,"REMOTE_ADMIN");
+  expect(root.suggestions.map(item=>item.label)).not.toContain("新建");
+  const objects=commandInputView("/ 打开 ","MINISTER",5,99,"REMOTE_ADMIN");
+  expect(objects.suggestions.map(item=>item.label)).not.toContain("签到审核");
+  const search=commandInputView("维修","MINISTER",2,99,"REMOTE_ADMIN");
+  expect(search.suggestions.some(item=>item.completion.includes("新建"))).toBe(false);
+  expect(search.suggestions.some(item=>item.completion.includes("维修事务"))).toBe(true);
+});

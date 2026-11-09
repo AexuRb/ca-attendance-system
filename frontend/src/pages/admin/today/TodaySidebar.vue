@@ -23,14 +23,14 @@
 import { computed, type Component } from 'vue';
 import { ArrowUpRight, ChartColumn, ChevronRight, ClipboardCheck, ClipboardList, DatabaseBackup, Wrench } from '@lucide/vue';
 import type { TodayDashboardData, TodayQuickAction } from './types';
-const props = defineProps<{ dashboard: TodayDashboardData | null; actions: TodayQuickAction[]; quickActions: TodayQuickAction[]; scheduleNotice: string; loading: boolean; loadError: string; opening: boolean; busy: boolean }>();
+const props = defineProps<{ canReview?: boolean; dashboard: TodayDashboardData | null; actions: TodayQuickAction[]; quickActions: TodayQuickAction[]; scheduleNotice: string; loading: boolean; loadError: string; opening: boolean; busy: boolean }>();
 defineEmits<{ open: [string]; shortcut: [TodayQuickAction]; retry: [] }>();
 const unavailable = computed(() => Boolean(props.loadError) || !props.dashboard);
 const scheduleAction = computed(() => props.actions.find(item => item.id === 'schedules'));
 const tasks = computed(() => [
   { id:'reviews', label:'待审核', count:props.dashboard?.todayPendingCount || 0, icon:ClipboardCheck, empty:'暂无待审核', action:props.actions.find(item => item.id === 'reviews') },
   { id:'repairs', label:'维修中', count:props.dashboard?.ongoingRepairCount || 0, icon:Wrench, empty:'暂无进行中维修', action:props.actions.find(item => item.id === 'repairs') },
-]);
+].filter(item => item.id !== 'reviews' || props.canReview !== false));
 function shortcutIcon(id: string) {
   const icons: Record<string, Component> = { reviews:ClipboardCheck, 'today-records':ClipboardList, 'stats-week':ChartColumn, 'repairs-new':Wrench, backups:DatabaseBackup };
   return icons[id] || ClipboardList;

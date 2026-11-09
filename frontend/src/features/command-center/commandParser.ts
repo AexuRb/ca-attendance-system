@@ -1,5 +1,6 @@
 import type { LocationQueryRaw } from "vue-router";
 import type { Role } from "../../shared/types";
+import { commandAllowedAtEntry, type EntryMode } from "../../shared/access/entryAccess";
 import {
   commandActions,
   commandObjects,
@@ -26,11 +27,12 @@ export function suggestCommands(
   input: string,
   role: Role,
   limit = 6,
+  mode?: EntryMode,
 ): CommandSuggestion[] {
   const query = normalizedSearch(input);
-  if (!query) return defaultCommands(role).slice(0, limit);
+  if (!query) return defaultCommands(role, mode).slice(0, limit);
   return commandSuggestions
-    .filter((item) => item.roles.includes(role))
+    .filter((item) => item.roles.includes(role) && commandAllowedAtEntry(item.command, role, mode))
     .map((item, index) => ({ item, index, score: suggestionScore(item, query) }))
     .filter((candidate) => candidate.score < 100)
     .sort((left, right) => left.score - right.score || left.index - right.index)
@@ -42,6 +44,7 @@ export function resolveCommand(
   input: string,
   role: Role,
   now = new Date(),
+  mode?: EntryMode,
 ): CommandResolution {
   const content = commandContent(input);
   if (!content) return invalid("请输入命令。");
@@ -82,7 +85,10 @@ export function resolveCommand(
   if (role === "MINISTER" && (action === "导出" || action === "导入" || (action === "新建" && object.canonical === "值班记录"))) {
     return { kind: "forbidden", message: action === "导出" ? "数据中心暂未向当前角色开放导出。" : "当前角色无权执行此操作。" };
   }
-  return resolveAction(action, object, tokens.slice(1 + parsedObject.consumed), now);
+  const result = resolveAction(action, object, tokens.slice(1 + parsedObject.consumed), now);
+  if (result.kind === "resolved" && !commandAllowedAtEntry(result.canonical, role, mode))
+    return { kind: "forbidden", message: "当前远程入口无权执行此操作。" };
+  return result;
 }
 
 function resolveAction(

@@ -11,6 +11,7 @@ async function openOtherReason() {
   return document.body.querySelector<HTMLTextAreaElement>('textarea[name="attendanceReasonOther"]')!;
 }
 
+const sessionMock = vi.hoisted(() => ({ role: "ADMIN", mode: "LOCAL" }));
 const apiGet = vi.fn();
 const apiPut = vi.fn();
 const apiPost = vi.fn();
@@ -38,10 +39,11 @@ vi.mock("vue-router", () => ({
 }));
 
 vi.mock("../../app/session", () => ({
-  useSession: () => ({ user: { value: { role: "ADMIN" } }, state: { access: { kioskAvailable: true } }, logout: vi.fn() }),
+  useSession: () => ({ user: { value: { role: sessionMock.role } }, state: { access: { kioskAvailable: sessionMock.mode === "LOCAL", mode: sessionMock.mode } }, logout: vi.fn() }),
 }));
 
 afterEach(() => {
+  sessionMock.role = "ADMIN"; sessionMock.mode = "LOCAL";
   apiGet.mockReset();
   apiPut.mockReset();
   apiPost.mockReset();
@@ -389,3 +391,17 @@ describe("AttendancePage manual editing", () => {
 });
 
 vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));
+
+it("hides both desktop and mobile mutation controls only for remote ministers", async () => {
+  sessionMock.role = "MINISTER";
+  apiGet.mockResolvedValue({items:[{id:1,userId:2,userRole:"MEMBER",studentNo:"9900000002",name:"示例成员",dutyDate:"2026-11-09",checkInStatus:"APPROVED",checkOutStatus:"APPROVED",validHours:1,effectiveStatus:"VALID"}],total:1,page:1,pageSize:20});
+  for (const mode of ["REMOTE_ADMIN", "LOCAL"]) {
+    sessionMock.mode = mode;
+    const wrapper = mount(AttendancePage); await flushPromises();
+    expect(wrapper.text()).toContain("示例成员");
+    expect(wrapper.find(".mw-actions-column").exists()).toBe(mode === "LOCAL");
+    expect(wrapper.find(".attendance-mobile-record__actions").exists()).toBe(mode === "LOCAL");
+    wrapper.unmount();
+  }
+  expect(apiPost).not.toHaveBeenCalled(); expect(apiPut).not.toHaveBeenCalled(); expect(apiDelete).not.toHaveBeenCalled();
+});

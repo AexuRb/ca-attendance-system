@@ -1,11 +1,10 @@
 <template>
   <Teleport to="body">
     <Transition :name="memberPresentation ? 'mw-modal' : 'modal'">
-      <div v-if="open" class="app-dialog-backdrop" :class="[memberPresentation ? 'mw-backdrop mw-scope' : 'modal-backdrop', backdropClass, { 'is-side-panel': sidePanel }]" @mousedown.self="close">
+      <div v-if="open" :class="[memberPresentation ? 'mw-backdrop mw-scope' : 'modal-backdrop', backdropClass, { 'app-dialog-backdrop': !customAppearance, 'is-side-panel': sidePanel }]" @mousedown.self="close">
         <section
           ref="dialog"
-          class="app-dialog"
-          :class="[memberPresentation ? 'mw-modal' : 'modal-shell', size ? `modal-${size}` : '']"
+          :class="[memberPresentation ? 'mw-modal' : 'modal-shell', size ? `modal-${size}` : '', { 'app-dialog': !customAppearance }]"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
@@ -59,6 +58,7 @@ const props = defineProps<{
   size?: "sm" | "lg" | "xl";
   backdropClass?: string;
   titleInteractive?: boolean;
+  customAppearance?: boolean;
 }>();
 const emit = defineEmits<{ close: []; 'title-activate': [] }>();
 const dialog = ref<HTMLElement | null>(null);

@@ -14,6 +14,7 @@ import {
   Wrench,
 } from "@lucide/vue";
 import type { Role } from "../shared/types";
+import { canReviewAttendance, type EntryMode } from "../shared/access/entryAccess";
 
 export interface AdminNavItem {
   name: string;
@@ -139,12 +140,13 @@ export const adminNavigation: AdminNavSection[] = [
   },
 ];
 
-export function navigationForRole(role?: Role): AdminNavSection[] {
+export function navigationForRole(role?: Role, mode?: EntryMode): AdminNavSection[] {
   if (!role) return [];
   return adminNavigation
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => item.roles.includes(role)),
+      items: section.items.filter((item) => item.roles.includes(role)
+        && (item.name !== "reviews" || canReviewAttendance(role, mode))),
     }))
     .filter((section) => section.items.length > 0);
 }

@@ -56,8 +56,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw ApiException.forbidden("账号已停用，请联系管理员");
         }
         if (remote && !remoteAccess.roleAllowed(current.role())) {
-            throw ApiException.forbidden("远程后台仅允许会长或管理员登录");
+            throw ApiException.forbidden("当前账号不允许远程登录");
         }
+        remoteAccess.requireOperationAllowed(request, current.role());
         if (current.mustChangePassword() && !passwordChangeAllowed(path)) {
             throw ApiException.forbidden("请先修改初始密码");
         }

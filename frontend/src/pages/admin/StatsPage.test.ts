@@ -5,6 +5,7 @@ import StatsPage from "./StatsPage.vue";
 import { statsVisits } from "../../features/stats/statsNavigation";
 
 const apiGet = vi.fn();
+const apiDownload = vi.fn();
 const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
 
 vi.mock("vue-router", () => ({
@@ -15,7 +16,7 @@ vi.mock("vue-router", () => ({
 
 vi.mock("../../shared/api", () => ({
   get: (...args: unknown[]) => apiGet(...args),
-  downloadBlob: vi.fn(),
+  downloadBlob: (...args: unknown[]) => apiDownload(...args),
 }));
 
 function deferred<T>() {
@@ -38,7 +39,7 @@ const row = (name: string) => ({
 });
 
 afterEach(() => {
-  apiGet.mockReset();
+  apiGet.mockReset(); apiDownload.mockReset();
   navigation.push.mockReset();
   navigation.replace.mockReset();
   vi.useRealTimers();
@@ -234,3 +235,14 @@ describe("StatsPage request states", () => {
 });
 
 vi.mock("../../shared/composables/useServiceHealth", () => ({ useServiceHealth: () => ({ online: true }) }));
+
+it("exports the applied statistics range and disables export after a draft date change", async () => {
+  apiGet.mockImplementation((url:string)=>Promise.resolve(url.includes('/export') ? new Blob(['示例']) : url.includes('weekly-detail') ? {days:[],users:[],cells:{}} : []));
+  const wrapper=mount(StatsPage); await flushPromises();
+  const button=wrapper.findAll('button').find(item=>item.text()==='导出统计')!;
+  expect(button.attributes('disabled')).toBeUndefined(); await button.trigger('click'); await flushPromises();
+  expect(apiGet.mock.calls.some(([url])=>String(url).startsWith('/api/stats/export?from='))).toBe(true);
+  expect(apiDownload).toHaveBeenCalledTimes(1);
+  await wrapper.get('input[name="statsFrom"]').setValue('2026-01-01');
+  expect(button.attributes('disabled')).toBeDefined(); wrapper.unmount();
+});

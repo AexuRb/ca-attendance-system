@@ -4,12 +4,13 @@
     <div class="today-workbench">
     <TodayCommandCenter
       ref="commandCenter"
-      :key="`${user?.id || 'anonymous'}:${currentRole}`"
+      :key="`${user?.id || 'anonymous'}:${currentRole}:${entryMode}`"
       refined
       v-model="commandInput"
       :date-label="todayLabel"
       :role-name="currentRoleLabel"
       :role="currentRole"
+      :entry-mode="entryMode"
       :quick-actions="quickActions"
       :inline-shortcuts="false"
       :opening="opening"
@@ -26,7 +27,7 @@
           :opening="opening" :replying="replying" @open="openReply" @retry="retryTurn" />
       </template>
     </TodayCommandCenter>
-    <TodaySidebar :dashboard="dashboard" :actions="entryActions" :quick-actions="quickActions"
+    <TodaySidebar :dashboard="dashboard" :actions="entryActions" :quick-actions="quickActions" :can-review="canReview"
       :schedule-notice="scheduleNotice" :loading="loading && !dashboard" :load-error="error"
       :opening="opening" :busy="replying" @open="openReply" @shortcut="runShortcut" @retry="refresh" />
     </div>
@@ -52,13 +53,14 @@ import type { ResolvedCommand } from "../../features/command-center/commandTypes
 import { get } from "../../shared/api";
 import { roleLabel } from "../../app/adminNavigation";
 import { useSession } from "../../app/session";
+import { canReviewAttendance, commandAllowedAtEntry } from "../../shared/access/entryAccess";
 import { resolveCommand } from "../../features/command-center/commandParser";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { notify } from "../../shared/composables/useToast";
 import type { Role } from "../../shared/types";
 import type { TodayDashboardData, TodayQuickAction, TodayScheduleData } from "./today/types";
 
-const { user } = useSession();
+const { user, state } = useSession();
 const router = useRouter();
 const request = useLatestRequest();
 const { loading, error } = request;
@@ -84,6 +86,8 @@ const todayLabel = computed(() =>
   new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric" }).format(currentDate.value),
 );
 const currentRole = computed<Role>(() => user.value?.role || "MINISTER");
+const entryMode = computed(() => state?.access?.mode || "LOCAL");
+const canReview = computed(() => canReviewAttendance(currentRole.value, entryMode.value));
 const currentRoleLabel = computed(() => roleLabel(currentRole.value));
 const canSchedule = computed(() =>
   user.value?.role === "PRESIDENT" || user.value?.role === "ADMIN",
@@ -99,16 +103,16 @@ const quickActions = computed<TodayQuickAction[]>(() => currentRole.value === "M
   { id: "stats-week", command: "/ 查看 数据统计 本周", label: "本周统计", detail: "", tone: "blue" },
   { id: "repairs-new", command: "/ 新建 维修事务", label: "新建维修", detail: "", tone: "blue" },
   ...(canSchedule.value ? [{ id: "backups", command: "/ 打开 备份管理", label: "备份与恢复", detail: "", tone: "blue" as const }] : []),
-]);
+].filter(item => commandAllowedAtEntry(item.command, currentRole.value, entryMode.value)) as TodayQuickAction[]);
 const scheduleNotice = computed(() => missingScheduleCount.value ? `今日排班还有 ${missingScheduleCount.value} 个空缺时段。` : "");
 const entryActions = computed<TodayQuickAction[]>(() => {
   if (!dashboard.value || error.value || currentRole.value === "MEMBER") return [];
   const date = dashboardDate.value || today.value;
   const label = date === today.value ? "今日" : date;
   const items: TodayQuickAction[] = [];
-  const hasPending = (dashboard.value.todayPendingCount || 0) > 0;
+  const hasPending = canReview.value && (dashboard.value.todayPendingCount || 0) > 0;
   const hasRepairs = (dashboard.value.ongoingRepairCount || 0) > 0;
-  items.push({ id: "reviews", command: "/ 查看 值班记录 待审核 " + date, label: "查看" + label + "待审核", detail: "", tone: "amber", primary: hasPending });
+  if (canReview.value) items.push({ id: "reviews", command: "/ 查看 值班记录 待审核 " + date, label: "查看" + label + "待审核", detail: "", tone: "amber", primary: hasPending });
   if (missingScheduleCount.value) items.push({ id: "schedules", command: "/ 打开 排班管理", label: label + "排班空缺", detail: missingScheduleCount.value + " 个时段", tone: "amber" });
   items.push({ id: "repairs", command: "/ 查看 维修事务 进行中", label: "查看进行中维修", detail: "", tone: "blue", primary: !hasPending && hasRepairs });
   return items;
@@ -125,7 +129,7 @@ onBeforeUnmount(() => {
   window.clearInterval(timer);
   window.removeEventListener("focus", refresh);
 });
-watch(() => [user.value?.id, currentRole.value], () => {
+watch(() => [user.value?.id, currentRole.value, entryMode.value], () => {
   epoch++;
   queryController?.abort();
   turns.value = [];
@@ -165,7 +169,7 @@ function runShortcut(item: TodayQuickAction) {
 async function executeCommand(value: string, displayName?: string) {
   if (replying.value || opening.value) return;
   const now = new Date();
-  const resolution = resolveCommand(value, currentRole.value, now);
+  const resolution = resolveCommand(value, currentRole.value, now, entryMode.value);
   if (resolution.kind !== "resolved") {
     commandError.value = resolution.message;
     turns.value = [...turns.value.slice(-7), { id: ++turnId, input: value, text: resolution.message, button: "", failed: true }];
@@ -207,9 +211,9 @@ function retryTurn(id: number) { if (!replying.value) void fillSummary(id); }
 
 async function openReply(value: string | ResolvedCommand) {
   if (opening.value) return;
-  const resolved = typeof value === 'string' ? resolveCommand(value, currentRole.value, new Date()) : value;
+  const resolved = typeof value === 'string' ? resolveCommand(value, currentRole.value, new Date(), entryMode.value) : value;
   if (resolved.kind !== 'resolved') { commandError.value = resolved.message; return; }
-  const allowed = resolveCommand(resolved.canonical, currentRole.value, new Date());
+  const allowed = resolveCommand(resolved.canonical, currentRole.value, new Date(), entryMode.value);
   if (allowed.kind !== 'resolved') { commandError.value = allowed.message; return; }
   const turn = turns.value.find(item => item.command === value);
   const ownEpoch = epoch;

@@ -1,4 +1,5 @@
 import type { Role } from "../../shared/types";
+import { commandAllowedAtEntry, type EntryMode } from "../../shared/access/entryAccess";
 import {
   commandActions,
   commandObjects,
@@ -32,17 +33,18 @@ export function commandInputView(
   role: Role,
   caret = input.length,
   limit = 9,
+  mode?: EntryMode,
 ): CommandInputView {
   if (!input.trimStart().startsWith("/")) {
-    return searchView(input, role, limit);
+    return searchView(input, role, limit, mode);
   }
 
   const context = cursorContext(input, caret);
-  const allowed = commandTreePaths.filter((item) => item.roles.includes(role));
+  const allowed = commandTreePaths.filter((item) => item.roles.includes(role) && commandAllowedAtEntry(item.command, role, mode));
   const paths = allowed.map((item) => ({ item, tokens: commandTokens(item.command) }));
   if (context.activeIndex === 0 && !context.before.length && context.partial) {
     paths.push(...commandShortcuts
-      .filter((item) => item.roles.includes(role))
+      .filter((item) => item.roles.includes(role) && commandAllowedAtEntry(item.command, role, mode))
       .map((item) => ({
         item: {
           id: item.id,
@@ -66,7 +68,7 @@ export function commandInputView(
       .filter(({ tokens }) => tokenMatches(tokens[context.activeIndex] || "", context.partial, kind))
       .map(({ item, tokens }) => nodeFromPath(item, tokens, context.activeIndex, kind)),
   ).slice(0, limit);
-  const resolution = resolveCommand(input, role);
+  const resolution = resolveCommand(input, role, new Date(), mode);
   const accepted = normalizeAcceptedTokens(commandTokens(input));
   const hasDescendants = paths.some(({ tokens }) =>
     accepted.every((token, index) => tokens[index] === token) && tokens.length > accepted.length,
@@ -107,8 +109,8 @@ export function completeCommandInput(
   return { value, caret: prefix.length + suggestion.completion.length + suffix.length };
 }
 
-function searchView(input: string, role: Role, limit: number): CommandInputView {
-  const suggestions = suggestCommands(input, role, limit).map((item) => ({
+function searchView(input: string, role: Role, limit: number, mode?: EntryMode): CommandInputView {
+  const suggestions = suggestCommands(input, role, limit, mode).map((item) => ({
     id: item.id,
     label: readableCommand(item.command),
     description: item.description,

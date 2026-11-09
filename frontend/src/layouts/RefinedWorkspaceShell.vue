@@ -66,7 +66,7 @@ onBeforeUnmount(() => {
   stopEntrance();
   motionPreference?.removeEventListener("change", stopEntrance);
 });
-const sections = computed(()=>navigationForRole(user.value?.role));
+const sections = computed(()=>navigationForRole(user.value?.role, sessionState?.access?.mode));
 const sectionItems = computed(()=>sections.value.find(s=>s.key===props.sectionKey)?.items || []);
 function focusContent() { document.getElementById('admin-main-content')?.focus(); }
 async function signOut(){await logout();await router.replace({name:'login'});}

@@ -45,8 +45,8 @@ public final class RolePermissionPolicy {
                 Permission.REPAIR_DELETE,
                 Permission.CUSTOM_EXPORT,
                 Permission.BACKUPS,
-                Permission.DATA_CENTER,
-                Permission.REMOTE_ADMIN);
+                Permission.DATA_CENTER);
+        grant(grants, EnumSet.allOf(Role.class), Permission.REMOTE_ADMIN);
         grant(grants, ADMINS,
                 Permission.MEMBERS_DELETE,
                 Permission.REPAIR_RECYCLE_BIN,

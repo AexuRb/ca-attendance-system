@@ -60,7 +60,7 @@
     <template v-else-if="records.length">
     <div :ref="bindTableScroll" class="mw-table-scroll attendance-table-scroll" role="region" tabindex="0" aria-label="值班记录列表" @scroll.passive="rememberTableScroll">
       <table class="mw-table attendance-table">
-        <colgroup><col class="attendance-col-person" /><col class="attendance-col-date" /><col class="attendance-col-time" /><col class="attendance-col-time" /><col class="attendance-col-duration" /><col class="attendance-col-status" /><col class="attendance-col-actions" /></colgroup>
+        <colgroup><col class="attendance-col-person" /><col class="attendance-col-date" /><col class="attendance-col-time" /><col class="attendance-col-time" /><col class="attendance-col-duration" /><col class="attendance-col-status" /><col v-if="canModify" class="attendance-col-actions" /></colgroup>
         <thead>
           <tr>
             <th scope="col">成员 / 学号</th>
@@ -69,7 +69,7 @@
             <th scope="col">签退</th>
             <th scope="col">计入时长</th>
             <th scope="col">状态</th>
-            <th class="align-right mw-actions-column">操作</th>
+            <th v-if="canModify" class="align-right mw-actions-column">操作</th>
           </tr>
         </thead>
         <tbody>
@@ -91,7 +91,7 @@
                 :tone="statusTone(item.effectiveStatus)"
               />
             </td>
-            <td class="align-right row-actions mw-actions-column">
+            <td v-if="canModify" class="align-right row-actions mw-actions-column">
               <button
                 class="icon-button"
                 :title="
@@ -157,7 +157,7 @@
             <strong>{{ item.validHours ?? '—' }} 小时</strong>
             <small>有效分钟 {{ item.durationMinutes ?? '—' }}</small>
           </div>
-          <div class="attendance-mobile-record__actions">
+          <div v-if="canModify" class="attendance-mobile-record__actions">
             <button class="button secondary small" type="button" :disabled="!actionAccess(item).allowed"
               :title="actionAccess(item).allowed ? '编辑' : actionAccess(item).reason"
               :aria-label="`编辑 ${item.name} ${item.dutyDate} 的记录${actionAccess(item).allowed ? '' : `：${actionAccess(item).reason}`}`" @click="openEdit(item)">
@@ -346,7 +346,7 @@ const {
   actions,
   applyFilters,
   askDelete,
-  canCreate,
+  canCreate, canModify,
   canReviewStatus,
   closeEditor,
   dateTime,
