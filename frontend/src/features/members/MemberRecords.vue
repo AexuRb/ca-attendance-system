@@ -14,7 +14,7 @@
           <th scope="col" class="mw-academic-column">学院 / 年级</th>
           <th scope="col" class="mw-contact-column">联系方式</th>
           <th scope="col" class="mw-status-column">状态</th>
-
+          <th scope="col" class="mw-assessment-column">已通过考核</th>
           <th scope="col" class="mw-actions-column">操作</th>
         </tr>
       </thead>
@@ -31,6 +31,7 @@
           <td class="mw-academic-column">{{ item.major || '—' }}<small>{{ item.grade || '未填写年级' }}</small></td>
           <td class="mw-contact-column">{{ item.phone || '—' }}<small v-if="item.qq">QQ {{ item.qq }}</small></td>
           <td class="mw-status-column"><span class="mw-badge" :data-tone="item.status==='ACTIVE'?'success':'neutral'">{{ item.status==='ACTIVE'?'启用':'停用' }}</span></td>
+          <td class="mw-assessment-column"><MemberAssessmentBadges :member="item" /></td>
           <td class="mw-actions-column"><slot name="actions" :member="item" /></td>
         </tr>
       </tbody>
@@ -59,6 +60,10 @@
           <div class="mw-mobile-detail"><small>角色</small><strong>{{ roleLabel(item.role) }}</strong></div>
           <div class="mw-mobile-detail mw-mobile-academic"><small>学院 / 年级</small><span>{{ item.major || '未填写学院' }}<em>{{ item.grade || '未填写年级' }}</em></span></div>
           <div class="mw-mobile-detail mw-mobile-contact"><small>联系</small><span>{{ item.phone || '未填写手机号' }}<em v-if="item.qq">QQ {{ item.qq }}</em></span></div>
+          <div class="mw-mobile-assessments">
+            <span class="mw-mobile-assessment-label">已通过考核</span>
+            <MemberAssessmentBadges :member="item" />
+          </div>
         </div>
         <div class="mw-mobile-record-foot"><span>账号操作</span><slot name="actions" :member="item" /></div>
       </article>
@@ -68,6 +73,7 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from "vue";
 import { roleLabel } from "../../app/adminNavigation";
+import MemberAssessmentBadges from "./MemberAssessmentBadges.vue";
 import type { MemberSummary } from "./memberDirectory";
 defineProps<{ members: MemberSummary[]; selected: Set<number>; selectableIds: number[]; allSelected: boolean; selectionBusy?: boolean; bindScroll?: (element: Element | ComponentPublicInstance | null) => void }>();
 defineEmits<{ toggleAll: [event: Event]; toggleMember: [id:number]; tableScroll: [] }>();

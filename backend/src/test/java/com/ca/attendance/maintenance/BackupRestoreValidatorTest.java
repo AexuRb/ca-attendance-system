@@ -153,6 +153,39 @@ class BackupRestoreValidatorTest {
         assertTrue(error.getMessage().contains("版本信息不正确"));
     }
 
+    @Test
+    void acceptsLegacyMemberRowsWithoutAssessments() throws Exception {
+        Map<String, byte[]> entries = requiredEmptyEntries();
+        entries.put("users.json", objectMapper.writeValueAsBytes(List.of(assessmentUser("ADMIN"))));
+        try (ExtractedBackupArchive archive = extract(entries)) {
+            assertTrue(validator.parse(archive).tableFiles().containsKey("users"));
+        }
+    }
+
+    @Test
+    void validatesBothAssessmentFieldsInCurrentBackups() throws Exception {
+        Map<String, byte[]> entries = currentEmptyEntries();
+        Map<String, Object> member = assessmentUser("MEMBER");
+        member.put("disassembly_assessment", "PASSED");
+        entries.put("users.json", objectMapper.writeValueAsBytes(List.of(member)));
+        assertTrue(assertInvalid(entries).getMessage().contains("os_reinstall_assessment"));
+
+        member.put("os_reinstall_assessment", "NOT_PASSED");
+        entries.put("users.json", objectMapper.writeValueAsBytes(List.of(member)));
+        try (ExtractedBackupArchive archive = extract(entries)) {
+            assertTrue(validator.parse(archive).tableFiles().containsKey("users"));
+        }
+
+        member.put("role", "MINISTER");
+        entries.put("users.json", objectMapper.writeValueAsBytes(List.of(member)));
+        assertTrue(assertInvalid(entries).getMessage().contains("考核状态必须为通过"));
+    }
+
+    private Map<String, Object> assessmentUser(String role) {
+        return new LinkedHashMap<>(Map.of("id", 1, "student_no", "9900000001", "name", "示例成员",
+                "password_hash", "test-hash", "role", role, "status", "ACTIVE"));
+    }
+
     private Map<String, byte[]> requiredEmptyEntries() throws Exception {
         List<String> requiredTables = List.of(
                 "users",

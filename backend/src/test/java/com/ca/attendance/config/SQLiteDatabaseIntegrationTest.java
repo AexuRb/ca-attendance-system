@@ -113,7 +113,7 @@ class SQLiteDatabaseIntegrationTest {
     @Test
     void createsVersionedDatabaseWithRequiredPragmas() {
         assertTrue(Files.isRegularFile(tempDirectory.resolve("data").resolve("attendance.db")));
-        assertEquals(11, jdbc.queryForObject("PRAGMA user_version", Integer.class));
+        assertEquals(12, jdbc.queryForObject("PRAGMA user_version", Integer.class));
         assertEquals(1, jdbc.queryForObject("PRAGMA foreign_keys", Integer.class));
         assertEquals("wal", jdbc.queryForObject("PRAGMA journal_mode", String.class));
         assertEquals("ok", jdbc.queryForObject("PRAGMA quick_check", String.class));
@@ -252,7 +252,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(11, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(12, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(0, legacyJdbc.queryForObject(
                     "SELECT require_duty_day FROM attendance_records WHERE id = ?", Integer.class, recordId));
             assertEquals(0, legacyJdbc.queryForObject(
@@ -317,7 +317,7 @@ class SQLiteDatabaseIntegrationTest {
                     BigDecimal.class,
                     sessionId
             );
-            assertEquals(11, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(12, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals("CLASSIC", legacyJdbc.queryForObject(
                     "SELECT setting_value FROM app_settings WHERE setting_key = 'UI_APPEARANCE'", String.class));
             assertEquals(0, before.compareTo(after));
@@ -359,7 +359,7 @@ class SQLiteDatabaseIntegrationTest {
 
             new DatabaseMigrator(legacyDataSource).run();
 
-            assertEquals(11, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
+            assertEquals(12, legacyJdbc.queryForObject("PRAGMA user_version", Integer.class));
             assertEquals(1, legacyJdbc.queryForObject(
                     "SELECT COUNT(*) FROM repair_cases WHERE case_no = 'JXWX-LEGACY-0001' AND deleted_at IS NULL",
                     Integer.class

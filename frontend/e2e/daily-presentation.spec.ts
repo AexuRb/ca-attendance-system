@@ -33,126 +33,108 @@ async function install(page: Page, appearance: string) {
     }
     if (path === '/api/public/schedules/today') return json({slots:[]});
     if (path === '/api/stats/dashboard') return json({todayRecordCount:1,todayValidHours:0});
+    if (path === '/api/skill-assessments/overview') return json({date:'2026-11-21',items:Array.from({length:30},(_, index) => ({
+      id:index+1, name:`示例成员 ${index+1}`, disassemblyAssessment:'PASSED', osReinstallAssessment:'NOT_PASSED',
+    }))});
     return json([]);
   });
   return writes;
 }
 
 for (const appearance of ['CLASSIC','EDITORIAL','SPATIAL']) {
-  test(`${appearance} command suggestions remain visible and scroll without moving the page`, async ({page}) => {
-    await install(page,appearance);
+  test(`${appearance} today keeps the roster full height and scrollable beside the summary`, async ({page}, testInfo) => {
+    const writes = await install(page,appearance);
+    await page.setViewportSize({width:1920,height:1080});
+    await page.emulateMedia({reducedMotion:'reduce'});
     await page.goto('/#/admin/today');
-    const input = page.getByRole('combobox',{name:'查找后台功能或输入命令'});
-    const panel = page.getByRole('listbox',{name:'命令建议'});
-    for (const viewport of [{width:1440,height:900},{width:1180,height:720},{width:900,height:720},{width:680,height:740},{width:520,height:740}]) {
-      await page.setViewportSize(viewport);
-      await input.fill('');
-      await input.fill('/');
-      await expect(panel).toBeVisible();
-      // Wait for the panel transition before checking the actual hit target.
-      await expect.poll(() => panel.evaluate(el => {
-        const rect = el.getBoundingClientRect();
-        return rect.top >= 0 && rect.bottom <= innerHeight &&
-          el.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.bottom - 4));
-      })).toBe(true);
-      const before = await page.evaluate(() => scrollY);
-      const count = await panel.getByRole('option').count();
-      for (let i=1;i<count;i++) await input.press('ArrowDown');
-      const last = panel.getByRole('option').last();
-      await expect(last).toHaveAttribute('aria-selected','true');
-      expect(await last.evaluate(el => {
-        const rect = el.getBoundingClientRect();
-        return el.contains(document.elementFromPoint(rect.x + 20, rect.y + rect.height / 2));
-      })).toBe(true);
-      expect(await page.evaluate(() => scrollY)).toBe(before);
-      const box = await last.boundingBox();
-      await page.mouse.move(box!.x+20,box!.y+box!.height/2);
-      await page.mouse.wheel(0,600);
-      await page.waitForTimeout(150);
-      expect(await page.evaluate(() => scrollY)).toBe(before);
-      await input.press('Escape');
-      await expect(panel).toBeHidden();
-    }
-    await page.setViewportSize({width:1440,height:900});
-    for (const zoom of [1.25,1.5,2]) {
-      await page.evaluate(value => { document.documentElement.style.zoom = String(value); },zoom);
-      await input.fill('');
-      await input.fill('/');
-      await expect.poll(() => panel.evaluate(el => {
-        const rect = el.getBoundingClientRect();
-        return rect.top >= 0 && rect.bottom <= innerHeight;
-      })).toBe(true);
-      await input.press('Escape');
-    }
-    await page.evaluate(() => { document.documentElement.style.zoom = ''; });
-    await page.setViewportSize({width:520,height:740});
-    const longCommand = '/ 导出 维修事务 已完成 2026-08-01..2026-08-28';
-    await input.fill(longCommand);
-    await expect(input).toHaveValue(longCommand);
-    const inputMetrics = await input.evaluate(element => {
-      const field = element as HTMLTextAreaElement;
-      return { clientHeight: field.clientHeight, scrollHeight: field.scrollHeight };
+    const summary = page.getByRole('region',{name:'今日信息'});
+    await expect(summary.getByText('待审核',{exact:true})).toBeVisible();
+    await expect(summary.getByText('进行中维修',{exact:true})).toBeVisible();
+    await expect(summary.getByRole('listitem')).toHaveCount(2);
+    const roster = page.getByRole('complementary',{name:'当前在场'});
+    const rosterScroll = roster.getByRole('region',{name:'在场人员与考核状态'});
+    await expect(roster.getByRole('rowheader',{name:'示例成员 1',exact:true})).toBeVisible();
+    await expect(roster.getByRole('columnheader',{name:'重装系统'})).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const beforeScroll = await page.locator('.today-layout').evaluate(element => {
+      const bounds = (selector: string) => element.querySelector(selector)!.getBoundingClientRect();
+      return { rosterTop:bounds('.today-roster').top, rosterBottom:bounds('.today-roster').bottom,
+        welcomeTop:bounds('.today-welcome').top, lowerBottom:bounds('.today-lower').bottom };
     });
-    expect(inputMetrics.clientHeight).toBeGreaterThan(48);
-    expect(inputMetrics.scrollHeight).toBeLessThanOrEqual(inputMetrics.clientHeight + 1);
-    if (process.env.CA_VISUAL_CAPTURE === '1') {
-      await page.screenshot({path:`../tasks/ui-polish/${appearance}-long-command-520.png`,fullPage:true,animations:'disabled'});
+    expect(beforeScroll.rosterTop).toBeCloseTo(beforeScroll.welcomeTop, 0);
+    expect(beforeScroll.rosterBottom).toBeCloseTo(beforeScroll.lowerBottom, 0);
+    const lower = page.locator('.today-lower');
+    const lowerBox = (await lower.boundingBox())!;
+    const metrics = (await summary.getByRole('list').boundingBox())!;
+    const links = lower.getByRole('link');
+    const firstLink = (await links.first().boundingBox())!;
+    const lastLink = (await links.last().boundingBox())!;
+    const lowerCenter = lowerBox.x + lowerBox.width / 2;
+    expect(metrics.x + metrics.width / 2).toBeCloseTo(lowerCenter, 0);
+    expect((firstLink.x + lastLink.x + lastLink.width) / 2).toBeCloseTo(lowerCenter, 0);
+    await page.screenshot({path:testInfo.outputPath('desktop.png')});
+    const heading = roster.getByRole('columnheader',{name:'成员',exact:true});
+    const initialHeaderTop = (await heading.boundingBox())!.y;
+    await rosterScroll.evaluate(element => { element.scrollTop = 350; });
+    await expect.poll(() => rosterScroll.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+    expect((await heading.boundingBox())!.y).toBeCloseTo(initialHeaderTop, 0);
+    const lowerAfterScroll = (await page.locator('.today-lower').boundingBox())!;
+    expect(lowerAfterScroll.y + lowerAfterScroll.height).toBeCloseTo(beforeScroll.lowerBottom, 0);
+    await page.keyboard.press('/');
+    await expect(page.locator('.overview-workspace').locator('input,textarea,[role=combobox],[role=log]')).toHaveCount(0);
+    for (const viewport of [{width:1440,height:900},{width:1180,height:720},{width:900,height:720},{width:680,height:740},{width:390,height:844}]) {
+      await page.setViewportSize(viewport);
+      await expect(summary).toBeVisible();
+      await expect(roster).toBeVisible();
+      await expect.poll(() => page.evaluate(() =>
+        document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
     }
+    const narrow = (await roster.boundingBox())!;
+    expect(narrow.y + narrow.height).toBeLessThan((await page.locator('.today-lower').boundingBox())!.y);
+    await page.screenshot({path:testInfo.outputPath('narrow.png')});
+    await page.getByRole('link',{name:'今日值班记录',exact:true}).click();
+    await expect(page).toHaveURL(/attendance\?from=(\d{4}-\d{2}-\d{2})&to=\1/);
+    expect(writes).toHaveLength(0);
   });
 
-  test(`${appearance} credits dialog remains above the daily command composer`, async ({page}) => {
+  test(`${appearance} credits dialog on the profile restores focus`, async ({page}) => {
     await install(page,appearance);
-    await page.goto('/#/admin/today');
-
+    await page.goto('/#/admin/profile');
     const creditsButton = page.getByRole('button',{name:'查看鸣谢'});
-    const commandInput = page.getByRole('combobox',{name:'查找后台功能或输入命令'});
-    await expect(commandInput).toBeVisible();
     await creditsButton.click();
-    await expect(page.getByRole('dialog',{name:'鸣谢'})).toBeVisible();
-
-    const inputBox = await commandInput.boundingBox();
-    expect(inputBox).not.toBeNull();
-    const dialogOwnsTopLayer = await page.evaluate(({x,y}) =>
-      Boolean(document.elementFromPoint(x,y)?.closest('.mw-backdrop')),
-    {
-      x: inputBox!.x + inputBox!.width / 2,
-      y: inputBox!.y + inputBox!.height / 2,
-    });
-    expect(dialogOwnsTopLayer).toBe(true);
+    const dialog = page.getByRole('dialog',{name:'鸣谢'});
+    await expect(dialog).toBeVisible();
+    await expect.poll(() => dialog.evaluate(el => {
+      const { x, y, width, height } = el.getBoundingClientRect();
+      return el.contains(document.elementFromPoint(x + width / 2, y + height / 2));
+    })).toBe(true);
 
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog',{name:'鸣谢'})).toHaveCount(0);
     await expect(creditsButton).toBeFocused();
   });
 
-  test(`${appearance} daily command and record editing preserve requests and keyboard`, async ({page}) => {
+  test(`${appearance} today navigation and record editing preserve requests and keyboard`, async ({page}) => {
     const writes = await install(page,appearance);
     await page.goto('/#/admin/today');
-    await expect(page.locator('.daily-command')).toBeVisible();
-    await page.keyboard.press('/');
-    const input = page.getByRole('combobox',{name:'查找后台功能或输入命令'});
-    await expect(input).toBeFocused();
-    await input.fill('/ 查看 值班记录');
-    await input.press('Escape');
-    await expect(input).toHaveAttribute('aria-expanded','false');
-    await input.press('Enter');
+    await page.getByRole('link',{name:'值班记录',exact:true}).click();
     await expect(page).toHaveURL(/attendance/);
     await expect(page.getByRole('cell',{name:'示例成员',exact:false})).toBeVisible();
     await page.getByRole('button',{name:'编辑',exact:true}).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByLabel('操作原因').fill('演示校正时间');
+    await dialog.getByRole('radio',{name:'更正签到／签退时间',exact:true}).check();
     await dialog.getByLabel('签退时间',{exact:true}).fill('2026-09-12T12:30');
     await dialog.getByRole('button',{name:'保存',exact:true}).click();
     await expect(dialog).toBeHidden();
-    expect(writes[0]).toMatchObject({path:'/api/attendance/1/manual',body:{reason:'演示校正时间',checkOutTime:'2026-09-12T12:30'}});
-    await expect(page.getByRole('cell',{name:'2026-09-12 12:30',exact:false})).toBeVisible();
+    expect(writes[0]).toMatchObject({path:'/api/attendance/1/manual',body:{reason:'更正签到／签退时间',checkOutTime:'2026-09-12T12:30'}});
+    await expect(page.locator('time[title^="2026-09-12 12:30"]:visible')).toBeVisible();
     await page.getByRole('button',{name:'删除',exact:true}).click();
     await dialog.getByRole('button',{name:'取消'}).click();
     expect(writes).toHaveLength(1);
     await page.getByRole('button',{name:'删除',exact:true}).click();
-    await dialog.locator('textarea').fill('演示删除原因');
+    await dialog.getByRole('radio',{name:'重复记录',exact:true}).check();
     await dialog.getByRole('button',{name:'删除记录',exact:true}).click();
-    await expect(page.getByText('没有符合条件的记录')).toBeVisible();
+    await expect(page.getByRole('cell',{name:'示例成员',exact:false})).toHaveCount(0);
     expect(writes).toHaveLength(2);
   });
 
@@ -184,7 +166,7 @@ for (const appearance of ['CLASSIC','EDITORIAL','SPATIAL']) {
     expect(writes[2]).toMatchObject({body:{part:'CHECK_OUT',action:'REJECT',reason:'演示核对原因'}});
     for (const route of ['today','attendance','reviews']) {
       await page.goto('/#/admin/'+route);
-      await expect(page.locator(route === 'reviews' ? '.review-workspace' : `.${route}-workspace`)).toBeVisible();
+      await expect(page.locator({ today: '.overview-today', attendance: '.attendance-workspace', reviews: '.review-workspace' }[route]!)).toBeVisible();
       await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
       await page.setViewportSize({width:1440,height:960});
       await page.evaluate(()=>document.documentElement.style.zoom='1.5');

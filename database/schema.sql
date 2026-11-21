@@ -16,8 +16,36 @@ CREATE TABLE users (
   created_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   updated_by INTEGER REFERENCES users (id) ON DELETE SET NULL DEFERRABLE INITIALLY DEFERRED,
   created_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
-  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime'))
+  updated_at DATETIME NOT NULL DEFAULT (datetime('now', 'localtime')),
+  disassembly_assessment TEXT NOT NULL DEFAULT 'NOT_PASSED' CHECK (disassembly_assessment IN ('PASSED', 'NOT_PASSED')),
+  os_reinstall_assessment TEXT NOT NULL DEFAULT 'NOT_PASSED' CHECK (os_reinstall_assessment IN ('PASSED', 'NOT_PASSED'))
 );
+
+CREATE TRIGGER users_pass_assessments_on_insert
+AFTER INSERT ON users
+WHEN NEW.role IN ('MINISTER', 'PRESIDENT', 'ADMIN')
+    AND (NEW.disassembly_assessment <> 'PASSED' OR NEW.os_reinstall_assessment <> 'PASSED')
+BEGIN
+    UPDATE users SET disassembly_assessment = 'PASSED', os_reinstall_assessment = 'PASSED'
+    WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER users_pass_assessments_on_appointment
+AFTER UPDATE OF role ON users
+WHEN NEW.role IN ('MINISTER', 'PRESIDENT', 'ADMIN')
+    AND (NEW.disassembly_assessment <> 'PASSED' OR NEW.os_reinstall_assessment <> 'PASSED')
+BEGIN
+    UPDATE users SET disassembly_assessment = 'PASSED', os_reinstall_assessment = 'PASSED'
+    WHERE id = NEW.id;
+END;
+
+CREATE TRIGGER users_lock_assessments_for_officers
+BEFORE UPDATE OF disassembly_assessment, os_reinstall_assessment ON users
+WHEN NEW.role IN ('MINISTER', 'PRESIDENT', 'ADMIN')
+    AND (NEW.disassembly_assessment <> 'PASSED' OR NEW.os_reinstall_assessment <> 'PASSED')
+BEGIN
+    SELECT RAISE(ABORT, 'Officer assessments must remain passed');
+END;
 
 CREATE INDEX idx_users_role_status ON users (role, status);
 CREATE INDEX idx_users_name ON users (name);

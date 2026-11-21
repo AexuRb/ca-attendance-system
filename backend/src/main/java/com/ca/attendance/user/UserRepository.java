@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -16,6 +17,13 @@ import static com.ca.attendance.common.JdbcTime.localDateTime;
 
 @Repository
 public class UserRepository {
+    private static final String TODAY_ASSESSMENT_MEMBER = """
+            u.role = 'MEMBER' AND u.status = 'ACTIVE' AND EXISTS (
+                SELECT 1 FROM attendance_records ar
+                WHERE ar.user_id = u.id AND ar.duty_date = ? AND ar.source = 'PUBLIC'
+                  AND ar.check_in_status IN ('PENDING', 'APPROVED', 'AUTO_APPROVED')
+            )
+            """;
     private final JdbcTemplate jdbc;
 
     private final RowMapper<UserSummary> summaryMapper = (rs, rowNum) -> new UserSummary(
@@ -30,7 +38,9 @@ public class UserRepository {
             rs.getString("qq"),
             rs.getBoolean("must_change_password"),
             localDateTime(rs, "created_at"),
-            localDateTime(rs, "updated_at")
+            localDateTime(rs, "updated_at"),
+            AssessmentStatus.valueOf(rs.getString("disassembly_assessment")),
+            AssessmentStatus.valueOf(rs.getString("os_reinstall_assessment"))
     );
 
     public UserRepository(JdbcTemplate jdbc) {
@@ -63,6 +73,16 @@ public class UserRepository {
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
+    }
+
+    List<UserSummary> todayAssessmentMembers(LocalDate date) {
+        return jdbc.query("SELECT u.* FROM users u WHERE " + TODAY_ASSESSMENT_MEMBER
+                + "ORDER BY u.name, u.student_no, u.id", summaryMapper, date.toString());
+    }
+
+    Optional<UserSummary> todayAssessmentMember(long id, LocalDate date) {
+        return jdbc.query("SELECT u.* FROM users u WHERE " + TODAY_ASSESSMENT_MEMBER
+                + "AND u.id = ?", summaryMapper, date.toString(), id).stream().findFirst();
     }
 
     public Optional<UserSummary> findActiveByStudentNo(String studentNo) {

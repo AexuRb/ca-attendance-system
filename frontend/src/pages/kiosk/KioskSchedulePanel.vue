@@ -27,7 +27,11 @@
       <CalendarClock aria-hidden="true" />
       <span>今日暂无排班</span>
     </div>
-    <div v-else class="kiosk-signal-track">
+    <div
+      v-else
+      class="kiosk-signal-track"
+      :style="{ '--kiosk-shift-columns': Math.min(todaySchedule.slots.length, 4) }"
+    >
       <article
         v-for="(slot, index) in todaySchedule.slots"
         :key="slot.key || `${slot.startTime}-${slot.endTime}`"

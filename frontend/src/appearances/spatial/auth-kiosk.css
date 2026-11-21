@@ -226,28 +226,8 @@
   font-size: 14px;
 }
 
-:root[data-appearance="spatial"] .kiosk-signal-week {
-  min-height: 72px;
-  border: 0;
-  border-top: 1px solid var(--line);
-  padding: 9px clamp(22px, 4vw, 62px);
-  background: rgba(255, 255, 255, 0.86);
-}
-
-:root[data-appearance="spatial"] .kiosk-signal-week-title,
-:root[data-appearance="spatial"] .kiosk-signal-week-days article,
-:root[data-appearance="spatial"] .kiosk-signal-week-days article strong,
 :root[data-appearance="spatial"] .kiosk-signal-admin {
   font-size: 13px;
-}
-
-:root[data-appearance="spatial"] .kiosk-signal-week-days article {
-  border-radius: 8px;
-}
-
-:root[data-appearance="spatial"] .kiosk-signal-week-days article.today {
-  background: var(--blue-100);
-  color: var(--primary);
 }
 
 :root[data-appearance="spatial"] .kiosk-signal-admin {
@@ -288,8 +268,7 @@
   :root[data-appearance="spatial"] .auth-brand-lockup div > span,
   :root[data-appearance="spatial"] .auth-signal-context,
   :root[data-appearance="spatial"] .kiosk-focus-time > span,
-  :root[data-appearance="spatial"] .kiosk-focus-brand > div > span,
-  :root[data-appearance="spatial"] .kiosk-signal-week-title {
+  :root[data-appearance="spatial"] .kiosk-focus-brand > div > span {
     display: none;
   }
 
@@ -334,7 +313,4 @@
     display: none;
   }
 
-  :root[data-appearance="spatial"] .kiosk-signal-week {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
 }

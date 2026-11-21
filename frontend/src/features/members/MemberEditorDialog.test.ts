@@ -140,6 +140,31 @@ describe("MemberEditorDialog", () => {
     wrapper.unmount();
   });
 
+  it("shows both assessments passed and locked for an appointment", async () => {
+    const wrapper = mount(MemberEditorDialog, {
+      global: { stubs: { Teleport: true } },
+      props: {
+        open: true, member: { ...admin, role: "MEMBER", disassemblyAssessment: "NOT_PASSED" },
+        operatorRole: "PRESIDENT", gradeChoices: [],
+      },
+    });
+    const first = 'select[name="disassemblyAssessment"]';
+    expect(wrapper.get<HTMLSelectElement>(first).element.value).toBe("NOT_PASSED");
+    await wrapper.get(first).setValue("PASSED");
+    await wrapper.get('select[name="role"]').setValue("MINISTER");
+    expect(wrapper.find(".member-editor-assessments select").exists()).toBe(false);
+    expect(wrapper.get(".member-editor-assessment-note").text()).toBe("两项考核均已通过，任职期间锁定。");
+    await wrapper.get('select[name="role"]').setValue("MEMBER");
+    expect(wrapper.get<HTMLSelectElement>(first).element.value).toBe("PASSED");
+    await wrapper.get('select[name="role"]').setValue("MINISTER");
+    await wrapper.get('input[name="reason"][value="职务调整"]').setValue();
+    await wrapper.get("form").trigger("submit");
+    expect(wrapper.emitted("save")?.[0]?.[0]).toMatchObject({
+      role: "MINISTER", assessmentChanges: {}, assessmentOnly: false,
+    });
+    wrapper.unmount();
+  });
+
   it("keeps a historical grade selectable while editing", () => {
     const wrapper = mount(MemberEditorDialog, {
       attachTo: document.body,

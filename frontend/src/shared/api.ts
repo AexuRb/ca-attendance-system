@@ -109,6 +109,9 @@ export const put = <T = unknown>(path: string, body?: unknown) =>
     method: "PUT",
     body: body instanceof FormData ? body : JSON.stringify(body ?? {}),
   });
+
+export const patch = <T = unknown>(path: string, body: unknown) =>
+  api<T>(path, { method: "PATCH", body: JSON.stringify(body) });
 export const del = <T = unknown>(path: string, body?: unknown) =>
   api<T>(path, {
     method: "DELETE",

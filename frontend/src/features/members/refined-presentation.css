@@ -30,10 +30,11 @@ html:root[data-appearance] .overview-members.members-page .mw-table :is(th,td) {
 html:root[data-appearance] .overview-members.members-page .mw-table th { background:#fff; color:var(--mw-muted); }
 html:root[data-appearance] .overview-members.members-page .mw-table td { height:84px; background:transparent; }
 html:root[data-appearance] .overview-members.members-page .mw-table td small { display:block; color:var(--mw-muted); font:400 12px/20px var(--mw-font); }
-html:root[data-appearance] .overview-members.members-page .mw-table .mw-selection { width:56px; min-width:56px; padding-inline:6px; }
+html:root[data-appearance] .overview-members.members-page .mw-table .mw-selection { width:76px; min-width:76px; padding-inline:6px; }
 html:root[data-appearance] .overview-members.members-page .mw-table :is(.mw-person-column,.mw-academic-column,.mw-contact-column) { width:auto; }
 html:root[data-appearance] .overview-members.members-page .mw-table .mw-role-column { width:72px; min-width:72px; }
 html:root[data-appearance] .overview-members.members-page .mw-table .mw-status-column { width:64px; min-width:64px; }
+html:root[data-appearance] .overview-members.members-page .mw-table .mw-assessment-column { width:132px; padding-inline:10px; }
 html:root[data-appearance] .overview-members.members-page .mw-table .mw-actions-column { position:static; width:90px; min-width:90px; box-shadow:none; }
 html:root[data-appearance] .overview-members.members-page .mw-table tbody tr.is-selected td { background:color-mix(in srgb,var(--mw-accent) 7%,transparent); }
 html:root[data-appearance] .overview-members.members-page .mw-table tbody tr:hover:not(.is-selected) td { background:color-mix(in srgb,var(--mw-accent) 3%,transparent); }
@@ -47,6 +48,14 @@ html:root[data-appearance] .overview-members.members-page .mw-mobile-records { d
 html:root[data-appearance] .overview-members.members-page .mw-mobile-list { max-height:none; overflow:visible; overscroll-behavior-y:auto; }
 html:root[data-appearance] .overview-members.members-page .mw-mobile-select-all { border:0; border-bottom:1px solid var(--mw-line); background:transparent; }
 html:root[data-appearance] .overview-members.members-page .mw-mobile-record { padding:16px 0; background:transparent; }
+html:root[data-appearance] .overview-members.members-page .mw-mobile-assessments {
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:max-content minmax(0,1fr);
+  align-items:center;
+  gap:4px 10px;
+}
+html:root[data-appearance] .overview-members.members-page .mw-mobile-assessment-label { color:var(--mw-muted); font:400 12px/20px var(--mw-font); }
 html:root[data-appearance] .overview-members.members-page .mw-mobile-person strong { font:500 18px/26px var(--mw-font); }
 html:root[data-appearance] .overview-members.members-page .pagination { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin:16px 0 0; padding:12px 0 0; border-top:1px solid var(--mw-line); color:var(--mw-muted); font:400 13px/22px var(--mw-font); }
 html:root[data-appearance] .overview-members.members-page .pagination .button { min-height:36px; padding:0 12px; border-radius:8px; font:400 13px/22px var(--mw-font); }
@@ -72,6 +81,11 @@ html:root[data-appearance] .members-refined-backdrop .mw-modal-foot .member-edit
   html:root[data-appearance] .overview-members.members-page .mw-filter .member-search-field { grid-column:1/-1; }
   html:root[data-appearance] .overview-members.members-page .mw-filter-main>.button[type=submit] { grid-column:2; grid-row:3; }
   html:root[data-appearance] .overview-members.members-page .mw-filter-status { grid-row:4; }
+}
+@container members-results (min-width:651px) and (max-width:850px) {
+  html:root[data-appearance] .overview-members.members-page .mw-table :is(th,td) { padding-inline:8px; }
+  html:root[data-appearance] .overview-members.members-page .mw-table .mw-person-column { width:20%; }
+  html:root[data-appearance] .overview-members.members-page .mw-identity { gap:6px; }
 }
 @container members-results (max-width:650px) {
   html:root[data-appearance] .overview-members.members-page .mw-table-scroll { display:none; }

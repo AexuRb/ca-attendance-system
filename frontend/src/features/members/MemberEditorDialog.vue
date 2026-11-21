@@ -66,6 +66,22 @@
           <option value="DISABLED">停用</option>
         </select>
       </label>
+      <fieldset v-if="member" class="member-editor-assessments span-2">
+        <legend>技能考核</legend>
+        <div v-if="form.role === 'MEMBER'" class="form-grid two">
+          <label v-for="field in memberAssessments" :key="field.key" class="field">
+            <span>{{ field.label }}</span>
+            <select v-model="form[field.key]" :name="field.key" :disabled="busy">
+              <option value="NOT_PASSED">未通过</option>
+              <option value="PASSED">通过</option>
+            </select>
+          </label>
+        </div>
+        <p v-else class="member-editor-assessment-note">
+          <LockKeyhole aria-hidden="true" />
+          <span>两项考核均已通过，任职期间锁定。</span>
+        </p>
+      </fieldset>
       <label class="field">
         <span>手机号</span>
         <input
@@ -131,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+import { LockKeyhole } from "@lucide/vue";
 import { computed, reactive, ref, watch } from "vue";
 import ModalDialog from "../../shared/ui/ModalDialog.vue";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog.vue";
@@ -142,10 +159,15 @@ import {
   validateMemberInput,
   type InputErrors,
 } from "../../shared/validation/userInput";
-import type {
-  MemberRole,
-  MemberStatus,
-  MemberSummary,
+import {
+  memberAssessments,
+  memberAssessmentStatus,
+  type AssessmentStatus,
+  type MemberAssessmentChanges,
+  type MemberEditorPayload,
+  type MemberRole,
+  type MemberStatus,
+  type MemberSummary,
 } from "./memberDirectory";
 
 const props = defineProps<{
@@ -159,19 +181,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   close: [];
-  save: [
-    payload: {
-      studentNo: string;
-      name: string;
-      role: MemberRole;
-      status: MemberStatus;
-      phone: string;
-      major: string;
-      grade: string;
-      qq: string;
-      reason?: string;
-    },
-  ];
+  save: [payload: MemberEditorPayload];
 }>();
 
 function close() {
@@ -188,6 +198,8 @@ const form = reactive({
   grade: "",
   qq: "",
   reason: "",
+  disassemblyAssessment: "NOT_PASSED" as AssessmentStatus,
+  osReinstallAssessment: "NOT_PASSED" as AssessmentStatus,
 });
 const formElement = ref<HTMLFormElement | null>(null);
 const baseline = ref("");
@@ -215,6 +227,8 @@ watch(
       grade: member?.grade || "",
       qq: member?.qq || "",
       reason: "",
+      disassemblyAssessment: member ? memberAssessmentStatus(member, "disassemblyAssessment") ?? "NOT_PASSED" : "NOT_PASSED",
+      osReinstallAssessment: member ? memberAssessmentStatus(member, "osReinstallAssessment") ?? "NOT_PASSED" : "NOT_PASSED",
     });
     baseline.value = JSON.stringify(form);
     Object.keys(errors).forEach((key) => delete errors[key]);
@@ -223,16 +237,59 @@ watch(
 );
 
 function submit() {
-  const nextErrors = validateMemberInput(form, {
-    validateStudentNo: !props.member,
-    requireReason: Boolean(props.member),
+  if (props.busy) return;
+  const member = props.member;
+  const assessmentChanges: MemberAssessmentChanges = {};
+  if (member && form.role === "MEMBER") {
+    for (const { key } of memberAssessments) {
+      if (form[key] !== (memberAssessmentStatus(member, key) ?? "NOT_PASSED")) {
+        assessmentChanges[key] = form[key];
+      }
+    }
+  }
+  const profileFields = ["name", "role", "status", "phone", "major", "grade", "qq"] as const;
+  const assessmentOnly = Boolean(member && Object.keys(assessmentChanges).length &&
+    profileFields.every(key => form[key] === (member[key] ?? "")));
+  const validation = validateMemberInput(form, {
+    validateStudentNo: !member,
+    requireReason: Boolean(member),
   });
+  const nextErrors = assessmentOnly ? (validation.reason ? { reason: validation.reason } : {}) : validation;
   Object.keys(errors).forEach((key) => delete errors[key]);
   Object.assign(errors, nextErrors);
   if (Object.keys(errors).length) {
     focusFirstInvalid(formElement.value, errors);
     return;
   }
-  emit("save", { ...form });
+  const { studentNo, name, role, status, phone, major, grade, qq, reason } = form;
+  emit("save", { studentNo, name, role, status, phone, major, grade, qq, reason, assessmentChanges, assessmentOnly });
 }
 </script>
+
+<style scoped>
+.member-editor-assessments {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 8px 12px 12px;
+  border: 1px solid var(--mw-line, var(--border-soft, #dce2e8));
+  border-radius: 8px;
+}
+.member-editor-assessments legend {
+  padding-inline: 4px;
+  font-weight: 600;
+}
+.member-editor-assessment-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--mw-muted, var(--text-muted));
+}
+.member-editor-assessment-note svg {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+}
+</style>

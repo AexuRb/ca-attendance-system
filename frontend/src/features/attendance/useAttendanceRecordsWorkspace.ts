@@ -142,7 +142,7 @@ export function useAttendanceRecordsWorkspace() {
     const statsContext = typeof statsLink === "string" ? statsLinkScope.get(statsLink) : undefined;
     if (!saved && statsContext) { filters.keyword = statsContext.keyword; filters.userId = statsContext.userId; }
     const initialPage = saved?.page || positiveRoutePage(route.query.page);
-    // Consume command-provided keywords even when the initial request fails.
+    // Consume route keywords even when the initial request fails.
     await updateOwnedRouteQuery(router, route.query, ["keyword"], {}, "replace");
     routeReady = true;
     await Promise.all([

@@ -21,6 +21,7 @@ import java.sql.SQLException;
  */
 final class ExistingDatabaseRollbackDataSource extends SingleConnectionDataSource {
     private final Boundary boundary;
+    private Savepoint baseline;
 
     ExistingDatabaseRollbackDataSource(Path database) throws Exception {
         this(new Boundary(database));
@@ -32,14 +33,19 @@ final class ExistingDatabaseRollbackDataSource extends SingleConnectionDataSourc
     }
 
     void rollbackAll() throws SQLException {
-        boundary.physical.rollback();
+        if (baseline == null) boundary.physical.rollback();
+        else boundary.physical.rollback(baseline);
         boundary.serviceBoundary = null;
         boundary.autoCommit = true;
     }
 
+    void keepCurrentSchemaBetweenTests() throws SQLException {
+        if (baseline == null) baseline = boundary.physical.setSavepoint();
+    }
+
     @Override public void destroy() {
         try {
-            rollbackAll();
+            boundary.physical.rollback();
         } catch (SQLException ex) {
             throw new IllegalStateException("Verification rollback failed", ex);
         } finally {
@@ -61,8 +67,8 @@ final class ExistingDatabaseRollbackDataSource extends SingleConnectionDataSourc
                 statement.execute("PRAGMA foreign_keys=ON");
                 statement.execute("PRAGMA busy_timeout=10000");
                 try (var version = statement.executeQuery("PRAGMA user_version")) {
-                    if (!version.next() || version.getInt(1) != 11) {
-                        throw new IllegalStateException("Verification requires the existing version 11 schema");
+                    if (!version.next() || version.getInt(1) < 11) {
+                        throw new IllegalStateException("Verification requires an existing schema at version 11 or later");
                     }
                 }
             }

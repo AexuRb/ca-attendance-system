@@ -47,6 +47,7 @@ public final class RolePermissionPolicy {
                 Permission.BACKUPS,
                 Permission.DATA_CENTER);
         grant(grants, EnumSet.allOf(Role.class), Permission.REMOTE_ADMIN);
+        grant(grants, EnumSet.of(Role.MINISTER), Permission.SKILL_ASSESSMENT_CONDUCT);
         grant(grants, ADMINS,
                 Permission.MEMBERS_DELETE,
                 Permission.REPAIR_RECYCLE_BIN,
@@ -66,6 +67,7 @@ public final class RolePermissionPolicy {
         ATTENDANCE_CREATE,
         MEMBERS_MANAGE,
         MEMBERS_DELETE,
+        SKILL_ASSESSMENT_CONDUCT,
         SCHEDULE_MANAGE,
         SCHEDULE_VIEW,
         DUTY_SETTINGS_MANAGE,

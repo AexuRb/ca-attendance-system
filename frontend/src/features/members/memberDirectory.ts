@@ -1,7 +1,16 @@
 export type MemberRole = "MEMBER" | "MINISTER" | "PRESIDENT" | "ADMIN";
 export type MemberStatus = "ACTIVE" | "DISABLED";
+export type AssessmentStatus = "PASSED" | "NOT_PASSED";
 
-export interface MemberSummary {
+export const memberAssessments = [
+  { key: "disassemblyAssessment", label: "拆机考核", shortLabel: "拆机" },
+  { key: "osReinstallAssessment", label: "重装系统考核", shortLabel: "重装系统" },
+] as const;
+
+type AssessmentField = typeof memberAssessments[number]["key"];
+export type MemberAssessmentChanges = Partial<Record<AssessmentField, AssessmentStatus>>;
+
+export interface MemberSummary extends MemberAssessmentChanges {
   id: number;
   studentNo: string;
   name: string;
@@ -12,6 +21,24 @@ export interface MemberSummary {
   grade?: string;
   qq?: string;
   mustChangePassword?: boolean;
+}
+
+export interface MemberEditorPayload {
+  studentNo: string;
+  name: string;
+  role: MemberRole;
+  status: MemberStatus;
+  phone: string;
+  major: string;
+  grade: string;
+  qq: string;
+  reason?: string;
+  assessmentChanges: MemberAssessmentChanges;
+  assessmentOnly: boolean;
+}
+
+export function memberAssessmentStatus(member: MemberSummary, key: AssessmentField) {
+  return member.role === "MEMBER" ? member[key] : "PASSED";
 }
 
 export interface MemberPage {

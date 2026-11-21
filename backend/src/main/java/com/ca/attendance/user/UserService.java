@@ -28,6 +28,7 @@ import org.sqlite.SQLiteException;
 
 import java.io.InputStream;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -271,6 +272,13 @@ public class UserService {
         }
         Role targetRole = request.role() == null || request.role().isBlank() ? before.role() : parseRole(request.role());
         validateRoleAssignment(current.role(), before.role(), targetRole);
+        AssessmentStatus disassembly = parseAssessmentStatus(request.disassemblyAssessment(), "拆机考核");
+        AssessmentStatus reinstall = parseAssessmentStatus(request.osReinstallAssessment(), "重装系统考核");
+        if (targetRole != Role.MEMBER) {
+            requireEditableAssessments(targetRole, disassembly, reinstall);
+            disassembly = AssessmentStatus.PASSED;
+            reinstall = AssessmentStatus.PASSED;
+        }
         String targetStatus = request.status() == null || request.status().isBlank() ? before.status() : request.status().trim().toUpperCase();
         if (!targetStatus.equals("ACTIVE") && !targetStatus.equals("DISABLED")) {
             throw ApiException.badRequest("账号状态只能是 ACTIVE 或 DISABLED");
@@ -285,6 +293,8 @@ public class UserService {
         int updated = jdbc.update("""
                 UPDATE users
                 SET name = ?, role = ?, status = ?, phone = ?, major = ?, grade = ?, qq = ?,
+                    disassembly_assessment = COALESCE(?, disassembly_assessment),
+                    os_reinstall_assessment = COALESCE(?, os_reinstall_assessment),
                     disabled_at = CASE WHEN ? = 'DISABLED' THEN COALESCE(disabled_at, datetime('now', 'localtime')) ELSE NULL END,
                     disabled_by = CASE WHEN ? = 'DISABLED' THEN ? ELSE NULL END,
                     updated_by = ?, updated_at = datetime('now', 'localtime')
@@ -297,6 +307,8 @@ public class UserService {
                 college,
                 grade,
                 qq,
+                disassembly == null ? null : disassembly.name(),
+                reinstall == null ? null : reinstall.name(),
                 targetStatus,
                 targetStatus,
                 current.id(),
@@ -308,6 +320,90 @@ public class UserService {
         UserSummary after = users.findSummaryById(id).orElseThrow();
         logs.log("UPDATE_USER", "users", id, before, after, reason == null ? "修改成员信息" : reason);
         return after;
+    }
+
+    @Transactional
+    public UserSummary updateAssessments(long id, AssessmentUpdateRequest request) {
+        AuthUser current = AuthContext.current();
+        requireManageUsers();
+        AssessmentStatus disassembly = parseAssessmentStatus(request.disassemblyAssessment(), "拆机考核");
+        AssessmentStatus reinstall = parseAssessmentStatus(request.osReinstallAssessment(), "重装系统考核");
+        if (disassembly == null && reinstall == null) {
+            throw ApiException.badRequest("至少提供一项考核状态");
+        }
+        String reason = UserInputPolicy.reason(request.reason());
+        UserSummary before = users.findSummaryById(id).orElseThrow(() -> ApiException.notFound("用户不存在"));
+        requireEditableAssessments(before.role(), disassembly, reinstall);
+        return applyAssessmentChanges(current, before, disassembly, reinstall, reason == null ? "修改成员考核状态" : reason);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssessmentMember> todayAssessmentMembers(LocalDate date) {
+        requireConductAssessments();
+        return users.todayAssessmentMembers(date).stream().map(AssessmentMember::of).toList();
+    }
+
+    @Transactional
+    public AssessmentMember updateTodayAssessments(long id, LocalDate today, TodayAssessmentRequest request) {
+        AuthUser current = AuthContext.current();
+        requireConductAssessments();
+        if (request.date() == null || request.disassemblyAssessment() == null || request.osReinstallAssessment() == null
+                || request.previousDisassemblyAssessment() == null || request.previousOsReinstallAssessment() == null) {
+            throw ApiException.badRequest("考核日期和两项考核状态均需提供");
+        }
+        if (!today.equals(request.date())) {
+            throw ApiException.conflict("签到日期已变化，请刷新今日名单后重试");
+        }
+        UserSummary before = users.todayAssessmentMember(id, today)
+                .orElseThrow(() -> ApiException.conflict("该成员已不在今日考核名单，请刷新后重试"));
+        if (before.disassemblyAssessment() != request.previousDisassemblyAssessment()
+                || before.osReinstallAssessment() != request.previousOsReinstallAssessment()) {
+            throw ApiException.conflict("考核状态已被更新，请刷新名单后重试");
+        }
+        return AssessmentMember.of(applyAssessmentChanges(current, before, request.disassemblyAssessment(),
+                request.osReinstallAssessment(), "部长登记技能考核"));
+    }
+
+    private void requireConductAssessments() {
+        RolePermissionPolicy.require(AuthContext.current().role(), RolePermissionPolicy.Permission.SKILL_ASSESSMENT_CONDUCT,
+                "技能考核登记仅供本机部长使用");
+    }
+
+    private UserSummary applyAssessmentChanges(AuthUser current, UserSummary before, AssessmentStatus disassembly,
+                                               AssessmentStatus reinstall, String reason) {
+        AssessmentStatus nextDisassembly = disassembly == null ? before.disassemblyAssessment() : disassembly;
+        AssessmentStatus nextReinstall = reinstall == null ? before.osReinstallAssessment() : reinstall;
+        if (nextDisassembly == before.disassemblyAssessment() && nextReinstall == before.osReinstallAssessment()) {
+            return before;
+        }
+
+        int updated = jdbc.update("""
+                UPDATE users
+                SET disassembly_assessment = ?, os_reinstall_assessment = ?,
+                    updated_by = ?, updated_at = datetime('now', 'localtime')
+                WHERE id = ? AND role = 'MEMBER'
+                  AND disassembly_assessment = ? AND os_reinstall_assessment = ?
+                """, nextDisassembly.name(), nextReinstall.name(), current.id(), before.id(),
+                before.disassemblyAssessment().name(), before.osReinstallAssessment().name());
+        requireOne(updated, "成员考核状态已经变化，请刷新后重试");
+        UserSummary after = users.findSummaryById(before.id()).orElseThrow();
+        logs.log("UPDATE_USER", "users", before.id(), before, after, reason);
+        return after;
+    }
+
+    private AssessmentStatus parseAssessmentStatus(String value, String label) {
+        if (value == null) return null;
+        try {
+            return AssessmentStatus.valueOf(value);
+        } catch (IllegalArgumentException ex) {
+            throw ApiException.badRequest(label + "只能是通过或未通过");
+        }
+    }
+
+    private void requireEditableAssessments(Role role, AssessmentStatus disassembly, AssessmentStatus reinstall) {
+        if (role != Role.MEMBER && (disassembly != null || reinstall != null)) {
+            throw ApiException.badRequest("部长、会长和管理员的考核状态固定为通过");
+        }
     }
 
     @Transactional
@@ -785,10 +881,32 @@ public class UserService {
     public record CreateUserRequest(String studentNo, String name, String role, String phone, String major, String grade, String qq) {
     }
 
-    public record UpdateUserRequest(String name, String role, String status, String phone, String major, String grade, String qq, String reason) {
+    public record UpdateUserRequest(String name, String role, String status, String phone, String major, String grade,
+                                    String qq, String reason, String disassemblyAssessment, String osReinstallAssessment) {
+        public UpdateUserRequest(String name, String role, String status, String phone, String major, String grade,
+                                 String qq, String reason) {
+            this(name, role, status, phone, major, grade, qq, reason, null, null);
+        }
     }
 
     public record ProfileRequest(String phone, String major, String grade, String qq) {
+    }
+
+    public record AssessmentUpdateRequest(String disassemblyAssessment, String osReinstallAssessment, String reason) {
+    }
+
+    public record TodayAssessmentRequest(LocalDate date, AssessmentStatus disassemblyAssessment,
+                                         AssessmentStatus osReinstallAssessment,
+                                         AssessmentStatus previousDisassemblyAssessment,
+                                         AssessmentStatus previousOsReinstallAssessment) {
+    }
+
+    public record AssessmentMember(long id, String name, String studentNo,
+                                   AssessmentStatus disassemblyAssessment, AssessmentStatus osReinstallAssessment) {
+        private static AssessmentMember of(UserSummary member) {
+            return new AssessmentMember(member.id(), member.name(), member.studentNo(),
+                    member.disassemblyAssessment(), member.osReinstallAssessment());
+        }
     }
 
     public record ResetPasswordRequest(String newPassword, String reason) {

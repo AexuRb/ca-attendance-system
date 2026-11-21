@@ -18,6 +18,11 @@ export interface ScheduleDay {
   slots: ScheduleSlot[];
 }
 
+export interface KioskPresence {
+  total: number;
+  names: string[];
+}
+
 export interface AttendanceSubmitResult {
   name: string;
   action: "CHECK_IN" | "CHECK_OUT";

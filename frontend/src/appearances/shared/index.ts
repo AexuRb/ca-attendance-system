@@ -4,8 +4,6 @@ import "../../styles/components.css";
 import "../../styles/layouts.css";
 import "../../styles/kiosk.css";
 import "../../styles/admin-shell.css";
-import "../../styles/today.css";
-import "../../styles/command-center.css";
 import "../../styles/schedule.css";
 import "../../styles/settings.css";
 import "../../styles/admin-details.css";

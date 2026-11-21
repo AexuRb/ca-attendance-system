@@ -197,9 +197,6 @@
     --stats-card-muted: var(--theme-muted) !important;
     --stats-card-hover-fill: color-mix(in srgb, var(--theme-accent) 9%, transparent) !important;
   }
-  :root[data-palette] :where(.today-conversation .command-composer) {
-    background: var(--theme-composer) !important;
-  }
   :root[data-palette] :where(.profile-record-scroll tbody tr:hover, .profile-mobile-record:hover) {
     background: color-mix(in srgb, var(--theme-accent) 5%, transparent) !important;
   }

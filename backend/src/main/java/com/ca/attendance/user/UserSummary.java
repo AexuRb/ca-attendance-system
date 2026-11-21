@@ -16,6 +16,8 @@ public record UserSummary(
         String qq,
         boolean mustChangePassword,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        AssessmentStatus disassemblyAssessment,
+        AssessmentStatus osReinstallAssessment
 ) {
 }

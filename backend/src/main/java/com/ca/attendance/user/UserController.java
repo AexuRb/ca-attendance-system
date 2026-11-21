@@ -74,6 +74,11 @@ public class UserController {
         return users.update(id, request);
     }
 
+    @PatchMapping("/{id}/assessments")
+    public UserSummary updateAssessments(@PathVariable long id, @RequestBody UserService.AssessmentUpdateRequest request) {
+        return users.updateAssessments(id, request);
+    }
+
     @PostMapping("/{id}/reset-password")
     public void resetPassword(@PathVariable long id, @Valid @RequestBody UserService.ResetPasswordRequest request) {
         users.resetPassword(id, request);

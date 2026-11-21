@@ -1,241 +1,87 @@
 <template>
   <ExpandedWorkspaceShell class="overview-today">
-    <template #heading><h1>今日概览</h1></template>
-    <div class="today-workbench">
-    <TodayCommandCenter
-      ref="commandCenter"
-      :key="`${user?.id || 'anonymous'}:${currentRole}:${entryMode}`"
-      refined
-      v-model="commandInput"
-      :date-label="todayLabel"
-      :role-name="currentRoleLabel"
-      :role="currentRole"
-      :entry-mode="entryMode"
-      :quick-actions="quickActions"
-      :inline-shortcuts="false"
-      :opening="opening"
-      :busy="replying"
-      :error-message="commandError"
-      :load-error="error"
-      :loading="loading && !dashboard"
-      @execute="executeCommand"
-      @clear-error="commandError = ''"
-      @retry-load="refresh"
-    >
-      <template #conversation>
-        <TodayConversation :entry="entryText" :turns="turns"
-          :opening="opening" :replying="replying" @open="openReply" @retry="retryTurn" />
-      </template>
-    </TodayCommandCenter>
-    <TodaySidebar :dashboard="dashboard" :actions="entryActions" :quick-actions="quickActions" :can-review="canReview"
-      :schedule-notice="scheduleNotice" :loading="loading && !dashboard" :load-error="error"
-      :opening="opening" :busy="replying" @open="openReply" @shortcut="runShortcut" @retry="refresh" />
+    <template #heading>
+      <h1>今日概览</h1>
+      <time :datetime="dateKey">{{ dateLabel }}</time>
+    </template>
+    <div class="today-layout" :class="{ 'has-roster': canReadRoster }">
+      <div class="today-welcome"><p class="today-entry-message">{{ welcome }}</p></div>
+      <TodayRosterPanel v-if="canReadRoster" :roster="roster" :loading="rosterLoading"
+        :failed="Boolean(rosterError)" @retry="refreshRoster" />
+      <div class="today-lower">
+        <section class="today-shortcuts" aria-labelledby="today-shortcuts-heading">
+          <h2 id="today-shortcuts-heading">常用功能</h2>
+          <div class="today-shortcut-list">
+            <RouterLink v-for="action in actions" :key="action.label" data-button-kind="soft"
+              class="button secondary" :to="action.target">
+              <component :is="action.icon" aria-hidden="true" />{{ action.label }}
+            </RouterLink>
+          </div>
+        </section>
+        <TodaySummary :dashboard="dashboard" :can-review="canReview"
+          :loading="loading && !dashboard" :load-error="error" @retry="refreshSummary" />
+      </div>
     </div>
   </ExpandedWorkspaceShell>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { RouterLink } from "vue-router";
+import { BarChart3, ClipboardCheck, ClipboardList, DatabaseBackup, Wrench } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
-import { memberPresentationKey } from "../../shared/ui/presentation";
-import "../../styles/workspace.css";
-import "../../features/attendance/presentation.css";
-import "../../features/today/overview-presentation.css";
-import "../../features/today/conversation-presentation.css";
-provide(memberPresentationKey, true);
-import { useRouter } from "vue-router";
-import TodayCommandCenter from "./today/TodayCommandCenter.vue";
-import TodayConversation, { type ConversationTurn } from "./today/TodayConversation.vue";
-import TodaySidebar from "./today/TodaySidebar.vue";
-import { createReplyPicker, describeOperation, summaryReply } from "./today/conversationReplies";
-import { querySummary } from "./today/conversationQuery";
-import type { ResolvedCommand } from "../../features/command-center/commandTypes";
-import { get } from "../../shared/api";
-import { roleLabel } from "../../app/adminNavigation";
 import { useSession } from "../../app/session";
-import { canReviewAttendance, commandAllowedAtEntry } from "../../shared/access/entryAccess";
-import { resolveCommand } from "../../features/command-center/commandParser";
+import { get } from "../../shared/api";
+import { canConductSkillAssessments, canReviewAttendance, isRemoteMinister } from "../../shared/access/entryAccess";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
-import { notify } from "../../shared/composables/useToast";
-import type { Role } from "../../shared/types";
-import type { TodayDashboardData, TodayQuickAction, TodayScheduleData } from "./today/types";
+import TodayRosterPanel from "./today/TodayRosterPanel.vue";
+import TodaySummary from "./today/TodaySummary.vue";
+import type { TodayDashboardData, TodayRoster } from "./today/types";
+import "../../styles/workspace.css";
+import "../../features/today/overview-presentation.css";
+import "../../features/today/display.css";
 
 const { user, state } = useSession();
-const router = useRouter();
 const request = useLatestRequest();
 const { loading, error } = request;
+const rosterRequest = useLatestRequest();
+const { loading: rosterLoading, error: rosterError } = rosterRequest;
 const dashboard = ref<TodayDashboardData | null>(null);
-const dashboardDate = ref("");
-const schedule = ref<TodayScheduleData | null>(null);
-const commandInput = ref("");
-const commandError = ref("");
-const opening = ref(false);
-const replying = ref(false);
-const turns = ref<ConversationTurn[]>([]);
-const commandCenter = ref<InstanceType<typeof TodayCommandCenter> | null>(null);
-const entryText = computed(() => user.value?.name?.trim() ? `欢迎回来，${user.value.name.trim()}。` : "欢迎回来。");
-let pickReply = createReplyPicker();
-let turnId = 0;
-let epoch = 0;
-let queryController: AbortController | undefined;
-const currentDate = ref(new Date());
-let timer = 0;
-
-const today = computed(() => localDate(currentDate.value));
-const todayLabel = computed(() =>
-  new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric" }).format(currentDate.value),
-);
-const currentRole = computed<Role>(() => user.value?.role || "MINISTER");
-const entryMode = computed(() => state?.access?.mode || "LOCAL");
-const canReview = computed(() => canReviewAttendance(currentRole.value, entryMode.value));
-const currentRoleLabel = computed(() => roleLabel(currentRole.value));
-const canSchedule = computed(() =>
-  user.value?.role === "PRESIDENT" || user.value?.role === "ADMIN",
-);
-const missingScheduleCount = computed(() =>
-  canSchedule.value
-    ? schedule.value?.slots?.filter((slot) => !slot.assignees.length).length || 0
-    : 0,
-);
-const quickActions = computed<TodayQuickAction[]>(() => currentRole.value === "MEMBER" ? [] : [
-  { id: "reviews", command: "/ 打开 签到审核", label: "签到审核", detail: "", tone: "blue" },
-  { id: "today-records", command: "/ 查看 值班记录 今天", label: "今日值班记录", detail: "", tone: "blue" },
-  { id: "stats-week", command: "/ 查看 数据统计 本周", label: "本周统计", detail: "", tone: "blue" },
-  { id: "repairs-new", command: "/ 新建 维修事务", label: "新建维修", detail: "", tone: "blue" },
-  ...(canSchedule.value ? [{ id: "backups", command: "/ 打开 备份管理", label: "备份与恢复", detail: "", tone: "blue" as const }] : []),
-].filter(item => commandAllowedAtEntry(item.command, currentRole.value, entryMode.value)) as TodayQuickAction[]);
-const scheduleNotice = computed(() => missingScheduleCount.value ? `今日排班还有 ${missingScheduleCount.value} 个空缺时段。` : "");
-const entryActions = computed<TodayQuickAction[]>(() => {
-  if (!dashboard.value || error.value || currentRole.value === "MEMBER") return [];
-  const date = dashboardDate.value || today.value;
-  const label = date === today.value ? "今日" : date;
-  const items: TodayQuickAction[] = [];
-  const hasPending = canReview.value && (dashboard.value.todayPendingCount || 0) > 0;
-  const hasRepairs = (dashboard.value.ongoingRepairCount || 0) > 0;
-  if (canReview.value) items.push({ id: "reviews", command: "/ 查看 值班记录 待审核 " + date, label: "查看" + label + "待审核", detail: "", tone: "amber", primary: hasPending });
-  if (missingScheduleCount.value) items.push({ id: "schedules", command: "/ 打开 排班管理", label: label + "排班空缺", detail: missingScheduleCount.value + " 个时段", tone: "amber" });
-  items.push({ id: "repairs", command: "/ 查看 维修事务 进行中", label: "查看进行中维修", detail: "", tone: "blue", primary: !hasPending && hasRepairs });
-  return items;
+const roster = ref<TodayRoster | null>(null);
+const today = ref(new Date());
+const dateKey = computed(() => localDate(today.value));
+const dateLabel = computed(() => new Intl.DateTimeFormat("zh-CN", {
+  month: "long", day: "numeric", weekday: "long",
+}).format(today.value));
+const welcome = computed(() => {
+  const name = user.value?.name?.trim();
+  return name ? `欢迎回来，${name}。` : "欢迎回来。";
 });
+const canReview = computed(() => canReviewAttendance(user.value?.role, state.access.mode));
+const isLeader = computed(() => user.value?.role === "PRESIDENT" || user.value?.role === "ADMIN");
+const canReadRoster = computed(() => isLeader.value || canConductSkillAssessments(user.value?.role, state.access.mode));
+const actions = computed(() => [
+  { label: "签到审核", icon: ClipboardCheck, target: { name: "reviews" }, visible: canReview.value },
+  { label: "今日值班记录", icon: ClipboardList, target: { name: "attendance", query: { from: dateKey.value, to: dateKey.value } }, visible: true },
+  { label: "本周统计", icon: BarChart3, target: { name: "stats", query: { preset: "week" } }, visible: true },
+  { label: "新建维修", icon: Wrench, target: { name: "repairs", query: { intent: "new" } }, visible: !isRemoteMinister(user.value?.role, state.access.mode) },
+  { label: "备份与恢复", icon: DatabaseBackup, target: { name: "data", query: { tab: "backups" } }, visible: isLeader.value },
+].filter(action => action.visible));
+let timer: number | undefined;
 
 onMounted(() => {
-  refresh();
-  timer = window.setInterval(refresh, 60_000);
+  void refresh();
+  timer = window.setInterval(refresh, 30_000);
   window.addEventListener("focus", refresh);
 });
 onBeforeUnmount(() => {
-  epoch++;
-  queryController?.abort();
   window.clearInterval(timer);
   window.removeEventListener("focus", refresh);
 });
-watch(() => [user.value?.id, currentRole.value, entryMode.value], () => {
-  epoch++;
-  queryController?.abort();
-  turns.value = [];
-  replying.value = false;
-  opening.value = false;
-  dashboard.value = null;
-  pickReply = createReplyPicker();
-  commandInput.value = "";
-  commandError.value = "";
-  refresh();
+watch(() => [user.value?.id, user.value?.role, state.access.mode], () => {
+  clearOverview();
+  void refresh();
 });
-
-function refresh() {
-  void load();
-}
-
-async function load() {
-  currentDate.value = new Date();
-  const queryDate = today.value;
-  const result = await request.run(
-    (signal) =>
-      Promise.all([
-        get<TodayDashboardData>("/api/stats/dashboard?date=" + queryDate, { signal }),
-        get<TodayScheduleData>("/api/public/schedules/today", { signal }),
-      ]),
-    "今日数据加载失败",
-  );
-  if (!result) return;
-  [dashboard.value, schedule.value] = result;
-  dashboardDate.value = queryDate;
-}
-
-function runShortcut(item: TodayQuickAction) {
-  commandCenter.value?.executeQuickAction(item.command, item.label);
-}
-
-async function executeCommand(value: string, displayName?: string) {
-  if (replying.value || opening.value) return;
-  const now = new Date();
-  const resolution = resolveCommand(value, currentRole.value, now, entryMode.value);
-  if (resolution.kind !== "resolved") {
-    commandError.value = resolution.message;
-    turns.value = [...turns.value.slice(-7), { id: ++turnId, input: value, text: resolution.message, button: "", failed: true }];
-    return;
-  }
-  commandInput.value = "";
-  commandError.value = "";
-  const reply = describeOperation(resolution, pickReply);
-  const turn: ConversationTurn = { id: ++turnId, input: displayName || value, shortcut: Boolean(displayName), text: reply.text, button: reply.button, command: resolution };
-  turns.value = [...turns.value.slice(-7), turn];
-  await fillSummary(turn.id);
-}
-
-async function fillSummary(id: number) {
-  const turn = turns.value.find(item => item.id === id);
-  if (!turn?.command || !/^\/ (查看|查找) /.test(turn.command.canonical)) return;
-  const ownEpoch = epoch;
-  const fallback = turn.failed ? describeOperation(turn.command, pickReply).text : turn.text;
-  queryController = new AbortController();
-  replying.value = true;
-  turn.pending = true;
-  turn.failed = false;
-  turn.summary = undefined;
-  turn.text = "正在查询…";
-  try {
-    const result = await querySummary(turn.command, queryController.signal);
-    if (epoch !== ownEpoch) return;
-    turn.summary = result || undefined;
-    turn.text = result ? summaryReply(result, pickReply) : fallback;
-  } catch {
-    if (epoch !== ownEpoch) return;
-    turn.failed = true;
-    turn.text = "查询没能完成，请重试，也可以打开详情查看。";
-  } finally {
-    if (epoch === ownEpoch) { turn.pending = false; replying.value = false; }
-  }
-}
-function retryTurn(id: number) { if (!replying.value) void fillSummary(id); }
-
-async function openReply(value: string | ResolvedCommand) {
-  if (opening.value) return;
-  const resolved = typeof value === 'string' ? resolveCommand(value, currentRole.value, new Date(), entryMode.value) : value;
-  if (resolved.kind !== 'resolved') { commandError.value = resolved.message; return; }
-  const allowed = resolveCommand(resolved.canonical, currentRole.value, new Date(), entryMode.value);
-  if (allowed.kind !== 'resolved') { commandError.value = allowed.message; return; }
-  const turn = turns.value.find(item => item.command === value);
-  const ownEpoch = epoch;
-  opening.value = true;
-  try {
-    const failure = await router.push(resolved.target);
-    if (epoch !== ownEpoch) return;
-    if (failure) {
-      if (turn) turn.navigationError = true;
-      else commandError.value = "页面没能打开，请再试一次。";
-      return;
-    }
-    if (turn) turn.navigationError = false;
-    notify(resolved.feedback, "success");
-  } catch {
-    if (epoch !== ownEpoch) return;
-    if (turn) turn.navigationError = true;
-    else commandError.value = "页面没能打开，请再试一次。";
-  } finally {
-    if (epoch === ownEpoch) opening.value = false;
-  }
-}
 
 function localDate(date: Date) {
   return [
@@ -243,5 +89,34 @@ function localDate(date: Date) {
     String(date.getMonth() + 1).padStart(2, "0"),
     String(date.getDate()).padStart(2, "0"),
   ].join("-");
+}
+
+function clearOverview() {
+  dashboard.value = null;
+  roster.value = null;
+}
+
+function refresh() {
+  const now = new Date();
+  if (localDate(now) !== dateKey.value) clearOverview();
+  today.value = now;
+  void refreshSummary();
+  if (canReadRoster.value) void refreshRoster();
+}
+
+async function refreshSummary() {
+  const result = await request.run(
+    signal => get<TodayDashboardData>(`/api/stats/dashboard?date=${dateKey.value}`, { signal }),
+    "今日数据加载失败",
+  );
+  if (result) dashboard.value = result;
+}
+
+async function refreshRoster() {
+  const result = await rosterRequest.run(
+    signal => get<TodayRoster>("/api/skill-assessments/overview", { signal }),
+    "当前在场名单读取失败",
+  );
+  if (result && canReadRoster.value) roster.value = result;
 }
 </script>

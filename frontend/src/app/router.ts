@@ -8,6 +8,7 @@ import {
 import { useSession } from "./session";
 import { cancelScrollRestoration, restoreScrollPosition } from "./scrollRestoration";
 import type { AccessContext, Role, UserSession } from "../shared/types";
+import { canConductSkillAssessments } from "../shared/access/entryAccess";
 import LoginPage from "../pages/auth/LoginPage.vue";
 export { safeLoginNext } from "./loginRedirect";
 
@@ -81,6 +82,12 @@ const routes: RouteRecordRaw[] = [
         name: "members",
         component: () => import("../pages/admin/MembersPage.vue"),
         meta: { roles: ["PRESIDENT", "ADMIN"] },
+      },
+      {
+        path: "skill-assessments",
+        name: "skill-assessments",
+        component: () => import("../pages/admin/SkillAssessmentsPage.vue"),
+        meta: { roles: ["MINISTER"] },
       },
       {
         path: "profile",
@@ -178,6 +185,9 @@ export function resolveRouteAccess(
     return state.user.role === "MEMBER"
       ? { name: "profile" }
       : { name: "today" };
+  }
+  if (to.name === "skill-assessments" && !canConductSkillAssessments(state.user?.role, state.access.mode)) {
+    return { name: "today" };
   }
   if (to.name === "login" && state.user) {
     return state.user.role === "MEMBER"

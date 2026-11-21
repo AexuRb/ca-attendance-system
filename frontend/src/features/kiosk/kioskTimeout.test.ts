@@ -9,7 +9,7 @@ vi.mock("../../shared/api", async original => ({ ...await original<typeof import
 const cleanups: (() => void)[] = [];
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.mocked(get).mockImplementation(async path => (path.endsWith("/week") ? [] : { slots: [] }) as never);
+  vi.mocked(get).mockImplementation(async path => (path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never);
 });
 afterEach(() => { cleanups.splice(0).forEach(fn => fn()); vi.clearAllTimers(); vi.useRealTimers(); vi.resetAllMocks(); });
 function setup() {
@@ -25,7 +25,7 @@ describe("bounded kiosk requests", () => {
     let resolveOld!: (value: never) => void;
     vi.mocked(get).mockImplementation(path => path.includes("/lookup")
       ? new Promise(resolve => { resolveOld = resolve; })
-      : Promise.resolve((path.endsWith("/week") ? [] : { slots: [] }) as never));
+      : Promise.resolve((path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never));
     const { state } = setup();
     await flushPromises();
     state.query.value = "990000204001";
@@ -69,29 +69,58 @@ describe("bounded kiosk requests", () => {
     expect(state.successAction.value).toBe("签到成功");
   });
 
-  it("releases a stalled schedule batch so a later refresh can recover", async () => {
+  it("recovers stalled schedule and presence requests independently", async () => {
     const late = new Map<string, (value: never) => void>();
     vi.mocked(get).mockImplementation(path => new Promise(resolve => { late.set(path, resolve); }));
     const { state } = setup();
     await vi.advanceTimersByTimeAsync(8000);
     expect(state.scheduleError.value).toContain("超时");
+    expect(state.presenceError.value).toBe(true);
     const fresh = { date: "2026-10-05", weekdayName: "星期一", slots: [] };
-    vi.mocked(get).mockImplementation(async path => (path.endsWith("/week") ? [fresh] : fresh) as never);
+    const freshPresence = { total: 1, names: ["合成成员"] };
+    vi.mocked(get).mockImplementation(async path => (path.endsWith("/present") ? freshPresence : fresh) as never);
     await vi.advanceTimersByTimeAsync(3000);
     expect(state.scheduleError.value).toBe("");
-    expect(state.todaySchedule.value?.slots).toEqual([]);
+    expect(state.todaySchedule.value).toEqual(fresh);
+    window.dispatchEvent(new Event("focus"));
+    await flushPromises();
+    expect(state.presenceError.value).toBe(false);
     late.get("/api/public/schedules/today")!({ ...fresh, date: "2026-10-04" } as never);
-    late.get("/api/public/schedules/week")!([] as never);
+    late.get("/api/public/attendance/present")!({ total: 0, names: [] } as never);
     await flushPromises();
     expect(state.todaySchedule.value).toEqual(fresh);
-    expect(state.weekSchedule.value).toEqual([fresh]);
+    expect(state.presence.value).toEqual(freshPresence);
+  });
+
+  it("reloads presence immediately after a successful pending check-in", async () => {
+    let resolveOld!: (value: never) => void;
+    let reads = 0;
+    const freshPresence = { total: 1, names: [member.name] };
+    vi.mocked(get).mockImplementation(path => {
+      if (!path.endsWith("/present")) return Promise.resolve({ slots: [] } as never);
+      if (++reads === 1) return new Promise(resolve => { resolveOld = resolve; });
+      return Promise.resolve(freshPresence as never);
+    });
+    vi.mocked(post).mockResolvedValueOnce({
+      name: member.name, action: "CHECK_IN", submittedAt: new Date().toISOString(), status: "PENDING",
+    } as never);
+    const { state } = setup();
+    state.lookupResult.value = member;
+    state.step.value = "confirm";
+    await state.submitAttendance();
+    await flushPromises();
+    resolveOld({ total: 0, names: [] } as never);
+    await flushPromises();
+    expect(reads).toBe(2);
+    expect(state.step.value).toBe("success");
+    expect(state.presence.value).toEqual(freshPresence);
   });
 
   it("cancels an edited lookup without its late result or completion disturbing a newer lookup", async () => {
     const pending: { signal: AbortSignal; resolve: (value: never) => void }[] = [];
     vi.mocked(get).mockImplementation((path, options) => path.includes("/lookup")
       ? new Promise(resolve => { pending.push({ signal: options!.signal as AbortSignal, resolve }); })
-      : Promise.resolve((path.endsWith("/week") ? [] : { slots: [] }) as never));
+      : Promise.resolve((path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never));
     const { state } = setup();
     await flushPromises();
     state.query.value = "old";

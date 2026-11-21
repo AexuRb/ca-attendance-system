@@ -11,9 +11,6 @@ export function canReviewAttendance(role?: Role, mode?: EntryMode): boolean {
     && !isRemoteMinister(role, mode);
 }
 
-export function commandAllowedAtEntry(command: string, role: Role, mode?: EntryMode): boolean {
-  if (!isRemoteMinister(role, mode)) return true;
-  const content = command.replace(/^\s*\/\s*/, "").trim();
-  return !/^(打开|查看|查找)\s+签到审核(?:\s|$)/.test(content)
-    && !/^(新建|创建|导入|设置)(?:\s|$)/.test(content);
+export function canConductSkillAssessments(role?: Role, mode?: EntryMode): boolean {
+  return role === "MINISTER" && mode === "LOCAL";
 }

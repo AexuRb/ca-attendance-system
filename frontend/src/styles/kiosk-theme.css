@@ -649,8 +649,7 @@
   scrollbar-width: none;
 }
 
-.kiosk-signal-track::-webkit-scrollbar,
-.kiosk-signal-week::-webkit-scrollbar {
+.kiosk-signal-track::-webkit-scrollbar {
   display: none;
 }
 
@@ -1136,55 +1135,6 @@
   animation: kiosk-success-copy 0.65s 0.26s var(--ease-out) both;
 }
 
-.kiosk-signal-week {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  overflow-x: auto;
-  border-top: 1px solid var(--line);
-  padding: 8px 18px;
-  background: white;
-  scrollbar-width: none;
-}
-
-.kiosk-signal-week-title {
-  min-width: 110px;
-  font-size: 12px;
-}
-
-.kiosk-signal-week-days {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(56px, 1fr));
-  gap: 5px;
-}
-
-.kiosk-signal-week-days article {
-  display: grid;
-  min-height: 46px;
-  place-items: center;
-  align-content: center;
-  border-radius: 5px;
-  color: var(--ink-600);
-  font-size: 12px;
-}
-
-.kiosk-signal-week-days article strong {
-  margin-top: 4px;
-  color: var(--ink-800);
-  font: 700 12px var(--font-mono);
-}
-
-.kiosk-signal-week-days article.today {
-  background: var(--blue-100);
-  color: var(--blue-700);
-  animation: kiosk-today-enter 0.72s 0.34s var(--ease-out) both;
-}
-
-.kiosk-signal-week-days article.today strong {
-  color: var(--blue-700);
-}
-
 .kiosk-signal-admin {
   display: inline-flex;
   min-height: 38px;
@@ -1497,17 +1447,6 @@
 
   .kiosk-signal-shell .kiosk-focus-success-state > .kiosk-focus-secondary {
     margin-top: 14px;
-  }
-
-  .kiosk-signal-week {
-    grid-template-columns: 88px minmax(0, 1fr);
-    overflow: hidden;
-    padding: 8px 12px;
-  }
-
-  .kiosk-signal-week-days {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 2px;
   }
 
   .kiosk-signal-admin {

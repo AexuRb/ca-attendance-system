@@ -14,6 +14,9 @@ type RouteGuardCase = {
 const routeGuardMatrix: RouteGuardCase[] = [
   { case: "blocks the remote minister review route", target: "reviews", state: routeState({ mode: "REMOTE_ADMIN", role: "MINISTER" }), expected: { name: "today" } },
   { case: "retains local minister reviews", target: "reviews", state: routeState({ role: "MINISTER" }), expected: true },
+  { case: "allows the local minister to register skill assessments", target: "skill-assessments", state: routeState({ role: "MINISTER" }), expected: true },
+  { case: "blocks the remote minister assessment page", target: "skill-assessments", state: routeState({ mode: "REMOTE_ADMIN", role: "MINISTER" }), expected: { name: "today" } },
+  { case: "keeps a member out of minister skill assessments", target: "skill-assessments", state: routeState({ role: "MEMBER" }), expected: { name: "profile" } },
   { case: "allows remote minister repair viewing", target: "repairs", state: routeState({ mode: "REMOTE_ADMIN", role: "MINISTER" }), expected: true },
   { case: "opens the remote member profile", target: "profile", state: routeState({ mode: "REMOTE_ADMIN", role: "MEMBER" }), expected: true },
   { case: "redirects remote members from management to their profile", target: "attendance", state: routeState({ mode: "REMOTE_ADMIN", role: "MEMBER" }), expected: { name: "profile" } },

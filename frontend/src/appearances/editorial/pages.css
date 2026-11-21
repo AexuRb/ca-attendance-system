@@ -190,7 +190,4 @@
 }
 
 @media (max-width: 520px) {
-  :root[data-appearance="editorial"] .command-welcome-detail h1 {
-    font-size: 40px;
-  }
 }

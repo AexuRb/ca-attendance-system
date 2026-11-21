@@ -5,6 +5,7 @@ import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.Role;
 import com.ca.attendance.log.OperationLogService;
 import com.ca.attendance.user.UserRepository;
+import com.ca.attendance.user.AssessmentStatus;
 import com.ca.attendance.user.UserSummary;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -410,7 +411,8 @@ class AuthSecurityTest {
 
     private UserSummary user(long id, Role role, String status, boolean mustChangePassword) {
         LocalDateTime now = LocalDateTime.now();
+        AssessmentStatus assessment = role == Role.MEMBER ? AssessmentStatus.NOT_PASSED : AssessmentStatus.PASSED;
         return new UserSummary(id, "admin", "管理员", role, status,
-                null, null, null, null, mustChangePassword, now, now);
+                null, null, null, null, mustChangePassword, now, now, assessment, assessment);
     }
 }

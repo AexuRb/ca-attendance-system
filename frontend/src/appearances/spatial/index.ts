@@ -4,7 +4,6 @@ import "./shell.css";
 import "./shell-responsive.css";
 import "./auth.css";
 import "./auth-kiosk.css";
-import "./today.css";
 import "./pages.css";
 import "./work-pages.css";
 import "./repair-page.css";

@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   apiGet: vi.fn(),
   apiPost: vi.fn(),
   apiPut: vi.fn(),
+  apiPatch: vi.fn(),
   apiDelete: vi.fn(),
   notify: vi.fn(),
   push: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock("../../shared/api", () => ({
   get: (...args: unknown[]) => mocks.apiGet(...args),
   post: (...args: unknown[]) => mocks.apiPost(...args),
   put: (...args: unknown[]) => mocks.apiPut(...args),
+  patch: (...args: unknown[]) => mocks.apiPatch(...args),
   del: (...args: unknown[]) => mocks.apiDelete(...args),
   downloadBlob: vi.fn(),
 }));
@@ -57,6 +59,8 @@ const linkedMember = {
   major: "计算机学院",
   grade: "2025级",
   qq: "",
+  disassemblyAssessment: "NOT_PASSED",
+  osReinstallAssessment: "PASSED",
   mustChangePassword: false,
   createdAt: "2026-08-13 10:00:00",
   updatedAt: "2026-08-13 10:00:00",
@@ -89,8 +93,51 @@ afterEach(() => {
   mocks.apiDelete.mockReset();
   mocks.apiPost.mockReset();
   mocks.apiPut.mockReset();
+  mocks.apiPatch.mockReset();
   mocks.notify.mockReset();
   document.body.innerHTML = "";
+});
+
+describe("MembersPage assessments", () => {
+  it("saves a single assessment independently and keeps a failed draft for retry", async () => {
+    mocks.apiPatch.mockRejectedValueOnce(new Error("保存失败"));
+    const wrapper = mount(MembersPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+    expect(wrapper.get("th.mw-assessment-column").text()).toBe("已通过考核");
+    expect(wrapper.findAll("tbody .member-assessment-badges .mw-badge").map(badge => badge.text()))
+      .toEqual(["重装系统"]);
+    wrapper.findComponent(MemberRowActions).vm.$emit("edit");
+    await wrapper.vm.$nextTick();
+    await wrapper.get('select[name="disassemblyAssessment"]').setValue("PASSED");
+    await wrapper.get('input[name="reason"][value="考核结果更新"]').setValue();
+    await wrapper.get("#member-editor-form").trigger("submit");
+    await flushPromises();
+    expect(mocks.apiPatch).toHaveBeenCalledWith("/api/users/2/assessments", {
+      disassemblyAssessment: "PASSED", reason: "考核结果更新",
+    });
+    expect(mocks.apiPut).not.toHaveBeenCalled();
+    expect(wrapper.get<HTMLSelectElement>('select[name="disassemblyAssessment"]').element.value).toBe("PASSED");
+    expect(wrapper.get('[role="dialog"]').text()).toContain("保存失败");
+    wrapper.unmount();
+  });
+
+  it("sends edited profile and assessment together in one PUT", async () => {
+    mocks.apiPut.mockResolvedValue({ ...linkedMember, name: "虚拟成员", osReinstallAssessment: "NOT_PASSED" });
+    const wrapper = mount(MembersPage, { global: { stubs: { Teleport: true } } });
+    await flushPromises();
+    wrapper.findComponent(MemberRowActions).vm.$emit("edit");
+    await wrapper.vm.$nextTick();
+    await wrapper.get('input[name="name"]').setValue("虚拟成员");
+    await wrapper.get('select[name="osReinstallAssessment"]').setValue("NOT_PASSED");
+    await wrapper.get('input[name="reason"][value="考核结果更新"]').setValue();
+    await wrapper.get("#member-editor-form").trigger("submit");
+    await flushPromises();
+    expect(mocks.apiPut).toHaveBeenCalledExactlyOnceWith("/api/users/2", expect.objectContaining({
+      name: "虚拟成员", osReinstallAssessment: "NOT_PASSED", reason: "考核结果更新",
+    }));
+    expect(mocks.apiPatch).not.toHaveBeenCalled();
+    wrapper.unmount();
+  });
 });
 
 describe("MembersPage deletion", () => {

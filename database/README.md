@@ -4,13 +4,14 @@ SQLite 由后端内嵌使用，不需要安装数据库服务或手工执行 SQL
 
 ## 结构来源
 
-运行时结构以 [版本迁移目录](../backend/src/main/resources/db/sqlite/) 和 [DatabaseMigrator](../backend/src/main/java/com/ca/attendance/config/DatabaseMigrator.java) 为准。启动按 `PRAGMA user_version` 依次升级，并执行完整性检查；当前版本为 11。
+运行时结构以 [版本迁移目录](../backend/src/main/resources/db/sqlite/) 和 [DatabaseMigrator](../backend/src/main/java/com/ca/attendance/config/DatabaseMigrator.java) 为准。启动按 `PRAGMA user_version` 依次升级并执行完整性检查。当前版本为 12。
 
 - V7 移除旧排班例外和调班表，保留固定周表。
 - V8 引入持久化维修编号序列，永久删除后不复用编号。
 - V9 增加有效时长限制快照并重算旧记录。
 - V10 归一历史培训参与状态，保留原有时长，培训按 `duration_hours` 统计。
 - V11 添加全局外观设置 `UI_APPEARANCE`，默认 `CLASSIC`，不清空业务数据。现兼容 `CLASSIC / EDITORIAL / SPATIAL`，并支持 `PINE / VIOLET / GRAPHITE / ROSE`；仅扩展原文本设置的允许值，不改表结构或新增迁移。
+- V12 为成员增加拆机、重装系统两项考核。已有和新增普通成员默认均未通过，部长、会长和管理员为两项通过。将职位改为这三类时自动通过，降回普通成员时保留考核状态并允许维护。备份格式升级为 5，旧备份缺失的考核值在恢复时按职位初始化。
 
 [schema.sql](schema.sql) 是供阅读和脚本测试使用的表结构副本，不是运行时迁移入口，也不替代迁移中的设置数据初始化。不要手工执行它来升级既有数据库。
 

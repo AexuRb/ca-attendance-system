@@ -6,7 +6,7 @@ import { router } from "./router";
 
 const expectedRoutes: Record<Role, string[]> = {
   MEMBER: ["profile"],
-  MINISTER: ["today", "reviews", "attendance", "stats", "schedules", "profile", "repairs"],
+  MINISTER: ["today", "reviews", "attendance", "stats", "schedules", "skill-assessments", "profile", "repairs"],
   PRESIDENT: [
     "today",
     "reviews",
@@ -40,7 +40,7 @@ describe("admin navigation permissions", () => {
   it.each(Object.entries(expectedRoutes))(
     "shows the exact %s navigation entries",
     (role, expected) => {
-      const names = navigationForRole(role as Role)
+      const names = navigationForRole(role as Role, "LOCAL")
         .flatMap((section) => section.items)
         .map((item) => item.name);
       expect(names).toEqual(expected);
@@ -61,9 +61,10 @@ describe("admin navigation permissions", () => {
   });
 });
 
-it("removes reviews only for remote ministers while preserving all other role menus", () => {
+it("hides local reviews and skill assessments from remote ministers", () => {
   for (const role of Object.keys(expectedRoutes) as Role[]) {
     const names = navigationForRole(role, "REMOTE_ADMIN").flatMap(section => section.items.map(item => item.name));
-    expect(names).toEqual(expectedRoutes[role].filter(name => role !== "MINISTER" || name !== "reviews"));
+    expect(names).toEqual(expectedRoutes[role].filter(name =>
+      role !== "MINISTER" || !["reviews", "skill-assessments"].includes(name)));
   }
 });

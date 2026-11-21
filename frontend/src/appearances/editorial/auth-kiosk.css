@@ -223,33 +223,8 @@
   color: #ddd3c8;
 }
 
-:root[data-appearance="editorial"] .kiosk-signal-week {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  min-height: 76px;
-  border: 0;
-  border-top: 1px solid var(--line-strong);
-  border-bottom: 0;
-  border-radius: 0;
-  padding: 10px clamp(24px, 4vw, 58px);
-  background: var(--canvas);
-}
-
-:root[data-appearance="editorial"] .kiosk-signal-week-title,
-:root[data-appearance="editorial"] .kiosk-signal-week-days article,
-:root[data-appearance="editorial"] .kiosk-signal-week-days article strong,
 :root[data-appearance="editorial"] .kiosk-signal-admin {
   font-size: 13px;
-}
-
-:root[data-appearance="editorial"] .kiosk-signal-week-days > * {
-  border: 1px solid transparent;
-  background: transparent;
-}
-
-:root[data-appearance="editorial"] .kiosk-signal-week-days .today {
-  border-color: var(--primary);
-  background: var(--blue-100);
 }
 
 @media (max-width: 900px) {
@@ -312,10 +287,6 @@
     padding: 54px 24px;
   }
 
-  :root[data-appearance="editorial"] .kiosk-signal-week {
-    grid-column: 1;
-    grid-row: 4;
-  }
 }
 
 @media (max-width: 560px) {
@@ -351,11 +322,4 @@
     font-size: 40px;
   }
 
-  :root[data-appearance="editorial"] .kiosk-signal-week-title {
-    display: none;
-  }
-
-  :root[data-appearance="editorial"] .kiosk-signal-week {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
 }

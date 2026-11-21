@@ -42,7 +42,7 @@ describe("useKioskAttendance schedule refresh", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 7, 9, 23, 59, 50));
     vi.mocked(get).mockImplementation(async (path) =>
-      (path.endsWith("/week") ? [] : { slots: [] }) as never,
+      (path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never,
     );
   });
 
@@ -53,7 +53,7 @@ describe("useKioskAttendance schedule refresh", () => {
         if (++lookupAttempts === 1) throw new ApiError("synthetic internal detail", 503);
         return { exists: true, memberToken: "sel_member", name: "合成成员", action: "CHECK_IN" } as never;
       }
-      return (path.endsWith("/week") ? [] : { slots: [] }) as never;
+      return (path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never;
     });
     const mounted = mountKioskState();
     try {
@@ -101,7 +101,7 @@ describe("useKioskAttendance schedule refresh", () => {
     vi.mocked(get).mockImplementation(async path => {
       if (path.includes("/attendance/lookup")) return { exists: true, memberToken: "sel_member", name: "合成成员", action: "CHECK_IN" } as never;
       if (scheduleFailed) throw new ApiError("synthetic schedule detail", 503);
-      return (path.endsWith("/week") ? [] : { slots: [] }) as never;
+      return (path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never;
     });
     const mounted = mountKioskState();
     try {
@@ -122,7 +122,7 @@ describe("useKioskAttendance schedule refresh", () => {
   it("does not retry an obsolete 503 lookup after the query is edited", async () => {
     vi.mocked(get).mockImplementation(async path => {
       if (path.includes("/attendance/lookup")) throw new ApiError("unavailable", 503);
-      return (path.endsWith("/week") ? [] : { slots: [] }) as never;
+      return (path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never;
     });
     const mounted = mountKioskState();
     try {
@@ -193,10 +193,10 @@ describe("useKioskAttendance schedule refresh", () => {
 
   it("does not restart a failed schedule request after unmount", async () => {
     let rejectToday: (cause: unknown) => void = () => undefined;
-    let resolveWeek: (value: never) => void = () => undefined;
+    let resolvePresence: (value: never) => void = () => undefined;
     vi.mocked(get).mockImplementation((path) => {
-      if (path.endsWith("/week")) {
-        return new Promise((resolve) => { resolveWeek = resolve; });
+      if (path.endsWith("/present")) {
+        return new Promise((resolve) => { resolvePresence = resolve; });
       }
       return new Promise((_, reject) => { rejectToday = reject; });
     });
@@ -204,7 +204,7 @@ describe("useKioskAttendance schedule refresh", () => {
     const mounted = mountKioskState();
     mounted.wrapper.unmount();
     rejectToday(new ApiError("连接失败", 0, true));
-    resolveWeek([] as never);
+    resolvePresence({ total: 0, names: [] } as never);
     await flushPromises();
     await vi.advanceTimersByTimeAsync(3_000);
 
@@ -217,7 +217,7 @@ describe("useKioskAttendance lookup recovery", () => {
     vi.useFakeTimers();
     vi.mocked(get).mockReset();
     vi.mocked(get).mockImplementation(async (path) =>
-      (path.endsWith("/week") ? [] : { slots: [] }) as never,
+      (path.endsWith("/present") ? { total: 0, names: [] } : { slots: [] }) as never,
     );
   });
 
@@ -225,7 +225,7 @@ describe("useKioskAttendance lookup recovery", () => {
     let resolveLookup!: (value: never) => void;
     vi.mocked(get).mockImplementation((path) => path.includes('/attendance/lookup')
       ? new Promise(resolve => { resolveLookup = resolve; })
-      : Promise.resolve((path.endsWith('/week') ? [] : { slots: [] }) as never));
+      : Promise.resolve((path.endsWith('/present') ? { total: 0, names: [] } : { slots: [] }) as never));
     const mounted = mountKioskState();
     mounted.state.step.value = 'choose';
     const pending = mounted.state.selectMember('sel_member');
@@ -262,7 +262,7 @@ describe("useKioskAttendance lookup recovery", () => {
     const resolvers: Array<(value: never) => void> = [];
     vi.mocked(get).mockImplementation((path) => path.includes('/attendance/lookup')
       ? new Promise(resolve => { resolvers.push(resolve); })
-      : Promise.resolve((path.endsWith('/week') ? [] : { slots: [] }) as never));
+      : Promise.resolve((path.endsWith('/present') ? { total: 0, names: [] } : { slots: [] }) as never));
     const mounted = mountKioskState();
     const first = mounted.state.selectMember('sel_first');
     mounted.state.reset();
@@ -296,7 +296,7 @@ describe("useKioskAttendance lookup recovery", () => {
   it("retries the selected member after a network interruption", async () => {
     let selectionAttempts = 0;
     vi.mocked(get).mockImplementation(async (path) => {
-      if (path.endsWith("/week")) return [] as never;
+      if (path.endsWith("/present")) return { total: 0, names: [] } as never;
       if (path.includes("/attendance/lookup")) {
         selectionAttempts += 1;
         if (selectionAttempts === 1) {
@@ -334,7 +334,7 @@ describe("useKioskAttendance lookup recovery", () => {
   it("keeps business errors online and does not retry them", async () => {
     let lookupAttempts = 0;
     vi.mocked(get).mockImplementation(async (path) => {
-      if (path.endsWith("/week")) return [] as never;
+      if (path.endsWith("/present")) return { total: 0, names: [] } as never;
       if (path.includes("/attendance/lookup")) {
         lookupAttempts += 1;
         throw new ApiError("账号已停用", 400, false);

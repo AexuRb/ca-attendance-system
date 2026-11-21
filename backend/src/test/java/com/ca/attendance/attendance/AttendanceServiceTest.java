@@ -9,6 +9,7 @@ import com.ca.attendance.settings.DutyWeekdayService;
 import com.ca.attendance.settings.DutyPeriodService;
 import com.ca.attendance.settings.AttendancePolicyService;
 import com.ca.attendance.user.UserRepository;
+import com.ca.attendance.user.AssessmentStatus;
 import com.ca.attendance.user.UserSummary;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -576,11 +577,11 @@ class AttendanceServiceTest {
         AttendanceService service = service();
         UserSummary first = new UserSummary(
                 1L, "20230001", "张三", Role.MEMBER, "ACTIVE",
-                null, null, "2023级", null, false, TEST_NOW, TEST_NOW
+                null, null, "2023级", null, false, TEST_NOW, TEST_NOW, AssessmentStatus.NOT_PASSED, AssessmentStatus.NOT_PASSED
         );
         UserSummary second = new UserSummary(
                 2L, "20240002", "张三", Role.MEMBER, "ACTIVE",
-                null, null, "2024级", null, false, TEST_NOW, TEST_NOW
+                null, null, "2024级", null, false, TEST_NOW, TEST_NOW, AssessmentStatus.NOT_PASSED, AssessmentStatus.NOT_PASSED
         );
         when(weekdays.isDutyWeekday(anyInt())).thenReturn(true);
         when(periods.contains(any())).thenReturn(true);
@@ -640,8 +641,9 @@ class AttendanceServiceTest {
     }
 
     private UserSummary user(long id, String studentNo, String name, Role role) {
+        AssessmentStatus assessment = role == Role.MEMBER ? AssessmentStatus.NOT_PASSED : AssessmentStatus.PASSED;
         return new UserSummary(id, studentNo, name, role, "ACTIVE", null, null, null, null, false,
-                TEST_NOW, TEST_NOW);
+                TEST_NOW, TEST_NOW, assessment, assessment);
     }
 
     private AttendanceRecord record(long id, LocalDateTime checkOutTime, String checkInStatus, String checkOutStatus) {

@@ -1,7 +1,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type ComponentPublicInstance } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useSession } from "../../app/session";
-import { del, get, post, put } from "../../shared/api";
+import { del, get, patch, post, put } from "../../shared/api";
 import { useAsyncTask } from "../../shared/composables/useAsyncTask";
 import { useLatestRequest } from "../../shared/composables/useLatestRequest";
 import { usePendingActions } from "../../shared/composables/usePendingActions";
@@ -17,6 +17,7 @@ import {
   bulkStatusPayload,
   selectableMemberIds,
   type BulkStatusResult,
+  type MemberEditorPayload,
   type MemberImportResult,
   type MemberPage,
   type MemberStatus,
@@ -202,15 +203,18 @@ export function useMemberDirectoryWorkspace() {
   }
 
   function canEdit(member: MemberSummary) {
-    return user.value?.role === "ADMIN" || member.role !== "ADMIN";
+    return user.value?.role === "ADMIN" ||
+      (user.value?.role === "PRESIDENT" && member.role !== "ADMIN");
   }
 
   function openCreate() {
+    task.error.value = "";
     editorTarget.value = null;
     editorOpen.value = true;
   }
 
   function openEdit(member: MemberSummary) {
+    task.error.value = "";
     editorTarget.value = member;
     editorOpen.value = true;
   }
@@ -221,47 +225,27 @@ export function useMemberDirectoryWorkspace() {
     editorTarget.value = null;
   }
 
-  async function saveMember(payload: {
-    studentNo: string;
-    name: string;
-    role: MemberSummary["role"];
-    status: MemberStatus;
-    phone: string;
-    major: string;
-    grade: string;
-    qq: string;
-    reason?: string;
-  }) {
+  async function saveMember(payload: MemberEditorPayload) {
     await actions.run("save", async () => {
       const target = editorTarget.value;
-      const value = target
-        ? await task.run(
-            () =>
-              put<MemberSummary>(`/api/users/${target.id}`, {
-                name: payload.name,
-                role: payload.role,
-                status: payload.status,
-                phone: payload.phone,
-                major: payload.major,
-                grade: payload.grade,
-                qq: payload.qq,
-                reason: payload.reason,
-              }),
-            "成员资料已更新",
-          )
-        : await task.run(
-            () =>
-              post<MemberSummary>("/api/users", {
-                studentNo: payload.studentNo,
-                name: payload.name,
-                role: payload.role,
-                phone: payload.phone,
-                major: payload.major,
-                grade: payload.grade,
-                qq: payload.qq,
-              }),
-            "成员已新增，初始密码为学号后六位",
-          );
+      const { studentNo, status, reason, assessmentChanges, assessmentOnly, ...profile } = payload;
+      let value: MemberSummary | undefined;
+      if (!target) {
+        value = await task.run(
+          () => post<MemberSummary>("/api/users", { studentNo, ...profile }),
+          "成员已新增，初始密码为学号后六位",
+        );
+      } else if (assessmentOnly) {
+        value = await task.run(
+          () => patch<MemberSummary>(`/api/users/${target.id}/assessments`, { ...assessmentChanges, reason }),
+          "考核状态已更新",
+        );
+      } else {
+        value = await task.run(
+          () => put<MemberSummary>(`/api/users/${target.id}`, { ...profile, status, reason, ...assessmentChanges }),
+          "成员资料已更新",
+        );
+      }
       if (!value) return;
       editorOpen.value = false;
       editorTarget.value = null;

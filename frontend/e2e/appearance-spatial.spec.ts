@@ -70,7 +70,7 @@ test("loads the spatial admin console without horizontal overflow", async ({ pag
   await page.goto("/#/admin/today");
 
   await expect(page.locator("html")).toHaveAttribute("data-appearance", "spatial");
-  await expect(page.locator(".today-command-page")).toBeVisible();
+  await expect(page.locator(".overview-today")).toBeVisible();
   const fitsViewport = await page.evaluate(() =>
     document.documentElement.scrollWidth <= document.documentElement.clientWidth,
   );

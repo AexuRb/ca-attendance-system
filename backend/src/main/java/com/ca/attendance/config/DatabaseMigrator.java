@@ -1,6 +1,7 @@
 package com.ca.attendance.config;
 
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 
 import javax.sql.DataSource;
@@ -10,7 +11,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class DatabaseMigrator {
-    private static final int CURRENT_VERSION = 11;
+    private static final int CURRENT_VERSION = 12;
     private final DataSource dataSource;
 
     public DatabaseMigrator(DataSource dataSource) {
@@ -66,6 +67,9 @@ public class DatabaseMigrator {
             if (version < 11) {
                 migrateToVersionEleven(connection);
             }
+            if (version < 12) {
+                migrate(connection, "db/sqlite/V12__member_assessments.sql", 12, ";;");
+            }
             verifyIntegrity(connection);
         }
     }
@@ -115,10 +119,16 @@ public class DatabaseMigrator {
     }
 
     private void migrate(Connection connection, String resource, int version) throws SQLException {
+        migrate(connection, resource, version, ScriptUtils.DEFAULT_STATEMENT_SEPARATOR);
+    }
+
+    private void migrate(Connection connection, String resource, int version, String separator) throws SQLException {
         boolean originalAutoCommit = connection.getAutoCommit();
         connection.setAutoCommit(false);
         try {
-            ScriptUtils.executeSqlScript(connection, new ClassPathResource(resource));
+            ScriptUtils.executeSqlScript(connection, new EncodedResource(new ClassPathResource(resource)),
+                    false, false, ScriptUtils.DEFAULT_COMMENT_PREFIX, separator,
+                    ScriptUtils.DEFAULT_BLOCK_COMMENT_START_DELIMITER, ScriptUtils.DEFAULT_BLOCK_COMMENT_END_DELIMITER);
             try (Statement statement = connection.createStatement()) {
                 statement.execute("PRAGMA user_version = " + version);
             }

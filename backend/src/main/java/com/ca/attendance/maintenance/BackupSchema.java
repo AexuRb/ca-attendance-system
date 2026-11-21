@@ -6,7 +6,8 @@ import java.util.Set;
 
 final class BackupSchema {
     static final int LEGACY_SCHEMA_VERSION = 1;
-    static final int SCHEMA_VERSION = 4;
+    static final int MEMBER_ASSESSMENT_SCHEMA_VERSION = 5;
+    static final int SCHEMA_VERSION = MEMBER_ASSESSMENT_SCHEMA_VERSION;
 
     static final Set<String> LEGACY_REQUIRED_TABLES = Set.of(
             "users",
@@ -60,7 +61,7 @@ final class BackupSchema {
             Map.entry("users", Set.of(
                     "id", "student_no", "name", "password_hash", "role", "status", "phone", "major", "grade", "qq",
                     "must_change_password", "last_login_at", "disabled_at", "disabled_by", "created_by", "updated_by",
-                    "created_at", "updated_at"
+                    "created_at", "updated_at", "disassembly_assessment", "os_reinstall_assessment"
             )),
             Map.entry("training_sessions", Set.of(
                     "id", "title", "training_date", "start_time", "end_time", "location", "speaker",

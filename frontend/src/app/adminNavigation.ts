@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
+  ClipboardPenLine,
   Database,
   Gauge,
   GraduationCap,
@@ -14,7 +15,7 @@ import {
   Wrench,
 } from "@lucide/vue";
 import type { Role } from "../shared/types";
-import { canReviewAttendance, type EntryMode } from "../shared/access/entryAccess";
+import { canConductSkillAssessments, canReviewAttendance, type EntryMode } from "../shared/access/entryAccess";
 
 export interface AdminNavItem {
   name: string;
@@ -87,6 +88,12 @@ export const adminNavigation: AdminNavSection[] = [
         roles: ["PRESIDENT", "ADMIN"],
       },
       {
+        name: "skill-assessments",
+        label: "技能考核",
+        icon: ClipboardPenLine,
+        roles: ["MINISTER"],
+      },
+      {
         name: "profile",
         label: "个人资料",
         icon: UserRound,
@@ -146,7 +153,8 @@ export function navigationForRole(role?: Role, mode?: EntryMode): AdminNavSectio
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => item.roles.includes(role)
-        && (item.name !== "reviews" || canReviewAttendance(role, mode))),
+        && (item.name !== "reviews" || canReviewAttendance(role, mode))
+        && (item.name !== "skill-assessments" || canConductSkillAssessments(role, mode))),
     }))
     .filter((section) => section.items.length > 0);
 }

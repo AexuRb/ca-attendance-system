@@ -2,6 +2,7 @@ package com.ca.attendance.verification;
 
 import com.ca.attendance.auth.*;
 import com.ca.attendance.common.*;
+import com.ca.attendance.config.DatabaseMigrator;
 import com.ca.attendance.schedule.*;
 import com.ca.attendance.training.*;
 import com.ca.attendance.user.*;
@@ -77,7 +78,15 @@ class ExistingDatabaseImportVerificationTest {
     @TestConfiguration static class ProtectedDatabase {
         @Bean(name = "dataSource", destroyMethod = "destroy")
         ExistingDatabaseRollbackDataSource dataSource() throws Exception {
-            return new ExistingDatabaseRollbackDataSource(root().resolve("data/attendance.db"));
+            ExistingDatabaseRollbackDataSource database = new ExistingDatabaseRollbackDataSource(root().resolve("data/attendance.db"));
+            try {
+                new DatabaseMigrator(database).run();
+                database.keepCurrentSchemaBetweenTests();
+                return database;
+            } catch (Exception ex) {
+                database.destroy();
+                throw ex;
+            }
         }
     }
     @BeforeEach void prepare() throws Exception {

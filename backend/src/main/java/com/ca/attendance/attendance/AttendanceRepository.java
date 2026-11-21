@@ -4,6 +4,7 @@ import com.ca.attendance.common.ExportRowLimit;
 import com.ca.attendance.common.PaginationPolicy;
 import com.ca.attendance.common.ApiException;
 import com.ca.attendance.common.SqlLike;
+import com.ca.attendance.user.AssessmentStatus;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -90,6 +91,26 @@ public class AttendanceRepository {
             return Optional.empty();
         }
     }
+
+    List<PresentMember> findPresentMembers(LocalDate date) {
+        return jdbc.query("""
+                SELECT u.id, u.name, u.disassembly_assessment, u.os_reinstall_assessment
+                FROM attendance_records ar
+                JOIN users u ON u.id = ar.user_id
+                WHERE ar.duty_date = ?
+                  AND ar.check_in_status IN ('PENDING', 'APPROVED', 'AUTO_APPROVED')
+                  AND ar.check_out_time IS NULL
+                  AND ar.check_out_status = 'NOT_SUBMITTED'
+                  AND u.status = 'ACTIVE'
+                GROUP BY u.id, u.name, u.disassembly_assessment, u.os_reinstall_assessment
+                ORDER BY MIN(ar.check_in_time), u.id
+                """, (rs, rowNum) -> new PresentMember(rs.getLong("id"), rs.getString("name"),
+                AssessmentStatus.valueOf(rs.getString("disassembly_assessment")),
+                AssessmentStatus.valueOf(rs.getString("os_reinstall_assessment"))), databaseDate(date));
+    }
+
+    public record PresentMember(long id, String name, AssessmentStatus disassemblyAssessment,
+                                AssessmentStatus osReinstallAssessment) {}
 
     public List<AttendanceRecord> pendingForReviewer(long reviewerId, boolean minister) {
         return pendingForReviewer(reviewerId, minister, true);

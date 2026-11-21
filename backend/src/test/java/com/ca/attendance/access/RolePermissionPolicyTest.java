@@ -22,7 +22,7 @@ class RolePermissionPolicyTest {
                 REPAIR_MANAGE,
                 STATS_VIEW,
                 SCHEDULE_VIEW,
-                STATS_EXPORT, REMOTE_ADMIN
+                STATS_EXPORT, REMOTE_ADMIN, SKILL_ASSESSMENT_CONDUCT
         ));
     }
 
@@ -49,8 +49,10 @@ class RolePermissionPolicyTest {
     }
 
     @Test
-    void administratorReceivesEveryDeclaredPermission() {
-        assertAllowed(Role.ADMIN, EnumSet.allOf(RolePermissionPolicy.Permission.class));
+    void administratorManagesAssessmentsThroughMembersInsteadOfTheMinisterWorkflow() {
+        var expected = EnumSet.allOf(RolePermissionPolicy.Permission.class);
+        expected.remove(SKILL_ASSESSMENT_CONDUCT);
+        assertAllowed(Role.ADMIN, expected);
     }
 
     private void assertAllowed(Role role, Set<RolePermissionPolicy.Permission> expected) {

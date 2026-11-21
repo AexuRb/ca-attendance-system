@@ -2,13 +2,6 @@
   <main class="public-presentation public-kiosk">
     <section class="public-kiosk-shell">
       <KioskHeader :online="online" :now="currentDate" />
-      <KioskSchedulePanel
-        :today-schedule="todaySchedule"
-        :schedule-error="scheduleError"
-        :schedule-count="scheduleCount"
-        :weekday-label="weekdayLabel"
-        :now="currentDate"
-      />
       <KioskAttendanceCourt
         v-model:query="query"
         :step="step"
@@ -27,10 +20,14 @@
         @select-member="selectMember"
         @submit="submitAttendance"
       />
-      <KioskWeekStrip
-        :week-schedule="weekSchedule"
-        :today-value="todayValue"
+      <KioskSchedulePanel
+        :today-schedule="todaySchedule"
+        :schedule-error="scheduleError"
+        :schedule-count="scheduleCount"
+        :weekday-label="weekdayLabel"
+        :now="currentDate"
       />
+      <KioskPresencePanel :presence="presence" :failed="presenceError" />
     </section>
   </main>
 </template>
@@ -45,7 +42,7 @@ import { useKioskAttendance } from "../../features/kiosk/useKioskAttendance";
 import KioskAttendanceCourt from "./KioskAttendanceCourt.vue";
 import KioskHeader from "./KioskHeader.vue";
 import KioskSchedulePanel from "./KioskSchedulePanel.vue";
-import KioskWeekStrip from "./KioskWeekStrip.vue";
+import KioskPresencePanel from "./KioskPresencePanel.vue";
 
 const {
   step,
@@ -56,7 +53,8 @@ const {
   error,
   online,
   todaySchedule,
-  weekSchedule,
+  presence,
+  presenceError,
   scheduleError,
   scheduleCount,
   currentDate,
@@ -71,14 +69,10 @@ const {
   reset,
 } = useKioskAttendance();
 
-const todayValue = computed(() => localDate(currentDate.value));
 const weekdayLabel = computed(() =>
   new Intl.DateTimeFormat("zh-CN", {
     weekday: "long",
   }).format(currentDate.value),
 );
 
-function localDate(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
 </script>

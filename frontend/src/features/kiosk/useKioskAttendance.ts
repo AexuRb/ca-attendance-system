@@ -12,6 +12,7 @@ import {
 } from "./attendanceSubmission";
 import type {
   AttendanceSubmitResult,
+  KioskPresence,
   KioskStep,
   ScheduleDay,
 } from "./types";
@@ -32,7 +33,8 @@ export function useKioskAttendance() {
   const attendanceAvailable = ref(true);
   const online = computed(() => scheduleAvailable.value && attendanceAvailable.value);
   const todaySchedule = ref<ScheduleDay | null>(null);
-  const weekSchedule = ref<ScheduleDay[]>([]);
+  const presence = ref<KioskPresence | null>(null);
+  const presenceError = ref(false);
   const scheduleError = ref("");
   const currentDate = ref(new Date());
   const successName = ref("");
@@ -45,12 +47,15 @@ export function useKioskAttendance() {
   let scheduleRetryTimer: number | undefined;
   let refreshTimer: number | undefined;
   let scheduleRequest: Promise<void> | undefined;
+  let presenceRequest: Promise<void> | undefined;
+  let presenceVersion = 0;
   let lastScheduleRefreshAt = 0;
   let submissionAttempt: SubmissionAttempt | null = null;
   let pendingLookupQuery: string | null = null;
   let disposed = false;
   let interactionVersion = 0;
   const scheduleRequests = createKioskRequests();
+  const presenceRequests = createKioskRequests();
   const interactionRequests = createKioskRequests();
 
   const scheduleCount = computed(
@@ -65,6 +70,7 @@ export function useKioskAttendance() {
     disposed = false;
     currentDate.value = new Date();
     void loadSchedule();
+    void loadPresence();
     refreshTimer = window.setInterval(
       () => refreshKioskState(false),
       CLOCK_REFRESH_DELAY,
@@ -77,6 +83,7 @@ export function useKioskAttendance() {
     interactionVersion += 1;
     interactionRequests.cancel();
     scheduleRequests.cancel();
+    presenceRequests.cancel();
     clearTimers();
   });
 
@@ -86,13 +93,11 @@ export function useKioskAttendance() {
     window.clearTimeout(scheduleRetryTimer);
     scheduleRequest = (async () => {
       try {
-        const [today, week] = await scheduleRequests.run(signal => Promise.all([
+        const today = await scheduleRequests.run(signal =>
           get<ScheduleDay>("/api/public/schedules/today", { signal }),
-          get<ScheduleDay[]>("/api/public/schedules/week", { signal }),
-        ]));
+        );
         if (disposed) return;
         todaySchedule.value = today;
-        weekSchedule.value = week;
         scheduleError.value = "";
         scheduleAvailable.value = true;
         lastScheduleRefreshAt = Date.now();
@@ -114,7 +119,27 @@ export function useKioskAttendance() {
     return scheduleRequest;
   }
 
-  function refreshKioskState(forceSchedule: boolean) {
+  function loadPresence(force = false): Promise<void> {
+    if (disposed) return Promise.resolve();
+    if (!force && presenceRequest) return presenceRequest;
+    const version = ++presenceVersion;
+    presenceRequests.cancel();
+    presenceRequest = presenceRequests.run(signal => get<KioskPresence>(
+      "/api/public/attendance/present", { signal },
+    )).then(snapshot => {
+      if (disposed || version !== presenceVersion) return;
+      presence.value = snapshot;
+      presenceError.value = false;
+    }).catch(() => {
+      if (disposed || version !== presenceVersion) return;
+      presenceError.value = true;
+    }).finally(() => {
+      if (version === presenceVersion) presenceRequest = undefined;
+    });
+    return presenceRequest;
+  }
+
+  function refreshKioskState(forceSchedule: boolean, forcePresence = false) {
     const previousDay = localDateKey(currentDate.value);
     const nextDate = new Date();
     currentDate.value = nextDate;
@@ -125,6 +150,11 @@ export function useKioskAttendance() {
     if (forceSchedule || dayChanged || scheduleStale) {
       void loadSchedule();
     }
+    if (dayChanged) {
+      presence.value = null;
+      presenceError.value = false;
+    }
+    void loadPresence(dayChanged || forcePresence);
   }
 
   function handleFocus() {
@@ -230,6 +260,7 @@ export function useKioskAttendance() {
         hour12: false,
       }).format(new Date(result.submittedAt));
       step.value = "success";
+      refreshKioskState(false, true);
       resetTimer = window.setTimeout(reset, RESET_DELAY);
     } catch (cause) {
       if (disposed || version !== interactionVersion) return;
@@ -297,7 +328,8 @@ export function useKioskAttendance() {
     error,
     online,
     todaySchedule,
-    weekSchedule,
+    presence,
+    presenceError,
     scheduleError,
     scheduleCount,
     currentDate,

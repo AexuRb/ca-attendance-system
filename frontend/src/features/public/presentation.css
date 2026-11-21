@@ -163,15 +163,6 @@ html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-shift.current>span { color:var(--pub-accent); font-weight:600; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-message { display:flex; align-items:center; gap:8px; padding:8px 0; color:var(--pub-muted); font-size:13px; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-message svg { width:18px; height:18px; }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week { grid-row:3; display:grid; grid-template-columns:1fr auto; gap:14px; padding:18px 24px; border:1px solid var(--pub-line); border-top:0; border-radius:0 0 var(--pub-radius) var(--pub-radius); background:var(--pub-paper); }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-title { grid-column:1; display:inline-flex; align-items:baseline; gap:8px; font-size:13px; font-weight:600; color:var(--pub-ink); }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-title span { font-size:12px; font-weight:400; color:var(--pub-muted); }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days { grid-row:2; grid-column:1/-1; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:0; }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article { padding:8px 14px; border:0; border-left:1px solid var(--pub-line); border-radius:0; background:none; text-align:left; }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article:first-child { border:0; }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article.today { background:var(--pub-soft); color:var(--pub-accent); }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article span { font-size:13px; color:var(--pub-muted); }
-html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article strong { display:block; margin-top:4px; font-size:17px; font-weight:650; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-admin { grid-column:2; grid-row:1; position:static; display:inline-flex; align-items:center; gap:5px; padding:0; border:0; background:none; color:var(--pub-muted); font-size:12px; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-admin svg { width:14px; height:14px; }
 html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-secondary { min-height:40px; height:auto; padding:9px 14px; border:1px solid var(--pub-line); border-radius:7px; color:var(--pub-ink); background:var(--pub-soft); font-size:13px; box-shadow:none; }
@@ -213,12 +204,10 @@ html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-
 html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-signal-caption { flex:0; }
 html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-focus-state { padding:40px; }
 html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-focus-state h1 { font-family:"Noto Serif SC","SimSun",serif; font-weight:500; }
-html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-signal-week { grid-column:1/-1; grid-row:2; border:1px solid var(--pub-line); border-radius:9px; margin-top:20px; background:#ffffff45; }
 html:root[data-appearance="spatial"] .public-presentation.public-kiosk .public-kiosk-shell { max-width:900px; }
 html:root[data-appearance="spatial"] .public-presentation.public-kiosk .kiosk-focus-stage { margin:0 30px; box-shadow:0 18px 38px #3a4d620e; }
 html:root[data-appearance="spatial"] .public-presentation.public-kiosk .kiosk-signal-terminal-head { text-align:center; margin-bottom:8px; }
 html:root[data-appearance="spatial"] .public-presentation.public-kiosk .kiosk-signal-band { margin:0 30px; border-radius:0 0 var(--pub-radius) var(--pub-radius); background:#ffffffbb; backdrop-filter:blur(16px); }
-html:root[data-appearance="spatial"] .public-presentation.public-kiosk .kiosk-signal-week { margin-top:22px; border:1px solid #ffffffa8; border-radius:12px; background:#ffffff6b; }
 /* Reset legacy decorative layers and grid placement inherited by inner controls. */
 html:root[data-appearance] .public-presentation .auth-brand-mark { background:none; border:0; box-shadow:none; }
 html:root[data-appearance] .public-presentation .auth-brand-mark img { filter:none; mix-blend-mode:multiply; }
@@ -283,8 +272,6 @@ html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-step-s
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-band { order:2; margin:0; padding:18px 20px; gap:12px; flex-direction:column; align-items:stretch; border:1px solid var(--pub-line); border-top:0; border-radius:0 0 var(--pub-radius) var(--pub-radius); }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-caption { flex:0; }
   html:root[data-appearance="editorial"] .public-presentation.public-kiosk .kiosk-signal-track { grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr)); }
-  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week { order:3; padding:14px 10px; margin:16px 0 0; border:1px solid var(--pub-line); border-radius:8px; }
-  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-signal-week-days article { padding:6px 3px; text-align:center; }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-member-ticket { padding:14px; }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-action-row { width:100%; margin:8px 0 0; }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-action-row>button { flex:1; min-width:0; }

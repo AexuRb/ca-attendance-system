@@ -194,7 +194,4 @@
     grid-column: 1;
   }
 
-  :root[data-appearance="spatial"] .command-welcome-detail h1 {
-    font-size: 40px;
-  }
 }

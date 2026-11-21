@@ -1,6 +1,7 @@
 package com.ca.attendance.maintenance;
 
 import com.ca.attendance.common.ApiException;
+import com.ca.attendance.user.AssessmentStatus;
 import tools.jackson.core.JacksonException;
 import tools.jackson.core.JsonParser;
 import tools.jackson.core.JsonToken;
@@ -43,7 +44,7 @@ final class BackupRestoreValidator {
             if (tableFile == null) {
                 continue;
             }
-            validateTable(tableFile, table);
+            validateTable(tableFile, table, schemaVersion);
             tableFiles.put(table, tableFile);
         }
         return new BackupRestorePayload(Collections.unmodifiableMap(new LinkedHashMap<>(tableFiles)));
@@ -136,7 +137,7 @@ final class BackupRestoreValidator {
         return schemaVersion;
     }
 
-    private void validateTable(Path path, String table) {
+    private void validateTable(Path path, String table, int schemaVersion) {
         try (JsonParser parser = objectMapper.createParser(path)) {
             if (parser.nextToken() != JsonToken.START_ARRAY) {
                 throw ApiException.badRequest(table + " 数据格式不正确");
@@ -148,7 +149,7 @@ final class BackupRestoreValidator {
                     throw ApiException.badRequest(table + " 数据格式不正确");
                 }
                 rowCount++;
-                validateRow(table, rowCount, parser.readValueAs(ROW_TYPE));
+                validateRow(table, rowCount, parser.readValueAs(ROW_TYPE), schemaVersion);
             }
             if (parser.nextToken() != null) {
                 throw ApiException.badRequest(table + " 数据格式不正确");
@@ -160,7 +161,7 @@ final class BackupRestoreValidator {
         }
     }
 
-    private void validateRow(String table, int rowNumber, Map<String, Object> row) {
+    private void validateRow(String table, int rowNumber, Map<String, Object> row, int schemaVersion) {
         Set<String> allowedColumns = BackupSchema.TABLE_COLUMNS.get(table);
         Set<String> requiredKeys = BackupSchema.REQUIRED_KEYS.get(table);
         if (!allowedColumns.containsAll(row.keySet())) {
@@ -175,6 +176,27 @@ final class BackupRestoreValidator {
                     table + " 第 " + rowNumber + " 行缺少字段：" + String.join("、", missingKeys)
             );
         }
+        if ("users".equals(table)) {
+            validateAssessments(row, rowNumber, schemaVersion);
+        }
         row.forEach((column, value) -> valueConverter.convert(table, rowNumber, column, value));
+    }
+
+    private void validateAssessments(Map<String, Object> row, int rowNumber, int schemaVersion) {
+        boolean required = schemaVersion >= BackupSchema.MEMBER_ASSESSMENT_SCHEMA_VERSION;
+        String passed = AssessmentStatus.PASSED.name();
+        String notPassed = AssessmentStatus.NOT_PASSED.name();
+        boolean officer = "MINISTER".equals(row.get("role")) || "PRESIDENT".equals(row.get("role"))
+                || "ADMIN".equals(row.get("role"));
+        for (String column : List.of("disassembly_assessment", "os_reinstall_assessment")) {
+            if (!required && !row.containsKey(column)) continue;
+            Object value = row.get(column);
+            if (!passed.equals(value) && !notPassed.equals(value)) {
+                throw ApiException.badRequest("备份成员第 " + rowNumber + " 行考核字段 " + column + " 缺失或格式不正确");
+            }
+            if (officer && !passed.equals(value)) {
+                throw ApiException.badRequest("备份成员第 " + rowNumber + " 行的任职账号考核状态必须为通过");
+            }
+        }
     }
 }
