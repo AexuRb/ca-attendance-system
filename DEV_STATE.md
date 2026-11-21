@@ -1,9 +1,11 @@
 # 开发状态
 
 
-## 3.6.5 GitHub 发布（2026-11-22）
+## 3.6.5 已发布至 GitHub（2026-11-22）
 
-用户已明确要求发布 3.6.5 Release。沿用已核验的本地发行包，按发布检查表先验证候选提交，再更新 `main` 并保留 `codex/release-3.6.5`。公开前核对标签、版本分支、安装包、便携包与校验文件。
+发布提交 `914452c14a3c43f0d1c7f242114e479f604fde50` 已快进 `main`，标签 `v3.6.5` 与版本分支 `codex/release-3.6.5` 指向该提交。[main CI](https://github.com/AexuRb/ca-attendance-system/actions/runs/44961458132) 和[托管 Windows 打包](https://github.com/AexuRb/ca-attendance-system/actions/runs/44961262441) 均通过。
+
+[v3.6.5 Release](https://github.com/AexuRb/ca-attendance-system/releases/tag/v3.6.5) 已公开并设为最新版本。安装包、便携包和 SHA256SUMS 的上传状态、大小及 GitHub SHA-256 均与本地吻合，重新下载的校验文件逐字节一致。证据见 `C:/Codex/tasks/release-365-20261121`。
 
 
 ## 3.6.5 本地发行准备完成（2026-11-21）
