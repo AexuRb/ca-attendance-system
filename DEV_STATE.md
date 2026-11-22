@@ -1,7 +1,11 @@
 # 开发状态
 
 
-## 3.6.6 本地发行包已验证（2026-11-22）
+## 3.6.6 已发布至 GitHub（2026-11-22）
+
+发布提交 `be377e8508500848b69ab993d9a402d056d669ef` 已快进合入 `main`，标签 `v3.6.6` 与版本保留分支 `codex/release-3.6.6` 指向该提交。[主分支 CI](https://github.com/AexuRb/ca-attendance-system/actions/runs/45033728553) 和[候选分支 CI 与 Windows 打包](https://github.com/AexuRb/ca-attendance-system/actions/runs/45033009280) 均通过。
+
+[v3.6.6 Release](https://github.com/AexuRb/ca-attendance-system/releases/tag/v3.6.6) 已公开并设为最新版。GitHub 上三个发行文件的上传状态、大小和 SHA-256 均已核对，重新下载的校验文件与本地一致。
 
 版本清单、变更日志与[发布说明](docs/releases/v3.6.6.md)已同步。Windows 安装版、便携版和 SHA-256 校验文件在 `release-artifacts/3.6.6/`。前端、桌面、后端定向测试、依赖上界、脚本定向检查与 8080 浏览器回归通过。桌面成品启动、窗口缩放、托盘及退出通过，项目业务表校验值一致。产物及风险范围见 `C:/Codex/tasks/release-366-20261122`。8080 已恢复为 3.6.6 预览，PID 11732。
 
