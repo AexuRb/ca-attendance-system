@@ -3,10 +3,12 @@
     <a class="overview-skip" href="#overview-content" @click.prevent="focusContent">跳到主要内容</a>
     <button v-if="menuOpen" class="overview-backdrop" type="button" aria-label="关闭菜单" @click="closeMenu" />
     <aside id="overview-navigation" class="overview-sidebar" aria-label="后台导航" :inert="smallScreen && !menuOpen">
-      <nav class="overview-navigation" aria-label="功能菜单">
+      <nav ref="navigation" class="overview-navigation" aria-label="功能菜单">
         <section v-for="section in sections" :key="section.key" class="overview-nav-group" :aria-labelledby="`overview-group-${section.key}`">
           <h2 :id="`overview-group-${section.key}`">{{ section.label }}</h2>
-          <RouterLink v-for="item in section.items" :key="item.key" :to="item.target" :class="{ 'is-current': item.key === currentPage }" :aria-current="item.key === currentPage ? 'page' : undefined" @click="closeMenu">
+          <RouterLink v-for="item in section.items" :key="item.key" :to="item.target" :data-nav-key="item.key"
+            :class="{ 'is-current': item.key === currentPage }" :aria-current="item.key === currentPage ? 'page' : undefined" @click="closeMenu">
+            <span class="overview-nav-highlight" aria-hidden="true" />
             <component :is="item.icon" aria-hidden="true" /><span>{{ item.label }}</span>
           </RouterLink>
         </section>
@@ -36,31 +38,35 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { Component } from "vue";
 import { RouterLink, useRouter } from "vue-router";
 import type { RouteLocationRaw } from "vue-router";
 import { CircleAlert, DatabaseBackup, FileSpreadsheet, LogOut, Menu, UserRound } from "@lucide/vue";
-import { navigationForRole, roleLabel } from "../app/adminNavigation";
+import { navigationForRole, roleLabel, sidebarHandoffKey } from "../app/adminNavigation";
 import { useSession } from "../app/session";
 import { useServiceHealth } from "../shared/composables/useServiceHealth";
 import HeaderQuickActions from "./HeaderQuickActions.vue";
 
 // Pages opt into the approved shell individually.
 // Data center, backups and recycle keep their existing query routes.
-withDefaults(defineProps<{ currentPage?: string }>(), { currentPage: "today" });
+const props = withDefaults(defineProps<{ currentPage?: string }>(), { currentPage: "today" });
 const { user, state, logout } = useSession();
 const logoUrl = "/brand/ca-logo-transparent.svg";
 const router = useRouter();
+const sidebarHandoff = inject(sidebarHandoffKey, null);
 const { online, checking } = useServiceHealth();
 const menuOpen = ref(false);
 const shell = ref<HTMLElement | null>(null);
+const navigation = ref<HTMLElement | null>(null);
 const windowDensity = ref(1);
 let shellObserver: ResizeObserver | undefined;
 const content = ref<HTMLElement | null>(null);
 const menuButton = ref<HTMLButtonElement | null>(null);
 const media = window.matchMedia?.("(max-width: 900px)");
+const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
 const smallScreen = ref(media?.matches ?? false);
+let selectionAnimations: Animation[] = [];
 const sections = computed(() => navigationForRole(user.value?.role, state?.access?.mode).map(section => ({
   key: section.key,
   label: section.key === "system" ? "设置" : section.label,
@@ -86,12 +92,55 @@ function fitWindow() {
   const relaxedMenu = 32 + groups * (16 + 27) + links * 40 + separators * 3 + groupGaps * 10;
   const compactFrame = 96 + 64 + 12 + compactMenu;
   const relaxedFrame = 128 + 88 + 24 + relaxedMenu;
-  windowDensity.value = Math.max(0, Math.min(1,
+  const density = Math.max(0, Math.min(1,
     (shell.value.clientHeight - compactFrame) / (relaxedFrame - compactFrame)));
+  if (windowDensity.value !== density) {
+    stopSelectionAnimation();
+    windowDensity.value = density;
+  }
 }
 watch(sections, fitWindow, { flush: 'post' });
+watch(() => props.currentPage, (_, previous) => animateSelection(previous), { flush: "post" });
+
+function stopSelectionAnimation() {
+  for (const animation of selectionAnimations) animation.cancel();
+  selectionAnimations = [];
+}
+
+function animateSelection(previousPage: string) {
+  stopSelectionAnimation();
+  if (previousPage === props.currentPage || smallScreen.value || reducedMotion?.matches) return;
+  const links = [...(navigation.value?.querySelectorAll<HTMLAnchorElement>("[data-nav-key]") ?? [])];
+  const previous = links.find(link => link.dataset.navKey === previousPage);
+  const current = links.find(link => link.dataset.navKey === props.currentPage);
+  const highlight = current?.querySelector<HTMLElement>(".overview-nav-highlight");
+  if (!previous || !current || !highlight?.animate) return;
+
+  if (previous.parentElement === current.parentElement) {
+    selectionAnimations = [highlight.animate(
+      [{ transform: `translateY(${previous.offsetTop - current.offsetTop}px)` }, { transform: "translateY(0)" }],
+      { duration: 180, easing: "cubic-bezier(.2,.7,.25,1)" },
+    )];
+    return;
+  }
+
+  const previousHighlight = previous.querySelector<HTMLElement>(".overview-nav-highlight");
+  if (!previousHighlight?.animate) return;
+  const offset = (previous.compareDocumentPosition(current) & Node.DOCUMENT_POSITION_FOLLOWING) ? 4 : -4;
+  selectionAnimations = [
+    previousHighlight.animate(
+      [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${offset}px)`, opacity: 0 }],
+      { duration: 100, easing: "ease-in" },
+    ),
+    highlight.animate(
+      [{ transform: `translateY(${-offset}px)`, opacity: 0 }, { transform: "translateY(0)", opacity: 1 }],
+      { delay: 35, duration: 145, easing: "cubic-bezier(.2,.7,.25,1)", fill: "backwards" },
+    ),
+  ];
+}
 
 function syncScreen(event: MediaQueryListEvent) {
+  stopSelectionAnimation();
   smallScreen.value = event.matches;
   menuOpen.value = false;
 }
@@ -105,6 +154,7 @@ function focusContent() { closeMenu(); content.value?.focus({ preventScroll: tru
 async function signOut() { await logout(); await router.replace({ name: "login" }); }
 onMounted(() => {
   media?.addEventListener("change", syncScreen);
+  reducedMotion?.addEventListener("change", stopSelectionAnimation);
   fitWindow();
   if (typeof ResizeObserver !== 'undefined') {
     shellObserver = new ResizeObserver(fitWindow);
@@ -112,9 +162,20 @@ onMounted(() => {
   } else {
     window.addEventListener('resize', fitWindow);
   }
+  const previous = sidebarHandoff?.previous;
+  if (sidebarHandoff) sidebarHandoff.previous = undefined;
+  if (previous) {
+    void nextTick(() => {
+      if (!navigation.value || smallScreen.value) return;
+      navigation.value.scrollTop = previous.scrollTop;
+      animateSelection(previous.page);
+    });
+  }
 });
 onBeforeUnmount(() => {
+  stopSelectionAnimation();
   media?.removeEventListener("change", syncScreen);
+  reducedMotion?.removeEventListener("change", stopSelectionAnimation);
   shellObserver?.disconnect();
   window.removeEventListener('resize', fitWindow);
 });

@@ -43,6 +43,7 @@ export function useMemberDirectoryWorkspace() {
   let active = true;
   let queryVersion = 0;
   const task = useAsyncTask();
+  const editorTask = useAsyncTask({ errorFeedback: "inline" });
   const listRequest = useLatestRequest();
   const actions = usePendingActions();
   const { loading: listLoading, error: listError } = listRequest;
@@ -231,17 +232,17 @@ export function useMemberDirectoryWorkspace() {
       const { studentNo, status, reason, assessmentChanges, assessmentOnly, ...profile } = payload;
       let value: MemberSummary | undefined;
       if (!target) {
-        value = await task.run(
+        value = await editorTask.run(
           () => post<MemberSummary>("/api/users", { studentNo, ...profile }),
           "成员已新增，初始密码为学号后六位",
         );
       } else if (assessmentOnly) {
-        value = await task.run(
+        value = await editorTask.run(
           () => patch<MemberSummary>(`/api/users/${target.id}/assessments`, { ...assessmentChanges, reason }),
           "考核状态已更新",
         );
       } else {
-        value = await task.run(
+        value = await editorTask.run(
           () => put<MemberSummary>(`/api/users/${target.id}`, { ...profile, status, reason, ...assessmentChanges }),
           "成员资料已更新",
         );
@@ -494,6 +495,7 @@ export function useMemberDirectoryWorkspace() {
 
   return {
     actionError: task.error,
+    editorError: editorTask.error,
     bindTableScroll,
     tableScroll,
     rememberTableScroll,

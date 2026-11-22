@@ -14,12 +14,12 @@ html:root[data-appearance] .overview-schedule.schedule-presentation .overview-wo
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-board { container:schedule-board / inline-size; display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-view-switch { display:flex; gap:2px; width:max-content; max-width:100%; padding:4px; border:0; border-radius:9px; background:var(--overview-chat); }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-view-switch button { min-height:34px; padding:4px 14px; border:0; border-radius:6px; background:transparent; color:var(--mw-muted); font:400 14px/22px var(--mw-font); box-shadow:none; }
-html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-view-switch button.active { background:#fff; color:var(--mw-accent); box-shadow:0 1px 3px #24364814; }
+html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-view-switch button.active { background:transparent; color:var(--mw-accent); box-shadow:none; }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-days { display:flex; flex-direction:row; gap:8px; padding:8px; border:0; border-radius:12px; background:var(--overview-chat); overflow-x:auto; scrollbar-width:thin; }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day { flex:1 0 126px; min-width:0; min-height:68px; padding:10px 12px; align-items:center; border:0; border-radius:8px; background:transparent; box-shadow:none; }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day::after { display:none; }
-html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day.active { background:#fff; box-shadow:0 1px 4px #24364812; }
-html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day:hover { background:#ffffff99; }
+html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day.active { background:transparent; box-shadow:none; }
+html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day:not(.active):hover { background:#ffffff99; }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day strong { color:var(--mw-ink); font:500 16px/24px var(--mw-font); }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day small { margin-top:3px; color:var(--mw-muted); font:400 12px/18px var(--mw-font); }
 html:root[data-appearance] .overview-schedule.schedule-presentation .schedule-focus-day b { padding:0; background:transparent; color:var(--mw-accent); font:500 24px/32px var(--mw-font); }

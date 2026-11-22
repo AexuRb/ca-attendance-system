@@ -1,4 +1,4 @@
-import type { Component } from "vue";
+import type { Component, InjectionKey } from "vue";
 import {
   BarChart3,
   CalendarDays,
@@ -30,6 +30,12 @@ export interface AdminNavSection {
   icon: Component;
   items: AdminNavItem[];
 }
+
+export interface SidebarHandoff {
+  previous?: { page: string; scrollTop: number };
+}
+
+export const sidebarHandoffKey: InjectionKey<SidebarHandoff> = Symbol("sidebarHandoff");
 
 export const adminNavigation: AdminNavSection[] = [
   {

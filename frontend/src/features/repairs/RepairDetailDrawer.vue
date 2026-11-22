@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition name="repair-drawer">
+    <Transition name="dialog-motion" @before-leave="makeDialogInert">
       <div
         v-if="open && item"
         class="repair-drawer-backdrop app-detail-backdrop" :class="[backdropClass, {'affairs-detail mw-scope': refined}]"
@@ -9,6 +9,7 @@
         <aside
           ref="dialog"
           class="repair-detail-drawer app-detail"
+          data-dialog-motion="side"
           role="dialog"
           aria-modal="true"
           aria-labelledby="repair-detail-title"
@@ -170,7 +171,7 @@ import {
   X,
 } from "@lucide/vue";
 import StatusBadge from "../../shared/ui/StatusBadge.vue";
-import { useDialogFocus } from "../../shared/ui/useDialogFocus";
+import { makeDialogInert, useDialogFocus } from "../../shared/ui/useDialogFocus";
 import {
   isLongRunningRepair,
   maskRepairPhone,

@@ -32,6 +32,47 @@ async function install(page:Page, appearance:string) {
   return json([]);
  });return writes;
 }
+
+test('center dialogs and side drawers animate while nested close restores focus', async ({page}) => {
+ const writes = await install(page,'CLASSIC');
+ await page.emulateMedia({reducedMotion:'no-preference'});
+ await page.setViewportSize({width:1440,height:900});
+ await page.route('**/api/repairs/1/agreement', route => route.fulfill({
+  contentType:'text/html',body:'<!doctype html><html><body><div class="sheet">示例维修协议</div></body></html>',
+ }));
+ await page.goto('/#/admin/repairs');
+
+ const create = page.getByRole('button',{name:'新建维修',exact:true});
+ await create.click();
+ const editor = page.locator('[data-dialog-motion="center"]');
+ await expect(editor).toHaveCSS('transition-property','opacity, transform');
+ await expect(editor.locator('[data-dialog-content]')).toHaveCSS('transition-delay','0.085s, 0.085s');
+ await expect(editor.locator('footer')).toHaveCSS('transition-delay','0.135s, 0.135s');
+ await expect(editor.locator('header')).toHaveCSS('animation-name','dialog-heading-light');
+ await page.keyboard.press('Escape');
+ await expect(create).toBeFocused();
+ await expect(editor).toHaveCount(0);
+
+ const opener = page.getByRole('button',{name:'查看 WX-DEMO-001 的详情'});
+ await opener.click();
+ const detail = page.locator('.repair-detail-drawer');
+ await expect(detail).toHaveCSS('transition-property','opacity, transform');
+ const preview = detail.getByRole('button',{name:'查看协议',exact:true});
+ await preview.click();
+ const agreement = page.getByRole('dialog',{name:'协议预览'});
+ await expect(agreement).toBeVisible();
+ await expect(agreement).toHaveCSS('transform','none');
+ await expect(agreement.frameLocator('iframe').getByText('示例维修协议')).toBeVisible();
+ await page.keyboard.press('Escape');
+ await expect(preview).toBeFocused();
+ await expect(detail).toBeVisible();
+ await expect(page.locator('.agreement-backdrop')).toHaveCount(0);
+ await page.keyboard.press('Escape');
+ await expect(opener).toBeFocused();
+ await expect(detail).toHaveCount(0);
+ expect(writes).toHaveLength(0);
+});
+
 for(const appearance of ['CLASSIC','EDITORIAL','SPATIAL']){
  test(`${appearance} repairs preserve two steps, retry, details and delete confirmation`,async({page})=>{
   const writes=await install(page,appearance);await page.goto('/#/admin/repairs');
@@ -39,18 +80,21 @@ for(const appearance of ['CLASSIC','EDITORIAL','SPATIAL']){
   await page.getByRole('button',{name:'查看 WX-DEMO-001 的详情'}).click();await expect(page.getByRole('dialog')).toBeVisible();
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:`../tasks/affairs-20260913/${appearance}-detail-390.png`,fullPage:true});
   await page.getByRole('button',{name:'关闭维修详情'}).click();
-  await page.setViewportSize({width:1440,height:960});await page.getByRole('button',{name:'编辑 WX-DEMO-001',exact:true}).click();
+  await page.setViewportSize({width:1440,height:960});
+  const more = page.getByRole('button',{name:'WX-DEMO-001 更多操作'});
+  await more.click();await page.getByRole('menuitem',{name:'编辑事务',exact:true}).click();
   const dialog=page.getByRole('dialog');await dialog.locator('[name="repair-owner-name"]').fill('');await dialog.getByRole('button',{name:'下一步'}).click();
   await expect(dialog.getByText('请填写联系人')).toBeVisible();await expect(dialog.locator('[name="repair-owner-name"]')).toBeFocused();
   await dialog.locator('[name="repair-owner-name"]').fill('示例联系人修改');await dialog.getByRole('button',{name:'下一步'}).click();
-  await dialog.getByRole('button',{name:'保存事务'}).click();await expect(page.getByText('模拟保存失败，请重试')).toBeVisible();
+  await dialog.getByRole('button',{name:'保存事务'}).click();await expect(dialog.getByRole('alert')).toHaveText('模拟保存失败，请重试');
   await expect(dialog).toBeVisible();await dialog.getByRole('button',{name:'保存事务'}).click();await expect(dialog).toBeHidden();
   expect(writes[1]).toMatchObject({path:'/api/repairs/1',body:{ownerName:'示例联系人修改',handlerUserId:8}});
   await expect(page.getByText('示例联系人修改',{exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'将 WX-DEMO-001 移入回收站'}).click();await page.getByRole('dialog').getByRole('button',{name:'取消'}).click();expect(writes).toHaveLength(2);
-  await page.getByRole('button',{name:'将 WX-DEMO-001 移入回收站'}).click();await page.getByRole('dialog').getByRole('button',{name:'移入回收站',exact:true}).click();await expect(page.getByText('当前没有进行中的维修')).toBeVisible();
+  const deleteAction = page.getByRole('menuitem',{name:'移入回收站',exact:true});
+  await more.click();await deleteAction.click();await page.getByRole('dialog').getByRole('button',{name:'取消'}).click();expect(writes).toHaveLength(2);
+  await more.click();await deleteAction.click();await page.getByRole('dialog').getByRole('button',{name:'移入回收站',exact:true}).click();await expect(page.getByText('当前条件下没有进行中的维修')).toBeVisible();
  });
- test(`${appearance} training edits, participants, import and responsive dialogs`,async({page})=>{
+ test(`${appearance} training edits, participants and responsive dialogs`,async({page})=>{
   const writes=await install(page,appearance);await page.goto('/#/admin/trainings');await page.getByRole('button',{name:'编辑培训',exact:true}).click();
   let dialog=page.getByRole('dialog');await dialog.locator('[name="training-title"]').fill('精修演示培训');
   await page.setViewportSize({width:390,height:844});await page.emulateMedia({reducedMotion:'reduce'});await page.screenshot({path:`../tasks/affairs-20260913/${appearance}-training-editor-390.png`,fullPage:true});
@@ -58,7 +102,10 @@ for(const appearance of ['CLASSIC','EDITORIAL','SPATIAL']){
   await dialog.getByRole('button',{name:'保存培训',exact:true}).click();await expect(dialog).toBeHidden();expect(writes[0]).toMatchObject({path:'/api/trainings/1',body:{title:'精修演示培训'}});
   await expect(page.locator('.training-session-heading h2')).toHaveText('精修演示培训');
   await page.getByRole('button',{name:'编辑 示例成员 的参与记录'}).click();dialog=page.getByRole('dialog');await dialog.locator('[name="participant-duration"]').fill('1.5');await dialog.getByRole('button',{name:/保存/}).click();await expect(dialog).toBeHidden();expect(writes[1]).toMatchObject({path:'/api/trainings/1/participants/1',body:{durationHours:1.5}});
-  await page.getByRole('button',{name:'导入名单'}).click();await expect(page.getByRole('dialog')).toBeVisible();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toBeHidden();expect(writes).toHaveLength(2);
+  const add = page.getByRole('button',{name:'新建培训',exact:true});
+  await add.click();await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCSS('transform','none');
+  await page.keyboard.press('Escape');await expect(add).toBeFocused();await expect(page.getByRole('dialog')).toBeHidden();expect(writes).toHaveLength(2);
   for(const width of [390,960,1440]){await page.setViewportSize({width,height:960});await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);}
   await page.evaluate(()=>document.documentElement.style.zoom='1.5');await expect.poll(()=>page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
  });

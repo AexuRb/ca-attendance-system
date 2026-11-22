@@ -7,7 +7,7 @@ html:root[data-appearance] .data-center-page[data-unified=true] .overview-worksp
 html:root[data-appearance] .data-center-page[data-unified=true] .data-tab-panel { padding:0; margin:0; min-width:0; }
 html:root[data-appearance] .data-center-page[data-unified=true] .data-mode-switch { display:inline-flex; flex-wrap:wrap; gap:4px; padding:4px; margin:0; border:1px solid var(--mw-line); border-radius:10px; background:color-mix(in srgb,var(--mw-accent) 5%,transparent); }
 html:root[data-appearance] .data-center-page[data-unified=true] .data-mode-switch a { padding:8px 22px; margin:0; border:0; border-radius:7px; font:500 14px/22px var(--mw-font); transition:background .18s,color .18s,box-shadow .18s; }
-html:root[data-appearance] .data-center-page[data-unified=true] .data-mode-switch a[aria-current=page] { color:var(--mw-accent); background:rgb(255 255 255 / 90%); box-shadow:0 2px 6px #2636480a; }
+html:root[data-appearance] .data-center-page[data-unified=true] .data-mode-switch a[aria-current=page] { color:var(--mw-accent); background:transparent; box-shadow:none; }
 html:root[data-appearance] .data-center-page[data-unified=true] .data-mode-switch a:hover { color:var(--mw-accent); }
 html:root[data-appearance] .data-center-page[data-unified=true] :is(.data-type-catalog,.data-export-workspace,.data-operation-workspace) { min-width:0; color:var(--mw-ink); font:400 14px/1.6 var(--mw-font); }
 html:root[data-appearance] .data-center-page[data-unified=true] :is(.data-type-catalog,.data-operation-header,.data-operation-config,.data-preview-surface) :is(h2,h3,h4,p) { margin:0; }

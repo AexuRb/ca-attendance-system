@@ -105,3 +105,61 @@
     .agreement-dialog>header { padding:16px!important; gap:12px; flex-wrap:wrap; }
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-dialog-motion="center"] {
+    --dialog-entry-offset: translateY(24px) scale(.955);
+    --dialog-exit-offset: translateY(12px) scale(.985);
+  }
+  [data-dialog-motion="side"] {
+    --dialog-entry-offset: translateX(72px);
+    --dialog-exit-offset: translateX(36px);
+  }
+  .dialog-motion-enter-active {
+    --dialog-motion-duration: 260ms;
+    --dialog-motion-ease: cubic-bezier(.24, .48, .24, 1);
+  }
+  .dialog-motion-enter-active:is([data-dialog-motion], :has(> [data-dialog-motion]), .data-drawer-backdrop) {
+    --dialog-motion-duration: 420ms;
+  }
+  .dialog-motion-leave-active {
+    --dialog-motion-duration: 170ms;
+    --dialog-motion-ease: cubic-bezier(.4, 0, .8, .6);
+  }
+  :is(.dialog-motion-enter-active, .dialog-motion-leave-active) {
+    transition: opacity var(--dialog-motion-duration) var(--dialog-motion-ease);
+  }
+  :is(.dialog-motion-enter-active, .dialog-motion-leave-active)[data-dialog-motion],
+  :is(.dialog-motion-enter-active, .dialog-motion-leave-active) > [data-dialog-motion] {
+    transition: opacity var(--dialog-motion-duration) var(--dialog-motion-ease),
+      transform var(--dialog-motion-duration) var(--dialog-motion-ease);
+  }
+  .dialog-motion-enter-active > [data-dialog-motion] {
+    transition-duration: 310ms, 380ms;
+    transition-delay: 30ms;
+  }
+  :is(.dialog-motion-enter-from, .dialog-motion-leave-to) { opacity: 0; }
+  .dialog-motion-enter-from > [data-dialog-motion] { opacity: .45; }
+  .dialog-motion-enter-from[data-dialog-motion],
+  .dialog-motion-enter-from > [data-dialog-motion] { transform: var(--dialog-entry-offset); }
+  .dialog-motion-leave-to[data-dialog-motion],
+  .dialog-motion-leave-to > [data-dialog-motion] { transform: var(--dialog-exit-offset); }
+  .dialog-motion-enter-active > [data-dialog-motion="center"] > [data-dialog-content] {
+    transition: opacity 240ms 85ms var(--dialog-motion-ease), transform 255ms 85ms var(--dialog-motion-ease);
+  }
+  .dialog-motion-enter-active > [data-dialog-motion="center"] > footer {
+    transition: opacity 240ms 135ms var(--dialog-motion-ease), transform 255ms 135ms var(--dialog-motion-ease);
+  }
+  .dialog-motion-enter-from > [data-dialog-motion="center"] > :is([data-dialog-content], footer) {
+    opacity: .48;
+    transform: translateY(8px);
+  }
+  .dialog-motion-enter-active > [data-dialog-motion] > header,
+  .dialog-motion-enter-active[data-dialog-motion="side"] .data-drawer-head {
+    animation: dialog-heading-light 350ms 70ms ease-in-out backwards;
+  }
+  @keyframes dialog-heading-light {
+    from, to { box-shadow: inset 0 -2px transparent; }
+    42% { box-shadow: inset 0 -2px color-mix(in srgb, var(--theme-accent, #30669c) 38%, transparent); }
+  }
+}

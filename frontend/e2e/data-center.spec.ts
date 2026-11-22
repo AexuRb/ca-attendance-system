@@ -117,16 +117,9 @@ test("keeps the data workspaces inside the viewport across boundary widths", asy
 
 test("switches drawer behavior without clipping the desktop backup table", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/#/admin/data?tab=export");
-  const adjustButton = page.getByRole("button", { name: "调整条件" });
-  await expect(adjustButton).toHaveAttribute("aria-controls", "data-export-config");
-  await expect(adjustButton).not.toHaveAttribute("aria-haspopup", "dialog");
-  await adjustButton.click();
-  await expect(page.locator("#data-export-config")).toHaveAttribute("role", "complementary");
-  await page.getByRole("button", { name: "收起导出配置" }).click();
-
-  await page.getByRole("tab", { name: "本机备份" }).click();
-  await page.getByRole("button", { name: /^查看备份详情/ }).first().click();
+  await page.goto("/#/admin/data?tab=backups");
+  const opener = page.getByRole("button", { name: /^查看备份详情/ }).first();
+  await opener.click();
   await expect(page.locator("#data-backup-details")).toHaveAttribute("role", "complementary");
   // Common record actions remain available while the existing details panel is open.
   await expect(page.locator(".bw-table th").last()).toBeVisible();
@@ -137,10 +130,23 @@ test("switches drawer behavior without clipping the desktop backup table", async
 
   await page.getByRole("button", { name: "关闭备份详情" }).click();
   await page.setViewportSize({ width: 1180, height: 900 });
-  await page.getByRole("button", { name: /^查看备份详情/ }).first().click();
-  await expect(page.locator("#data-backup-details")).toHaveAttribute("role", "dialog");
-  await expect(page.locator("#data-backup-details")).toHaveAttribute("aria-modal", "true");
-  await expect(page.locator(".data-drawer-backdrop")).toHaveAttribute("aria-hidden", "true");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await opener.click();
+  const drawer = page.locator("#data-backup-details");
+  const backdrop = page.locator(".data-drawer-backdrop");
+  await expect(drawer).toHaveAttribute("role", "dialog");
+  await expect(drawer).toHaveAttribute("aria-modal", "true");
+  await expect(backdrop).toHaveAttribute("aria-hidden", "true");
+  await expect(drawer).toHaveCSS("transition-property", "opacity, transform");
+  await expect(backdrop).toHaveCSS("transition-property", "opacity");
+  await expect(page.getByRole("button", { name: "关闭备份详情" })).toBeFocused();
+  await expect(drawer).not.toHaveClass(/dialog-motion-enter-active/);
+  await page.keyboard.press("Escape");
+  await expect(opener).toBeFocused();
+  await expect(drawer).toHaveAttribute("inert", "");
+  await expect(backdrop).toHaveAttribute("inert", "");
+  await expect(drawer).toHaveCount(0);
+  await expect(backdrop).toHaveCount(0);
 });
 
 test("restores tabs through browser history", async ({ page }) => {

@@ -15,7 +15,7 @@ html:root[data-appearance] .overview-repairs .repair-query-bar input:not([type=c
 html:root[data-appearance] .overview-repairs .repair-query-context { margin:0 0 16px; padding:12px 16px; border:0; border-radius:10px; background:rgb(255 255 255 / 22%); font:400 13px/22px var(--mw-font); }
 html:root[data-appearance] .overview-repairs .repair-status-tabs { display:flex; gap:4px; width:100%; max-width:none; padding:4px; margin:0 0 16px; border:1px solid var(--mw-line); border-radius:10px; background:rgb(255 255 255 / 22%); }
 html:root[data-appearance] .overview-repairs .repair-status-tabs button { display:flex; flex:1; align-items:center; justify-content:center; gap:10px; min-height:42px; padding:8px 12px; border:0; border-radius:7px; background:transparent; color:var(--mw-muted); box-shadow:none; }
-html:root[data-appearance] .overview-repairs .repair-status-tabs button[aria-selected=true] { background:#fff; color:var(--mw-accent); box-shadow:0 1px 5px #2436480d; }
+html:root[data-appearance] .overview-repairs .repair-status-tabs button[aria-selected=true] { background:transparent; color:var(--mw-accent); box-shadow:none; }
 html:root[data-appearance] .overview-repairs .repair-status-tabs button::after { content:none; }
 html:root[data-appearance] .overview-repairs .repair-status-tabs :is(strong,b) { font:500 14px/22px var(--mw-font); color:inherit; font-variant-numeric:tabular-nums; }
 html:root[data-appearance] .overview-repairs :is(.repair-workspace,.repair-ledger-region) { min-width:0; max-height:none; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; overflow:visible; overscroll-behavior-y:auto; }

@@ -3,7 +3,7 @@
     <template #heading><h1>数据统计</h1><div class="stats-page-actions"><button :ref="captureExportButton" class="button secondary" type="button"
       :disabled="!exportReady || actions.isPending('export')" @click="exportExcel"><FileSpreadsheet aria-hidden="true" />{{ actions.isPending('export') ? '正在导出' : '导出统计' }}</button></div></template>
     <form class="filter-bar stats-filter" aria-label="筛选统计日期" @submit.prevent="loadCustom">
-      <div class="segmented">
+      <div ref="presetSwitch" class="segmented horizontal-selection">
         <button
           v-for="option in presets"
           :key="option.id"
@@ -12,7 +12,7 @@
           :aria-pressed="preset === option.id"
           @click="applyPreset(option.id)"
         >
-          {{ option.label }}
+          <span :data-horizontal-mark="option.id" aria-hidden="true" />{{ option.label }}
         </button>
       </div>
       <label><span>开始日期</span><input v-model="from" name="statsFrom" type="date" /></label
@@ -59,9 +59,9 @@
       </div>
       <LoadingBlock v-if="loading && !loaded" />
       <EmptyState v-else-if="loadError && !loaded" title="统计结果暂不可用" description="请使用上方的重试按钮重新获取统计结果" />
-      <EmptyState v-else-if="loaded && !hasData" title="该时间段暂无有效统计" />
       <Transition name="stats-result-swap" mode="out-in">
-      <div v-if="loaded && hasData" :ref="el => resultScroll = el as HTMLElement | null" :key="`${loadedPreset}-${loadedRange.from}-${loadedRange.to}`" class="stats-result-content">
+      <EmptyState v-if="loaded && !hasData" key="empty" title="该时间段暂无有效统计" />
+      <div v-else-if="loaded && hasData" :ref="el => resultScroll = el as HTMLElement | null" :key="`${loadedPreset}-${loadedRange.from}-${loadedRange.to}`" class="stats-result-content">
       <WeeklyStatsTable
         v-if="loadedPreset === 'week'"
         :detail="weeklyDetail"
@@ -146,9 +146,11 @@
 import { BarChart3, ChevronRight, FileSpreadsheet } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
 import QueryStatus from "../../shared/ui/QueryStatus.vue";
-import { provide } from "vue";
+import { provide, useTemplateRef } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
+import { useHorizontalSelection } from "../../shared/motion/useHorizontalSelection";
 import "../../styles/workspace.css";
+import "../../shared/motion/horizontal-selection.css";
 import "../../features/workspaces/presentation.css";
 import "../../features/stats/presentation.css";
 import "../../features/today/overview-presentation.css";
@@ -196,4 +198,5 @@ const {
   totalTraining,
   weeklyDetail,
 } = useStatsWorkspace();
+useHorizontalSelection(useTemplateRef<HTMLElement>("presetSwitch"), preset);
 </script>

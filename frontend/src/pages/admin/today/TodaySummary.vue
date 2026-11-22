@@ -11,7 +11,8 @@
       <li v-for="task in tasks" :key="task.id" class="today-task-entry" :data-task="task.id">
         <span class="today-task-label">{{ task.label }}</span>
         <span class="today-task-value">
-          <strong class="today-task-count" :class="{ 'is-zero': task.count === 0, 'needs-review': task.id === 'reviews' && task.count > 0 }">
+          <strong :key="task.count" class="today-task-count"
+            :class="{ 'is-zero': task.count === 0, 'needs-review': task.id === 'reviews' && task.count > 0 }">
             {{ task.count }}
           </strong>
           <span>{{ task.unit }}</span>

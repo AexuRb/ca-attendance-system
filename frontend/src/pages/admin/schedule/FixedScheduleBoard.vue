@@ -3,9 +3,9 @@
     v-if="periods.length && visibleWeekdays.length"
     class="schedule-focus-board"
   >
-    <div v-if="!overviewOnly" class="segmented schedule-view-switch" aria-label="排班视图">
-      <button type="button" :class="{ active: view === 'week' }" :aria-pressed="view === 'week'" @click="view = 'week'">整周概览</button>
-      <button type="button" :class="{ active: view === 'day' }" :aria-pressed="view === 'day'" @click="view = 'day'">按日编辑</button>
+    <div v-if="!overviewOnly" ref="viewSwitch" class="segmented schedule-view-switch horizontal-selection" role="group" aria-label="排班视图">
+      <button type="button" :class="{ active: view === 'week' }" :aria-pressed="view === 'week'" @click="view = 'week'"><span data-horizontal-mark="week" aria-hidden="true" />整周概览</button>
+      <button type="button" :class="{ active: view === 'day' }" :aria-pressed="view === 'day'" @click="view = 'day'"><span data-horizontal-mark="day" aria-hidden="true" />按日编辑</button>
     </div>
     <div v-if="view === 'week' && activeWeekdays.length" class="schedule-week-scroll" tabindex="0" aria-label="整周排班矩阵，可横向滚动">
       <table class="schedule-week-matrix">
@@ -28,7 +28,7 @@
     </div>
     <EmptyState v-else-if="view === 'week'" title="暂无开放的值班星期" />
     <template v-if="view === 'day' && !overviewOnly">
-    <nav ref="dayNav" class="schedule-focus-days" aria-label="选择排班星期">
+    <nav ref="dayNav" class="schedule-focus-days horizontal-selection" aria-label="选择排班星期">
       <button
         v-for="day in visibleWeekdays"
         :key="day.value"
@@ -42,6 +42,7 @@
         :aria-pressed="selectedWeekday === day.value"
         @click="selectWeekday(day.value)"
       >
+        <span :data-horizontal-mark="day.value" aria-hidden="true" />
         <span>
           <strong>{{ day.label }}</strong>
           <small>{{ daySlotCount(day.value) }} 个排班</small>
@@ -141,10 +142,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
 import { Plus } from "@lucide/vue";
 import { RouterLink } from "vue-router";
 import EmptyState from "../../../shared/ui/EmptyState.vue";
+import { useHorizontalSelection } from "../../../shared/motion/useHorizontalSelection";
+import "../../../shared/motion/horizontal-selection.css";
 import FixedScheduleCard from "./FixedScheduleCard.vue";
 import type { DutyPeriod } from "../../../features/settings/dutyPeriods";
 import type { ScheduleSlot } from "../../../features/schedule/scheduleTypes";
@@ -192,6 +195,8 @@ function openDay(weekday: number) {
 }
 const motionDirection = ref(1);
 const dayNav = ref<HTMLElement | null>(null);
+useHorizontalSelection(useTemplateRef<HTMLElement>("viewSwitch"), view);
+useHorizontalSelection(dayNav, selectedWeekday);
 const selectedDay = computed(() =>
   visibleWeekdays.value.find((day) => day.value === selectedWeekday.value),
 );

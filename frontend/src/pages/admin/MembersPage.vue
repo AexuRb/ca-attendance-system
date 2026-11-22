@@ -72,7 +72,7 @@
       </div>
     </div>
 
-    <MemberEditorDialog :submit-error="actionError"
+    <MemberEditorDialog :submit-error="editorError"
       backdrop-class="members-refined-backdrop"
       :open="editorOpen"
       :member="editorTarget"
@@ -152,6 +152,7 @@ import { useMemberDirectoryWorkspace } from "../../features/members/useMemberDir
 
 const {
   actionError,
+  editorError,
   bindTableScroll,
   rememberTableScroll,
   actions,

@@ -7,9 +7,11 @@
         class="toast"
         :data-tone="toast.tone"
         @mouseenter="pause(toast.id)"
-        @mouseleave="resume(toast.id)"
+        @mouseleave="resumeWhenIdle(toast.id, $event)"
+        @focusin="pause(toast.id)"
+        @focusout="resumeWhenIdle(toast.id, $event)"
       >
-        <CheckCircle2 v-if="toast.tone === 'success'" aria-hidden="true" />
+        <CheckCircle2 v-if="toast.tone === 'success'" class="toast-success-mark" aria-hidden="true" />
         <TriangleAlert
           v-else-if="toast.tone === 'warning' || toast.tone === 'danger'"
           aria-hidden="true"
@@ -33,4 +35,12 @@
 import { CheckCircle2, Info, TriangleAlert, X } from "@lucide/vue";
 import { useToast } from "../composables/useToast";
 const { toasts, dismiss, pause, resume } = useToast();
+
+function resumeWhenIdle(id: number, event: FocusEvent | MouseEvent) {
+  const card = event.currentTarget as HTMLElement;
+  const nextFocus = event.type === "focusout" ? event.relatedTarget : document.activeElement;
+  if (nextFocus instanceof Node && card.contains(nextFocus)) return;
+  if (event.type === "focusout" && card.matches(":hover")) return;
+  resume(id);
+}
 </script>

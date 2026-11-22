@@ -66,6 +66,7 @@ for (const appearance of ['CLASSIC', 'EDITORIAL', 'SPATIAL']) {
 
   test(`${appearance} kiosk keyboard, cancel, failure retry and consecutive entry`, async ({ page }) => {
     await publicFixture(page, appearance, 'kiosk');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
     let lookups = 0, submissions = 0;
     const requests: unknown[] = [];
     await page.route('**/api/public/attendance/lookup?**', async route => {
@@ -77,14 +78,22 @@ for (const appearance of ['CLASSIC', 'EDITORIAL', 'SPATIAL']) {
       submissions++; requests.push(route.request().postDataJSON());
       await route.fulfill(submissions === 1 ? { status: 409, json: { message: '演示提交失败，请重试' } } : { json: { name: '演示成员1', action: submissions > 2 ? 'CHECK_OUT' : 'CHECK_IN', submittedAt: new Date().toISOString() } });
     });
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize(appearance === 'CLASSIC' ? { width: 1440, height: 810 } : { width: 390, height: 844 });
     await page.goto('/#/');
     const query = page.getByLabel('学号或姓名', { exact: true });
     await expect(query).toBeFocused();
     await query.fill('同名'); await query.press('Enter');
     const choice = page.getByRole('button', { name: /演示成员1/ });
-    await expect(choice).toBeFocused(); await choice.press('Enter');
+    await expect(choice).toBeFocused();
+    const choiceState = page.locator('.kiosk-focus-choice-state');
+    await expect(choiceState.locator('.kiosk-signal-terminal-head')).toHaveCSS('animation-name', 'kiosk-flow-arrive');
+    await expect(choiceState.locator('.kiosk-focus-choice-list')).toHaveCSS('animation-delay', '0.055s');
+    await expect(choiceState.locator('.kiosk-focus-choice-actions')).toHaveCSS('animation-delay', '0.12s');
+    await choice.press('Enter');
     await expect(page.getByRole('button', { name: '确认签到', exact: true })).toBeFocused();
+    const memberTicket = page.locator('.kiosk-focus-member-ticket');
+    await expect(memberTicket).toHaveCSS('animation-name', 'kiosk-flow-arrive, kiosk-flow-ticket-light');
+    await expect(page.locator('.kiosk-focus-action-row')).toHaveCSS('animation-delay', '0.12s');
     await page.getByRole('button', { name: '重新输入', exact: true }).click();
     await expect(query).toBeFocused(); expect(submissions).toBe(0);
     await query.fill('20260001'); await query.press('Enter');
@@ -92,13 +101,30 @@ for (const appearance of ['CLASSIC', 'EDITORIAL', 'SPATIAL']) {
     await expect(page.getByRole('alert')).toHaveText('演示提交失败，请重试');
     await page.getByRole('button', { name: '确认签到', exact: true }).click();
     await expect(page.locator('.kiosk-signal-success-copy[role=status]')).toContainText('签到成功');
+    const successMark = page.locator('.kiosk-focus-success-mark');
+    const successCheck = successMark.locator('svg path');
+    await expect(successMark).toHaveCSS('animation-name', 'kiosk-flow-success-mark');
+    await expect(successCheck).toHaveCSS('animation-name', 'kiosk-flow-check');
+    await expect(successCheck).toHaveCSS('animation-iteration-count', '1');
+    expect(await successMark.evaluate(mark => {
+      const ring = getComputedStyle(mark, '::after');
+      return { animation: ring.animationName, position: ring.position, border: ring.borderTopStyle };
+    })).toEqual({ animation: 'kiosk-flow-success-ring', position: 'absolute', border: 'solid' });
+    expect(await successMark.evaluate(mark => getComputedStyle(mark, '::before').animationName)).toBe('kiosk-flow-success-glow');
+    await expect(page.locator('.kiosk-signal-success-copy h1')).toHaveCSS('animation-name', 'kiosk-flow-arrive');
+    await expect(page.locator('.kiosk-signal-success-copy > span')).toHaveCSS('animation-delay', '0.185s');
     expect(requests[0]).toEqual(requests[1]);
     await page.getByRole('button', { name: '下一位', exact: true }).click();
     await expect(query).toHaveValue(''); await expect(query).toBeFocused();
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await query.fill('20260001'); await query.press('Enter');
+    await expect(memberTicket).toHaveCSS('animation-name', 'none');
     await page.getByRole('button', { name: '确认签退', exact: true }).click();
     await expect(page.locator('.kiosk-signal-success-copy[role=status]')).toContainText('签退成功');
+    await expect(successMark).toHaveCSS('animation-name', 'none');
+    await expect(successCheck).toHaveCSS('animation-name', 'none');
+    expect(await successMark.evaluate(mark => getComputedStyle(mark, '::after').content)).toBe('none');
+    expect(await successMark.evaluate(mark => getComputedStyle(mark, '::before').content)).toBe('none');
     expect(submissions).toBe(3); expect(lookups).toBe(4);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
   });

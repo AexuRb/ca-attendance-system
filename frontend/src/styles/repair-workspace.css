@@ -586,28 +586,6 @@
   background: var(--surface-soft);
 }
 
-.repair-drawer-enter-active,
-.repair-drawer-leave-active {
-  transition: opacity 260ms var(--ease-out);
-}
-
-.repair-drawer-enter-active .repair-detail-drawer,
-.repair-drawer-leave-active .repair-detail-drawer {
-  transition:
-    opacity 260ms var(--ease-out),
-    transform 260ms var(--ease-out);
-}
-
-.repair-drawer-enter-from,
-.repair-drawer-leave-to {
-  opacity: 0;
-}
-
-.repair-drawer-enter-from .repair-detail-drawer,
-.repair-drawer-leave-to .repair-detail-drawer {
-  transform: translateX(36px);
-}
-
 @keyframes repair-item-in {
   from {
     opacity: 0;

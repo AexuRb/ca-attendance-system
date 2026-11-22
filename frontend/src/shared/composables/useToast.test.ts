@@ -34,4 +34,19 @@ describe("toast lifecycle", () => {
     vi.advanceTimersByTime(1);
     expect(toasts).toHaveLength(0);
   });
+
+  it("keeps the same timer balance when a second interaction pauses an already paused toast", () => {
+    vi.useFakeTimers();
+    notify("保存完成");
+    const id = toasts[0].id;
+    vi.advanceTimersByTime(2_000);
+    pause(id);
+    vi.advanceTimersByTime(3_000);
+    pause(id);
+    resume(id);
+    vi.advanceTimersByTime(3_999);
+    expect(toasts).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(toasts).toHaveLength(0);
+  });
 });

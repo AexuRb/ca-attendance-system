@@ -2,7 +2,7 @@
   <aside class="today-roster" aria-labelledby="today-roster-title">
     <header class="today-roster-heading">
       <h2 id="today-roster-title">当前在场</h2>
-      <span v-if="roster && !failed">{{ roster.items.length }} 人</span>
+      <span v-if="roster && !failed" :key="roster.items.length" class="today-roster-count">{{ roster.items.length }} 人</span>
     </header>
     <div v-if="failed" class="today-roster-state" role="alert">
       <p>暂时无法读取在场名单。</p>

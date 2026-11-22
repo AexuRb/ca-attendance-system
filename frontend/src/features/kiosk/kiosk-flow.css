@@ -70,6 +70,91 @@ html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-return 
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-action-row { flex-direction:column-reverse; }
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state .kiosk-focus-action-row>button { width:100%; }
 }
+@media (prefers-reduced-motion: no-preference) {
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state {
+    --kiosk-flow-ease: cubic-bezier(.22,.48,.24,1);
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state > .kiosk-signal-terminal-head {
+    animation: kiosk-flow-arrive 380ms var(--kiosk-flow-ease);
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state > .kiosk-focus-choice-list {
+    animation: kiosk-flow-arrive 420ms 55ms var(--kiosk-flow-ease) backwards;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state > .kiosk-focus-member-ticket {
+    animation: kiosk-flow-arrive 420ms 55ms var(--kiosk-flow-ease) backwards,
+      kiosk-flow-ticket-light 620ms 65ms ease-in-out;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state > .kiosk-focus-step-status {
+    animation: kiosk-flow-arrive 390ms 95ms var(--kiosk-flow-ease) backwards;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state > :is(.kiosk-focus-action-row, .kiosk-focus-choice-actions) {
+    animation: kiosk-flow-arrive 390ms 120ms var(--kiosk-flow-ease) backwards;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-focus-success-mark {
+    position: relative;
+    isolation: isolate;
+    animation: kiosk-flow-success-mark 420ms var(--kiosk-flow-ease);
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-focus-success-mark::before {
+    position: absolute;
+    z-index: -1;
+    inset: -30px;
+    content: "";
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, currentColor 30%, transparent), transparent 68%);
+    pointer-events: none;
+    animation: kiosk-flow-success-glow 800ms var(--kiosk-flow-ease) both;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-focus-success-mark::after {
+    position: absolute;
+    inset: -2px;
+    content: "";
+    border: 1px solid currentColor;
+    border-radius: inherit;
+    pointer-events: none;
+    animation: kiosk-flow-success-ring 630ms 105ms var(--kiosk-flow-ease) both;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-focus-success-mark svg path {
+    stroke-dasharray: 24;
+    animation: kiosk-flow-check 400ms 75ms cubic-bezier(.36,.12,.32,1) both;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy :is(h1,strong,span) {
+    animation: kiosk-flow-arrive 420ms var(--kiosk-flow-ease) backwards;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy h1 {
+    animation-delay: 100ms;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy strong {
+    animation-delay: 145ms;
+  }
+  html:root[data-appearance] .public-presentation.public-kiosk .kiosk-focus-success-state .kiosk-signal-success-copy span {
+    animation-delay: 185ms;
+  }
+}
+@keyframes kiosk-flow-arrive {
+  from { opacity: .5; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes kiosk-flow-ticket-light {
+  45% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--pub-accent) 14%, transparent); }
+}
+@keyframes kiosk-flow-success-mark {
+  from { opacity: .4; transform: scale(.8); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes kiosk-flow-success-glow {
+  from { opacity: 0; transform: scale(.7); }
+  38% { opacity: .9; }
+  to { opacity: 0; transform: scale(1.35); }
+}
+@keyframes kiosk-flow-success-ring {
+  from { opacity: .38; transform: scale(.96); }
+  to { opacity: 0; transform: scale(1.8); }
+}
+@keyframes kiosk-flow-check {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
 @media(prefers-reduced-motion:reduce) {
   html:root[data-appearance] .public-presentation.public-kiosk .kiosk-flow-state :is(.kiosk-focus-primary,.kiosk-focus-secondary) { transition:none; }
 }

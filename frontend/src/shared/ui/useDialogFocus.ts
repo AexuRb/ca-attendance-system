@@ -41,46 +41,41 @@ interface DialogFocusOptions {
   close: () => void;
 }
 
+interface DialogActivation {
+  opener: HTMLElement | null;
+  dialog: HTMLElement | null;
+}
+
+function canReceiveFocus(element: HTMLElement) {
+  return !element.matches(":disabled") && !element.closest('[hidden], [inert], [aria-hidden="true"]');
+}
+
+export function makeDialogInert(element: Element) {
+  element.setAttribute("inert", "");
+}
+
 export function useDialogFocus(options: DialogFocusOptions) {
-  let active = false;
-  let activeDialog: HTMLElement | null = null;
-  let returnFocus: HTMLElement | null = null;
+  let activation: DialogActivation | undefined;
 
-  function focusableElements() {
-    if (!activeDialog) return [];
-    return Array.from(
-      activeDialog.querySelectorAll<HTMLElement>(focusableSelector),
-    ).filter(
-      (element) =>
-        !element.hidden &&
-        !element.matches(":disabled") &&
-        element.getAttribute("aria-hidden") !== "true" &&
-        !element.closest("[inert]"),
-    );
+  function focusableElements(dialog: HTMLElement) {
+    return [...dialog.querySelectorAll<HTMLElement>(focusableSelector)].filter(canReceiveFocus);
   }
 
-  function isTopDialog() {
-    return dialogStack.at(-1) === activeDialog;
-  }
-
-  function initialFocusTarget() {
-    if (!activeDialog) return null;
-    const content = activeDialog.querySelector<HTMLElement>(
-      "[data-dialog-content]",
-    );
+  function initialFocusTarget(dialog: HTMLElement, focusable = focusableElements(dialog)) {
+    const preferred = (selector: string) => [...dialog.querySelectorAll<HTMLElement>(selector)].find(canReceiveFocus);
+    const content = dialog.querySelector("[data-dialog-content]");
     return (
-      activeDialog.querySelector<HTMLElement>(
-        "[data-dialog-initial-focus]",
-      ) ??
-      activeDialog.querySelector<HTMLElement>("[autofocus]") ??
-      content?.querySelector<HTMLElement>(focusableSelector) ??
-      focusableElements()[0] ??
-      activeDialog
+      preferred("[data-dialog-initial-focus]") ??
+      preferred("[autofocus]") ??
+      focusable.find(element => content?.contains(element)) ??
+      focusable[0] ??
+      dialog
     );
   }
 
   function onKeydown(event: KeyboardEvent) {
-    if (!isTopDialog()) return;
+    const dialog = activation?.dialog;
+    if (event.defaultPrevented || !dialog || dialogStack.at(-1) !== dialog) return;
     if (event.key === "Escape") {
       event.preventDefault();
       options.close();
@@ -88,19 +83,19 @@ export function useDialogFocus(options: DialogFocusOptions) {
     }
     if (event.key !== "Tab") return;
 
-    const focusable = focusableElements();
+    const focusable = focusableElements(dialog);
     if (!focusable.length) {
       event.preventDefault();
-      activeDialog?.focus();
+      dialog.focus();
       return;
     }
 
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (!first || !last) return;
-    if (!activeDialog?.contains(document.activeElement)) {
+    if (!dialog.contains(document.activeElement)) {
       event.preventDefault();
-      (event.shiftKey ? last : initialFocusTarget())?.focus();
+      (event.shiftKey ? last : initialFocusTarget(dialog, focusable)).focus();
       return;
     }
     if (event.shiftKey && document.activeElement === first) {
@@ -113,40 +108,43 @@ export function useDialogFocus(options: DialogFocusOptions) {
   }
 
   async function activate() {
-    if (active) return;
-    active = true;
+    if (activation) return;
+    const current: DialogActivation = {
+      opener: document.activeElement instanceof HTMLElement ? document.activeElement : null,
+      dialog: null,
+    };
+    activation = current;
     lockPageScroll();
-    returnFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
     await nextTick();
-    if (!active || !options.open() || !options.root.value) {
-      if (active) unlockPageScroll();
-      active = false;
+    if (activation !== current) return;
+    const dialog = options.root.value;
+    if (!options.open() || !dialog) {
+      deactivate(false);
       return;
     }
 
-    activeDialog = options.root.value;
-    dialogStack.push(activeDialog);
+    current.dialog = dialog;
+    dialogStack.push(dialog);
     document.addEventListener("keydown", onKeydown);
-    initialFocusTarget()?.focus();
+    initialFocusTarget(dialog).focus();
   }
 
   function deactivate(restoreFocus = true) {
-    if (!active) return;
-    const wasTop = isTopDialog();
-    active = false;
+    if (!activation) return;
+    const { dialog, opener } = activation;
+    const wasTop = dialogStack.at(-1) === dialog;
+    activation = undefined;
     document.removeEventListener("keydown", onKeydown);
     unlockPageScroll();
-    const index = activeDialog ? dialogStack.lastIndexOf(activeDialog) : -1;
+    const index = dialog ? dialogStack.lastIndexOf(dialog) : -1;
     if (index >= 0) dialogStack.splice(index, 1);
-    if (restoreFocus && wasTop && returnFocus?.isConnected) {
-      const target = returnFocus;
-      void nextTick(() => target.focus());
+    if (restoreFocus && wasTop && opener) {
+      const remainingDialog = dialogStack.at(-1);
+      void nextTick(() => {
+        if (activation || dialogStack.at(-1) !== remainingDialog || !opener.isConnected) return;
+        if ((!remainingDialog || remainingDialog.contains(opener)) && canReceiveFocus(opener)) opener.focus();
+      });
     }
-    activeDialog = null;
-    returnFocus = null;
   }
 
   watch(

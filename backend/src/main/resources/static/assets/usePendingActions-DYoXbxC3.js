@@ -1,1 +1,0 @@
-import{K as e}from"./vue-router-BzIhKPy8.js";function t(){let t=e(new Set);function n(e){return t.has(e)}async function r(e,n){if(!t.has(e)){t.add(e);try{return await n()}finally{t.delete(e)}}}return{pending:t,isPending:n,run:r}}export{t};

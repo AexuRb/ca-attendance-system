@@ -38,6 +38,7 @@ html:root[data-appearance] .overview-profile .profile-record-panel { display:blo
 html:root[data-appearance] .overview-profile .profile-record-toolbar { display:flex; flex-wrap:wrap; gap:12px; margin:16px 0; }
 html:root[data-appearance] .overview-profile .segmented { border:0; border-radius:10px; padding:4px; background:var(--overview-chat); }
 html:root[data-appearance] .overview-profile .segmented button { min-height:36px; padding:6px 14px; border-radius:7px; font:400 14px/22px var(--mw-font); }
+html:root[data-appearance] .overview-profile .segmented button.active { background:transparent; box-shadow:none; }
 html:root[data-appearance] .overview-profile .profile-record-scroll { display:block; max-height:none; overflow:auto; overscroll-behavior-y:auto; }
 html:root[data-appearance] .overview-profile .profile-record-scroll table { width:100%; min-width:620px; background:transparent; }
 html:root[data-appearance] .overview-profile .profile-record-scroll :is(th,td) { padding:16px 12px; font:400 14px/22px var(--mw-font); }

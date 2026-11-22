@@ -6,9 +6,9 @@
     :current-page="tab === 'recycle' ? 'repairs' : tab === 'import' || tab === 'export' ? 'data-center' : tab">
     <template #heading>
       <h1 :id="`data-${tab}-title`" tabindex="-1">{{ tab === 'import' || tab === 'export' ? '数据中心' : tab === 'backups' ? '备份与恢复' : '维修回收站' }}</h1>
-      <nav v-if="tab === 'import' || tab === 'export'" class="data-center-subpages data-mode-switch" aria-label="数据中心操作模式">
-        <RouterLink :to="{ name: 'data', query: { tab: 'import' } }" :aria-current="tab === 'import' ? 'page' : undefined">数据导入</RouterLink>
-        <RouterLink :to="{ name: 'data', query: { tab: 'export' } }" :aria-current="tab === 'export' ? 'page' : undefined">数据导出</RouterLink>
+      <nav v-if="tab === 'import' || tab === 'export'" ref="modeSwitch" class="data-center-subpages data-mode-switch horizontal-selection" aria-label="数据中心操作模式">
+        <RouterLink :to="{ name: 'data', query: { tab: 'import' } }" :aria-current="tab === 'import' ? 'page' : undefined"><span data-horizontal-mark="import" aria-hidden="true" />数据导入</RouterLink>
+        <RouterLink :to="{ name: 'data', query: { tab: 'export' } }" :aria-current="tab === 'export' ? 'page' : undefined"><span data-horizontal-mark="export" aria-hidden="true" />数据导出</RouterLink>
       </nav>
       <RouterLink v-if="tab === 'recycle'" class="button secondary" :to="{ name: 'repairs' }"><ArrowLeft aria-hidden="true" />返回维修事务</RouterLink>
     </template>
@@ -129,9 +129,11 @@
 import { ArrowLeft } from "@lucide/vue";
 import { RouterLink } from "vue-router";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
-import { provide } from "vue";
+import { provide, useTemplateRef } from "vue";
 import { memberPresentationKey } from "../../shared/ui/presentation";
+import { useHorizontalSelection } from "../../shared/motion/useHorizontalSelection";
 import "../../styles/workspace.css";
+import "../../shared/motion/horizontal-selection.css";
 import "../../features/settings/presentation.css";
 import "../../features/today/overview-presentation.css";
 provide(memberPresentationKey, true);
@@ -186,6 +188,7 @@ const {
   isRestorePending,
   purgeRepair,
 } = useDataCenterWorkspace();
+useHorizontalSelection(useTemplateRef<HTMLElement>("modeSwitch"), tab);
 </script>
 
 <style src="../../features/maintenance/presentation.css"></style>

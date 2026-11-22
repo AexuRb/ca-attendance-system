@@ -1,0 +1,21 @@
+html:root[data-appearance] .horizontal-selection {
+  position: relative;
+  isolation: isolate;
+}
+html:root[data-appearance] .horizontal-selection > :is(a, button) {
+  position: relative;
+}
+html:root[data-appearance] .horizontal-selection [data-horizontal-mark] {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--mw-accent) 3%, #fff);
+  box-shadow: 0 1px 3px #24364814, inset 0 0 0 1px color-mix(in srgb, var(--mw-accent) 12%, #fff);
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: left center;
+}
+html:root[data-appearance] .horizontal-selection :is([aria-current="page"], [aria-pressed="true"], [aria-selected="true"]) > [data-horizontal-mark] {
+  opacity: 1;
+}

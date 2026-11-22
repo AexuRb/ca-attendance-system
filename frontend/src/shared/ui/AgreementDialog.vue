@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <Transition name="modal-fade">
+    <Transition name="dialog-motion" @before-leave="makeDialogInert">
       <div
         v-if="open"
         class="modal-backdrop agreement-backdrop"
@@ -76,7 +76,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { Printer, RefreshCw, TriangleAlert, X } from "@lucide/vue";
 import LoadingBlock from "./LoadingBlock.vue";
 import { sanitizeAgreementPreviewHtml } from "./agreementPreview";
-import { useDialogFocus } from "./useDialogFocus";
+import { makeDialogInert, useDialogFocus } from "./useDialogFocus";
 
 const props = defineProps<{
   open: boolean;

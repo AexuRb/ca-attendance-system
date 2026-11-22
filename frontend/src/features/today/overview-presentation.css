@@ -61,7 +61,7 @@ html:root[data-appearance] .overview-navigation:is(:hover, :focus-within) { scro
   html:root[data-appearance] .overview-navigation::-webkit-scrollbar-thumb { border-radius: 6px; background: color-mix(in srgb, var(--mw-muted) 10%, transparent); }
   html:root[data-appearance] .overview-navigation:is(:hover, :focus-within)::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--mw-muted) 30%, transparent); }
 }
-html:root[data-appearance] .overview-nav-group { padding: calc(4px + 4px * var(--overview-density)); border: 0; border-radius: 14px; background: var(--overview-group); box-shadow: none; }
+html:root[data-appearance] .overview-nav-group { position: relative; isolation: isolate; padding: calc(4px + 4px * var(--overview-density)); border: 0; border-radius: 14px; background: var(--overview-group); box-shadow: none; }
 html:root[data-appearance] .overview-nav-group + .overview-nav-group { margin-top: calc(6px + 4px * var(--overview-density)); }
 html:root[data-appearance] .overview-nav-group h2 { padding: 0 16px calc(7px * var(--overview-density)); color: color-mix(in srgb, var(--mw-ink) 70%, var(--mw-muted)); font: 500 14px/20px var(--mw-font); letter-spacing: .08em; }
 html:root[data-appearance] .overview-nav-group a {
@@ -71,8 +71,20 @@ html:root[data-appearance] .overview-nav-group a {
 }
 html:root[data-appearance] .overview-nav-group a svg { width: 18px; height: 18px; color: var(--mw-muted); }
 html:root[data-appearance] .overview-nav-group a:last-child { margin-bottom: 0; }
-html:root[data-appearance] .overview-nav-group a:hover { background: var(--overview-hover); }
-html:root[data-appearance] .overview-nav-group a.is-current { background: #fff; color: var(--mw-accent); box-shadow: 0 1px 3px #24364814; }
+html:root[data-appearance] .overview-nav-group a:not(.is-current):hover { background: var(--overview-hover); }
+html:root[data-appearance] .overview-nav-highlight {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border: 1px solid color-mix(in srgb, var(--mw-accent) 15%, #fff);
+  border-radius: inherit;
+  background: linear-gradient(155deg, #ffffffed, color-mix(in srgb, var(--overview-selected) 18%, #fff));
+  box-shadow: 0 1px 3px #24364814, inset 0 1px #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+html:root[data-appearance] .overview-nav-group a.is-current { background: transparent; color: var(--mw-accent); box-shadow: none; }
+html:root[data-appearance] .overview-nav-group a.is-current .overview-nav-highlight { opacity: 1; }
 html:root[data-appearance] .overview-nav-group a.is-current svg { color: var(--mw-accent); }
 html:root[data-appearance] .overview-account { position: relative; isolation: isolate; display: flex; align-items: center; gap: 10px; margin: 0 0 var(--overview-account-lift); padding: calc(8px + 12px * var(--overview-density)) 30px; min-height: calc(64px + 24px * var(--overview-density)); border-top: 0; flex-shrink: 0; }
 /* Match the thin-scrollbar navigation cards; move the whole account together. */
@@ -93,7 +105,8 @@ html:root[data-appearance] .overview-menu-toggle:hover { background: var(--overv
 html:root[data-appearance] .overview-shell :is(.overview-nav-group a, .mw-header-action, .overview-account button, .overview-menu-toggle) { transition: color 140ms, background-color 140ms, box-shadow 140ms; transform: none; }
 html:root[data-appearance] .overview-shell :is(.overview-nav-group a, .mw-header-action, .overview-account button, .overview-menu-toggle):focus-visible { outline: 2px solid color-mix(in srgb, var(--mw-accent) 60%, transparent); outline-offset: 2px; }
 html:root[data-appearance] .overview-shell :is(.overview-nav-group a, .mw-header-action, .overview-account button, .overview-menu-toggle):active { background: color-mix(in srgb, var(--overview-selected) 85%, var(--mw-accent)); color: var(--mw-accent); transform: none; }
-html:root[data-appearance] .overview-shell .overview-nav-group a:active { background: color-mix(in srgb, var(--mw-accent) 4%, #fff); box-shadow: none; }
+html:root[data-appearance] .overview-shell .overview-nav-group a:not(.is-current):active { background: color-mix(in srgb, var(--mw-accent) 4%, #fff); box-shadow: none; }
+html:root[data-appearance] .overview-shell .overview-nav-group a.is-current:active { background: transparent; }
 html:root[data-appearance] .overview-service-alert { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #ad4d36; }
 html:root[data-appearance] .overview-content { grid-column: 2; grid-row: 2; align-self: start; height: calc(100% - var(--overview-nav-padding) - 8px - var(--overview-account-lift)); min-width: 0; min-height: 0; overflow: auto; margin: var(--overview-nav-padding) 32px calc(8px + var(--overview-account-lift)) 8px; padding: 32px 0 24px; border-radius: 20px; background: var(--overview-surface); box-shadow: 0 8px 24px #2436480a; outline: none; scrollbar-gutter: stable; }
 html:root[data-appearance] .overview-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 48px; margin-bottom: 24px; }

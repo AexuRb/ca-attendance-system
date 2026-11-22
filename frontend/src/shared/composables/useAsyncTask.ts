@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { notify } from "./useToast";
 
-export function useAsyncTask() {
+export function useAsyncTask({ errorFeedback = "toast" }: { errorFeedback?: "toast" | "inline" } = {}) {
   const busy = ref(false);
   const error = ref("");
 
@@ -17,7 +17,7 @@ export function useAsyncTask() {
       return value;
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : "操作失败";
-      notify(error.value, "danger");
+      if (errorFeedback === "toast") notify(error.value, "danger");
       return undefined;
     } finally {
       busy.value = false;

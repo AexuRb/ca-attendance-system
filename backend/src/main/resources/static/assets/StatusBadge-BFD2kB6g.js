@@ -1,0 +1,1 @@
+import{At as e,ct as t,pt as n,rt as r}from"./index-CmkvUsxK.js";var i=[`data-tone`],a=t({__name:`StatusBadge`,props:{label:{},tone:{}},setup(t){return(a,o)=>(n(),r(`span`,{class:`status-badge`,"data-tone":t.tone},e(t.label),9,i))}});export{a as t};

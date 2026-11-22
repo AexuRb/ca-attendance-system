@@ -1,5 +1,5 @@
 <template>
-  <div class="repair-status-tabs" role="tablist" aria-label="维修事务状态">
+  <div ref="statusSwitch" class="repair-status-tabs horizontal-selection" role="tablist" aria-label="维修事务状态">
     <button
       v-for="item in statuses"
       :key="item.status"
@@ -14,6 +14,7 @@
       @click="$emit('change', item.status)"
       @keydown="handleKeydown($event, item.status)"
     >
+      <span :data-horizontal-mark="item.status" aria-hidden="true" />
       <span class="repair-status-copy">
         <strong>{{ item.label }}</strong>
       </span>
@@ -23,7 +24,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, toRef, useTemplateRef } from "vue";
+import { useHorizontalSelection } from "../../shared/motion/useHorizontalSelection";
+import "../../shared/motion/horizontal-selection.css";
 import type { RepairStatus, RepairStatusCounts } from "./repairTypes";
 
 const props = defineProps<{
@@ -32,6 +35,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ change: [status: RepairStatus] }>();
 const tabButtons = ref<HTMLButtonElement[]>([]);
+useHorizontalSelection(useTemplateRef<HTMLElement>("statusSwitch"), toRef(props, "activeStatus"));
 
 const statuses: Array<{
   status: RepairStatus;

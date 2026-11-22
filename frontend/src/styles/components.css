@@ -554,9 +554,7 @@ td small {
   padding: 20px;
 }
 .modal-enter-active,
-.modal-leave-active,
-.modal-fade-enter-active,
-.modal-fade-leave-active {
+.modal-leave-active {
   transition: opacity 0.25s;
 }
 .modal-enter-active .modal-shell,
@@ -566,9 +564,7 @@ td small {
     opacity 0.25s;
 }
 .modal-enter-from,
-.modal-leave-to,
-.modal-fade-enter-from,
-.modal-fade-leave-to {
+.modal-leave-to {
   opacity: 0;
 }
 .modal-enter-from .modal-shell,
@@ -631,14 +627,37 @@ td small {
   width: 15px;
   height: 15px;
 }
-.toast-enter-active,
-.toast-leave-active {
-  transition: 0.3s var(--ease-out);
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateX(18px);
+@media (prefers-reduced-motion: no-preference) {
+  .toast-enter-active {
+    transition: opacity 285ms ease-out, transform 320ms cubic-bezier(.22,.52,.26,1);
+  }
+  .toast-leave-active {
+    transition: opacity 155ms ease-in, transform 155ms ease-in;
+  }
+  .toast-enter-from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  .toast-leave-to {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  .toast-success-mark circle {
+    stroke-dasharray: 64;
+    animation: toast-success-ring 340ms cubic-bezier(.26,.5,.26,1) both;
+  }
+  .toast-success-mark path {
+    stroke-dasharray: 10;
+    animation: toast-success-check 270ms 105ms cubic-bezier(.34,.16,.26,1) both;
+  }
+  @keyframes toast-success-ring {
+    from { opacity: .45; stroke-dashoffset: 64; }
+    to { opacity: 1; stroke-dashoffset: 0; }
+  }
+  @keyframes toast-success-check {
+    from { stroke-dashoffset: 10; }
+    to { stroke-dashoffset: 0; }
+  }
 }
 .upload-zone {
   position: relative;

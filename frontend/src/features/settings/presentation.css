@@ -84,9 +84,8 @@ html:root[data-appearance] .sw-periods>.empty-state { grid-column:2; min-height:
 /* Backup content: the same records and actions, three different organisations. */
 html:root[data-appearance] .system-workspace .data-center-tabs { width:100%; }
 @media(max-width:1280px) {
-  html:root[data-appearance] .refined-data-drawer { overflow:clip; transition:opacity 160ms ease-out,transform 180ms ease-out; }
-  html:root[data-appearance] .refined-data-drawer:not(.open) { visibility:hidden; opacity:0; transform:translateX(8px); }
-  html:root[data-appearance] .refined-data-drawer:is(.data-center-drawer-enter-from,.data-center-drawer-leave-to) { opacity:0; transform:translateX(8px); }
+  html:root[data-appearance] .refined-data-drawer { overflow:clip; }
+  html:root[data-appearance] .refined-data-drawer:not(.open) { visibility:hidden; }
 }
 html:root[data-appearance] .system-workspace .data-center-tabs { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:6px; margin:0; padding:12px 24px; border:0; border-top:1px solid var(--mw-line); border-bottom:1px solid var(--mw-line); border-radius:0; background:var(--mw-paper); }
 html:root[data-appearance] .system-workspace .data-center-tabs button { display:flex; align-items:center; gap:7px; border:1px solid transparent; border-radius:6px; padding:7px 12px; background:none; font:13px/1.6 var(--mw-font); color:var(--mw-muted); box-shadow:none; }

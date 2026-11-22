@@ -16,7 +16,7 @@ html:root[data-appearance] .overview-stats .stats-filter>.button { min-width:86p
 html:root[data-appearance] .overview-stats .stats-filter svg { width:16px; height:16px; }
 html:root[data-appearance] .overview-stats .segmented { display:flex; gap:2px; width:max-content; max-width:100%; padding:4px; border:0; border-radius:9px; background:color-mix(in srgb,var(--mw-accent) 5%,#fff); }
 html:root[data-appearance] .overview-stats .segmented button { min-width:54px; min-height:34px; padding:4px 10px; border:0; border-radius:6px; background:transparent; color:var(--mw-muted); font:400 14px/22px var(--mw-font); box-shadow:none; }
-html:root[data-appearance] .overview-stats .segmented button.active { background:#fff; color:var(--mw-accent); box-shadow:0 1px 3px #24364814; }
+html:root[data-appearance] .overview-stats .segmented button.active { background:transparent; color:var(--mw-accent); }
 html:root[data-appearance] .overview-stats .segmented button:focus-visible { outline:2px solid var(--mw-accent); outline-offset:1px; }
 html:root[data-appearance] .overview-stats .stats-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); flex:0 0 auto; gap:12px; padding:0; margin:0 0 16px; border:0; border-radius:0; background:transparent; box-shadow:none; }
 html:root[data-appearance] .overview-stats .stats-metrics article { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:baseline; align-content:center; gap:6px; min-width:0; min-height:106px; padding:16px; order:0; border:0; border-radius:12px; background:#ffffffdd; box-shadow:0 2px 8px #24364806; transition:background-color 180ms ease-out,box-shadow 180ms ease-out,transform 180ms ease-out; }

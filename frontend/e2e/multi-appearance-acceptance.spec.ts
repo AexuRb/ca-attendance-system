@@ -572,12 +572,20 @@ for (const appearance of appearances) {
 
   test(`review regression: ${appearance} member draft`, async ({ page }) => {
     await installMocks(page, { appearance });
+    const reducedMotion = appearance === 'SPATIAL';
+    await page.emulateMedia({ reducedMotion: reducedMotion ? 'reduce' : 'no-preference' });
     let saves = 0;
+    let failedPayload: unknown;
     await page.route('**/api/users', async route => {
       expect(route.request().method()).toBe('POST');
       const payload = route.request().postDataJSON();
       expect(payload.name).toBe('虚构回归成员');
       saves++;
+      if (saves === 1) {
+        failedPayload = payload;
+        return json(route, { message: '示例保存失败，请重试' }, 500);
+      }
+      expect(payload).toEqual(failedPayload);
       await json(route, { id: 42, ...payload });
     });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -593,9 +601,23 @@ for (const appearance of appearances) {
     await expect(confirmation).toBeHidden();
     await expect(editor.locator('input[name=name]')).toHaveValue('虚构回归成员');
     await editor.locator('input[name=studentNo]').fill('202609070001');
-    await editor.getByRole('button', { name: '新增成员', exact: true }).click();
+    const save = editor.getByRole('button', { name: '新增成员', exact: true });
+    await save.click();
+    await expect(editor.getByRole('alert')).toHaveText('示例保存失败，请重试');
+    await expect(editor.locator('input[name=name]')).toHaveValue('虚构回归成员');
+    await expect(editor.locator('input[name=studentNo]')).toHaveValue('202609070001');
+    await expect(page.locator('.toast')).toHaveCount(0);
+    await save.click();
     await expect(editor).toBeHidden();
-    expect(saves).toBe(1);
+    expect(saves).toBe(2);
+    const toast = page.locator('.toast[data-tone="success"]');
+    await expect(toast).toContainText('成员已新增');
+    const mark = toast.locator('.toast-success-mark');
+    await expect(mark.locator('circle')).toHaveCSS('animation-name', reducedMotion ? 'none' : 'toast-success-ring');
+    await expect(mark.locator('path')).toHaveCSS('animation-name', reducedMotion ? 'none' : 'toast-success-check');
+    await expect(page.locator('.toast-stack')).toHaveAttribute('aria-live', 'polite');
+    await toast.getByRole('button', { name: /关闭通知/ }).click();
+    await expect(toast).toHaveCount(0);
     await opener.click();
     await editor.locator('input[name=name]').fill('准备放弃的虚构成员');
     await editor.getByRole('button', { name: '关闭', exact: true }).click();
@@ -608,6 +630,32 @@ for (const appearance of appearances) {
     await expect(confirmation).toBeHidden();
   });
 }
+
+test('member editor keeps its save error when the grade request fails later', async ({ page }) => {
+  await installMocks(page, { appearance: 'CLASSIC' });
+  let releaseGrades = () => {};
+  const gradeResponseGate = new Promise<void>(resolve => { releaseGrades = resolve; });
+  await page.route('**/api/users/grades', async route => {
+    await gradeResponseGate;
+    return json(route, { message: '示例年级列表读取失败' }, 500);
+  });
+  await page.route('**/api/users', route => json(route, { message: '示例成员资料保存失败' }, 500));
+  try {
+    await page.goto('/#/admin/members');
+    await page.getByRole('button', { name: '新增成员', exact: true }).click();
+    const editor = page.getByRole('dialog', { name: '新增成员', exact: true });
+    await editor.locator('input[name=studentNo]').fill('202609070002');
+    await editor.locator('input[name=name]').fill('示例并发成员');
+    await editor.getByRole('button', { name: '新增成员', exact: true }).click();
+    await expect(editor.getByRole('alert')).toHaveText('示例成员资料保存失败');
+    releaseGrades();
+    await expect(page.locator('.toast[data-tone="danger"]')).toContainText('示例年级列表读取失败');
+    await expect(editor.getByRole('alert')).toHaveText('示例成员资料保存失败');
+    await expect(editor.locator('input[name=name]')).toHaveValue('示例并发成员');
+  } finally {
+    releaseGrades();
+  }
+});
 
 for (const [appearance, width] of [['CLASSIC', 1152], ['SPATIAL', 960]] as const) {
   test(`review regression: ${appearance} profile bounds`, async ({ page }) => {

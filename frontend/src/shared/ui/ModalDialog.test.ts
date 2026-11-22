@@ -102,6 +102,23 @@ describe("ModalDialog", () => {
     wrapper.unmount();
   });
 
+  it("focuses the dialog when its busy form and footer are inert", async () => {
+    const wrapper = mount(ModalDialog, {
+      attachTo: document.body,
+      props: { open: true, title: "正在保存", busy: true },
+      slots: {
+        default: '<input data-dialog-initial-focus aria-label="草稿" />',
+        footer: '<button type="button">保存</button>',
+      },
+    });
+    try {
+      await nextTick();
+      expect(document.activeElement).toBe(document.querySelector('[role="dialog"]'));
+    } finally {
+      wrapper.unmount();
+    }
+  });
+
   it("keeps tab focus inside the active dialog", async () => {
     const wrapper = await openDialog();
     const first = document.querySelector<HTMLInputElement>("#first-field")!;
@@ -167,6 +184,20 @@ describe("ModalDialog", () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement?.id).toBe("opener");
     wrapper.unmount();
+  });
+
+  it("leaves the dialog open when an inner control handles Escape", async () => {
+    const wrapper = await openDialog();
+    try {
+      const input = document.querySelector<HTMLInputElement>("#first-field")!;
+      input.addEventListener("keydown", event => event.preventDefault(), { once: true });
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+      await nextTick();
+      expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+      expect(document.activeElement).toBe(input);
+    } finally {
+      wrapper.unmount();
+    }
   });
 
   it("only closes the top dialog when dialogs are nested", async () => {

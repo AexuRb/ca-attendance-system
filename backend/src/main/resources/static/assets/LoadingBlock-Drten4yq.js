@@ -1,0 +1,1 @@
+import{At as e,Dt as t,ct as n,et as r,pt as i,rt as a,st as o,v as s}from"./index-CmkvUsxK.js";var c={class:`loading-block`,role:`status`},l=n({__name:`LoadingBlock`,props:{label:{}},setup(n){return(l,u)=>(i(),a(`div`,c,[o(t(s),{class:`spin`}),r(`span`,null,e(n.label||`正在加载`),1)]))}});export{l as t};

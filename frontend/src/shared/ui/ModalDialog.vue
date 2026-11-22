@@ -1,10 +1,12 @@
 <template>
   <Teleport to="body">
-    <Transition :name="memberPresentation ? 'mw-modal' : 'modal'">
+    <Transition :name="customAppearance ? (memberPresentation ? 'mw-modal' : 'modal') : 'dialog-motion'"
+      @before-leave="makeDialogInert">
       <div v-if="open" :class="[memberPresentation ? 'mw-backdrop mw-scope' : 'modal-backdrop', backdropClass, { 'app-dialog-backdrop': !customAppearance, 'is-side-panel': sidePanel }]" @mousedown.self="close">
         <section
           ref="dialog"
           :class="[memberPresentation ? 'mw-modal' : 'modal-shell', size ? `modal-${size}` : '', { 'app-dialog': !customAppearance }]"
+          :data-dialog-motion="customAppearance ? undefined : sidePanel ? 'side' : 'center'"
           role="dialog"
           aria-modal="true"
           :aria-labelledby="titleId"
@@ -43,7 +45,7 @@
 import { X } from "@lucide/vue";
 import { inject, ref, watch } from "vue";
 import { memberPresentationKey } from "./presentation";
-import { useDialogFocus } from "./useDialogFocus";
+import { makeDialogInert, useDialogFocus } from "./useDialogFocus";
 
 const titleId = `modal-${Math.random().toString(36).slice(2)}`;
 const memberPresentation = inject(memberPresentationKey, false);

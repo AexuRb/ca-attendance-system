@@ -37,11 +37,10 @@ export function dismiss(id: number) {
 
 export function pause(id: number) {
   const timer = timers.get(id);
-  if (!timer) return;
+  if (!timer?.handle) return;
   window.clearTimeout(timer.handle);
   timer.remaining = Math.max(0, timer.remaining - (Date.now() - timer.startedAt));
-  timers.delete(id);
-  timers.set(id, { ...timer, handle: 0 });
+  timer.handle = 0;
 }
 
 export function resume(id: number) {

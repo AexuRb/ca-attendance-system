@@ -211,3 +211,58 @@ html:root[data-appearance] .today-roster-table .mw-badge {
     width: calc(100% - 28px);
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  html:root[data-appearance] .overview-today .today-layout {
+    --today-motion-ease: cubic-bezier(.22, .52, .28, 1);
+  }
+  html:root[data-appearance] .overview-today .today-welcome {
+    position: relative;
+    isolation: isolate;
+  }
+  html:root[data-appearance] .overview-today .today-welcome::before {
+    position: absolute;
+    z-index: -1;
+    inset: 0 8%;
+    content: "";
+    pointer-events: none;
+    background: radial-gradient(ellipse, color-mix(in srgb, var(--mw-accent) 12%, transparent), transparent 66%);
+    animation: today-welcome-glow 780ms var(--today-motion-ease) both;
+  }
+  html:root[data-appearance] .overview-today .today-entry-message {
+    animation: today-section-arrive 420ms var(--today-motion-ease);
+  }
+  html:root[data-appearance] .overview-today .today-roster-heading {
+    animation: today-section-arrive 380ms 70ms var(--today-motion-ease) backwards;
+  }
+  html:root[data-appearance] .overview-today .today-roster-scroll {
+    animation: today-roster-arrive 340ms 115ms ease-out backwards;
+  }
+  html:root[data-appearance] .overview-today .today-shortcuts {
+    animation: today-section-arrive 390ms 140ms var(--today-motion-ease) backwards;
+  }
+  html:root[data-appearance] .overview-today .today-summary {
+    animation: today-section-arrive 390ms 205ms var(--today-motion-ease) backwards;
+  }
+  html:root[data-appearance] .overview-today :is(.today-task-count, .today-roster-count) {
+    animation: today-number-arrive 340ms var(--today-motion-ease);
+  }
+}
+
+@keyframes today-section-arrive {
+  from { opacity: .48; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes today-roster-arrive {
+  from { opacity: .62; }
+  to { opacity: 1; }
+}
+@keyframes today-welcome-glow {
+  from { opacity: 0; transform: scale(.86); }
+  35% { opacity: .9; }
+  to { opacity: 0; transform: scale(1.04); }
+}
+@keyframes today-number-arrive {
+  from { opacity: .48; transform: scale(.91); }
+  to { opacity: 1; transform: none; }
+}

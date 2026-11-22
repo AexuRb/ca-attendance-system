@@ -102,14 +102,14 @@
           <h2>个人记录</h2>
         </div>
         <div class="profile-record-toolbar">
-          <div class="segmented page-tabs" role="group" aria-label="记录类型">
+          <div ref="recordSwitch" class="segmented page-tabs horizontal-selection" role="group" aria-label="记录类型">
             <button
               type="button"
               :class="{ active: activeRecordTab === 'attendance' }"
               :aria-pressed="activeRecordTab === 'attendance'"
               @click="activeRecordTab = 'attendance'"
             >
-              <CalendarCheck />值班 {{ attendanceRecords.length }}
+              <span data-horizontal-mark="attendance" aria-hidden="true" /><CalendarCheck />值班 {{ attendanceRecords.length }}
             </button>
             <button
               type="button"
@@ -117,7 +117,7 @@
               :aria-pressed="activeRecordTab === 'training'"
               @click="activeRecordTab = 'training'"
             >
-              <GraduationCap />培训 {{ trainingRecords.length }}
+              <span data-horizontal-mark="training" aria-hidden="true" /><GraduationCap />培训 {{ trainingRecords.length }}
             </button>
           </div>
         </div>
@@ -263,7 +263,9 @@ import {
   Search,
 } from "@lucide/vue";
 import ExpandedWorkspaceShell from "../../layouts/ExpandedWorkspaceShell.vue";
-import { provide, ref } from "vue";
+import { provide, ref, useTemplateRef } from "vue";
+import { useHorizontalSelection } from "../../shared/motion/useHorizontalSelection";
+import "../../shared/motion/horizontal-selection.css";
 import { memberPresentationKey } from "../../shared/ui/presentation";
 import "../../styles/workspace.css";
 import "../../features/workspaces/presentation.css";
@@ -284,5 +286,6 @@ const {
   recordsLoading, recordsReady, retryFailedLoad, roleLabel, save, shortClock, sourceLabel, to, totalHours,
   trainingHours, trainingRecords, user,
 } = useProfileWorkspace();
+useHorizontalSelection(useTemplateRef<HTMLElement>("recordSwitch"), activeRecordTab);
 const credits = ref(false);
 </script>

@@ -1,17 +1,20 @@
 <template>
   <Teleport to="body" :disabled="!compact">
-    <div
-      v-if="compact && open"
-      class="data-drawer-backdrop"
-      aria-hidden="true"
-      @mousedown.self="$emit('close')"
-    />
-    <Transition name="data-center-drawer">
+    <Transition name="dialog-motion" @before-leave="makeDialogInert">
+      <div
+        v-if="compact && open"
+        class="data-drawer-backdrop"
+        aria-hidden="true"
+        @mousedown.self="$emit('close')"
+      />
+    </Transition>
+    <Transition name="dialog-motion" :css="compact" @before-leave="makeDialogInert">
       <aside
         v-if="open || !compact"
         :id="resolvedPanelId"
         ref="dialog"
         :class="[panelClass, surfaceClass, { open, 'refined-data-drawer': refined, 'export-detail mw-scope': refined && panelClass === 'data-config-drawer', 'bw-detail mw-scope': refined && panelClass === 'data-backup-drawer' }]"
+        :data-dialog-motion="compact ? 'side' : undefined"
         :role="compact ? 'dialog' : 'complementary'"
         :aria-modal="compact ? 'true' : undefined"
         :aria-hidden="open ? undefined : 'true'"
@@ -57,7 +60,7 @@ import {
   watch,
 } from "vue";
 import { X } from "@lucide/vue";
-import { useDialogFocus } from "../../../shared/ui/useDialogFocus";
+import { makeDialogInert, useDialogFocus } from "../../../shared/ui/useDialogFocus";
 import { memberPresentationKey } from "../../../shared/ui/presentation";
 const refined = inject(memberPresentationKey, false);
 

@@ -33,6 +33,14 @@ async function install(page: Page, appearance: string) {
     }
     if (path === '/api/public/schedules/today') return json({slots:[]});
     if (path === '/api/stats/dashboard') return json({todayRecordCount:1,todayValidHours:0});
+    if (path === '/api/stats/weekly-detail') return json({days:[],users:[],cells:{}});
+    if (path === '/api/exports/options') return json({sources:[]});
+    if (path === '/api/settings/duty-periods') return json([{id:1,startTime:'14:00',endTime:'16:00',enabled:true}]);
+    if (path === '/api/settings/weekdays') return json([
+      {weekday:1,weekday_name:'星期一',enabled:true}, {weekday:2,weekday_name:'星期二',enabled:true},
+    ]);
+    if (path === '/api/repairs') return json({items:[],total:0,page:1,pageSize:12,hasMore:false,
+      statusCounts:{REPAIRING:0,COMPLETED:0,CANCELED:0}});
     if (path === '/api/skill-assessments/overview') return json({date:'2026-11-21',items:Array.from({length:30},(_, index) => ({
       id:index+1, name:`示例成员 ${index+1}`, disassemblyAssessment:'PASSED', osReinstallAssessment:'NOT_PASSED',
     }))});
@@ -40,6 +48,286 @@ async function install(page: Page, appearance: string) {
   });
   return writes;
 }
+
+async function recordHorizontalSelection(page: Page) {
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (frames, options) {
+      if (this.hasAttribute('data-horizontal-mark') && Array.isArray(frames)) {
+        this.setAttribute('data-tested-horizontal', frames[0]?.transform?.startsWith('translateX') ? 'slide' : 'fade');
+      }
+      return animate.call(this, frames, options);
+    };
+  });
+}
+
+test('horizontal selection follows schedule views, personal records and repair status', async ({page}) => {
+  const writes = await install(page, 'SPATIAL');
+  await recordHorizontalSelection(page);
+  await page.setViewportSize({width:1440,height:900});
+
+  await page.goto('/#/admin/schedules');
+  const views = page.getByRole('group',{name:'排班视图'});
+  await expect(views.getByRole('button',{name:'整周概览'})).toHaveAttribute('aria-pressed','true');
+  await views.getByRole('button',{name:'按日编辑'}).click();
+  await expect(views.locator('[data-horizontal-mark="day"]')).toHaveAttribute('data-tested-horizontal','slide');
+  const weekdays = page.getByRole('navigation',{name:'选择排班星期'});
+  await expect(weekdays.getByRole('button',{name:/星期一/})).toHaveAttribute('aria-pressed','true');
+  await weekdays.getByRole('button',{name:/星期二/}).click();
+  const weekdayMark = weekdays.locator('[data-horizontal-mark="2"]');
+  await expect(weekdayMark).toHaveAttribute('data-tested-horizontal','slide');
+  await expect(weekdayMark).toHaveCSS('opacity','1');
+
+  await page.goto('/#/admin/profile');
+  const records = page.getByRole('group',{name:'记录类型'});
+  await expect(records.getByRole('button',{name:/值班/})).toHaveAttribute('aria-pressed','true');
+  await records.getByRole('button',{name:/培训/}).click();
+  await expect(records.locator('[data-horizontal-mark="training"]')).toHaveAttribute('data-tested-horizontal','slide');
+  await expect(records.getByRole('button',{name:/培训/})).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.setViewportSize({width:390,height:844});
+  await records.getByRole('button',{name:/值班/}).click();
+  const attendanceMark = records.locator('[data-horizontal-mark="attendance"]');
+  await expect(attendanceMark).not.toHaveAttribute('data-tested-horizontal',/slide|fade/);
+  await expect(attendanceMark).toHaveCSS('opacity','1');
+
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.goto('/#/admin/repairs?status=REPAIRING');
+  const statuses = page.getByRole('tablist',{name:'维修事务状态'});
+  await statuses.getByRole('tab',{name:/进行中/}).press('ArrowRight');
+  const selected = statuses.getByRole('tab',{name:/已完成/});
+  await expect(selected).toHaveAttribute('aria-selected','true');
+  await expect(selected).toBeFocused();
+  const repairMark = statuses.locator('[data-horizontal-mark="COMPLETED"]');
+  await expect(repairMark).toHaveAttribute('data-tested-horizontal','slide');
+  await expect(repairMark).toHaveCSS('opacity','1');
+  await expect(selected).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+  expect(writes).toHaveLength(0);
+});
+
+test('horizontal selection follows data center tabs and respects reduced motion', async ({page}) => {
+  await install(page, 'EDITORIAL');
+  await recordHorizontalSelection(page);
+  await page.goto('/#/admin/data?tab=import');
+  const modes = page.getByRole('navigation', {name:'数据中心操作模式'});
+  const mark = modes.locator('a[aria-current="page"] [data-horizontal-mark]');
+  await expect(mark).toHaveAttribute('data-horizontal-mark','import');
+  await expect(mark).not.toHaveAttribute('data-tested-horizontal',/slide|fade/);
+  await modes.getByRole('link',{name:'数据导出',exact:true}).click();
+  await expect(mark).toHaveAttribute('data-horizontal-mark','export');
+  await expect(mark).toHaveAttribute('data-tested-horizontal','slide');
+  await expect(mark).toHaveCSS('opacity','1');
+
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.setViewportSize({width:390,height:780});
+  await modes.getByRole('link',{name:'数据导入',exact:true}).click();
+  await expect(mark).toHaveAttribute('data-horizontal-mark','import');
+  await expect(mark).not.toHaveAttribute('data-tested-horizontal',/slide|fade/);
+  await expect(mark).toHaveCSS('opacity','1');
+});
+
+test('horizontal selection moves immediately and statistics keep the last loaded result during rapid changes', async ({page}) => {
+  await install(page, 'SPATIAL');
+  await recordHorizontalSelection(page);
+  await page.clock.setFixedTime(new Date(2026,10,22,12));
+  const weeklyUser = {userId:2,studentNo:'demo-member',name:'本周示例',role:'MEMBER',attendanceHours:2,trainingHours:0,totalHours:2};
+  await page.route('**/api/stats/weekly-detail?**', route => route.fulfill({json:{
+    days:[{dutyDate:'2026-11-16',weekday:1,weekdayName:'周一'}],users:[weeklyUser],cells:{'2026-11-16':{'2':2}},
+  }}));
+  let finishMonth = () => {};
+  const monthPending = new Promise<void>(resolve => { finishMonth = resolve; });
+  await page.route('**/api/stats/summary?**', async route => {
+    const from = new URL(route.request().url()).searchParams.get('from');
+    if (from === '2026-11-01') {
+      await monthPending;
+      await route.fulfill({json:[{...weeklyUser,name:'本月示例'}]}).catch(() => undefined);
+    } else {
+      await route.fulfill({json:[from === '2026-01-01' ? {...weeklyUser,name:'本年示例'} : weeklyUser]});
+    }
+  });
+  try {
+    await page.goto('/#/admin/stats?preset=week');
+    const weeklyName = page.getByText('本周示例',{exact:true}).filter({visible:true});
+    await expect(weeklyName).toBeVisible();
+    const filter = page.getByRole('form',{name:'筛选统计日期'});
+    const mark = filter.locator('button[aria-pressed="true"] [data-horizontal-mark]');
+    await filter.getByRole('button',{name:'本月',exact:true}).click();
+    await expect(mark).toHaveAttribute('data-horizontal-mark','month');
+    await expect(mark).toHaveAttribute('data-tested-horizontal','slide');
+    await expect(weeklyName).toBeVisible();
+    await filter.getByRole('button',{name:'本年',exact:true}).click();
+    await expect(mark).toHaveAttribute('data-horizontal-mark','year');
+    await expect(mark).toHaveAttribute('data-tested-horizontal','slide');
+    await expect(page.getByText('本年示例',{exact:true}).filter({visible:true})).toBeVisible();
+    finishMonth();
+    await expect(page.getByText('本月示例',{exact:true})).toHaveCount(0);
+    await expect(page.getByText('本周示例',{exact:true})).toHaveCount(0);
+  } finally {
+    finishMonth();
+  }
+});
+
+test('sidebar selection slides within a group and hands off across groups', async ({page}, testInfo) => {
+  const writes = await install(page, 'CLASSIC');
+  await page.setViewportSize({width:1440,height:900});
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (keyframes, options) {
+      if (this.classList.contains('overview-nav-highlight') && Array.isArray(keyframes)) {
+        const first = keyframes[0];
+        const last = keyframes.at(-1);
+        const kind = first?.opacity === 0 ? 'enter' : last?.opacity === 0 ? 'exit' : 'slide';
+        this.setAttribute('data-tested-animation', kind);
+        this.setAttribute('data-tested-offset', String(kind === 'exit' ? last?.transform : first?.transform));
+      }
+      return animate.call(this, keyframes, options);
+    };
+    const start = document.startViewTransition.bind(document);
+    document.startViewTransition = update => {
+      const slide = start(update);
+      const root = document.documentElement;
+      if (root.hasAttribute('data-test-quick-workspace-navigation')) {
+        root.removeAttribute('data-test-quick-workspace-navigation');
+        queueMicrotask(() => document.querySelector<HTMLAnchorElement>('[data-nav-key="stats"]')?.click());
+      }
+      void slide.ready.then(() => {
+        root.dataset.testedWorkspaceSlide = root.dataset.workspaceSlide;
+        root.dataset.testedWorkspaceAnimations = document.getAnimations()
+          .filter(animation => animation instanceof CSSAnimation && animation.animationName.startsWith('workspace-slide-'))
+          .map(animation => (animation as CSSAnimation).animationName).sort().join(' ');
+      }, () => {});
+      return slide;
+    };
+  });
+  await page.goto('/#/admin/today');
+  const nav = page.getByRole('navigation', {name:'功能菜单'});
+  const selectedMark = nav.locator('a[aria-current="page"] .overview-nav-highlight');
+  const heading = page.locator('.overview-page-heading');
+  const html = page.locator('html');
+  await expect(selectedMark).toHaveCount(1);
+  await expect(selectedMark).not.toHaveAttribute('data-tested-animation', /slide|enter|exit/);
+  await expect(html).not.toHaveAttribute('data-tested-workspace-slide', /forward|backward/);
+
+  await nav.getByRole('link', {name:'签到审核',exact:true}).click();
+  await expect(nav.getByRole('link', {name:'签到审核',exact:true})).toHaveAttribute('aria-current','page');
+  await expect(selectedMark).toHaveAttribute('data-tested-animation','slide');
+  await expect(html).toHaveAttribute('data-tested-workspace-slide','forward');
+  await expect(html).toHaveAttribute('data-tested-workspace-animations','workspace-slide-in workspace-slide-out');
+
+  await nav.getByRole('link', {name:'值班记录',exact:true}).click();
+  await expect(nav.getByRole('link', {name:'值班记录',exact:true})).toHaveAttribute('aria-current','page');
+  await expect(html).toHaveAttribute('data-workspace-slide','forward');
+  const attendanceHeading = await heading.elementHandle();
+  await page.evaluate(() => { location.hash = '#/admin/attendance?from=2026-09-12&to=2026-09-12'; });
+  await expect(page).toHaveURL(/attendance\?from=/);
+  expect(await attendanceHeading?.evaluate(el => el.isConnected)).toBe(true);
+  const reviewMark = nav.getByRole('link', {name:'签到审核',exact:true}).locator('.overview-nav-highlight');
+  await expect(reviewMark).toHaveAttribute('data-tested-animation','exit');
+  await expect(reviewMark).toHaveAttribute('data-tested-offset','translateY(4px)');
+  await expect(selectedMark).toHaveAttribute('data-tested-animation','enter');
+  await expect(selectedMark).toHaveAttribute('data-tested-offset','translateY(-4px)');
+  await expect(selectedMark).toHaveCSS('opacity','1');
+  await expect(reviewMark).toHaveCSS('opacity','0');
+  await nav.screenshot({path:testInfo.outputPath('sidebar.png')});
+
+  await nav.getByRole('link', {name:'签到审核',exact:true}).click();
+  const attendanceMark = nav.getByRole('link', {name:'值班记录',exact:true}).locator('.overview-nav-highlight');
+  await expect(attendanceMark).toHaveAttribute('data-tested-animation','exit');
+  await expect(attendanceMark).toHaveAttribute('data-tested-offset','translateY(-4px)');
+  await expect(selectedMark).toHaveAttribute('data-tested-animation','enter');
+  await expect(selectedMark).toHaveAttribute('data-tested-offset','translateY(4px)');
+  await expect(html).toHaveAttribute('data-tested-workspace-slide','backward');
+  await expect(html).not.toHaveAttribute('data-workspace-slide', /./);
+
+  await page.evaluate(() => document.documentElement.setAttribute('data-test-quick-workspace-navigation',''));
+  await nav.getByRole('link', {name:'值班记录',exact:true}).click();
+  await expect(nav.getByRole('link', {name:'数据统计',exact:true})).toHaveAttribute('aria-current','page');
+  await expect(html).toHaveAttribute('data-tested-workspace-slide','forward');
+  await expect(page.locator('.overview-content')).toHaveCount(1);
+
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await html.evaluate(element => element.removeAttribute('data-tested-workspace-slide'));
+  await nav.getByRole('link', {name:'今日概览',exact:true}).click();
+  await expect(nav.getByRole('link', {name:'今日概览',exact:true})).toHaveAttribute('aria-current','page');
+  await expect(selectedMark).not.toHaveAttribute('data-tested-animation', /slide|enter|exit/);
+  await expect(selectedMark).toHaveCSS('opacity','1');
+  await expect(html).not.toHaveAttribute('data-tested-workspace-slide', /forward|backward/);
+  await expect(html).not.toHaveAttribute('data-workspace-slide', /./);
+
+  await page.setViewportSize({width:390,height:780});
+  await page.getByRole('button',{name:'打开功能菜单'}).click();
+  await expect(nav.getByRole('link',{name:'今日概览',exact:true})).toHaveAttribute('aria-current','page');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button',{name:'打开功能菜单'})).toHaveAttribute('aria-expanded','false');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.getByRole('button',{name:'打开功能菜单'}).click();
+  await nav.getByRole('link',{name:'签到审核',exact:true}).click();
+  await expect(html).toHaveAttribute('data-tested-workspace-slide','forward');
+  await expect(page.getByRole('button',{name:'打开功能菜单'})).toHaveAttribute('aria-expanded','false');
+  expect(writes).toHaveLength(0);
+});
+
+test('today layers its motion and keeps unchanged counts and the roster scroll on refresh', async ({page}) => {
+  const writes = await install(page,'CLASSIC');
+  await page.setViewportSize({width:1440,height:810});
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  let rosterSize = 30, reviews = 2, repairs = 3;
+  let osReinstallAssessment = 'NOT_PASSED';
+  await page.route('**/api/stats/dashboard?**', route =>
+    route.fulfill({json:{todayPendingCount:reviews,ongoingRepairCount:repairs}}));
+  await page.route('**/api/skill-assessments/overview', route => route.fulfill({json:{
+    date:'2026-11-21',items:Array.from({length:rosterSize},(_,index) => ({
+      id:index+1,name:`示例成员 ${index+1}`,disassemblyAssessment:'PASSED',osReinstallAssessment,
+    })),
+  }}));
+  await page.goto('/#/admin/today');
+
+  const welcome = page.locator('.today-entry-message');
+  await expect(welcome).toHaveCSS('animation-name','today-section-arrive');
+  expect(await page.locator('.today-welcome').evaluate(element =>
+    getComputedStyle(element,'::before').animationName)).toBe('today-welcome-glow');
+  const roster = page.getByRole('complementary',{name:'当前在场'});
+  const rosterScroll = roster.getByRole('region',{name:'在场人员与考核状态'});
+  await expect(rosterScroll).toHaveCSS('animation-name','today-roster-arrive');
+  await expect(page.locator('.today-shortcuts')).toHaveCSS('animation-delay','0.14s');
+  await expect(page.locator('.today-summary')).toHaveCSS('animation-delay','0.205s');
+
+  const rosterCount = roster.locator('.today-roster-count');
+  const reviewCount = page.locator('[data-task="reviews"] .today-task-count');
+  await expect(rosterCount).toHaveText('30 人');
+  await expect(reviewCount).toHaveText('2');
+  for (const element of [rosterCount, reviewCount, rosterScroll]) {
+    await element.evaluate(node => node.setAttribute('data-before-refresh',''));
+  }
+  const scrollTop = await rosterScroll.evaluate(element => {
+    element.scrollTop = 350;
+    return element.scrollTop;
+  });
+  expect(scrollTop).toBeGreaterThan(0);
+  repairs = 4;
+  osReinstallAssessment = 'PASSED';
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.locator('[data-task="repairs"] .today-task-count')).toHaveText('4');
+  await expect(roster.getByRole('row',{name:/^示例成员 1 /}).getByText('通过',{exact:true})).toHaveCount(2);
+  for (const element of [rosterCount, reviewCount, rosterScroll]) {
+    await expect(element).toHaveAttribute('data-before-refresh','');
+  }
+
+  rosterSize++;
+  reviews++;
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(rosterCount).toHaveText('31 人');
+  await expect(reviewCount).toHaveText('3');
+  for (const count of [rosterCount, reviewCount]) {
+    await expect(count).not.toHaveAttribute('data-before-refresh','');
+    await expect(count).toHaveCSS('animation-name','today-number-arrive');
+  }
+  await expect(rosterScroll).toHaveAttribute('data-before-refresh','');
+  expect(await rosterScroll.evaluate(element => element.scrollTop)).toBe(scrollTop);
+  expect(writes).toHaveLength(0);
+});
 
 for (const appearance of ['CLASSIC','EDITORIAL','SPATIAL']) {
   test(`${appearance} today keeps the roster full height and scrollable beside the summary`, async ({page}, testInfo) => {
@@ -55,6 +343,9 @@ for (const appearance of ['CLASSIC','EDITORIAL','SPATIAL']) {
     const rosterScroll = roster.getByRole('region',{name:'在场人员与考核状态'});
     await expect(roster.getByRole('rowheader',{name:'示例成员 1',exact:true})).toBeVisible();
     await expect(roster.getByRole('columnheader',{name:'重装系统'})).toBeVisible();
+    await expect(page.locator('.today-entry-message')).toHaveCSS('animation-name','none');
+    await expect(rosterScroll).toHaveCSS('animation-name','none');
+    await expect(summary.locator('.today-task-count').first()).toHaveCSS('animation-name','none');
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     const beforeScroll = await page.locator('.today-layout').evaluate(element => {
       const bounds = (selector: string) => element.querySelector(selector)!.getBoundingClientRect();
